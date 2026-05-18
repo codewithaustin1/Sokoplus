@@ -38,15 +38,15 @@ app.post("/api/paystack/initialize", async (req, res) => {
   try {
     const { email, amount, metadata, callback_url } = req.body;
     
-    if (!PAYSTACK_SECRET || PAYSTACK_SECRET === "sk_test_...") {
-      console.error("Paystack Secret Key is not configured or is using the placeholder.");
+    if (!PAYSTACK_SECRET) {
+      console.error("Paystack Secret Key is missing from environment variables.");
       return res.status(400).json({ 
         error: "Paystack is not configured. Please add PAYSTACK_SECRET_KEY to your secrets." 
       });
     }
 
-    if (!email || !amount) {
-      return res.status(400).json({ error: "Missing email or amount" });
+    if (!email || !amount || isNaN(amount)) {
+      return res.status(400).json({ error: "Invalid or missing email/amount", received: { email, amount } });
     }
 
     const response = await axios.post(
@@ -108,11 +108,11 @@ app.post("/api/recommendations", async (req, res) => {
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
+      model: "gemini-1.5-flash", // Use a more stable stable model if preview is cranky
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
     });
 
-    const text = response.text || "[]";
+    const text = response.candidates[0].content.parts[0].text || "[]";
     // Clean JSON if needed
     const jsonMatch = text.match(/\[.*\]/s);
     const recommendationIds = jsonMatch ? JSON.parse(jsonMatch[0]) : [];

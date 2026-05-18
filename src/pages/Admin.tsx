@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { UserProfile, Product, Order } from "../types";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { Plus, Trash2, Package, TrendingUp, Users, ShoppingBag } from "lucide-react";
 import toast from "react-hot-toast";
@@ -23,6 +23,30 @@ export default function Admin({ user }: AdminProps) {
     images: [""]
   });
 
+  enum OperationType {
+    CREATE = 'create',
+    UPDATE = 'update',
+    DELETE = 'delete',
+    LIST = 'list',
+    GET = 'get',
+    WRITE = 'write',
+  }
+
+  function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+      },
+      operationType,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    toast.error(`Error: ${errInfo.error}`);
+  }
+
   const fetchData = async () => {
     try {
       const pSnap = await getDocs(collection(db, "products"));
@@ -31,7 +55,7 @@ export default function Admin({ user }: AdminProps) {
       const oSnap = await getDocs(query(collection(db, "orders"), orderBy("createdAt", "desc")));
       setOrders(oSnap.docs.map(d => ({ id: d.id, ...d.data() } as any)));
     } catch (error) {
-      console.error("Admin fetch error:", error);
+      handleFirestoreError(error, OperationType.LIST, "products/orders");
     } finally {
       setLoading(false);
     }
@@ -56,7 +80,7 @@ export default function Admin({ user }: AdminProps) {
       toast.success("Sample data seeded!");
       fetchData();
     } catch (e) {
-      toast.error("Seeding failed.");
+      handleFirestoreError(e, OperationType.CREATE, "products");
     }
   };
 
@@ -77,7 +101,7 @@ export default function Admin({ user }: AdminProps) {
       setShowAddModal(false);
       fetchData();
     } catch (error) {
-      toast.error("Failed to add product.");
+      handleFirestoreError(error, OperationType.CREATE, "products");
     }
   };
 
@@ -85,10 +109,10 @@ export default function Admin({ user }: AdminProps) {
     if (!confirm("Are you sure?")) return;
     try {
       await deleteDoc(doc(db, "products", id));
-      setProducts(products.filter(p => p.id !== id));
+      setProducts(prev => prev.filter(p => p.id !== id));
       toast.success("Product deleted.");
     } catch (error) {
-      toast.error("Failed to delete.");
+      handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
     }
   };
 
@@ -98,7 +122,7 @@ export default function Admin({ user }: AdminProps) {
       setOrders(orders.map(o => o.id === orderId ? { ...o, status: status as any } : o));
       toast.success("Order updated.");
     } catch (error) {
-      toast.error("Failed to update status.");
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
     }
   };
 
