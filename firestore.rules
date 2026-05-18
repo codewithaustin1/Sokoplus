@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Products
+    match /products/{productId} {
+      function isValidProduct(data) {
+        return data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+               data.price is number && data.price >= 0 &&
+               data.category is string &&
+               data.stock is int && data.stock >= 0;
+      }
+
+      allow read: if true;
+      allow create: if isAdmin() && isValidProduct(incoming()) && isValidId(productId);
+      allow update: if (isAdmin() && isValidProduct(incoming())) ||
+                    (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount']));
+      allow delete: if isAdmin();
+    }
+
+    // Orders
+    match /orders/{orderId} {
+      function isValidOrder(data) {
+        return data.userId is string && data.userId == request.auth.uid &&
+               data.items is list && data.items.size() > 0 &&
+               data.totalAmount is number && data.totalAmount >= 0 &&
+               data.status in ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+      }
+
+      allow read: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+      allow create: if isSignedIn() && isValidOrder(incoming()) && isValidId(orderId);
+      allow update: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
+                    incoming().status == 'cancelled' && existing().status == 'pending');
+    }
+
+    // Users
+    match /users/{userId} {
+      function isValidProfile(data) {
+        return data.email is string && data.email.size() > 0;
+      }
+
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidProfile(incoming());
+      allow update: if isOwner(userId) && isValidProfile(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasAll(['email']) == false;
+      allow delete: if isAdmin();
+    }
+
+    // Reviews
+    match /reviews/{reviewId} {
+      function isValidReview(data) {
+        return data.productId is string && data.userId == request.auth.uid &&
+               data.rating is int && data.rating >= 1 && data.rating <= 5;
+      }
+
+      allow read: if true;
+      allow create: if isSignedIn() && isValidReview(incoming()) && isValidId(reviewId);
+      allow update: if isOwner(existing().userId) && isValidReview(incoming());
+      allow delete: if isAdmin() || isOwner(existing().userId);
+    }
+
+    // Blog
+    match /blog/{postId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Admins
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only manageable via console or specialized script
+    }
+  }
+}

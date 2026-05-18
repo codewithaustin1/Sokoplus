@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A product available for sale in the e-commerce store.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Product name" },
+        "description": { "type": "string", "description": "Full description of the product" },
+        "price": { "type": "number", "description": "Price in KES" },
+        "category": { "type": "string", "description": "Product category" },
+        "images": { "type": "array", "description": "List of image URLs" },
+        "stock": { "type": "integer", "description": "Available inventory" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "rating": { "type": "number", "description": "Average rating" },
+        "reviewCount": { "type": "integer", "description": "Number of reviews" }
+      },
+      "required": ["name", "price", "category", "stock"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A customer order containing items and payment details.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of the customer" },
+        "items": { "type": "array", "description": "List of items in the order" },
+        "totalAmount": { "type": "number", "description": "Final price paid" },
+        "status": { "type": "string", "enum": ["pending", "processing", "shipped", "delivered", "cancelled"], "description": "Current state of the order" },
+        "paymentStatus": { "type": "string", "enum": ["unpaid", "paid", "failed"], "description": "Payment authorization status" },
+        "paymentReference": { "type": "string", "description": "Paystack transaction reference" },
+        "shippingAddress": { "type": "object", "description": "Detailed shipping destination" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "items", "totalAmount", "status"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Social and preference data for a registered customer.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "loyaltyPoints": { "type": "integer" },
+        "wishlist": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Customer feedback on a specific product.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "rating": { "type": "integer" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "userId", "rating"]
+    },
+    "BlogPost": {
+      "title": "BlogPost",
+      "description": "Content marketing article.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "author": { "type": "string" },
+        "image": { "type": "string" },
+        "tags": { "type": "array" },
+        "publishedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "author"]
+    }
+  },
+  "firestore": {
+    "/products": {
+      "schema": "Product",
+      "description": "Collection of all available items."
+    },
+    "/orders": {
+      "schema": "Order",
+      "description": "Customer transactions."
+    },
+    "/users": {
+      "schema": "UserProfile",
+      "description": "User accounts and settings."
+    },
+    "/reviews": {
+      "schema": "Review",
+      "description": "Product ratings and comments."
+    },
+    "/blog": {
+      "schema": "BlogPost",
+      "description": "Marketing articles."
+    }
+  }
+}
