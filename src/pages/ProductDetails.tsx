@@ -8,6 +8,7 @@ import { useCart } from "../lib/CartContext";
 import toast from "react-hot-toast";
 import { motion } from "motion/react";
 import axios from "axios";
+import SEO from "../components/SEO";
 
 interface ProductDetailsProps {
   user: UserProfile | null;
@@ -180,6 +181,12 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
+      <SEO 
+        title={product.name}
+        description={product.description}
+        image={product.images?.[0]}
+        type="product"
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         {/* Gallery */}
         <div className="space-y-4">

@@ -3,6 +3,7 @@ import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { ShoppingBag, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
+import SEO from "../components/SEO";
 
 export default function Blog() {
   const [posts, setPosts] = useState<any[]>([]);
@@ -17,6 +18,10 @@ export default function Blog() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-20 space-y-16">
+      <SEO 
+        title="Market Stories" 
+        description="Explore stories from local Kenyan artisans, market trends, and the heart of Kenyan commerce on the Sokoplus blog."
+      />
       <div className="text-center space-y-4">
         <h1 className="text-5xl font-black tracking-tight">Sokoplus Blog</h1>
         <p className="text-gray-500 text-lg max-w-2xl mx-auto">Insights, trends, and stories from the heart of Kenyan commerce.</p>

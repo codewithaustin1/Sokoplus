@@ -1,44 +1,131 @@
 import { Link } from "react-router-dom";
+import { Facebook, Twitter, Instagram, Linkedin, Send, Mail, MapPin, Phone } from "lucide-react";
+import React, { useState } from "react";
+import toast from "react-hot-toast";
 
 export default function Footer() {
+  const [email, setEmail] = useState("");
+
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    toast.success("Thanks for subscribing to Sokoplus updates!", { icon: "📧" });
+    setEmail("");
+  };
+
   return (
-    <footer className="bg-white border-t border-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
-        <div>
-          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Shop</h3>
-          <ul className="mt-4 space-y-2">
-            <li><Link to="/" className="text-sm text-gray-600 hover:text-orange-600">All Products</Link></li>
-            <li><Link to="/" className="text-sm text-gray-600 hover:text-orange-600">Categories</Link></li>
-            <li><Link to="/blog" className="text-sm text-gray-600 hover:text-orange-600">Blog</Link></li>
-          </ul>
+    <footer className="bg-white border-t border-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Brand & Newsletter Column */}
+          <div className="lg:col-span-4 space-y-8">
+            <div className="space-y-4">
+              <h2 className="text-2xl font-black tracking-tighter text-gray-900 uppercase">
+                Soko<span className="text-orange-600">plus.</span>
+              </h2>
+              <p className="text-sm text-gray-500 font-medium leading-relaxed max-w-xs">
+                Bridging the gap between Kenya's finest local artisans and global quality standards. Discover the heart of Nairobi.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Join our community</h3>
+              <form onSubmit={handleSubscribe} className="relative flex max-w-sm">
+                <input 
+                  type="email"
+                  required
+                  placeholder="Enter your email"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium pr-14"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <button 
+                  type="submit"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-900 text-white p-2.5 rounded-xl hover:bg-orange-600 transition-all"
+                >
+                  <Send size={18} />
+                </button>
+              </form>
+              <p className="text-[10px] text-gray-400 font-medium italic">Receive weekly curated product drops and local stories.</p>
+            </div>
+          </div>
+
+          {/* Links Columns */}
+          <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-3 gap-8">
+            <div className="space-y-6">
+              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest border-b border-orange-100 pb-2 w-fit">Marketplace</h3>
+              <ul className="space-y-3">
+                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">All Products</Link></li>
+                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Best Sellers</Link></li>
+                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Vendor Dashboard</Link></li>
+                <li><Link to="/blog" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Market Stories</Link></li>
+              </ul>
+            </div>
+
+            <div className="space-y-6">
+              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest border-b border-orange-100 pb-2 w-fit">Support</h3>
+              <ul className="space-y-3">
+                <li><Link to="/profile" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Track Order</Link></li>
+                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Shipping Info</Link></li>
+                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Returns & Exchanges</Link></li>
+                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">FAQ</Link></li>
+              </ul>
+            </div>
+
+            <div className="space-y-6">
+              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest border-b border-orange-100 pb-2 w-fit">Contact</h3>
+              <ul className="space-y-4">
+                <li className="flex items-start space-x-3 text-sm text-gray-500">
+                  <MapPin size={18} className="text-orange-600 shrink-0" />
+                  <span>Nairobi Business District,<br/>Kenyan Avenue, Kenya</span>
+                </li>
+                <li className="flex items-center space-x-3 text-sm text-gray-500">
+                  <Mail size={18} className="text-orange-600 shrink-0" />
+                  <span>hello@sokoplus.com</span>
+                </li>
+                <li className="flex items-center space-x-3 text-sm text-gray-500">
+                  <Phone size={18} className="text-orange-600 shrink-0" />
+                  <span>+254 700 888 999</span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
-        <div>
-          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Support</h3>
-          <ul className="mt-4 space-y-2">
-            <li className="text-sm text-gray-600">Returns Policy</li>
-            <li className="text-sm text-gray-600">Shipping Info</li>
-            <li className="text-sm text-gray-600">FAQ</li>
-          </ul>
+
+        {/* Bottom Bar */}
+        <div className="mt-16 pt-8 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="flex flex-col items-center md:items-start space-y-2">
+            <p className="text-xs text-gray-400 font-medium">
+              &copy; {new Date().getFullYear()} Sokoplus Ltd. All rights reserved.
+            </p>
+            <div className="flex items-center space-x-4">
+              <Link to="/" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Privacy Policy</Link>
+              <Link to="/" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Terms of Service</Link>
+              <Link to="/" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Cookies</Link>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <a href="#" className="bg-gray-50 p-3 rounded-xl text-gray-400 hover:bg-orange-50 hover:text-orange-600 transition-all shadow-sm border border-gray-100">
+              <Instagram size={20} />
+            </a>
+            <a href="#" className="bg-gray-50 p-3 rounded-xl text-gray-400 hover:bg-orange-50 hover:text-orange-600 transition-all shadow-sm border border-gray-100">
+              <Twitter size={20} />
+            </a>
+            <a href="#" className="bg-gray-50 p-3 rounded-xl text-gray-400 hover:bg-orange-50 hover:text-orange-600 transition-all shadow-sm border border-gray-100 text-blue-600">
+              <Facebook size={20} fill="currentColor" />
+            </a>
+            <a href="#" className="bg-gray-50 p-3 rounded-xl text-gray-400 hover:bg-orange-50 hover:text-orange-600 transition-all shadow-sm border border-gray-100 text-blue-800">
+              <Linkedin size={20} fill="currentColor" />
+            </a>
+          </div>
+
+          <div className="flex items-center space-x-3 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+             <div className="bg-gray-200 px-3 py-1 rounded-lg text-[8px] font-black uppercase text-gray-600">MPESA</div>
+             <div className="bg-gray-200 px-3 py-1 rounded-lg text-[8px] font-black uppercase text-gray-600">VISA</div>
+             <div className="bg-gray-200 px-3 py-1 rounded-lg text-[8px] font-black uppercase text-gray-600">MASTERCARD</div>
+          </div>
         </div>
-        <div>
-          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Company</h3>
-          <ul className="mt-4 space-y-2">
-            <li className="text-sm text-gray-600">About Sokoplus</li>
-            <li className="text-sm text-gray-600">Privacy Policy</li>
-            <li className="text-sm text-gray-600">GDPR Compliance</li>
-          </ul>
-        </div>
-        <div>
-          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Connect</h3>
-          <ul className="mt-4 space-y-2 text-sm text-gray-600">
-            <li>Nairobi, Kenya</li>
-            <li>support@sokoplus.co.ke</li>
-            <li>+254 700 000000</li>
-          </ul>
-        </div>
-      </div>
-      <div className="mt-12 border-t border-gray-100 pt-8 text-center text-xs text-gray-400">
-        &copy; {new Date().getFullYear()} Sokoplus Kenya. All rights reserved. Built for trust and efficiency.
       </div>
     </footer>
   );

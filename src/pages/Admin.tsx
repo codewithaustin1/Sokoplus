@@ -220,7 +220,7 @@ export default function Admin({ user }: AdminProps) {
     }
   };
 
-  const totalSales = orders.reduce((acc, o) => acc + (o.status !== "cancelled" ? o.totalAmount : 0), 0);
+  const totalSales = orders.reduce((acc, o) => acc + (o.status !== "cancelled" && o.paymentStatus === "paid" ? o.totalAmount : 0), 0);
   
   const filteredOrders = orders.filter(o => 
     (o.id.toLowerCase().includes(orderSearchTerm.toLowerCase()) || 

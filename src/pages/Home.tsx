@@ -7,6 +7,7 @@ import { motion } from "motion/react";
 import { ArrowRight, Star, ShoppingBag, Heart } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import toast from "react-hot-toast";
+import SEO from "../components/SEO";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -26,6 +27,11 @@ export default function Home({ user }: HomeProps) {
 
     if (!user) {
       toast.error("Please login to save to wishlist");
+      return;
+    }
+
+    if (!user.emailVerified) {
+      toast.error("Please verify your email to update wishlist");
       return;
     }
 
@@ -94,6 +100,10 @@ export default function Home({ user }: HomeProps) {
 
   return (
     <div className="space-y-12 pb-20">
+      <SEO 
+        title="Premium Kenyan Marketplace" 
+        description="Shop the best authentic Kenyan products. From local artisans to global quality standards, Sokoplus is your home for Kenyan excellence."
+      />
       {/* Hero Section */}
       <section className="relative bg-orange-50 py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between">

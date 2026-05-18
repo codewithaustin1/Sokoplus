@@ -35,6 +35,7 @@ export interface Order {
   items: CartItem[];
   totalAmount: number;
   status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+  paymentStatus: "unpaid" | "paid";
   createdAt: any;
   paymentReference?: string;
 }

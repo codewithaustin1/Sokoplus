@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart } from "lucide-react";
+import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { auth } from "../lib/firebase";
 import { UserProfile } from "../types";
@@ -95,6 +95,12 @@ export default function Navbar({ user }: NavbarProps) {
             <div className="hidden md:flex items-center space-x-2">
               {user ? (
                 <>
+                  <div className="flex flex-col items-end mr-2">
+                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-tighter flex items-center">
+                      <Award size={10} className="mr-0.5" /> {user.loyaltyPoints || 0} PTS
+                    </span>
+                    <span className="text-[9px] text-gray-400 font-bold uppercase">Loyalty</span>
+                  </div>
                   <Link to="/profile" className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-full transition-colors">
                     <User size={24} className="text-gray-700" />
                   </Link>
@@ -212,9 +218,14 @@ export default function Navbar({ user }: NavbarProps) {
                       <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold">
                         {user.displayName[0]}
                       </div>
-                      <div>
+                      <div className="flex-grow">
                         <p className="text-sm font-bold text-gray-900">{user.displayName}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-gray-500">{user.email}</p>
+                          <span className="bg-white px-2 py-0.5 rounded-lg text-[10px] font-black text-orange-600 border border-orange-100 flex items-center shadow-sm">
+                            <Award size={10} className="mr-1" /> {user.loyaltyPoints || 0}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <button 

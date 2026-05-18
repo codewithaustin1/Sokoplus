@@ -6,6 +6,7 @@ import { UserProfile, Order } from "../types";
 import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
+import SEO from "../components/SEO";
 
 interface ProfileProps {
   user: UserProfile | null;
@@ -41,6 +42,7 @@ export default function Profile({ user }: ProfileProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 space-y-12">
+      <SEO title="My Profile" />
       {/* Profile Header */}
       <div className="bg-white rounded-3xl p-8 md:p-12 border border-gray-100 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-50 rounded-full -mr-32 -mt-32 opacity-50" />

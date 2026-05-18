@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, arrayRemove } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
-import { Heart, ShoppingBag, ArrowRight } from "lucide-react";
+import { Heart, ShoppingBag, ArrowRight, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
+import toast from "react-hot-toast";
+import SEO from "../components/SEO";
 
 interface WishlistProps {
   user: UserProfile | null;
@@ -14,6 +16,31 @@ export default function Wishlist({ user }: WishlistProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [sortBy, setSortBy] = useState("default");
   const [loading, setLoading] = useState(true);
+
+  const toggleWishlist = async (productId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) return;
+    
+    if (!user.emailVerified) {
+      toast.error("Please verify your email to update wishlist");
+      return;
+    }
+
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        wishlist: arrayRemove(productId)
+      });
+      toast.success("Removed from wishlist");
+      // Local state update for immediate feedback
+      setProducts(prev => prev.filter(p => p.id !== productId));
+    } catch (error) {
+      console.error("Wishlist error:", error);
+      toast.error("Failed to remove from wishlist");
+    }
+  };
 
   const sortedProducts = [...products].sort((a, b) => {
     if (sortBy === "price-low") return a.price - b.price;
@@ -63,6 +90,7 @@ export default function Wishlist({ user }: WishlistProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
+      <SEO title="My Wishlist" />
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
         <div className="space-y-4">
           <h1 className="text-4xl font-black tracking-tight text-gray-900 flex items-center">
@@ -128,9 +156,12 @@ export default function Wishlist({ user }: WishlistProps) {
                     <ShoppingBag size={64} />
                   </div>
                 )}
-                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md p-2 rounded-xl text-red-500">
-                  <Heart size={20} fill="currentColor" />
-                </div>
+                <button
+                  onClick={(e) => toggleWishlist(product.id, e)}
+                  className="absolute top-4 right-4 bg-white/90 backdrop-blur-md p-2 rounded-xl text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 shadow-lg"
+                >
+                  <Trash2 size={20} />
+                </button>
               </Link>
               <div className="p-6 space-y-4">
                 <div>
