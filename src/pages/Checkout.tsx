@@ -61,8 +61,9 @@ export default function Checkout({ user }: CheckoutProps) {
       const { authorization_url, reference } = response.data.data;
 
       // 2. Log Order to Firestore (as pending)
-      await addDoc(collection(db, "orders"), {
+      const orderDoc = await addDoc(collection(db, "orders"), {
         userId: user.uid,
+        userEmail: user.email,
         items,
         totalAmount: total + 250,
         status: "pending",
@@ -71,6 +72,14 @@ export default function Checkout({ user }: CheckoutProps) {
         shippingAddress: address,
         createdAt: serverTimestamp()
       });
+
+      // Send initial notification
+      axios.post("/api/orders/notify-status", {
+        orderId: orderDoc.id,
+        email: user.email,
+        status: "pending",
+        customerName: user.displayName || "Valued Customer"
+      }).catch(err => console.error("Initial notification failed:", err));
 
       // 3. Redirect to Paystack
       toast.success("Redirecting to secure payment...");

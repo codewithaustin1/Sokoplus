@@ -30,6 +30,7 @@ export interface UserProfile {
 export interface Order {
   id: string;
   userId: string;
+  userEmail?: string;
   items: CartItem[];
   totalAmount: number;
   status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";

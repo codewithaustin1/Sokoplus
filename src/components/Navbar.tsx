@@ -14,6 +14,7 @@ export default function Navbar({ user }: NavbarProps) {
   const { items } = useCart();
   const [search, setSearch] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const navigate = useNavigate();
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -98,7 +99,7 @@ export default function Navbar({ user }: NavbarProps) {
                     <User size={24} className="text-gray-700" />
                   </Link>
                   <button 
-                    onClick={() => auth.signOut()}
+                    onClick={() => setShowLogoutConfirm(true)}
                     className="p-2 text-gray-500 hover:text-red-500 transition-colors"
                   >
                     <LogOut size={20} />
@@ -218,8 +219,7 @@ export default function Navbar({ user }: NavbarProps) {
                     </div>
                     <button 
                       onClick={() => {
-                        auth.signOut();
-                        setIsMobileMenuOpen(false);
+                        setShowLogoutConfirm(true);
                       }}
                       className="w-full flex items-center justify-center space-x-2 text-gray-600 font-bold p-4 hover:text-red-500"
                     >
@@ -236,6 +236,54 @@ export default function Navbar({ user }: NavbarProps) {
                     Get Started
                   </Link>
                 )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLogoutConfirm(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white rounded-3xl p-8 z-[70] shadow-2xl space-y-6"
+            >
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-500">
+                  <LogOut size={32} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-black text-gray-900">Sign Out?</h3>
+                  <p className="text-gray-500 font-medium">Are you sure you want to sign out of your account?</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col space-y-3 pt-2">
+                <button
+                  onClick={() => {
+                    auth.signOut();
+                    setShowLogoutConfirm(false);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full bg-red-500 text-white py-4 rounded-2xl font-bold hover:bg-red-600 transition-all shadow-lg"
+                >
+                  Yes, Sign Out
+                </button>
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="w-full bg-gray-50 text-gray-900 py-4 rounded-2xl font-bold hover:bg-gray-100 transition-all"
+                >
+                  Cancel
+                </button>
               </div>
             </motion.div>
           </>

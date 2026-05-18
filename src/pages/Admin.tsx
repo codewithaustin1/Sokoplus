@@ -4,6 +4,7 @@ import { db, auth } from "../lib/firebase";
 import { collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { Plus, Trash2, Package, TrendingUp, Users, ShoppingBag, Search } from "lucide-react";
 import toast from "react-hot-toast";
+import axios from "axios";
 
 interface AdminProps {
   user: UserProfile | null;
@@ -13,8 +14,10 @@ export default function Admin({ user }: AdminProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [newProduct, setNewProduct] = useState({
     name: "",
     description: "",
@@ -91,6 +94,24 @@ export default function Admin({ user }: AdminProps) {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    const newErrors: { [key: string]: string } = {};
+
+    if (!newProduct.name.trim()) {
+      newErrors.name = "Product name is required";
+    }
+    if (newProduct.price <= 0) {
+      newErrors.price = "Price must be greater than zero";
+    }
+    if (newProduct.stock < 0) {
+      newErrors.stock = "Stock cannot be negative";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setLoading(true);
     try {
       await addDoc(collection(db, "products"), {
         ...newProduct,
@@ -100,9 +121,12 @@ export default function Admin({ user }: AdminProps) {
       });
       toast.success("Product added successfully!");
       setShowAddModal(false);
+      setErrors({});
       fetchData();
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, "products");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -119,9 +143,20 @@ export default function Admin({ user }: AdminProps) {
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
+      const order = orders.find(o => o.id === orderId);
       await updateDoc(doc(db, "orders", orderId), { status });
       setOrders(orders.map(o => o.id === orderId ? { ...o, status: status as any } : o));
       toast.success("Order updated.");
+
+      // Send email notification
+      if (order?.userEmail) {
+        axios.post("/api/orders/notify-status", {
+          orderId,
+          email: order.userEmail,
+          status,
+          customerName: "Valued Customer"
+        }).catch(err => console.error("Notification failed:", err));
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
     }
@@ -130,8 +165,9 @@ export default function Admin({ user }: AdminProps) {
   const totalSales = orders.reduce((acc, o) => acc + (o.status !== "cancelled" ? o.totalAmount : 0), 0);
   
   const filteredOrders = orders.filter(o => 
-    o.id.toLowerCase().includes(orderSearchTerm.toLowerCase()) || 
-    o.userId.toLowerCase().includes(orderSearchTerm.toLowerCase())
+    (o.id.toLowerCase().includes(orderSearchTerm.toLowerCase()) || 
+     o.userId.toLowerCase().includes(orderSearchTerm.toLowerCase())) &&
+    (orderStatusFilter === "all" || o.status === orderStatusFilter)
   );
 
   return (
@@ -236,15 +272,29 @@ export default function Admin({ user }: AdminProps) {
         <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <h2 className="text-xl font-bold">Recent Orders</h2>
-            <div className="relative group flex-grow max-w-xs">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors" size={18} />
-              <input 
-                type="text"
-                placeholder="Search ID or Customer..."
-                value={orderSearchTerm}
-                onChange={(e) => setOrderSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm"
-              />
+            <div className="flex flex-wrap items-center gap-4">
+              <select 
+                value={orderStatusFilter}
+                onChange={(e) => setOrderStatusFilter(e.target.value)}
+                className="bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <div className="relative group flex-grow max-w-xs">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors" size={18} />
+                <input 
+                  type="text"
+                  placeholder="Search ID or Customer..."
+                  value={orderSearchTerm}
+                  onChange={(e) => setOrderSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm"
+                />
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -304,7 +354,17 @@ export default function Admin({ user }: AdminProps) {
             <div className="grid grid-cols-2 gap-4">
                <div className="col-span-2">
                  <label className="text-xs font-bold uppercase text-gray-400">Product Name</label>
-                 <input required type="text" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
+                 <input 
+                   required 
+                   type="text" 
+                   className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-100 focus:ring-orange-600'}`} 
+                   value={newProduct.name} 
+                   onChange={e => {
+                     setNewProduct({...newProduct, name: e.target.value});
+                     if (errors.name) setErrors({ ...errors, name: "" });
+                   }} 
+                 />
+                 {errors.name && <p className="text-red-500 text-xs mt-1 font-medium">{errors.name}</p>}
                </div>
                <div>
                  <label className="text-xs font-bold uppercase text-gray-400">Category</label>
@@ -317,19 +377,76 @@ export default function Admin({ user }: AdminProps) {
                </div>
                <div>
                  <label className="text-xs font-bold uppercase text-gray-400">Price (KES)</label>
-                 <input required type="number" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})} />
+                 <input 
+                   required 
+                   type="number" 
+                   className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.price ? 'border-red-500 focus:ring-red-500' : 'border-gray-100 focus:ring-orange-600'}`} 
+                   value={newProduct.price} 
+                   onChange={e => {
+                     setNewProduct({...newProduct, price: Number(e.target.value)});
+                     if (errors.price) setErrors({ ...errors, price: "" });
+                   }} 
+                 />
+                 {errors.price && <p className="text-red-500 text-xs mt-1 font-medium">{errors.price}</p>}
                </div>
                <div>
                  <label className="text-xs font-bold uppercase text-gray-400">Stock Quantity</label>
-                 <input required type="number" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: Number(e.target.value)})} />
+                 <input 
+                   required 
+                   type="number" 
+                   className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.stock ? 'border-red-500 focus:ring-red-500' : 'border-gray-100 focus:ring-orange-600'}`} 
+                   value={newProduct.stock} 
+                   onChange={e => {
+                     setNewProduct({...newProduct, stock: Number(e.target.value)});
+                     if (errors.stock) setErrors({ ...errors, stock: "" });
+                   }} 
+                 />
+                 {errors.stock && <p className="text-red-500 text-xs mt-1 font-medium">{errors.stock}</p>}
                </div>
                <div className="col-span-2">
                  <label className="text-xs font-bold uppercase text-gray-400">Description</label>
                  <textarea className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none h-24" value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})}></textarea>
                </div>
-               <div className="col-span-2">
-                 <label className="text-xs font-bold uppercase text-gray-400">Image URL</label>
-                 <input type="text" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none" value={newProduct.images[0]} onChange={e => setNewProduct({...newProduct, images: [e.target.value]})} />
+               <div className="col-span-2 space-y-4">
+                 <div className="flex items-center justify-between">
+                   <label className="text-xs font-bold uppercase text-gray-400">Product Images (URLs)</label>
+                   <button 
+                     type="button" 
+                     onClick={() => setNewProduct({ ...newProduct, images: [...newProduct.images, ""] })}
+                     className="text-xs font-bold text-orange-600 hover:underline"
+                   >
+                     + Add Another Image
+                   </button>
+                 </div>
+                 <div className="space-y-3">
+                   {newProduct.images.map((url, idx) => (
+                     <div key={idx} className="flex gap-2">
+                       <input 
+                         type="text" 
+                         placeholder="https://images.unsplash.com/..." 
+                         className="flex-grow p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600" 
+                         value={url} 
+                         onChange={e => {
+                           const updatedImages = [...newProduct.images];
+                           updatedImages[idx] = e.target.value;
+                           setNewProduct({ ...newProduct, images: updatedImages });
+                         }} 
+                       />
+                       {newProduct.images.length > 1 && (
+                         <button 
+                           type="button" 
+                           onClick={() => {
+                             const updatedImages = newProduct.images.filter((_, i) => i !== idx);
+                             setNewProduct({ ...newProduct, images: updatedImages });
+                           }}
+                           className="p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                         >
+                           <Trash2 size={20} />
+                         </button>
+                       )}
+                     </div>
+                   ))}
+                 </div>
                </div>
             </div>
             <div className="flex space-x-4">

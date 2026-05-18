@@ -133,7 +133,48 @@ export default function Profile({ user }: ProfileProps) {
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-6">
+                  {/* Tracking Timeline */}
+                  <div className="relative pt-2 pb-4">
+                    <div className="absolute top-[22px] left-0 w-full h-0.5 bg-gray-100" />
+                    <div 
+                      className="absolute top-[22px] left-0 h-0.5 bg-orange-600 transition-all duration-500" 
+                      style={{ 
+                        width: order.status === 'pending' ? '0%' : 
+                               order.status === 'processing' ? '25%' : 
+                               order.status === 'shipped' ? '50%' : 
+                               order.status === 'delivered' ? '100%' : '0%' 
+                      }} 
+                    />
+                    
+                    <div className="relative flex justify-between">
+                      {[
+                        { label: 'Pending', key: 'pending' },
+                        { label: 'Processing', key: 'processing' },
+                        { label: 'Shipped', key: 'shipped' },
+                        { label: 'Delivered', key: 'delivered' }
+                      ].map((step, idx) => {
+                        const statuses = ['pending', 'processing', 'shipped', 'delivered'];
+                        const currentIdx = statuses.indexOf(order.status);
+                        const isCompleted = currentIdx >= idx && order.status !== 'cancelled';
+                        const isCurrent = currentIdx === idx && order.status !== 'cancelled';
+
+                        return (
+                          <div key={step.key} className="flex flex-col items-center">
+                            <div className={`w-3 h-3 rounded-full border-2 bg-white z-10 transition-colors ${
+                              isCompleted ? 'border-orange-600 bg-orange-600' : 'border-gray-200'
+                            } ${isCurrent ? 'ring-4 ring-orange-100' : ''}`} />
+                            <span className={`text-[8px] font-black uppercase tracking-tighter mt-2 ${
+                              isCompleted ? 'text-orange-600' : 'text-gray-300'
+                            }`}>
+                              {step.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="flex items-center text-gray-500 text-sm">
                     <Clock size={16} className="mr-2" />
                     {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString('en-US', {

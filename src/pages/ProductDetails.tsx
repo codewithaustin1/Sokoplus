@@ -13,6 +13,8 @@ interface ProductDetailsProps {
   user: UserProfile | null;
 }
 
+const recommendationCache = new Map<string, Product[]>();
+
 export default function ProductDetails({ user }: ProductDetailsProps) {
   const { id } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
@@ -21,6 +23,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   const [loading, setLoading] = useState(true);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
+  const [activeImage, setActiveImage] = useState(0);
   const { addToCart } = useCart();
 
   const isWishlisted = user?.wishlist?.includes(id || "") || false;
@@ -123,6 +126,11 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           fetchReviews();
 
           // Fetch recommendations via AI
+          if (recommendationCache.has(id)) {
+            setRecommendations(recommendationCache.get(id) || []);
+            return;
+          }
+
           const allProductsSnap = await getDocs(query(collection(db, "products"), limit(20)));
           const allProducts = allProductsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
           
@@ -132,10 +140,15 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
               products: allProducts.map(ap => ({ id: ap.id, name: ap.name, category: ap.category }))
             });
             const recIds = recResponse.data.recommendationIds;
-            setRecommendations(allProducts.filter(ap => recIds.includes(ap.id)).slice(0, 4));
+            const recs = allProducts.filter(ap => recIds.includes(ap.id)).slice(0, 4);
+            setRecommendations(recs);
+            recommendationCache.set(id, recs);
           } catch (e) {
             // Fallback to same category
-            setRecommendations(allProducts.filter(ap => ap.category === p.category && ap.id !== p.id).slice(0, 4));
+            const fallbacks = allProducts.filter(ap => ap.category === p.category && ap.id !== p.id).slice(0, 4);
+            setRecommendations(fallbacks);
+            // Cache the fallback to prevent retrying the 429 endpoint for this product
+            recommendationCache.set(id, fallbacks);
           }
         }
       } catch (error) {
@@ -157,8 +170,8 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         {/* Gallery */}
         <div className="space-y-4">
           <div className="aspect-square bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm">
-            {product.images?.[0] ? (
-              <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+            {product.images?.[activeImage] ? (
+              <img src={product.images[activeImage]} alt={product.name} className="w-full h-full object-cover transition-opacity duration-300" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-200">
                 <ShoppingBag size={100} />
@@ -166,8 +179,12 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             )}
           </div>
           <div className="grid grid-cols-4 gap-4">
-            {product.images?.slice(1).map((img, i) => (
-              <div key={i} className="aspect-square bg-gray-50 rounded-xl overflow-hidden cursor-pointer">
+            {product.images?.map((img, i) => (
+              <div 
+                key={i} 
+                onClick={() => setActiveImage(i)}
+                className={`aspect-square rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${activeImage === i ? "border-orange-600 scale-95 shadow-lg" : "border-transparent bg-gray-50 opacity-70 hover:opacity-100"}`}
+              >
                 <img src={img} alt={`${product.name} ${i}`} className="w-full h-full object-cover" />
               </div>
             ))}
