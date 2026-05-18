@@ -29,7 +29,16 @@ export default function Login() {
 
       // Automatically promote certain email to admin for testing
       if (user.email === "upfrontretaile@gmail.com") {
-        await setDoc(doc(db, "admins", user.uid), { email: user.email });
+        try {
+          const adminRef = doc(db, "admins", user.uid);
+          const adminSnap = await getDoc(adminRef);
+          if (!adminSnap.exists()) {
+            await setDoc(adminRef, { email: user.email });
+          }
+        } catch (e) {
+          console.warn("Could not register admin profile:", e);
+          // Don't fail the whole login if admin promotion fails
+        }
       }
       
       toast.success(`Welcome back, ${user.displayName}!`);

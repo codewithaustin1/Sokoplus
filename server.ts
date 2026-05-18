@@ -29,14 +29,15 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 // API Routes
 app.post("/api/paystack/initialize", async (req, res) => {
   try {
-    const { email, amount, metadata } = req.body;
+    const { email, amount, metadata, callback_url } = req.body;
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
       {
         email,
         amount: amount * 100, // Paystack expects kobo/cents
         metadata,
-        currency: "KES"
+        currency: "KES",
+        callback_url: callback_url || `${process.env.APP_URL}/payment-success`
       },
       {
         headers: {

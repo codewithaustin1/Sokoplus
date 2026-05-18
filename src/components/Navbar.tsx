@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { ShoppingCart, User, Menu, Search, LogOut } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { auth } from "../lib/firebase";
@@ -10,7 +11,17 @@ interface NavbarProps {
 
 export default function Navbar({ user }: NavbarProps) {
   const { items } = useCart();
+  const [search, setSearch] = useState("");
+  const navigate = useNavigate();
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (search.trim()) {
+      navigate(`/?search=${encodeURIComponent(search.trim())}`);
+      setSearch("");
+    }
+  };
 
   return (
     <nav id="main-nav" className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
@@ -24,18 +35,20 @@ export default function Navbar({ user }: NavbarProps) {
           </div>
 
           {/* Desktop Search */}
-          <div className="hidden md:flex flex-1 max-w-md mx-8">
+          <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md mx-8">
             <div className="relative w-full">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
                 <Search size={18} />
               </span>
               <input
                 type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search products in Kenya..."
                 className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-full leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
               />
             </div>
-          </div>
+          </form>
 
           {/* Nav Icons */}
           <div className="flex items-center space-x-4">

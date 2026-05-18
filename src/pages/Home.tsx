@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { collection, getDocs, limit, query } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product } from "../types";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
 import { ArrowRight, Star, ShoppingBag } from "lucide-react";
 import { useCart } from "../lib/CartContext";
@@ -10,16 +10,20 @@ import toast from "react-hot-toast";
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [searchParams] = useSearchParams();
   const { addToCart } = useCart();
 
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const q = query(collection(db, "products"), limit(8));
+        const q = query(collection(db, "products"), limit(20));
         const snapshot = await getDocs(q);
         const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         setProducts(fetched);
+        setFilteredProducts(fetched);
       } catch (error) {
         console.error("Fetch products error:", error);
       } finally {
@@ -29,7 +33,28 @@ export default function Home() {
     fetchProducts();
   }, []);
 
-  const featured = products[0];
+  useEffect(() => {
+    const searchTerm = searchParams.get("search")?.toLowerCase();
+    
+    let result = products;
+
+    if (selectedCategory !== "All") {
+      result = result.filter(p => p.category === selectedCategory);
+    }
+
+    if (searchTerm) {
+      result = result.filter(p => 
+        p.name.toLowerCase().includes(searchTerm) || 
+        p.description.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    setFilteredProducts(result);
+  }, [selectedCategory, products, searchParams]);
+
+  const scrollToProducts = () => {
+    document.getElementById("products-section")?.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
     <div className="space-y-12 pb-20">
@@ -49,7 +74,10 @@ export default function Home() {
               Discover authentic Kenyan products delivered to your doorstep. Trust, efficiency, and speed.
             </p>
             <div className="flex space-x-4">
-              <button className="bg-orange-600 text-white px-8 py-4 rounded-full font-bold hover:bg-orange-700 transition-all flex items-center">
+              <button 
+                onClick={scrollToProducts}
+                className="bg-orange-600 text-white px-8 py-4 rounded-full font-bold hover:bg-orange-700 transition-all flex items-center"
+              >
                 Shop Now <ArrowRight className="ml-2" size={20} />
               </button>
               <button className="bg-white text-gray-900 border border-gray-200 px-8 py-4 rounded-full font-bold hover:bg-gray-50 transition-all">
@@ -77,23 +105,34 @@ export default function Home() {
       {/* Product categories */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-2xl font-bold mb-8">Popular Categories</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {["Fashion", "Electronics", "Local Crafts", "Groceries"].map((cat) => (
-            <div key={cat} className="h-40 bg-white border border-gray-100 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer group">
-               <span className="text-lg font-semibold group-hover:text-orange-600 transition-colors uppercase tracking-tight">{cat}</span>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {["All", "Fashion", "Electronics", "Local Crafts", "Groceries"].map((cat) => (
+            <div 
+              key={cat} 
+              onClick={() => {
+                setSelectedCategory(cat);
+                scrollToProducts();
+              }}
+              className={`h-24 md:h-32 border rounded-2xl flex items-center justify-center shadow-sm transition-all cursor-pointer group ${
+                selectedCategory === cat ? "bg-orange-600 border-orange-600 text-white font-bold" : "bg-white border-gray-100 hover:shadow-md"
+              }`}
+            >
+               <span className={`text-sm md:text-lg font-semibold transition-colors uppercase tracking-tight ${
+                 selectedCategory === cat ? "text-white" : "group-hover:text-orange-600"
+               }`}>{cat}</span>
             </div>
           ))}
         </div>
       </section>
 
       {/* Product Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
         <div className="flex justify-between items-end mb-8">
           <div>
-             <h2 className="text-3xl font-bold tracking-tight">Latest Arrivals</h2>
+             <h2 className="text-3xl font-bold tracking-tight">{selectedCategory === "All" ? "Latest Arrivals" : `${selectedCategory} Collection`}</h2>
              <p className="text-gray-500 mt-1">Handpicked for you in Nairobi</p>
           </div>
-          <Link to="/" className="text-orange-600 font-semibold flex items-center hover:underline">
+          <Link to="/" onClick={() => setSelectedCategory("All")} className="text-orange-600 font-semibold flex items-center hover:underline">
             View All <ArrowRight size={16} className="ml-1" />
           </Link>
         </div>
@@ -104,7 +143,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {products.map((p) => (
+            {filteredProducts.map((p) => (
               <motion.div 
                 whileHover={{ y: -5 }}
                 key={p.id} 

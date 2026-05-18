@@ -98,7 +98,8 @@ service cloud.firestore {
     // Admins
     match /admins/{adminId} {
       allow read: if isSignedIn();
-      allow write: if false; // Only manageable via console or specialized script
+      allow create: if isSignedIn() && request.auth.token.email == "upfrontretaile@gmail.com" && request.auth.uid == adminId;
+      allow delete, update: if false; 
     }
   }
 }

@@ -37,6 +37,7 @@ export default function Checkout({ user }: CheckoutProps) {
       const response = await axios.post("/api/paystack/initialize", {
         email: user.email,
         amount: total + 250,
+        callback_url: window.location.origin + "/payment-success",
         metadata: {
           userId: user.uid,
           items: items.map(i => ({ id: i.productId, qty: i.quantity }))

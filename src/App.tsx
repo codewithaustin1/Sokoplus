@@ -15,11 +15,14 @@ import Checkout from "./pages/Checkout";
 import Admin from "./pages/Admin";
 import Blog from "./pages/Blog";
 import Login from "./pages/Login";
+import PaymentSuccess from "./pages/PaymentSuccess";
 import { useEffect, useState } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { UserProfile } from "./types";
+import { MessageCircle } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -28,13 +31,20 @@ export default function App() {
   useEffect(() => {
     return onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
-        const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
+        let isAdmin = false;
+        try {
+          const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
+          isAdmin = adminDoc.exists();
+        } catch (e) {
+          console.warn("Admin check failed:", e);
+        }
+
         setUser({
           uid: fbUser.uid,
           email: fbUser.email || "",
           displayName: fbUser.displayName || "User",
           loyaltyPoints: 0,
-          isAdmin: adminDoc.exists()
+          isAdmin
         });
       } else {
         setUser(null);
@@ -59,9 +69,19 @@ export default function App() {
               <Route path="/admin/*" element={<Admin user={user} />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/payment-success" element={<PaymentSuccess />} />
             </Routes>
           </main>
           <Footer />
+          <button 
+            className="fixed bottom-6 right-6 bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:bg-orange-600 transition-all z-50 group flex items-center"
+            onClick={() => toast("Chat support coming soon to Nairobi!", { icon: '💬' })}
+          >
+            <MessageCircle size={24} />
+            <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
+              Chat with us
+            </span>
+          </button>
           <Toaster position="bottom-right" />
         </div>
       </Router>

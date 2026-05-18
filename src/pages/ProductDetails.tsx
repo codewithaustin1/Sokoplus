@@ -15,6 +15,26 @@ export default function ProductDetails() {
   const [recommendations, setRecommendations] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
+  const [isWishlisted, setIsWishlisted] = useState(false);
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem("sokoplus_wishlist") || "[]");
+    setIsWishlisted(saved && Array.isArray(saved) && saved.includes(id));
+  }, [id]);
+
+  const toggleWishlist = () => {
+    const saved = JSON.parse(localStorage.getItem("sokoplus_wishlist") || "[]");
+    let newWishlist;
+    if (saved.includes(id)) {
+      newWishlist = saved.filter((i: string) => i !== id);
+      toast.success("Removed from wishlist");
+    } else {
+      newWishlist = [...saved, id];
+      toast.success("Added to wishlist");
+    }
+    localStorage.setItem("sokoplus_wishlist", JSON.stringify(newWishlist));
+    setIsWishlisted(!isWishlisted);
+  };
 
   useEffect(() => {
     async function fetchProduct() {
@@ -112,8 +132,13 @@ export default function ProductDetails() {
             >
               Add to Cart <ShoppingBag className="ml-3" size={24} />
             </button>
-            <button className="p-5 border border-gray-100 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all text-gray-400">
-              <Star size={24} />
+            <button 
+              onClick={toggleWishlist}
+              className={`p-5 border rounded-2xl transition-all ${
+                isWishlisted ? "bg-red-50 border-red-100 text-red-500" : "border-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-500"
+              }`}
+            >
+              <Star size={24} fill={isWishlisted ? "currentColor" : "none"} />
             </button>
           </div>
 
