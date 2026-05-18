@@ -3,8 +3,8 @@ import { collection, getDocs, limit, query, doc, updateDoc, arrayUnion, arrayRem
 import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
 import { Link, useSearchParams } from "react-router-dom";
-import { motion } from "motion/react";
-import { ArrowRight, Star, ShoppingBag, Heart } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import toast from "react-hot-toast";
 import SEO from "../components/SEO";
@@ -21,6 +21,14 @@ export default function Home({ user }: HomeProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchParams] = useSearchParams();
   const { addToCart } = useCart();
+
+  // Advanced Filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [minPrice, setMinPrice] = useState<number | "">("");
+  const [maxPrice, setMaxPrice] = useState<number | "">("");
+  const [minRating, setMinRating] = useState<number>(0);
+  const [onlyInStock, setOnlyInStock] = useState<boolean>(false);
+  const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high" | "rating">("newest");
 
   const toggleWishlist = async (productId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -77,12 +85,14 @@ export default function Home({ user }: HomeProps) {
   useEffect(() => {
     const searchTerm = searchParams.get("search")?.toLowerCase();
     
-    let result = products;
+    let result = [...products];
 
+    // Category Filter
     if (selectedCategory !== "All") {
       result = result.filter(p => p.category === selectedCategory);
     }
 
+    // Search Filter
     if (searchTerm) {
       result = result.filter(p => 
         p.name.toLowerCase().includes(searchTerm) || 
@@ -90,8 +100,31 @@ export default function Home({ user }: HomeProps) {
       );
     }
 
+    // Advanced Filters
+    if (minPrice !== "") {
+      result = result.filter(p => p.price >= Number(minPrice));
+    }
+    if (maxPrice !== "") {
+      result = result.filter(p => p.price <= Number(maxPrice));
+    }
+    if (minRating > 0) {
+      result = result.filter(p => (p.rating || 0) >= minRating);
+    }
+    if (onlyInStock) {
+      result = result.filter(p => p.stock > 0);
+    }
+
+    // Sorting
+    if (sortBy === "price-low") {
+      result.sort((a, b) => a.price - b.price);
+    } else if (sortBy === "price-high") {
+      result.sort((a, b) => b.price - a.price);
+    } else if (sortBy === "rating") {
+      result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    }
+
     setFilteredProducts(result);
-  }, [selectedCategory, products, searchParams]);
+  }, [selectedCategory, products, searchParams, minPrice, maxPrice, minRating, onlyInStock, sortBy]);
 
   const [showMission, setShowMission] = useState(false);
 
@@ -177,14 +210,148 @@ export default function Home({ user }: HomeProps) {
 
       {/* Product Grid */}
       <section id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
-        <div className="flex justify-between items-end mb-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
-             <h2 className="text-3xl font-bold tracking-tight">{selectedCategory === "All" ? "Latest Arrivals" : `${selectedCategory} Collection`}</h2>
-             <p className="text-gray-500 mt-1">Handpicked for you in Nairobi</p>
+             <h2 className="text-4xl font-black tracking-tight text-gray-900">{selectedCategory === "All" ? "Latest Arrivals" : `${selectedCategory} Collection`}</h2>
+             <p className="text-gray-500 mt-2 font-medium">Handpicked premium goods from across the 47 counties.</p>
           </div>
-          <Link to="/" onClick={() => setSelectedCategory("All")} className="text-orange-600 font-semibold flex items-center hover:underline">
-            View All <ArrowRight size={16} className="ml-1" />
+          <Link to="/" onClick={() => {
+            setSelectedCategory("All");
+            setMinPrice("");
+            setMaxPrice("");
+            setMinRating(0);
+            setOnlyInStock(false);
+          }} className="text-orange-600 font-bold flex items-center hover:underline group">
+            Reset All <X size={16} className="ml-1 group-hover:rotate-90 transition-transform" />
           </Link>
+        </div>
+
+        {/* Filtering & Sorting Bar */}
+        <div className="flex flex-col space-y-6 mb-12">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center space-x-2 px-8 py-4 rounded-2xl border transition-all font-bold shadow-sm ${
+                  showFilters ? "bg-gray-900 text-white border-gray-900 shadow-xl" : "bg-white text-gray-900 border-gray-100 hover:border-orange-600"
+                }`}
+              >
+                <Filter size={18} />
+                <span>Filters</span>
+                {(minPrice !== "" || maxPrice !== "" || minRating > 0 || onlyInStock) && (
+                   <span className="w-5 h-5 bg-orange-600 text-white rounded-full text-[10px] flex items-center justify-center animate-pulse">
+                     !
+                   </span>
+                )}
+              </button>
+              
+              <div className="relative group">
+                <select 
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="appearance-none bg-white border border-gray-100 px-8 py-4 pr-12 rounded-2xl font-bold cursor-pointer hover:border-orange-600 transition-all outline-none shadow-sm"
+                >
+                  <option value="newest">Sort: Newest</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                  <option value="rating">Top Rated</option>
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+              </div>
+            </div>
+
+            <p className="text-gray-500 font-bold bg-gray-50 px-4 py-2 rounded-full border border-gray-100">
+              Found <span className="text-orange-600">{filteredProducts.length}</span> authentic products
+            </p>
+          </div>
+
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="bg-white border border-gray-100 rounded-[2rem] p-8 md:p-10 grid grid-cols-1 md:grid-cols-4 gap-10 shadow-xl shadow-gray-100/50">
+                  {/* Price Range */}
+                  <div className="space-y-4">
+                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 block">Price Range (KES)</label>
+                    <div className="flex items-center space-x-3">
+                       <input 
+                         type="number" 
+                         placeholder="Min" 
+                         value={minPrice}
+                         onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value))}
+                         className="w-full bg-gray-50 border-none rounded-xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-orange-600 transition-all"
+                       />
+                       <div className="h-0.5 w-4 bg-gray-200"></div>
+                       <input 
+                         type="number" 
+                         placeholder="Max" 
+                         value={maxPrice}
+                         onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))}
+                         className="w-full bg-gray-50 border-none rounded-xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-orange-600 transition-all"
+                       />
+                    </div>
+                  </div>
+
+                  {/* Rating */}
+                  <div className="space-y-4">
+                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 block">Minimum Rating</label>
+                    <div className="flex space-x-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setMinRating(minRating === star ? 0 : star)}
+                          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                            minRating >= star ? "bg-orange-600 text-white shadow-lg shadow-orange-200" : "bg-gray-50 text-gray-300 hover:text-orange-400 hover:bg-gray-100"
+                          }`}
+                        >
+                          <Star size={18} fill={minRating >= star ? "currentColor" : "none"} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Availability */}
+                  <div className="space-y-4">
+                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 block">Availability</label>
+                    <button 
+                      onClick={() => setOnlyInStock(!onlyInStock)}
+                      className={`flex items-center space-x-4 w-full px-5 py-4 rounded-xl border transition-all group ${
+                        onlyInStock ? "bg-orange-50 border-orange-100 text-orange-700 shadow-inner" : "bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100"
+                      }`}
+                    >
+                       <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
+                         onlyInStock ? "bg-orange-600 border-orange-600 text-white" : "bg-white border-gray-200 group-hover:border-orange-300"
+                       }`}>
+                         {onlyInStock && <ArrowRight size={14} className="rotate-0 animate-in fade-in zoom-in" />}
+                       </div>
+                       <span className="text-sm font-black uppercase tracking-tight">In Stock Only</span>
+                    </button>
+                  </div>
+
+                  {/* Clear All */}
+                  <div className="flex flex-col justify-end">
+                    <button 
+                      onClick={() => {
+                        setMinPrice("");
+                        setMaxPrice("");
+                        setMinRating(0);
+                        setOnlyInStock(false);
+                        setSelectedCategory("All");
+                      }}
+                      className="flex items-center justify-center space-x-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-6 py-4 rounded-xl font-black transition-all shadow-sm"
+                    >
+                      <X size={18} />
+                      <span className="text-xs uppercase tracking-widest">Reset Filters</span>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {loading ? (

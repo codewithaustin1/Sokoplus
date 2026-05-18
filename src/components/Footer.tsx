@@ -99,9 +99,9 @@ export default function Footer() {
               &copy; {new Date().getFullYear()} Sokoplus Ltd. All rights reserved.
             </p>
             <div className="flex items-center space-x-4">
-              <Link to="/" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Privacy Policy</Link>
-              <Link to="/" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Terms of Service</Link>
-              <Link to="/" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Cookies</Link>
+              <Link to="/privacy" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Privacy Policy</Link>
+              <Link to="/terms" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Terms of Service</Link>
+              <Link to="/cookies" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Cookies</Link>
             </div>
           </div>
 

@@ -18,6 +18,9 @@ import Admin from "./pages/Admin";
 import Blog from "./pages/Blog";
 import Login from "./pages/Login";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import Cookies from "./pages/Cookies";
 import { useEffect, useState } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -113,6 +116,9 @@ export default function App() {
               <Route path="/blog" element={<Blog />} />
               <Route path="/login" element={<Login />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/cookies" element={<Cookies />} />
             </Routes>
           </main>
           <Footer />
