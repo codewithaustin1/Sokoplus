@@ -62,9 +62,10 @@ export default function Checkout({ user }: CheckoutProps) {
       toast.success("Redirecting to secure payment...");
       window.location.href = authorization_url;
       
-    } catch (error) {
+    } catch (error: any) {
+      const detail = error.response?.data?.details || error.response?.data?.error || "Failed to process checkout. Please try again.";
       console.error("Checkout error:", error);
-      toast.error("Failed to process checkout. Please try again.");
+      toast.error(detail, { duration: 5000 });
     } finally {
       setLoading(false);
     }

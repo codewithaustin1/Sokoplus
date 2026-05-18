@@ -18,7 +18,14 @@ function getGenAI() {
   if (!genAI) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
-    genAI = new GoogleGenAI(apiKey);
+    genAI = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
+    });
   }
   return genAI;
 }
@@ -30,11 +37,23 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 app.post("/api/paystack/initialize", async (req, res) => {
   try {
     const { email, amount, metadata, callback_url } = req.body;
+    
+    if (!PAYSTACK_SECRET || PAYSTACK_SECRET === "sk_test_...") {
+      console.error("Paystack Secret Key is not configured or is using the placeholder.");
+      return res.status(400).json({ 
+        error: "Paystack is not configured. Please add PAYSTACK_SECRET_KEY to your secrets." 
+      });
+    }
+
+    if (!email || !amount) {
+      return res.status(400).json({ error: "Missing email or amount" });
+    }
+
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
       {
         email,
-        amount: amount * 100, // Paystack expects kobo/cents
+        amount: Math.round(amount * 100), // Ensure integer (cents/kobo)
         metadata,
         currency: "KES",
         callback_url: callback_url || `${process.env.APP_URL}/payment-success`
@@ -48,8 +67,12 @@ app.post("/api/paystack/initialize", async (req, res) => {
     );
     res.json(response.data);
   } catch (error: any) {
-    console.error("Paystack Init Error:", error.response?.data || error.message);
-    res.status(500).json({ error: "Failed to initialize transaction" });
+    const errorData = error.response?.data;
+    console.error("Paystack Init Error:", errorData || error.message);
+    res.status(500).json({ 
+      error: "Failed to initialize transaction", 
+      details: errorData?.message || error.message 
+    });
   }
 });
 
@@ -75,7 +98,6 @@ app.post("/api/recommendations", async (req, res) => {
   try {
     const { history, products } = req.body;
     const ai = getGenAI();
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
       You are a shopping assistant for Sokoplus, a Kenyan e-commerce store.
@@ -85,9 +107,12 @@ app.post("/api/recommendations", async (req, res) => {
       Return only a JSON array of product IDs.
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+    });
+
+    const text = response.text || "[]";
     // Clean JSON if needed
     const jsonMatch = text.match(/\[.*\]/s);
     const recommendationIds = jsonMatch ? JSON.parse(jsonMatch[0]) : [];

@@ -49,7 +49,7 @@ export default function ProductDetails() {
           
           // Fetch recommendations via AI
           const allProductsSnap = await getDocs(query(collection(db, "products"), limit(20)));
-          const allProducts = allProductsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          const allProducts = allProductsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
           
           try {
             const recResponse = await axios.post("/api/recommendations", {
@@ -57,10 +57,10 @@ export default function ProductDetails() {
               products: allProducts.map(ap => ({ id: ap.id, name: ap.name, category: ap.category }))
             });
             const recIds = recResponse.data.recommendationIds;
-            setRecommendations(allProducts.filter(ap => recIds.includes(ap.id)).slice(0, 4) as Product[]);
+            setRecommendations(allProducts.filter(ap => recIds.includes(ap.id)).slice(0, 4));
           } catch (e) {
             // Fallback to same category
-            setRecommendations(allProducts.filter(ap => ap.category === p.category && ap.id !== p.id).slice(0, 4) as Product[]);
+            setRecommendations(allProducts.filter(ap => ap.category === p.category && ap.id !== p.id).slice(0, 4));
           }
         }
       } catch (error) {
