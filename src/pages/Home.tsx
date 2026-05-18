@@ -86,6 +86,8 @@ export default function Home({ user }: HomeProps) {
     setFilteredProducts(result);
   }, [selectedCategory, products, searchParams]);
 
+  const [showMission, setShowMission] = useState(false);
+
   const scrollToProducts = () => {
     document.getElementById("products-section")?.scrollIntoView({ behavior: "smooth" });
   };
@@ -114,7 +116,10 @@ export default function Home({ user }: HomeProps) {
               >
                 Shop Now <ArrowRight className="ml-2" size={20} />
               </button>
-              <button className="bg-white text-gray-900 border border-gray-200 px-8 py-4 rounded-full font-bold hover:bg-gray-50 transition-all">
+              <button 
+                onClick={() => setShowMission(true)}
+                className="bg-white text-gray-900 border border-gray-200 px-8 py-4 rounded-full font-bold hover:bg-gray-50 transition-all"
+              >
                 Learn More
               </button>
             </div>
@@ -253,6 +258,75 @@ export default function Home({ user }: HomeProps) {
            </div>
         </div>
       </section>
+
+      {/* Mission Modal */}
+      {showMission && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white max-w-2xl w-full rounded-3xl overflow-hidden shadow-2xl relative"
+          >
+            <button 
+              onClick={() => setShowMission(false)}
+              className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-all z-10"
+            >
+              <ArrowRight className="rotate-180" size={24} />
+            </button>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              <div className="p-10 space-y-6">
+                <div>
+                  <div className="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest w-fit mb-4">Our Mission</div>
+                  <h2 className="text-3xl font-black text-gray-900 leading-tight">Empowering Kenyan <span className="text-orange-600">Commerce.</span></h2>
+                </div>
+                <p className="text-gray-500 leading-relaxed">
+                  Sokoplus isn't just a store; it's a bridge between Kenya's finest local artisans and a modern, digital world.
+                </p>
+                <div className="space-y-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="bg-green-100 text-green-600 p-1.5 rounded-lg mt-1"><Star size={16} fill="currentColor" /></div>
+                    <div>
+                      <h4 className="font-bold text-sm">Verified Retailers</h4>
+                      <p className="text-xs text-gray-400">Every shop is vetted for quality and authenticity.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="bg-blue-100 text-blue-600 p-1.5 rounded-lg mt-1"><ShoppingBag size={16} /></div>
+                    <div>
+                      <h4 className="font-bold text-sm">Loyalty Ecosystem</h4>
+                      <p className="text-xs text-gray-400">Earn points on every purchase across all local categories.</p>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowMission(false)}
+                  className="w-full bg-gray-900 text-white font-bold py-4 rounded-2xl hover:bg-orange-600 transition-all shadow-lg"
+                >
+                  Start Exploring
+                </button>
+              </div>
+              <div className="bg-orange-600 p-10 flex flex-col justify-center text-white space-y-6 relative overflow-hidden">
+                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+                 <div className="relative z-10 space-y-2">
+                   <h3 className="text-4xl font-black italic opacity-20 uppercase tracking-tighter">Sokoplus</h3>
+                   <p className="text-xl font-bold">"Bridging the gap between tradition and technology."</p>
+                 </div>
+                 <div className="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/20">
+                    <p className="text-sm font-medium leading-relaxed">
+                      Founded in Nairobi, our goal is to ensure that Kenyan soul reaches global standards of service.
+                    </p>
+                 </div>
+                 <div className="flex space-x-2">
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                    <div className="w-2 h-2 bg-white/30 rounded-full"></div>
+                    <div className="w-2 h-2 bg-white/30 rounded-full"></div>
+                 </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
