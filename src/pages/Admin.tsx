@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { UserProfile, Product, Order } from "../types";
 import { db, auth } from "../lib/firebase";
 import { collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore";
-import { Plus, Trash2, Package, TrendingUp, Users, ShoppingBag, Search } from "lucide-react";
+import { Plus, Trash2, Package, TrendingUp, Users, ShoppingBag, Search, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
 
@@ -17,6 +17,8 @@ export default function Admin({ user }: AdminProps) {
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -121,6 +123,14 @@ export default function Admin({ user }: AdminProps) {
       });
       toast.success("Product added successfully!");
       setShowAddModal(false);
+      setNewProduct({
+        name: "",
+        description: "",
+        price: 0,
+        category: "Fashion",
+        stock: 10,
+        images: [""]
+      });
       setErrors({});
       fetchData();
     } catch (error) {
@@ -138,6 +148,36 @@ export default function Admin({ user }: AdminProps) {
       toast.success("Product deleted.");
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
+    }
+  };
+
+  const handleUpdateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+
+    const newErrors: { [key: string]: string } = {};
+    if (!editingProduct.name.trim()) newErrors.name = "Product name is required";
+    if (editingProduct.price <= 0) newErrors.price = "Price must be greater than zero";
+    if (editingProduct.stock < 0) newErrors.stock = "Stock cannot be negative";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { id, ...updateData } = editingProduct;
+      await updateDoc(doc(db, "products", id), updateData);
+      toast.success("Product updated successfully!");
+      setShowEditModal(false);
+      setEditingProduct(null);
+      setErrors({});
+      fetchData();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `products/${editingProduct.id}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -257,9 +297,25 @@ export default function Admin({ user }: AdminProps) {
                     </td>
                     <td className="py-4 text-right font-black">KES {p.price.toLocaleString()}</td>
                     <td className="py-4 text-center">
-                      <button onClick={() => deleteProduct(p.id)} className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition-all">
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex items-center justify-center space-x-1">
+                        <button 
+                          onClick={() => {
+                            setEditingProduct(p);
+                            setShowEditModal(true);
+                          }} 
+                          className="text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-all"
+                          title="Edit Product"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button 
+                          onClick={() => deleteProduct(p.id)} 
+                          className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition-all"
+                          title="Delete Product"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -452,6 +508,125 @@ export default function Admin({ user }: AdminProps) {
             <div className="flex space-x-4">
               <button disabled={loading} type="submit" className="flex-grow bg-orange-600 text-white font-bold py-4 rounded-2xl hover:bg-orange-700 transition-all">Add Product</button>
               <button type="button" onClick={() => setShowAddModal(false)} className="px-6 py-4 border border-gray-100 font-bold rounded-2xl hover:bg-gray-50">Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {showEditModal && editingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <form onSubmit={handleUpdateProduct} className="bg-white w-full max-w-xl p-8 rounded-3xl shadow-2xl space-y-6">
+            <h2 className="text-2xl font-bold">Edit Product</h2>
+            <div className="grid grid-cols-2 gap-4">
+               <div className="col-span-2">
+                 <label className="text-xs font-bold uppercase text-gray-400">Product Name</label>
+                 <input 
+                   required 
+                   type="text" 
+                   className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-100 focus:ring-orange-600'}`} 
+                   value={editingProduct.name} 
+                   onChange={e => {
+                     setEditingProduct({...editingProduct, name: e.target.value});
+                     if (errors.name) setErrors({ ...errors, name: "" });
+                   }} 
+                 />
+                 {errors.name && <p className="text-red-500 text-xs mt-1 font-medium">{errors.name}</p>}
+               </div>
+               <div>
+                 <label className="text-xs font-bold uppercase text-gray-400">Category</label>
+                 <select 
+                   className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none" 
+                   value={editingProduct.category} 
+                   onChange={e => setEditingProduct({...editingProduct, category: e.target.value})}
+                 >
+                   <option>Fashion</option>
+                   <option>Electronics</option>
+                   <option>Local Crafts</option>
+                   <option>Groceries</option>
+                 </select>
+               </div>
+               <div>
+                 <label className="text-xs font-bold uppercase text-gray-400">Price (KES)</label>
+                 <input 
+                   required 
+                   type="number" 
+                   className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.price ? 'border-red-500 focus:ring-red-500' : 'border-gray-100 focus:ring-orange-600'}`} 
+                   value={editingProduct.price} 
+                   onChange={e => {
+                     setEditingProduct({...editingProduct, price: Number(e.target.value)});
+                     if (errors.price) setErrors({ ...errors, price: "" });
+                   }} 
+                 />
+                 {errors.price && <p className="text-red-500 text-xs mt-1 font-medium">{errors.price}</p>}
+               </div>
+               <div>
+                 <label className="text-xs font-bold uppercase text-gray-400">Stock Quantity</label>
+                 <input 
+                   required 
+                   type="number" 
+                   className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.stock ? 'border-red-500 focus:ring-red-500' : 'border-gray-100 focus:ring-orange-600'}`} 
+                   value={editingProduct.stock} 
+                   onChange={e => {
+                     setEditingProduct({...editingProduct, stock: Number(e.target.value)});
+                     if (errors.stock) setErrors({ ...errors, stock: "" });
+                   }} 
+                 />
+                 {errors.stock && <p className="text-red-500 text-xs mt-1 font-medium">{errors.stock}</p>}
+               </div>
+               <div className="col-span-2">
+                 <label className="text-xs font-bold uppercase text-gray-400">Description</label>
+                 <textarea 
+                   className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none h-24" 
+                   value={editingProduct.description} 
+                   onChange={e => setEditingProduct({...editingProduct, description: e.target.value})}
+                 ></textarea>
+               </div>
+               <div className="col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase text-gray-400">Product Images (URLs)</label>
+                    <button 
+                      type="button" 
+                      onClick={() => setEditingProduct({ ...editingProduct, images: [...editingProduct.images, ""] })}
+                      className="text-xs font-bold text-orange-600 hover:underline"
+                    >
+                      + Add Another Image
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {editingProduct.images.map((url, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="https://images.unsplash.com/..." 
+                          className="flex-grow p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600" 
+                          value={url} 
+                          onChange={e => {
+                            const updatedImages = [...editingProduct.images];
+                            updatedImages[idx] = e.target.value;
+                            setEditingProduct({ ...editingProduct, images: updatedImages });
+                          }} 
+                        />
+                        {editingProduct.images.length > 1 && (
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              const updatedImages = editingProduct.images.filter((_, i) => i !== idx);
+                              setEditingProduct({ ...editingProduct, images: updatedImages });
+                            }}
+                            className="p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+               </div>
+            </div>
+            <div className="flex space-x-4">
+              <button disabled={loading} type="submit" className="flex-grow bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-700 transition-all">Update Product</button>
+              <button type="button" onClick={() => setShowEditModal(false)} className="px-6 py-4 border border-gray-100 font-bold rounded-2xl hover:bg-gray-50">Cancel</button>
             </div>
           </form>
         </div>

@@ -46,7 +46,11 @@ app.post("/api/orders/notify-status", async (req, res) => {
 
     const mailer = getTransporter();
     if (!mailer) {
-      return res.status(500).json({ error: "Mail server not configured" });
+      console.warn(`[Order Notification Skipped] Order: ${orderId}, Reason: SMTP not configured.`);
+      return res.json({ 
+        success: false, 
+        message: "Email skipped: SMTP not configured. Please add SMTP credentials to environment variables to enable notifications." 
+      });
     }
 
     const statusConfig: Record<string, { subject: string; message: string }> = {
@@ -100,7 +104,12 @@ app.post("/api/orders/notify-status", async (req, res) => {
     res.json({ success: true });
   } catch (error: any) {
     console.error("Email Error:", error);
-    res.status(500).json({ error: "Failed to send email notification", details: error.message });
+    // Return 200 even on email failure to prevent breaking the flow
+    res.json({ 
+      success: false, 
+      error: "Failed to send email notification", 
+      details: error.message 
+    });
   }
 });
 
@@ -188,11 +197,21 @@ app.get("/api/paystack/verify/:reference", async (req, res) => {
 
 // Simple in-memory cache for recommendations
 const recommendationCache = new Map<string, string[]>();
+let quotaCooldownUntil = 0;
 
 app.post("/api/recommendations", async (req, res) => {
   try {
     const { history, products } = req.body;
     
+    // Check quota cooldown
+    if (Date.now() < quotaCooldownUntil) {
+      return res.status(429).json({ 
+        error: "Quota reached", 
+        message: "AI is on cooldown",
+        type: "QUOTA_EXCEEDED"
+      });
+    }
+
     // Attempt to cache by the first item in history if it's the current product
     const cacheKey = history?.id || JSON.stringify(history);
     
@@ -229,10 +248,11 @@ app.post("/api/recommendations", async (req, res) => {
     
     res.json({ recommendationIds });
   } catch (error: any) {
-    console.error("Gemini Error:", error);
-    
     // Check for quota exceeded error
     if (error.status === "RESOURCE_EXHAUSTED" || error.code === 429 || (error.message && error.message.includes("quota"))) {
+      console.warn("Gemini Quota Exceeded. Entering 5-minute cooldown.");
+      quotaCooldownUntil = Date.now() + (5 * 60 * 1000); // 5 minutes cooldown
+      
       return res.status(429).json({ 
         error: "AI limit reached", 
         message: "The AI recommendation engine is currently busy due to high demand. Please try again in a few minutes.",
@@ -240,6 +260,7 @@ app.post("/api/recommendations", async (req, res) => {
       });
     }
 
+    console.error("Gemini Error:", error);
     res.status(500).json({ error: "Failed to get recommendations" });
   }
 });

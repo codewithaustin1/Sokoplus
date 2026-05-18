@@ -143,8 +143,14 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             const recs = allProducts.filter(ap => recIds.includes(ap.id)).slice(0, 4);
             setRecommendations(recs);
             recommendationCache.set(id, recs);
-          } catch (e) {
-            // Fallback to same category
+          } catch (e: any) {
+            // Fallback to same category silently for quota errors
+            if (e.response?.status === 429) {
+              console.log("AI recommendations on cooldown, using category fallback.");
+            } else {
+              console.warn("AI recommendation error:", e.message);
+            }
+            
             const fallbacks = allProducts.filter(ap => ap.category === p.category && ap.id !== p.id).slice(0, 4);
             setRecommendations(fallbacks);
             // Cache the fallback to prevent retrying the 429 endpoint for this product
