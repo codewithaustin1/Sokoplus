@@ -47,3 +47,14 @@ export interface Review {
   comment: string;
   createdAt: any;
 }
+
+export interface SupportTicket {
+  id: string;
+  userId?: string;
+  email: string;
+  subject: "Technical Support" | "Billing/Invoices" | "Order Status" | "General Inquiry";
+  message: string;
+  status: "open" | "in-progress" | "resolved" | "closed";
+  createdAt: any;
+  updatedAt?: any;
+}

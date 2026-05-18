@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { UserProfile, Product, Order } from "../types";
+import { UserProfile, Product, Order, SupportTicket } from "../types";
 import { db, auth } from "../lib/firebase";
 import { collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore";
-import { Plus, Trash2, Package, TrendingUp, Users, ShoppingBag, Search, Pencil } from "lucide-react";
+import { Plus, Trash2, Package, TrendingUp, Users, ShoppingBag, Search, Pencil, Inbox, CheckCircle2, Clock, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
 
@@ -13,6 +13,8 @@ interface AdminProps {
 export default function Admin({ user }: AdminProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [activeTab, setActiveTab] = useState<"inventory" | "orders" | "inbox">("inventory");
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -60,6 +62,9 @@ export default function Admin({ user }: AdminProps) {
       
       const oSnap = await getDocs(query(collection(db, "orders"), orderBy("createdAt", "desc")));
       setOrders(oSnap.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+
+      const tSnap = await getDocs(query(collection(db, "support_tickets"), orderBy("createdAt", "desc")));
+      setTickets(tSnap.docs.map(d => ({ id: d.id, ...d.data() } as SupportTicket)));
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, "products/orders");
     } finally {
@@ -202,6 +207,19 @@ export default function Admin({ user }: AdminProps) {
     }
   };
 
+  const updateTicketStatus = async (ticketId: string, status: SupportTicket["status"]) => {
+    try {
+      await updateDoc(doc(db, "support_tickets", ticketId), { 
+        status, 
+        updatedAt: new Date().toISOString() 
+      });
+      setTickets(tickets.map(t => t.id === ticketId ? { ...t, status } : t));
+      toast.success("Ticket status updated.");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `support_tickets/${ticketId}`);
+    }
+  };
+
   const totalSales = orders.reduce((acc, o) => acc + (o.status !== "cancelled" ? o.totalAmount : 0), 0);
   
   const filteredOrders = orders.filter(o => 
@@ -252,154 +270,255 @@ export default function Admin({ user }: AdminProps) {
         </div>
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
            <div className="text-purple-600 bg-purple-50 w-10 h-10 rounded-xl flex items-center justify-center"><Users size={20} /></div>
-           <p className="text-sm font-bold text-gray-500 uppercase">Retailers</p>
-           <p className="text-2xl font-black">42</p>
-        </div>
+            <p className="text-sm font-bold text-gray-500 uppercase">Retailers</p>
+            <p className="text-2xl font-black">42</p>
+         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Products Table */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
-          <h2 className="text-xl font-bold mb-6">Inventory Management</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
-                  <th className="pb-4 uppercase">Product</th>
-                  <th className="pb-4 uppercase">Category</th>
-                  <th className="pb-4 uppercase text-center">Stock</th>
-                  <th className="pb-4 uppercase text-right">Price</th>
-                  <th className="pb-4 uppercase text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {products.map(p => (
-                  <tr key={p.id} className="text-sm hover:bg-gray-50/50">
-                    <td className="py-4 font-bold">{p.name}</td>
-                    <td className="py-4 text-gray-500">{p.category}</td>
-                    <td className="py-4 text-center">
-                      <div className="flex items-center justify-center space-x-2">
-                         <input 
-                          type="number" 
-                          className="w-16 bg-gray-50 border border-gray-100 rounded-lg text-center font-bold outline-none focus:ring-1 focus:ring-orange-600 transition-all py-1"
-                          value={p.stock}
-                          onChange={async (e) => {
-                            const newStock = Number(e.target.value);
-                            try {
-                              await updateDoc(doc(db, "products", p.id), { stock: newStock });
-                              setProducts(prev => prev.map(prod => prod.id === p.id ? { ...prod, stock: newStock } : prod));
-                            } catch (error) {
-                              handleFirestoreError(error, OperationType.UPDATE, `products/${p.id}`);
-                            }
-                          }}
-                        />
-                      </div>
-                    </td>
-                    <td className="py-4 text-right font-black">KES {p.price.toLocaleString()}</td>
-                    <td className="py-4 text-center">
-                      <div className="flex items-center justify-center space-x-1">
-                        <button 
-                          onClick={() => {
-                            setEditingProduct(p);
-                            setShowEditModal(true);
-                          }} 
-                          className="text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-all"
-                          title="Edit Product"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button 
-                          onClick={() => deleteProduct(p.id)} 
-                          className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition-all"
-                          title="Delete Product"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {/* Tabs */}
+      <div className="flex space-x-1 bg-gray-100 p-1 rounded-2xl w-fit">
+        <button 
+          onClick={() => setActiveTab("inventory")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "inventory" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          Inventory
+        </button>
+        <button 
+          onClick={() => setActiveTab("orders")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "orders" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          Orders
+        </button>
+        <button 
+          onClick={() => setActiveTab("inbox")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "inbox" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          Inbox {tickets.filter(t => t.status === "open").length > 0 && <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{tickets.filter(t => t.status === "open").length}</span>}
+        </button>
+      </div>
 
-        {/* Orders Table */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <h2 className="text-xl font-bold">Recent Orders</h2>
-            <div className="flex flex-wrap items-center gap-4">
-              <select 
-                value={orderStatusFilter}
-                onChange={(e) => setOrderStatusFilter(e.target.value)}
-                className="bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
-              >
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-              <div className="relative group flex-grow max-w-xs">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors" size={18} />
-                <input 
-                  type="text"
-                  placeholder="Search ID or Customer..."
-                  value={orderSearchTerm}
-                  onChange={(e) => setOrderSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm"
-                />
-              </div>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
-                  <th className="pb-4 uppercase">Order ID</th>
-                  <th className="pb-4 uppercase">Customer</th>
-                  <th className="pb-4 uppercase">Status</th>
-                  <th className="pb-4 uppercase text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filteredOrders.length > 0 ? (
-                  filteredOrders.map(o => (
-                    <tr key={o.id} className="text-sm hover:bg-gray-50/50">
-                      <td className="py-4 font-mono text-xs text-gray-400">#{o.id.slice(0, 8)}</td>
-                      <td className="py-4 text-gray-700">{o.userId.slice(0, 8)}...</td>
-                      <td className="py-4">
+      <div>
+        {activeTab === "inventory" && (
+           /* Products Table */
+           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
+             <h2 className="text-xl font-bold mb-6">Inventory Management</h2>
+             <div className="overflow-x-auto">
+               <table className="w-full text-left">
+                 <thead>
+                   <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
+                     <th className="pb-4 uppercase">Product</th>
+                     <th className="pb-4 uppercase">Category</th>
+                     <th className="pb-4 uppercase text-center">Stock</th>
+                     <th className="pb-4 uppercase text-right">Price</th>
+                     <th className="pb-4 uppercase text-center">Action</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-gray-50">
+                   {products.map(p => (
+                     <tr key={p.id} className="text-sm hover:bg-gray-50/50">
+                       <td className="py-4 font-bold">{p.name}</td>
+                       <td className="py-4 text-gray-500">{p.category}</td>
+                       <td className="py-4 text-center">
+                         <div className="flex items-center justify-center space-x-2">
+                            <input 
+                             type="number" 
+                             className="w-16 bg-gray-50 border border-gray-100 rounded-lg text-center font-bold outline-none focus:ring-1 focus:ring-orange-600 transition-all py-1"
+                             value={p.stock}
+                             onChange={async (e) => {
+                               const newStock = Number(e.target.value);
+                               try {
+                                 await updateDoc(doc(db, "products", p.id), { stock: newStock });
+                                 setProducts(prev => prev.map(prod => prod.id === p.id ? { ...prod, stock: newStock } : prod));
+                               } catch (error) {
+                                 handleFirestoreError(error, OperationType.UPDATE, `products/${p.id}`);
+                               }
+                             }}
+                           />
+                         </div>
+                       </td>
+                       <td className="py-4 text-right font-black">KES {p.price.toLocaleString()}</td>
+                       <td className="py-4 text-center">
+                         <div className="flex items-center justify-center space-x-1">
+                           <button 
+                             onClick={() => {
+                               setEditingProduct(p);
+                               setShowEditModal(true);
+                             }} 
+                             className="text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-all"
+                             title="Edit Product"
+                           >
+                             <Pencil size={16} />
+                           </button>
+                           <button 
+                             onClick={() => deleteProduct(p.id)} 
+                             className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition-all"
+                             title="Delete Product"
+                           >
+                             <Trash2 size={16} />
+                           </button>
+                         </div>
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+             </div>
+           </div>
+        )}
+
+        {activeTab === "orders" && (
+           /* Orders Table */
+           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
+             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+               <h2 className="text-xl font-bold">Recent Orders</h2>
+               <div className="flex flex-wrap items-center gap-4">
+                 <select 
+                   value={orderStatusFilter}
+                   onChange={(e) => setOrderStatusFilter(e.target.value)}
+                   className="bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
+                 >
+                   <option value="all">All Statuses</option>
+                   <option value="pending">Pending</option>
+                   <option value="processing">Processing</option>
+                   <option value="shipped">Shipped</option>
+                   <option value="delivered">Delivered</option>
+                   <option value="cancelled">Cancelled</option>
+                 </select>
+                 <div className="relative group flex-grow max-w-xs">
+                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors" size={18} />
+                   <input 
+                     type="text"
+                     placeholder="Search ID or Customer..."
+                     value={orderSearchTerm}
+                     onChange={(e) => setOrderSearchTerm(e.target.value)}
+                     className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm"
+                   />
+                 </div>
+               </div>
+             </div>
+             <div className="overflow-x-auto">
+               <table className="w-full text-left">
+                 <thead>
+                   <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
+                     <th className="pb-4 uppercase">Order ID</th>
+                     <th className="pb-4 uppercase">Customer</th>
+                     <th className="pb-4 uppercase">Status</th>
+                     <th className="pb-4 uppercase text-right">Total</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-gray-50">
+                   {filteredOrders.length > 0 ? (
+                     filteredOrders.map(o => (
+                       <tr key={o.id} className="text-sm hover:bg-gray-50/50">
+                         <td className="py-4 font-mono text-xs text-gray-400">#{o.id.slice(0, 8)}</td>
+                         <td className="py-4 text-gray-700">{o.userEmail || o.userId.slice(0, 8)}</td>
+                         <td className="py-4">
+                           <select 
+                             value={o.status}
+                             onChange={(e) => updateOrderStatus(o.id, e.target.value)}
+                             className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase outline-none cursor-pointer ${
+                               o.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                               o.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                               'bg-yellow-100 text-yellow-700'
+                             }`}
+                           >
+                             <option value="pending">Pending</option>
+                             <option value="processing">Processing</option>
+                             <option value="shipped">Shipped</option>
+                             <option value="delivered">Delivered</option>
+                             <option value="cancelled">Cancelled</option>
+                           </select>
+                         </td>
+                         <td className="py-4 text-right font-black">KES {o.totalAmount.toLocaleString()}</td>
+                       </tr>
+                     ))
+                   ) : (
+                     <tr>
+                       <td colSpan={4} className="py-12 text-center text-gray-500 font-medium">
+                         No orders found matching your search.
+                       </td>
+                     </tr>
+                   )}
+                 </tbody>
+               </table>
+             </div>
+           </div>
+        )}
+
+        {activeTab === "inbox" && (
+          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden min-h-[400px]">
+             <div className="flex items-center justify-between mb-8">
+               <h2 className="text-xl font-bold flex items-center">
+                 <Inbox className="mr-2 text-orange-600" /> Support Inbox
+               </h2>
+               <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{tickets.length} Total Tickets</p>
+             </div>
+             
+             {tickets.length > 0 ? (
+               <div className="space-y-4">
+                 {tickets.map(t => (
+                   <div key={t.id} className={`p-6 rounded-3xl border transition-all ${t.status === 'resolved' || t.status === 'closed' ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-orange-100 shadow-sm'}`}>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                           <div className={`p-3 rounded-2xl ${
+                             t.subject === 'Technical Support' ? 'bg-red-50 text-red-600' :
+                             t.subject === 'Billing/Invoices' ? 'bg-green-50 text-green-600' :
+                             t.subject === 'Order Status' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-600'
+                           }`}>
+                             <MessageSquare size={20} />
+                           </div>
+                           <div>
+                             <h4 className="font-bold text-lg">{t.subject}</h4>
+                             <p className="text-sm text-gray-500">From: <span className="font-medium text-gray-900">{t.email}</span></p>
+                           </div>
+                        </div>
                         <select 
-                          value={o.status}
-                          onChange={(e) => updateOrderStatus(o.id, e.target.value)}
-                          className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase outline-none cursor-pointer ${
-                            o.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                            o.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                            'bg-yellow-100 text-yellow-700'
+                          value={t.status}
+                          onChange={(e) => updateTicketStatus(t.id, e.target.value as SupportTicket["status"])}
+                          className={`text-[10px] font-bold px-3 py-1.5 rounded-full uppercase outline-none cursor-pointer border-none shadow-sm ${
+                            t.status === 'resolved' ? 'bg-green-600 text-white' :
+                            t.status === 'open' ? 'bg-orange-100 text-orange-700' :
+                            t.status === 'in-progress' ? 'bg-blue-600 text-white' : 'bg-gray-400 text-white'
                           }`}
                         >
-                          <option value="pending">Pending</option>
-                          <option value="processing">Processing</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
+                          <option value="open">Open</option>
+                          <option value="in-progress">In Progress</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Closed</option>
                         </select>
-                      </td>
-                      <td className="py-4 text-right font-black">KES {o.totalAmount.toLocaleString()}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="py-12 text-center text-gray-500 font-medium">
-                      No orders found matching your search.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-2xl mb-4 text-gray-700 whitespace-pre-wrap text-sm leading-relaxed border border-gray-100">
+                        {t.message}
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        <div className="flex items-center">
+                          <Clock size={12} className="mr-1" />
+                          {t.createdAt?.toDate ? t.createdAt.toDate().toLocaleString() : String(t.createdAt)}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                           <button 
+                             onClick={() => updateTicketStatus(t.id, "resolved")}
+                             className="flex items-center text-green-600 hover:text-green-700 transition-colors"
+                           >
+                             <CheckCircle2 size={12} className="mr-1" /> Mark Resolved
+                           </button>
+                        </div>
+                      </div>
+                   </div>
+                 ))}
+               </div>
+             ) : (
+               <div className="py-20 flex flex-col items-center justify-center text-gray-400 space-y-4">
+                  <div className="bg-gray-50 p-6 rounded-full"><Inbox size={48} /></div>
+                  <p className="font-bold uppercase tracking-widest text-xs">No support tickets found</p>
+               </div>
+             )}
           </div>
-        </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 invisible hidden">
+        {/* Old Tables Removed for Tabbed View */}
       </div>
 
       {/* Add Product Modal */}

@@ -76,6 +76,21 @@
         "publishedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "content", "author"]
+    },
+    "SupportTicket": {
+      "title": "SupportTicket",
+      "description": "Customer support request.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "subject": { "type": "string", "enum": ["Technical Support", "Billing/Invoices", "Order Status", "General Inquiry"] },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "in-progress", "resolved", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "subject", "message", "status"]
     }
   },
   "firestore": {
@@ -98,6 +113,10 @@
     "/blog": {
       "schema": "BlogPost",
       "description": "Marketing articles."
+    },
+    "/support_tickets": {
+      "schema": "SupportTicket",
+      "description": "Customer support requests."
     }
   }
 }

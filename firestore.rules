@@ -95,6 +95,19 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Support Tickets
+    match /support_tickets/{ticketId} {
+      function isValidTicket(data) {
+        return data.email is string && data.email.size() > 0 &&
+               data.subject in ["Technical Support", "Billing/Invoices", "Order Status", "General Inquiry"] &&
+               data.message is string && data.message.trim().size() > 0 &&
+               data.status in ["open", "in-progress", "resolved", "closed"];
+      }
+
+      allow create: if isSignedIn() && isValidTicket(incoming());
+      allow read, update, delete: if isAdmin();
+    }
+
     // Admins
     match /admins/{adminId} {
       allow read: if isSignedIn();

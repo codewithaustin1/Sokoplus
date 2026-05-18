@@ -25,10 +25,12 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { UserProfile } from "./types";
 import { MessageCircle } from "lucide-react";
 import toast from "react-hot-toast";
+import SupportChat from "./components/SupportChat";
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
 
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
@@ -111,14 +113,17 @@ export default function App() {
           </main>
           <Footer />
           <button 
-            className="fixed bottom-6 right-6 bg-gray-900 text-white p-4 rounded-full shadow-2xl hover:bg-orange-600 transition-all z-50 group flex items-center"
-            onClick={() => toast("Chat support coming soon to Nairobi!", { icon: '💬' })}
+            className={`fixed bottom-6 right-6 p-4 rounded-full shadow-2xl transition-all z-[60] group flex items-center ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
+            onClick={() => setIsSupportOpen(!isSupportOpen)}
           >
             <MessageCircle size={24} />
-            <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
-              Chat with us
-            </span>
+            {!isSupportOpen && (
+              <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
+                Chat with us
+              </span>
+            )}
           </button>
+          <SupportChat user={user} isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
           <Toaster position="bottom-right" />
         </div>
       </Router>

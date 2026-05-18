@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth, db } from "../lib/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
@@ -6,9 +7,12 @@ import { ShoppingBag } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function Login() {
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async () => {
+    if (loading) return;
+    setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
@@ -43,9 +47,15 @@ export default function Login() {
       
       toast.success(`Welcome back, ${user.displayName}!`);
       navigate("/");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
-      toast.error("Failed to sign in. Please try again.");
+      if (error.code === "auth/popup-closed-by-user") {
+        toast.error("Login cancelled. Please try again.");
+      } else {
+        toast.error("Failed to sign in. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -64,10 +74,15 @@ export default function Login() {
         
         <button
           onClick={handleLogin}
-          className="w-full flex items-center justify-center space-x-3 bg-white border border-gray-200 py-4 px-6 rounded-2xl font-bold hover:bg-gray-50 transition-all shadow-sm"
+          disabled={loading}
+          className="w-full flex items-center justify-center space-x-3 bg-white border border-gray-200 py-4 px-6 rounded-2xl font-bold hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
-          <span>Sign in with Google</span>
+          {loading ? (
+            <div className="w-6 h-6 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
+          )}
+          <span>{loading ? "Signing in..." : "Sign in with Google"}</span>
         </button>
 
         <p className="text-xs text-gray-400">
