@@ -7,6 +7,7 @@ import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut } fr
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
+import EmptyState from "../components/EmptyState";
 
 interface ProfileProps {
   user: UserProfile | null;
@@ -105,21 +106,13 @@ export default function Profile({ user }: ProfileProps) {
             ))}
           </div>
         ) : orders.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
-            <div className="bg-gray-50 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <ShoppingBag size={40} className="text-gray-300" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">No orders yet</h3>
-            <p className="text-gray-500 mb-8 max-w-sm mx-auto">
-              Ready to find something you love? Start exploring our curated collection.
-            </p>
-            <Link
-              to="/"
-              className="inline-flex items-center space-x-2 bg-orange-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-orange-700 transition-all shadow-lg"
-            >
-              Start Shopping <ArrowRight size={20} className="ml-2" />
-            </Link>
-          </div>
+          <EmptyState 
+            icon={Package}
+            title="No orders yet"
+            description="Ready to find something you love? Start exploring our curated collection of Kenyan excellence."
+            actionLabel="Start Shopping"
+            actionPath="/"
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {orders.map((order, index) => (

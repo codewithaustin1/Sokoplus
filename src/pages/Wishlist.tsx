@@ -7,6 +7,7 @@ import { Heart, ShoppingBag, ArrowRight, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import toast from "react-hot-toast";
 import SEO from "../components/SEO";
+import EmptyState from "../components/EmptyState";
 
 interface WishlistProps {
   user: UserProfile | null;
@@ -119,21 +120,13 @@ export default function Wishlist({ user }: WishlistProps) {
       </div>
 
       {products.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
-          <div className="bg-gray-50 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Heart size={40} className="text-gray-300" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Your wishlist is empty</h2>
-          <p className="text-gray-500 mb-8 max-w-sm mx-auto">
-            Explore our collection and save your favorite items by clicking the heart icon.
-          </p>
-          <Link
-            to="/"
-            className="inline-flex items-center space-x-2 bg-orange-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-orange-700 transition-all shadow-lg"
-          >
-            Start Shopping <ArrowRight size={20} className="ml-2" />
-          </Link>
-        </div>
+        <EmptyState 
+          icon={Heart}
+          title="Your wishlist is empty"
+          description="Explore our collection and save your favorite items by clicking the heart icon. We'll keep them safe for you."
+          actionLabel="Start Shopping"
+          actionPath="/"
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {sortedProducts.map((product) => (

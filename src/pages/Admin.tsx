@@ -192,16 +192,6 @@ export default function Admin({ user }: AdminProps) {
       await updateDoc(doc(db, "orders", orderId), { status });
       setOrders(orders.map(o => o.id === orderId ? { ...o, status: status as any } : o));
       toast.success("Order updated.");
-
-      // Send email notification
-      if (order?.userEmail) {
-        axios.post("/api/orders/notify-status", {
-          orderId,
-          email: order.userEmail,
-          status,
-          customerName: "Valued Customer"
-        }).catch(err => console.error("Notification failed:", err));
-      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
     }

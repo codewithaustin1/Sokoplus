@@ -8,6 +8,7 @@ import { ArrowRight, Star, ShoppingBag, Heart } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import toast from "react-hot-toast";
 import SEO from "../components/SEO";
+import EmptyState from "../components/EmptyState";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -190,6 +191,19 @@ export default function Home({ user }: HomeProps) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-pulse">
             {[1,2,3,4].map(n => <div key={n} className="bg-gray-100 h-80 rounded-2xl"></div>)}
           </div>
+        ) : filteredProducts.length === 0 ? (
+          <EmptyState 
+            icon={ShoppingBag}
+            title="No products found"
+            description={`We couldn't find any products in "${selectedCategory}" matching your criteria. Try adjusting your search or category.`}
+            actionLabel="Clear Filters"
+            onAction={() => {
+              setSelectedCategory("All");
+              const url = new URL(window.location.href);
+              url.searchParams.delete("search");
+              window.history.pushState({}, '', url);
+            }}
+          />
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {filteredProducts.map((p) => (

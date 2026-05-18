@@ -78,14 +78,6 @@ export default function Checkout({ user }: CheckoutProps) {
         createdAt: serverTimestamp()
       });
 
-      // Send initial notification
-      axios.post("/api/orders/notify-status", {
-        orderId: orderDoc.id,
-        email: user.email,
-        status: "pending",
-        customerName: user.displayName || "Valued Customer"
-      }).catch(err => console.error("Initial notification failed:", err));
-
       // 3. Redirect to Paystack
       toast.success("Redirecting to secure payment...");
       window.location.href = authorization_url;
