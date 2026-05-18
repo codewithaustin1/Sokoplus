@@ -108,11 +108,11 @@ app.post("/api/recommendations", async (req, res) => {
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash", // Use a more stable stable model if preview is cranky
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      model: "gemini-3-flash-preview",
+      contents: prompt,
     });
 
-    const text = response.candidates[0].content.parts[0].text || "[]";
+    const text = response.text || "[]";
     // Clean JSON if needed
     const jsonMatch = text.match(/\[.*\]/s);
     const recommendationIds = jsonMatch ? JSON.parse(jsonMatch[0]) : [];

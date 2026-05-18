@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { UserProfile, Product, Order } from "../types";
 import { db, auth } from "../lib/firebase";
 import { collection, addDoc, getDocs, query, orderBy, deleteDoc, doc, updateDoc } from "firebase/firestore";
-import { Plus, Trash2, Package, TrendingUp, Users, ShoppingBag } from "lucide-react";
+import { Plus, Trash2, Package, TrendingUp, Users, ShoppingBag, Search } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface AdminProps {
@@ -12,6 +12,7 @@ interface AdminProps {
 export default function Admin({ user }: AdminProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newProduct, setNewProduct] = useState({
@@ -127,6 +128,11 @@ export default function Admin({ user }: AdminProps) {
   };
 
   const totalSales = orders.reduce((acc, o) => acc + (o.status !== "cancelled" ? o.totalAmount : 0), 0);
+  
+  const filteredOrders = orders.filter(o => 
+    o.id.toLowerCase().includes(orderSearchTerm.toLowerCase()) || 
+    o.userId.toLowerCase().includes(orderSearchTerm.toLowerCase())
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 space-y-12">
@@ -185,6 +191,7 @@ export default function Admin({ user }: AdminProps) {
                 <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
                   <th className="pb-4 uppercase">Product</th>
                   <th className="pb-4 uppercase">Category</th>
+                  <th className="pb-4 uppercase text-center">Stock</th>
                   <th className="pb-4 uppercase text-right">Price</th>
                   <th className="pb-4 uppercase text-center">Action</th>
                 </tr>
@@ -194,6 +201,24 @@ export default function Admin({ user }: AdminProps) {
                   <tr key={p.id} className="text-sm hover:bg-gray-50/50">
                     <td className="py-4 font-bold">{p.name}</td>
                     <td className="py-4 text-gray-500">{p.category}</td>
+                    <td className="py-4 text-center">
+                      <div className="flex items-center justify-center space-x-2">
+                         <input 
+                          type="number" 
+                          className="w-16 bg-gray-50 border border-gray-100 rounded-lg text-center font-bold outline-none focus:ring-1 focus:ring-orange-600 transition-all py-1"
+                          value={p.stock}
+                          onChange={async (e) => {
+                            const newStock = Number(e.target.value);
+                            try {
+                              await updateDoc(doc(db, "products", p.id), { stock: newStock });
+                              setProducts(prev => prev.map(prod => prod.id === p.id ? { ...prod, stock: newStock } : prod));
+                            } catch (error) {
+                              handleFirestoreError(error, OperationType.UPDATE, `products/${p.id}`);
+                            }
+                          }}
+                        />
+                      </div>
+                    </td>
                     <td className="py-4 text-right font-black">KES {p.price.toLocaleString()}</td>
                     <td className="py-4 text-center">
                       <button onClick={() => deleteProduct(p.id)} className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition-all">
@@ -209,7 +234,19 @@ export default function Admin({ user }: AdminProps) {
 
         {/* Orders Table */}
         <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
-          <h2 className="text-xl font-bold mb-6">Recent Orders</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <h2 className="text-xl font-bold">Recent Orders</h2>
+            <div className="relative group flex-grow max-w-xs">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors" size={18} />
+              <input 
+                type="text"
+                placeholder="Search ID or Customer..."
+                value={orderSearchTerm}
+                onChange={(e) => setOrderSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm"
+              />
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
@@ -221,30 +258,38 @@ export default function Admin({ user }: AdminProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {orders.map(o => (
-                  <tr key={o.id} className="text-sm hover:bg-gray-50/50">
-                    <td className="py-4 font-mono text-xs text-gray-400">#{o.id.slice(0, 8)}</td>
-                    <td className="py-4 text-gray-700">{o.userId.slice(0, 8)}...</td>
-                    <td className="py-4">
-                      <select 
-                        value={o.status}
-                        onChange={(e) => updateOrderStatus(o.id, e.target.value)}
-                        className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase outline-none ${
-                          o.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                          o.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="processing">Processing</option>
-                        <option value="shipped">Shipped</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
+                {filteredOrders.length > 0 ? (
+                  filteredOrders.map(o => (
+                    <tr key={o.id} className="text-sm hover:bg-gray-50/50">
+                      <td className="py-4 font-mono text-xs text-gray-400">#{o.id.slice(0, 8)}</td>
+                      <td className="py-4 text-gray-700">{o.userId.slice(0, 8)}...</td>
+                      <td className="py-4">
+                        <select 
+                          value={o.status}
+                          onChange={(e) => updateOrderStatus(o.id, e.target.value)}
+                          className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase outline-none cursor-pointer ${
+                            o.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                            o.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="processing">Processing</option>
+                          <option value="shipped">Shipped</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </td>
+                      <td className="py-4 text-right font-black">KES {o.totalAmount.toLocaleString()}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center text-gray-500 font-medium">
+                      No orders found matching your search.
                     </td>
-                    <td className="py-4 text-right font-black">KES {o.totalAmount.toLocaleString()}</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -273,6 +318,10 @@ export default function Admin({ user }: AdminProps) {
                <div>
                  <label className="text-xs font-bold uppercase text-gray-400">Price (KES)</label>
                  <input required type="number" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})} />
+               </div>
+               <div>
+                 <label className="text-xs font-bold uppercase text-gray-400">Stock Quantity</label>
+                 <input required type="number" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: Number(e.target.value)})} />
                </div>
                <div className="col-span-2">
                  <label className="text-xs font-bold uppercase text-gray-400">Description</label>

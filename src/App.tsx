@@ -10,6 +10,8 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import ProductDetails from "./pages/ProductDetails";
+import Wishlist from "./pages/Wishlist";
+import Profile from "./pages/Profile";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Admin from "./pages/Admin";
@@ -19,7 +21,7 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import { useEffect, useState } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { UserProfile } from "./types";
 import { MessageCircle } from "lucide-react";
 import toast from "react-hot-toast";
@@ -29,28 +31,61 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        let isAdmin = false;
-        try {
-          const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
-          isAdmin = adminDoc.exists();
-        } catch (e) {
-          console.warn("Admin check failed:", e);
-        }
+    let unsubscribeUser: (() => void) | null = null;
 
-        setUser({
-          uid: fbUser.uid,
-          email: fbUser.email || "",
-          displayName: fbUser.displayName || "User",
-          loyaltyPoints: 0,
-          isAdmin
+    const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        // Unsubscribe from previous user if exists
+        if (unsubscribeUser) unsubscribeUser();
+
+        // Listen to user document for real-time updates (like wishlist)
+        const userRef = doc(db, "users", fbUser.uid);
+        unsubscribeUser = onSnapshot(userRef, async (docSnap) => {
+          let isAdmin = false;
+          try {
+            const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
+            isAdmin = adminDoc.exists();
+          } catch (e) {
+            console.warn("Admin check failed:", e);
+          }
+
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setUser({
+              uid: fbUser.uid,
+              email: fbUser.email || "",
+              displayName: fbUser.displayName || "User",
+              loyaltyPoints: data.loyaltyPoints || 0,
+              wishlist: data.wishlist || [],
+              isAdmin
+            });
+          } else {
+            // Document might not exist yet if just signed up, wait for Login page to create it
+            setUser({
+              uid: fbUser.uid,
+              email: fbUser.email || "",
+              displayName: fbUser.displayName || "User",
+              loyaltyPoints: 0,
+              wishlist: [],
+              isAdmin
+            });
+          }
+          setLoading(false);
+        }, (error) => {
+          console.error("User doc listener error:", error);
+          setLoading(false);
         });
       } else {
+        if (unsubscribeUser) unsubscribeUser();
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeUser) unsubscribeUser();
+    };
   }, []);
 
   if (loading) return <div className="h-screen flex items-center justify-center font-sans">Loading Soplus...</div>;
@@ -62,8 +97,10 @@ export default function App() {
           <Navbar user={user} />
           <main className="flex-grow">
             <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/product/:id" element={<ProductDetails />} />
+              <Route path="/" element={<Home user={user} />} />
+              <Route path="/product/:id" element={<ProductDetails user={user} />} />
+              <Route path="/wishlist" element={<Wishlist user={user} />} />
+              <Route path="/profile" element={<Profile user={user} />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout user={user} />} />
               <Route path="/admin/*" element={<Admin user={user} />} />

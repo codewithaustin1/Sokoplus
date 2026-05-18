@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag } from "lucide-react";
+import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { auth } from "../lib/firebase";
 import { UserProfile } from "../types";
@@ -68,6 +68,19 @@ export default function Navbar({ user }: NavbarProps) {
                 </Link>
               ))}
             </div>
+
+            <Link to="/wishlist" className="relative group p-2">
+              <Heart className="text-gray-700 group-hover:text-red-500 transition-colors" size={24} />
+              {user?.wishlist && user.wishlist.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                  {user.wishlist.length}
+                </span>
+              )}
+            </Link>
+
+            <Link to="/profile" className="p-2 group">
+              <User className="text-gray-700 group-hover:text-orange-600 transition-colors" size={24} />
+            </Link>
 
             <Link to="/cart" className="relative group p-2">
               <ShoppingCart className="text-gray-700 group-hover:text-orange-600 transition-colors" size={24} />
@@ -152,6 +165,30 @@ export default function Navbar({ user }: NavbarProps) {
 
               {/* Links */}
               <div className="flex flex-col space-y-4">
+                {user && (
+                  <>
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="text-2xl font-black text-gray-900 flex items-center justify-between group"
+                    >
+                      Profile
+                      <motion.div whileHover={{ x: 5 }} className="text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <User size={24} />
+                      </motion.div>
+                    </Link>
+                    <Link
+                      to="/wishlist"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="text-2xl font-black text-gray-900 flex items-center justify-between group"
+                    >
+                      Wishlist
+                      <motion.div whileHover={{ x: 5 }} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Heart size={24} fill="currentColor" />
+                      </motion.div>
+                    </Link>
+                  </>
+                )}
                 {navLinks.map((link) => (
                   <Link
                     key={link.path}

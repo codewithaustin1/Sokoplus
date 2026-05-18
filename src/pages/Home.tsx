@@ -1,20 +1,54 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, limit, query } from "firebase/firestore";
+import { collection, getDocs, limit, query, doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { Product } from "../types";
+import { Product, UserProfile } from "../types";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
-import { ArrowRight, Star, ShoppingBag } from "lucide-react";
+import { ArrowRight, Star, ShoppingBag, Heart } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import toast from "react-hot-toast";
 
-export default function Home() {
+interface HomeProps {
+  user: UserProfile | null;
+}
+
+export default function Home({ user }: HomeProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchParams] = useSearchParams();
   const { addToCart } = useCart();
+
+  const toggleWishlist = async (productId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) {
+      toast.error("Please login to save to wishlist");
+      return;
+    }
+
+    const isWishlisted = user.wishlist?.includes(productId);
+
+    try {
+      const userRef = doc(db, "users", user.uid);
+      if (isWishlisted) {
+        await updateDoc(userRef, {
+          wishlist: arrayRemove(productId)
+        });
+        toast.success("Removed from wishlist");
+      } else {
+        await updateDoc(userRef, {
+          wishlist: arrayUnion(productId)
+        });
+        toast.success("Added to wishlist");
+      }
+    } catch (error) {
+      console.error("Wishlist error:", error);
+      toast.error("Failed to update wishlist");
+    }
+  };
 
   useEffect(() => {
     async function fetchProducts() {
@@ -158,9 +192,19 @@ export default function Home() {
                       <ShoppingBag size={48} />
                     </div>
                   )}
-                  <div className="absolute top-2 right-2 bg-white/90 backdrop-blur px-2 py-1 rounded-full text-[10px] font-bold shadow-sm">
+                  <div className="absolute top-2 right-2 bg-white/90 backdrop-blur px-2 py-1 rounded-full text-[10px] font-bold shadow-sm z-10">
                     {p.category}
                   </div>
+                  <button
+                    onClick={(e) => toggleWishlist(p.id, e)}
+                    className={`absolute top-2 left-2 p-2 rounded-full shadow-sm z-10 transition-all ${
+                      user?.wishlist?.includes(p.id) 
+                        ? "bg-red-50 text-red-500 hover:bg-red-100" 
+                        : "bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white"
+                    }`}
+                  >
+                    <Heart size={16} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
+                  </button>
                 </Link>
                 <div className="space-y-1">
                   <div className="flex items-center text-yellow-400 mb-1">

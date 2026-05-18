@@ -23,6 +23,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   loyaltyPoints: number;
+  wishlist?: string[];
   isAdmin?: boolean;
 }
 
@@ -34,4 +35,14 @@ export interface Order {
   status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
   createdAt: any;
   paymentReference?: string;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  userId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: any;
 }

@@ -2,11 +2,11 @@ import React, { useState } from "react";
 import { useCart } from "../lib/CartContext";
 import { UserProfile } from "../types";
 import { db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, increment } from "firebase/firestore";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { CreditCard, ShoppingBag } from "lucide-react";
+import { CreditCard, ShoppingBag, AlertCircle } from "lucide-react";
 
 interface CheckoutProps {
   user: UserProfile | null;
@@ -33,6 +33,20 @@ export default function Checkout({ user }: CheckoutProps) {
 
     setLoading(true);
     try {
+      // 0. Preliminary Stock Check
+      for (const item of items) {
+        const pRef = doc(db, "products", item.productId);
+        const pSnap = await getDoc(pRef);
+        if (pSnap.exists()) {
+          const pData = pSnap.data();
+          if (pData.stock < item.quantity) {
+            toast.error(`Sorry, ${item.name} is currently out of stock or has insufficient quantity.`);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       // 1. Initialize Paystack
       const response = await axios.post("/api/paystack/initialize", {
         email: user.email,
