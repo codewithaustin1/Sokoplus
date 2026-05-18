@@ -26,6 +26,7 @@ import { UserProfile } from "./types";
 import { MessageCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import SupportChat from "./components/SupportChat";
+import VerificationBanner from "./components/VerificationBanner";
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -59,7 +60,8 @@ export default function App() {
               displayName: fbUser.displayName || "User",
               loyaltyPoints: data.loyaltyPoints || 0,
               wishlist: data.wishlist || [],
-              isAdmin
+              isAdmin,
+              emailVerified: fbUser.emailVerified
             });
           } else {
             // Document might not exist yet if just signed up, wait for Login page to create it
@@ -69,7 +71,8 @@ export default function App() {
               displayName: fbUser.displayName || "User",
               loyaltyPoints: 0,
               wishlist: [],
-              isAdmin
+              isAdmin,
+              emailVerified: fbUser.emailVerified
             });
           }
           setLoading(false);
@@ -96,6 +99,7 @@ export default function App() {
     <CartProvider>
       <Router>
         <div className="min-h-screen flex flex-col font-sans bg-gray-50 text-gray-900 selection:bg-orange-100">
+          {user && !user.emailVerified && <VerificationBanner email={user.email} />}
           <Navbar user={user} />
           <main className="flex-grow">
             <Routes>

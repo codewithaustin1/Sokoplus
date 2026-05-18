@@ -31,6 +31,11 @@ export default function Checkout({ user }: CheckoutProps) {
       return;
     }
 
+    if (!user.emailVerified) {
+      toast.error("Please verify your email address before placing an order.", { icon: "📧" });
+      return;
+    }
+
     setLoading(true);
     try {
       // 0. Preliminary Stock Check

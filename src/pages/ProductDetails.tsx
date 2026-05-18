@@ -33,6 +33,10 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
       toast.error("Please login to save to wishlist");
       return;
     }
+    if (!user.emailVerified) {
+      toast.error("Please verify your email to update wishlist");
+      return;
+    }
     if (!id) return;
 
     try {
@@ -73,6 +77,10 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
     e.preventDefault();
     if (!user) {
       toast.error("Please login to review products");
+      return;
+    }
+    if (!user.emailVerified) {
+      toast.error("Please verify your email to leave a review");
       return;
     }
     if (!id || !newReview.comment.trim()) return;

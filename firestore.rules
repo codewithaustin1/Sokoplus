@@ -11,6 +11,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -43,7 +47,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAdmin() && isValidProduct(incoming()) && isValidId(productId);
       allow update: if (isAdmin() && isValidProduct(incoming())) ||
-                    (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount']));
+                    (isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount']));
       allow delete: if isAdmin();
     }
 
@@ -57,7 +61,7 @@ service cloud.firestore {
       }
 
       allow read: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
-      allow create: if isSignedIn() && isValidOrder(incoming()) && isValidId(orderId);
+      allow create: if isVerified() && isValidOrder(incoming()) && isValidId(orderId);
       allow update: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid && 
                     incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
                     incoming().status == 'cancelled' && existing().status == 'pending');
@@ -71,7 +75,7 @@ service cloud.firestore {
 
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidProfile(incoming());
-      allow update: if isOwner(userId) && isValidProfile(incoming()) && 
+      allow update: if isOwner(userId) && isVerified() && isValidProfile(incoming()) && 
                     incoming().diff(existing()).affectedKeys().hasAll(['email']) == false;
       allow delete: if isAdmin();
     }

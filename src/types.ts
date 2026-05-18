@@ -25,6 +25,7 @@ export interface UserProfile {
   loyaltyPoints: number;
   wishlist?: string[];
   isAdmin?: boolean;
+  emailVerified: boolean;
 }
 
 export interface Order {
