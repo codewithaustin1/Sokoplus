@@ -3,8 +3,9 @@ import { Navigate, Link } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock } from "lucide-react";
-import { motion } from "motion/react";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { auth } from "../lib/firebase";
 
 interface ProfileProps {
   user: UserProfile | null;
@@ -13,6 +14,7 @@ interface ProfileProps {
 export default function Profile({ user }: ProfileProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     async function fetchOrders() {
@@ -70,6 +72,13 @@ export default function Profile({ user }: ProfileProps) {
                   Admin Panel
                 </Link>
               )}
+              <button 
+                onClick={() => setShowLogoutConfirm(true)}
+                className="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition-all text-sm flex items-center"
+              >
+                <LogOut size={16} className="mr-2" />
+                Sign Out
+              </button>
             </div>
           </div>
         </div>
@@ -196,6 +205,55 @@ export default function Profile({ user }: ProfileProps) {
           </div>
         )}
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLogoutConfirm(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white rounded-3xl p-8 z-[110] shadow-2xl space-y-6"
+            >
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-500">
+                  <LogOut size={32} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-black text-gray-900">Sign Out?</h3>
+                  <p className="text-gray-500 font-medium">Are you sure you want to sign out of your account?</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col space-y-3 pt-2">
+                <button
+                  onClick={() => {
+                    auth.signOut();
+                    setShowLogoutConfirm(false);
+                  }}
+                  className="w-full bg-red-500 text-white py-4 rounded-2xl font-bold hover:bg-red-600 transition-all shadow-lg"
+                >
+                  Yes, Sign Out
+                </button>
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="w-full bg-gray-50 text-gray-900 py-4 rounded-2xl font-bold hover:bg-gray-100 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

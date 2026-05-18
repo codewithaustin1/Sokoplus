@@ -95,7 +95,7 @@ export default function Navbar({ user }: NavbarProps) {
             <div className="hidden md:flex items-center space-x-2">
               {user ? (
                 <>
-                  <Link to="/login" className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <Link to="/profile" className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-full transition-colors">
                     <User size={24} className="text-gray-700" />
                   </Link>
                   <button 
