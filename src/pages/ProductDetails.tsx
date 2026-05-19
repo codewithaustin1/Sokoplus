@@ -200,7 +200,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             )}
           </div>
           <div className="grid grid-cols-4 gap-4">
-            {product.images?.map((img, i) => (
+            {product.images?.filter(img => !!img && img.trim() !== "").map((img, i) => (
               <div 
                 key={i} 
                 onClick={() => setActiveImage(i)}
@@ -383,8 +383,8 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                 className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
               >
                 <Link to={`/product/${p.id}`} className="block aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 relative">
-                  {p.images?.[0] ? (
-                    <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
+                  {p.images?.filter(img => !!img && img.trim() !== "")[0] ? (
+                    <img src={p.images.filter(img => !!img && img.trim() !== "")[0]} alt={p.name} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-200">
                       <ShoppingBag size={48} />

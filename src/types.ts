@@ -20,7 +20,8 @@ export interface CartItem {
 
 export interface UserProfile {
   uid: string;
-  email: string;
+  email?: string | null;
+  phoneNumber?: string | null;
   displayName: string;
   loyaltyPoints: number;
   wishlist?: string[];

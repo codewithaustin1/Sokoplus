@@ -138,9 +138,9 @@ export default function Wishlist({ user }: WishlistProps) {
               className="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100"
             >
               <Link to={`/product/${product.id}`} className="block aspect-[4/5] overflow-hidden relative">
-                {product.images?.[0] ? (
+                {product.images?.filter(img => !!img && img.trim() !== "")[0] ? (
                   <img
-                    src={product.images[0]}
+                    src={product.images.filter(img => !!img && img.trim() !== "")[0]}
                     alt={product.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />

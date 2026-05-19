@@ -2,24 +2,27 @@ import React, { useState } from "react";
 import { useCart } from "../lib/CartContext";
 import { UserProfile } from "../types";
 import { db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, increment } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { CreditCard, ShoppingBag, AlertCircle } from "lucide-react";
+import { CreditCard, ShoppingBag, ShieldCheck, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 interface CheckoutProps {
   user: UserProfile | null;
 }
 
 export default function Checkout({ user }: CheckoutProps) {
-  const { items, total, clearCart } = useCart();
+  const { items, total } = useCart();
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [address, setAddress] = useState({
     city: "Nairobi",
     county: "Nairobi",
     street: "",
-    phone: ""
+    phone: user?.phoneNumber || "",
+    email: user?.email || ""
   });
   const navigate = useNavigate();
 
@@ -31,14 +34,19 @@ export default function Checkout({ user }: CheckoutProps) {
       return;
     }
 
-    if (!user.emailVerified) {
+    if (user.email && !user.emailVerified) {
       toast.error("Please verify your email address before placing an order.", { icon: "📧" });
+      return;
+    }
+
+    if (!address.email) {
+      toast.error("An email address is required for payment processing.");
       return;
     }
 
     setLoading(true);
     try {
-      // 0. Preliminary Stock Check
+      // 1. Stock Check
       for (const item of items) {
         const pRef = doc(db, "products", item.productId);
         const pSnap = await getDoc(pRef);
@@ -52,9 +60,9 @@ export default function Checkout({ user }: CheckoutProps) {
         }
       }
 
-      // 1. Initialize Paystack
+      // 2. Initialize Paystack
       const response = await axios.post("/api/paystack/initialize", {
-        email: user.email,
+        email: address.email,
         amount: total + 250,
         callback_url: window.location.origin + "/payment-success",
         metadata: {
@@ -65,10 +73,10 @@ export default function Checkout({ user }: CheckoutProps) {
 
       const { authorization_url, reference } = response.data.data;
 
-      // 2. Log Order to Firestore (as pending)
-      const orderDoc = await addDoc(collection(db, "orders"), {
+      // 3. Log Order to Firestore (as pending)
+      await addDoc(collection(db, "orders"), {
         userId: user.uid,
-        userEmail: user.email,
+        userEmail: address.email,
         items,
         totalAmount: total + 250,
         status: "pending",
@@ -78,38 +86,77 @@ export default function Checkout({ user }: CheckoutProps) {
         createdAt: serverTimestamp()
       });
 
-      // 3. Redirect to Paystack
-      toast.success("Redirecting to secure payment...");
-      window.location.href = authorization_url;
+      // 4. Smooth Redirect
+      setRedirecting(true);
+      setTimeout(() => {
+        window.location.href = authorization_url;
+      }, 1500);
       
     } catch (error: any) {
       const detail = error.response?.data?.details || error.response?.data?.error || "Failed to process checkout. Please try again.";
       console.error("Checkout error:", error);
       toast.error(detail, { duration: 5000 });
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-black mb-8">Checkout</h1>
+    <div className="max-w-4xl mx-auto px-4 py-12 relative">
+      <AnimatePresence>
+        {redirecting && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 text-center"
+          >
+            <div className="relative mb-8">
+              <div className="w-24 h-24 border-4 border-orange-100 rounded-full"></div>
+              <div className="absolute inset-0 border-t-4 border-orange-600 rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <ShieldCheck size={32} className="text-orange-600" />
+              </div>
+            </div>
+            <h2 className="text-3xl font-black italic mb-2">Connecting Securely</h2>
+            <p className="text-gray-500 font-medium max-w-sm">
+              We're taking you to Paystack to complete your purchase safely.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <h1 className="text-4xl font-black mb-10 tracking-tight italic">Checkout</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         <form onSubmit={handleCheckout} className="space-y-6">
           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-4">
             <h2 className="text-xl font-bold mb-4">Shipping Details</h2>
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Phone Number</label>
-                <input 
-                  required
-                  type="text" 
-                  value={address.phone}
-                  onChange={(e) => setAddress({...address, phone: e.target.value})}
-                  placeholder="+254..." 
-                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
+                  <input 
+                    required
+                    type="email" 
+                    value={address.email}
+                    onChange={(e) => setAddress({...address, email: e.target.value})}
+                    placeholder="your@email.com" 
+                    disabled={!!user?.email}
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none disabled:opacity-50"
+                  />
+                  {user?.email && <p className="text-[10px] text-gray-400 mt-1 ml-1">Using account email</p>}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Phone Number</label>
+                  <input 
+                    required
+                    type="text" 
+                    value={address.phone}
+                    onChange={(e) => setAddress({...address, phone: e.target.value})}
+                    placeholder="+254..." 
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -155,10 +202,18 @@ export default function Checkout({ user }: CheckoutProps) {
           <button 
             disabled={loading}
             type="submit"
-            className="w-full bg-gray-900 text-white py-5 rounded-3xl font-black text-xl hover:bg-orange-600 transition-all flex items-center justify-center disabled:opacity-50"
+            className="w-full bg-gray-900 text-white py-5 rounded-3xl font-black text-xl hover:bg-orange-600 transition-all flex items-center justify-center disabled:opacity-50 group"
           >
-            {loading ? "Processing..." : (
-              <>Pay KES {(total + 250).toLocaleString()} <CreditCard className="ml-3" /></>
+            {loading ? (
+              <>
+                <Loader2 className="mr-3 animate-spin" />
+                Processing Order...
+              </>
+            ) : (
+              <>
+                Confirm & Pay KES {(total + 250).toLocaleString()} 
+                <CreditCard className="ml-3 group-hover:translate-x-1 transition-transform" />
+              </>
             )}
           </button>
         </form>

@@ -3,7 +3,7 @@ import { Navigate, Link } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut } from "lucide-react";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
@@ -57,8 +57,8 @@ export default function Profile({ user }: ProfileProps) {
             <div>
               <h1 className="text-4xl font-black tracking-tight text-gray-900">{user.displayName}</h1>
               <p className="text-gray-500 flex items-center justify-center md:justify-start mt-1">
-                <Mail size={16} className="mr-2" />
-                {user.email}
+                {user.email ? <Mail size={16} className="mr-2" /> : <Phone size={16} className="mr-2" />}
+                {user.email || user.phoneNumber || "No contact info"}
               </p>
             </div>
             

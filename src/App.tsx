@@ -59,8 +59,9 @@ export default function App() {
             const data = docSnap.data();
             setUser({
               uid: fbUser.uid,
-              email: fbUser.email || "",
-              displayName: fbUser.displayName || "User",
+              email: fbUser.email || data.email || null,
+              phoneNumber: fbUser.phoneNumber || data.phoneNumber || null,
+              displayName: fbUser.displayName || data.displayName || "User",
               loyaltyPoints: data.loyaltyPoints || 0,
               wishlist: data.wishlist || [],
               isAdmin,
@@ -70,7 +71,8 @@ export default function App() {
             // Document might not exist yet if just signed up, wait for Login page to create it
             setUser({
               uid: fbUser.uid,
-              email: fbUser.email || "",
+              email: fbUser.email || null,
+              phoneNumber: fbUser.phoneNumber || null,
               displayName: fbUser.displayName || "User",
               loyaltyPoints: 0,
               wishlist: [],
@@ -122,17 +124,33 @@ export default function App() {
             </Routes>
           </main>
           <Footer />
-          <button 
-            className={`fixed bottom-6 right-6 p-4 rounded-full shadow-2xl transition-all z-[60] group flex items-center ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
-            onClick={() => setIsSupportOpen(!isSupportOpen)}
-          >
-            <MessageCircle size={24} />
-            {!isSupportOpen && (
+          <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-4 z-[60]">
+            <a 
+              href="https://wa.me/254740463021" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-4 bg-[#25D366] text-white rounded-full shadow-2xl hover:scale-110 transition-all group flex items-center"
+              title="Official WhatsApp Support"
+            >
+              <MessageCircle size={24} />
               <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
-                Chat with us
+                WhatsApp Us
               </span>
-            )}
-          </button>
+            </a>
+            
+            <button 
+              className={`p-4 rounded-full shadow-2xl transition-all group flex items-center ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
+              onClick={() => setIsSupportOpen(!isSupportOpen)}
+            >
+              <MessageCircle size={24} />
+              {!isSupportOpen && (
+                <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
+                  Chat with us
+                </span>
+              )}
+            </button>
+          </div>
+
           <SupportChat user={user} isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
           <Toaster position="bottom-right" />
         </div>

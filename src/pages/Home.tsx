@@ -381,8 +381,8 @@ export default function Home({ user }: HomeProps) {
               >
                 <Link to={`/product/${p.id}`} className="block aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 relative group">
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-all"></div>
-                  {p.images?.[0] ? (
-                    <img referrerPolicy="no-referrer" src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
+                  {p.images?.filter(img => !!img && img.trim() !== "")[0] ? (
+                    <img referrerPolicy="no-referrer" src={p.images.filter(img => !!img && img.trim() !== "")[0]} alt={p.name} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-300">
                       <ShoppingBag size={48} />
@@ -414,7 +414,7 @@ export default function Home({ user }: HomeProps) {
                     <span className="text-xl font-black text-gray-900">KES {p.price.toLocaleString()}</span>
                     <button 
                       onClick={() => {
-                        addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.[0] || "" });
+                        addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
                         toast.success("Added to cart!");
                       }}
                       className="bg-gray-900 text-white p-2 rounded-lg hover:bg-orange-600 transition-colors"

@@ -35,7 +35,7 @@ export default function Cart() {
               className="flex items-center space-x-6 p-6 bg-white border border-gray-100 rounded-2xl shadow-sm"
             >
               <div className="w-24 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0">
-                {item.image ? (
+                {item.image && item.image.trim() !== "" ? (
                   <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-200">

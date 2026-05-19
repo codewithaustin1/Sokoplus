@@ -74,6 +74,28 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
             "Habari! How can we help you today? Leave us a message and our team will get back to you via email."
           </div>
 
+          <div className="space-y-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 ml-1">Instant Support</p>
+            <a 
+              href="https://wa.me/254740463021" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center space-x-3 w-full bg-[#25D366] text-white py-4 rounded-2xl font-black shadow-lg hover:bg-[#128C7E] transition-all group"
+            >
+              <MessageSquare size={20} className="group-hover:scale-110 transition-transform" />
+              <span>CHAT ON WHATSAPP</span>
+            </a>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-100"></div>
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+              <span className="bg-white px-4 text-gray-300 font-bold">Or Email Us</span>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1 underline decoration-orange-500/30">Your Registered Email</label>

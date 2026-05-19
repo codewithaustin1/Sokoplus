@@ -35,7 +35,7 @@ export default function Blog() {
             className="group cursor-pointer space-y-4"
           >
             <div className="aspect-[16/9] bg-gray-100 rounded-3xl overflow-hidden shadow-sm group-hover:shadow-xl transition-all">
-               {post.image ? (
+               {post.image && post.image.trim() !== "" ? (
                  <img src={post.image} alt={post.title} className="w-full h-full object-cover" />
                ) : (
                  <div className="w-full h-full flex items-center justify-center text-gray-300">

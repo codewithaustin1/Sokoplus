@@ -10,6 +10,30 @@ interface AdminProps {
   user: UserProfile | null;
 }
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  toast.error(`Error: ${errInfo.error}`);
+}
+
 export default function Admin({ user }: AdminProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -30,30 +54,6 @@ export default function Admin({ user }: AdminProps) {
     stock: 10,
     images: [""]
   });
-
-  enum OperationType {
-    CREATE = 'create',
-    UPDATE = 'update',
-    DELETE = 'delete',
-    LIST = 'list',
-    GET = 'get',
-    WRITE = 'write',
-  }
-
-  function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-    const errInfo = {
-      error: error instanceof Error ? error.message : String(error),
-      authInfo: {
-        userId: auth.currentUser?.uid,
-        email: auth.currentUser?.email,
-        emailVerified: auth.currentUser?.emailVerified,
-      },
-      operationType,
-      path
-    };
-    console.error('Firestore Error: ', JSON.stringify(errInfo));
-    toast.error(`Error: ${errInfo.error}`);
-  }
 
   const fetchData = async () => {
     try {
@@ -120,8 +120,10 @@ export default function Admin({ user }: AdminProps) {
 
     setLoading(true);
     try {
+      const sanitizedImages = newProduct.images.filter(url => !!url && url.trim() !== "");
       await addDoc(collection(db, "products"), {
         ...newProduct,
+        images: sanitizedImages.length > 0 ? sanitizedImages : [],
         rating: 4.5,
         reviewCount: 0,
         createdAt: new Date().toISOString()
@@ -145,14 +147,29 @@ export default function Admin({ user }: AdminProps) {
     }
   };
 
-  const deleteProduct = async (id: string) => {
-    if (!confirm("Are you sure?")) return;
+  const deleteProduct = async (id: string, name: string) => {
+    if (!id) {
+      toast.error("This product has no valid ID.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    setLoading(true);
     try {
       await deleteDoc(doc(db, "products", id));
       setProducts(prev => prev.filter(p => p.id !== id));
-      toast.success("Product deleted.");
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
+      toast.success(`"${name}" has been deleted.`);
+    } catch (error: any) {
+      console.error("Delete error:", error);
+      if (error.code === 'permission-denied') {
+        toast.error("Access denied. You don't have permission to delete this product.");
+      } else {
+        handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -173,7 +190,11 @@ export default function Admin({ user }: AdminProps) {
     setLoading(true);
     try {
       const { id, ...updateData } = editingProduct;
-      await updateDoc(doc(db, "products", id), updateData);
+      const sanitizedImages = updateData.images.filter(url => !!url && url.trim() !== "");
+      await updateDoc(doc(db, "products", id), {
+        ...updateData,
+        images: sanitizedImages.length > 0 ? sanitizedImages : []
+      });
       toast.success("Product updated successfully!");
       setShowEditModal(false);
       setEditingProduct(null);
@@ -340,7 +361,8 @@ export default function Admin({ user }: AdminProps) {
                              <Pencil size={16} />
                            </button>
                            <button 
-                             onClick={() => deleteProduct(p.id)} 
+                             type="button"
+                             onClick={() => deleteProduct(p.id, p.name)} 
                              className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition-all"
                              title="Delete Product"
                            >
