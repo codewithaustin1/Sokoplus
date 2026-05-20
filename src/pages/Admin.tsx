@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
+import RichTextEditor from "../components/RichTextEditor";
 
 interface AdminProps {
   user: UserProfile | null;
@@ -1564,91 +1565,13 @@ export default function Admin({ user }: AdminProps) {
                 <label className="text-xs font-bold uppercase text-gray-400">
                   Content / Story Message
                 </label>
-                <div className="flex flex-col border border-gray-100 rounded-2xl overflow-hidden mt-1 focus-within:ring-1 focus-within:ring-orange-600 focus-within:border-transparent transition-all">
-                  {/* Toolbar */}
-                  <div className="flex flex-wrap items-center gap-0.5 p-2 bg-gray-50 border-b border-gray-100">
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("bold", "new")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-650 hover:text-gray-905 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Bold"
-                    >
-                      <Bold size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("italic", "new")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-650 hover:text-gray-905 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Italic"
-                    >
-                      <Italic size={15} />
-                    </button>
-                    <div className="w-px h-5 bg-gray-200 mx-1" />
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("header", "new")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center font-bold text-[11px] gap-0.5 text-gray-600 hover:text-gray-900"
-                      title="Heading 2"
-                    >
-                      <Heading size={14} />
-                      <span>H2</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("subheader", "new")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center font-bold text-[11px] gap-0.5 text-gray-600 hover:text-gray-900"
-                      title="Heading 3"
-                    >
-                      <Heading size={14} />
-                      <span>H3</span>
-                    </button>
-                    <div className="w-px h-5 bg-gray-200 mx-1" />
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("list", "new")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Bullet List"
-                    >
-                      <List size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("numlist", "new")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Ordered List"
-                    >
-                      <ListOrdered size={15} />
-                    </button>
-                    <div className="w-px h-5 bg-gray-200 mx-1" />
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("quote", "new")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Blockquote"
-                    >
-                      <Quote size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("link", "new")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Insert Link"
-                    >
-                      <Link size={15} />
-                    </button>
-                    <span className="ml-auto text-[10px] text-gray-400 font-mono pr-2">Format Help</span>
-                  </div>
-                  {/* Input */}
-                  <textarea
-                    id="new-blog-content"
-                    required
+                <div className="mt-1">
+                  <RichTextEditor
+                    content={newBlog.content}
+                    onChange={(val) => setNewBlog({ ...newBlog, content: val })}
                     placeholder="Write your beautiful artisan storytelling article here..."
-                    className="w-full p-4 bg-white text-gray-950 outline-none h-44 border-0 focus:ring-0 resize-y"
-                    value={newBlog.content}
-                    onChange={(e) =>
-                      setNewBlog({ ...newBlog, content: e.target.value })
-                    }
-                  ></textarea>
+                    id="new-blog-content"
+                  />
                 </div>
               </div>
             </div>
@@ -1761,93 +1684,13 @@ export default function Admin({ user }: AdminProps) {
                 <label className="text-xs font-bold uppercase text-gray-400">
                   Content / Story Message
                 </label>
-                <div className="flex flex-col border border-gray-100 rounded-2xl overflow-hidden mt-1 focus-within:ring-1 focus-within:ring-orange-600 focus-within:border-transparent transition-all">
-                  {/* Toolbar */}
-                  <div className="flex flex-wrap items-center gap-0.5 p-2 bg-gray-50 border-b border-gray-100">
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("bold", "edit")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-650 hover:text-gray-905 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Bold"
-                    >
-                      <Bold size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("italic", "edit")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-650 hover:text-gray-905 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Italic"
-                    >
-                      <Italic size={15} />
-                    </button>
-                    <div className="w-px h-5 bg-gray-200 mx-1" />
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("header", "edit")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center font-bold text-[11px] gap-0.5 text-gray-600 hover:text-gray-900"
-                      title="Heading 2"
-                    >
-                      <Heading size={14} />
-                      <span>H2</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("subheader", "edit")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center font-bold text-[11px] gap-0.5 text-gray-600 hover:text-gray-900"
-                      title="Heading 3"
-                    >
-                      <Heading size={14} />
-                      <span>H3</span>
-                    </button>
-                    <div className="w-px h-5 bg-gray-200 mx-1" />
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("list", "edit")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Unordered List"
-                    >
-                      <List size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("numlist", "edit")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Ordered List"
-                    >
-                      <ListOrdered size={15} />
-                    </button>
-                    <div className="w-px h-5 bg-gray-200 mx-1" />
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("quote", "edit")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Blockquote"
-                    >
-                      <Quote size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyFormatting("link", "edit")}
-                      className="p-1.5 hover:bg-gray-200 text-gray-655 hover:text-gray-955 rounded-lg transition-colors flex items-center justify-center text-gray-600 hover:text-gray-900"
-                      title="Insert Link"
-                    >
-                      <Link size={15} />
-                    </button>
-                    <span className="ml-auto text-[10px] text-gray-400 font-mono pr-2">Format Help</span>
-                  </div>
-                  {/* Input */}
-                  <textarea
+                <div className="mt-1">
+                  <RichTextEditor
+                    content={editingBlog.content}
+                    onChange={(val) => setEditingBlog({ ...editingBlog, content: val })}
+                    placeholder="Write your beautiful artisan storytelling article here..."
                     id="edit-blog-content"
-                    required
-                    className="w-full p-4 bg-white text-gray-950 outline-none h-44 border-0 focus:ring-0 resize-y"
-                    value={editingBlog.content}
-                    onChange={(e) =>
-                      setEditingBlog({
-                        ...editingBlog,
-                        content: e.target.value,
-                      })
-                    }
-                  ></textarea>
+                  />
                 </div>
               </div>
             </div>

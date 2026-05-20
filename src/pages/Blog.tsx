@@ -4,6 +4,7 @@ import { db } from "../lib/firebase";
 import { ShoppingBag, ArrowRight, Search, Calendar, User, Clock, X, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import SEO from "../components/SEO";
+import Markdown from "react-markdown";
 
 interface BlogPost {
   id: string;
@@ -357,11 +358,44 @@ export default function Blog() {
                     {selectedPost.title}
                   </h1>
 
-                  {/* Clean text paragraph rendering */}
-                  <div className="text-gray-700 text-sm md:text-base leading-relaxed space-y-6 font-medium tracking-wide">
-                    {selectedPost.content.split("\n\n").map((para, i) => (
-                      <p key={i}>{para}</p>
-                    ))}
+                  {/* High Quality Rich Text / Markdown Story Rendering */}
+                  <div className="text-gray-700 text-sm md:text-base leading-relaxed space-y-4 font-medium tracking-wide prose prose-orange max-w-none">
+                    <Markdown
+                      components={{
+                        h2: ({ ...props }) => (
+                          <h2 className="text-xl md:text-2xl font-black text-gray-900 mt-8 mb-4 border-b border-gray-100 pb-2" {...props} />
+                        ),
+                        h3: ({ ...props }) => (
+                          <h3 className="text-lg font-bold text-gray-850 mt-6 mb-3" {...props} />
+                        ),
+                        p: ({ ...props }) => (
+                          <p className="text-gray-700 leading-relaxed mb-4 text-sm md:text-base" {...props} />
+                        ),
+                        ul: ({ ...props }) => (
+                          <ul className="list-disc pl-5 mb-4 space-y-2 text-sm md:text-base text-gray-700" {...props} />
+                        ),
+                        ol: ({ ...props }) => (
+                          <ol className="list-decimal pl-5 mb-4 space-y-2 text-sm md:text-base text-gray-700" {...props} />
+                        ),
+                        li: ({ ...props }) => (
+                          <li className="text-gray-750" {...props} />
+                        ),
+                        a: ({ ...props }) => (
+                          <a className="text-orange-600 hover:text-orange-700 underline font-semibold transition-colors" target="_blank" rel="noopener noreferrer" {...props} />
+                        ),
+                        blockquote: ({ ...props }) => (
+                          <blockquote className="border-l-4 border-orange-500 pl-4 italic text-gray-600 my-6 bg-orange-50/20 py-2 pr-3 rounded-r-xl" {...props} />
+                        ),
+                        strong: ({ ...props }) => (
+                          <strong className="font-extrabold text-gray-900" {...props} />
+                        ),
+                        em: ({ ...props }) => (
+                          <em className="italic" {...props} />
+                        ),
+                      }}
+                    >
+                      {selectedPost.content}
+                    </Markdown>
                   </div>
 
                   {/* Support dialogue */}

@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { CreditCard, ShoppingBag, ShieldCheck, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { counties } from "../data/counties";
 
 interface CheckoutProps {
   user: UserProfile | null;
@@ -18,13 +19,26 @@ export default function Checkout({ user }: CheckoutProps) {
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [address, setAddress] = useState({
-    city: "Nairobi",
-    county: "Nairobi",
+    city: "Nairobi CBD",
+    county: "Nairobi City County",
     street: "",
     phone: user?.phoneNumber || "",
     email: user?.email || ""
   });
   const navigate = useNavigate();
+
+  const handleCountyChange = (countyName: string) => {
+    const selectedCounty = counties.find(c => c.name === countyName);
+    const defaultCity = selectedCounty && selectedCounty.cities.length > 0 ? selectedCounty.cities[0] : "";
+    setAddress({
+      ...address,
+      county: countyName,
+      city: defaultCity
+    });
+  };
+
+  const selectedCountyData = counties.find(c => c.name === address.county) || counties.find(c => c.name === "Nairobi City County") || counties[0];
+  const currentCities = selectedCountyData ? selectedCountyData.cities : [];
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,26 +177,29 @@ export default function Checkout({ user }: CheckoutProps) {
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">County</label>
                   <select 
                     value={address.county}
-                    onChange={(e) => setAddress({...address, county: e.target.value})}
-                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none"
+                    onChange={(e) => handleCountyChange(e.target.value)}
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-gray-900 font-medium"
                   >
-                    <option>Nairobi</option>
-                    <option>Kiambu</option>
-                    <option>Mombasa</option>
-                    <option>Kisumu</option>
-                    <option>Nakuru</option>
+                    {counties.map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">City</label>
-                  <input 
-                    required
-                    type="text" 
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">City / Town</label>
+                  <select 
                     value={address.city}
                     onChange={(e) => setAddress({...address, city: e.target.value})}
-                    placeholder="Area/Estate" 
-                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none"
-                  />
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-gray-900 font-medium"
+                  >
+                    {currentCities.map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div>
