@@ -387,6 +387,37 @@ export default function Admin({ user }: AdminProps) {
     }
   };
 
+  const deleteTicket = async (ticketId: string) => {
+    if (!window.confirm("Are you sure you want to delete this ticket?")) return;
+    try {
+      await deleteDoc(doc(db, "support_tickets", ticketId));
+      setTickets(tickets.filter((t) => t.id !== ticketId));
+      toast.success("Ticket deleted successfully.");
+    } catch (error) {
+      handleFirestoreError(
+        error,
+        OperationType.DELETE,
+        `support_tickets/${ticketId}`,
+      );
+    }
+  };
+
+  const deleteOrder = async (orderId: string) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this order? This action cannot be undone."
+      )
+    )
+      return;
+    try {
+      await deleteDoc(doc(db, "orders", orderId));
+      setOrders(orders.filter((o) => o.id !== orderId));
+      toast.success("Order deleted successfully.");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `orders/${orderId}`);
+    }
+  };
+
   const applyFormatting = (
     type:
       | "bold"
@@ -810,6 +841,7 @@ export default function Admin({ user }: AdminProps) {
                     <th className="pb-4 uppercase">Customer</th>
                     <th className="pb-4 uppercase">Status</th>
                     <th className="pb-4 uppercase text-right">Total</th>
+                    <th className="pb-4 uppercase text-right w-24">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -846,12 +878,26 @@ export default function Admin({ user }: AdminProps) {
                         <td className="py-4 text-right font-black">
                           KES {o.totalAmount.toLocaleString()}
                         </td>
+                        <td className="py-4 text-right">
+                          {o.status === "delivered" || o.status === "cancelled" ? (
+                            <button
+                              type="button"
+                              onClick={() => deleteOrder(o.id)}
+                              className="inline-flex items-center justify-center text-red-500 p-2 hover:bg-red-50 rounded-xl transition-all hover:text-red-700 group"
+                              title="Delete Order"
+                            >
+                              <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-300 select-none font-medium pr-2">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         className="py-12 text-center text-gray-500 font-medium"
                       >
                         No orders found matching your search.
@@ -941,14 +987,23 @@ export default function Admin({ user }: AdminProps) {
                           ? t.createdAt.toDate().toLocaleString()
                           : String(t.createdAt)}
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => updateTicketStatus(t.id, "resolved")}
-                          className="flex items-center text-green-600 hover:text-green-700 transition-colors"
-                        >
-                          <CheckCircle2 size={12} className="mr-1" /> Mark
-                          Resolved
-                        </button>
+                      <div className="flex items-center space-x-3">
+                        {t.status === "closed" && (
+                          <button
+                            onClick={() => deleteTicket(t.id)}
+                            className="flex items-center text-red-600 hover:text-red-700 transition-all font-bold group"
+                          >
+                            <Trash2 size={12} className="mr-1 text-red-500 group-hover:scale-110 transition-transform" /> Delete Ticket
+                          </button>
+                        )}
+                        {t.status !== "resolved" && t.status !== "closed" && (
+                          <button
+                            onClick={() => updateTicketStatus(t.id, "resolved")}
+                            className="flex items-center text-green-600 hover:text-green-700 transition-colors"
+                          >
+                            <CheckCircle2 size={12} className="mr-1" /> Mark Resolved
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
