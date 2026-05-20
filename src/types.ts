@@ -61,3 +61,15 @@ export interface SupportTicket {
   createdAt: any;
   updatedAt?: any;
 }
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  content: string;
+  image?: string;
+  tags?: string[];
+  author?: string;
+  publishedAt?: any;
+  readTime?: string;
+}
+
