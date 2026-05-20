@@ -9,48 +9,20 @@ export const counties: CountyData[] = [
     cities: ["Mombasa City (CBD/Island)", "Mtwapa", "Changamwe", "Likoni"]
   },
   {
-    name: "Kwale County",
-    cities: ["Ukunda (Diani)", "Kwale Town", "Msambweni"]
-  },
-  {
     name: "Kilifi County",
     cities: ["Malindi", "Kilifi Town", "Mtwapa", "Mariakani"]
-  },
-  {
-    name: "Taita-Taveta County",
-    cities: ["Voi", "Taveta", "Mwatate", "Wundanyi"]
-  },
-  {
-    name: "Marsabit County",
-    cities: ["Moyale", "Marsabit Town", "Laisamis", "North Horr"]
   },
   {
     name: "Meru County",
     cities: ["Meru Town", "Maua", "Nkubu", "Timau"]
   },
   {
-    name: "Embu County",
-    cities: ["Embu Town", "Runyenjes", "Siakago", "Manyatta"]
-  },
-  {
-    name: "Kitui County",
-    cities: ["Kitui Town", "Mwingi", "Mutomo", "Kabati"]
-  },
-  {
     name: "Machakos County",
     cities: ["Mavoko", "Machakos Town", "Kangundo", "Mlolongo"]
   },
   {
-    name: "Nyandarua County",
-    cities: ["Nyahururu", "Ol Kalou", "Mairo-Inya"]
-  },
-  {
     name: "Nyeri County",
     cities: ["Nyeri Town", "Karatina", "Othaya", "Mukurweini"]
-  },
-  {
-    name: "Kirinyaga County",
-    cities: ["Wanguru (Mwea)", "Kerugoya", "Kutus", "Sagana"]
   },
   {
     name: "Murang'a County",
@@ -69,20 +41,8 @@ export const counties: CountyData[] = [
     cities: ["Eldoret City", "Moi's Bridge", "Burnt Forest", "Turbo"]
   },
   {
-    name: "Elgeyo-Marakwet County",
-    cities: ["Iten", "Kapsowar", "Tot", "Chebiemit"]
-  },
-  {
     name: "Nandi County",
     cities: ["Kapsabet", "Nandi Hills", "Serem", "Mosoriot"]
-  },
-  {
-    name: "Baringo County",
-    cities: ["Kabarnet", "Eldama Ravine", "Marigat", "Mogotio"]
-  },
-  {
-    name: "Laikipia County",
-    cities: ["Nanyuki", "Nyahururu", "Rumuruti", "Kinamba"]
   },
   {
     name: "Nakuru County",
@@ -101,10 +61,6 @@ export const counties: CountyData[] = [
     cities: ["Kericho Town", "Litein", "Kipkelion", "Londiani"]
   },
   {
-    name: "Bomet County",
-    cities: ["Bomet Town", "Sotik", "Longisa", "Mulot"]
-  },
-  {
     name: "Kakamega County",
     cities: ["Kakamega Town", "Mumias", "Malava", "Lumakanda"]
   },
@@ -117,20 +73,8 @@ export const counties: CountyData[] = [
     cities: ["Kisumu City", "Muhoroni", "Ahero", "Maseno"]
   },
   {
-    name: "Homa Bay County",
-    cities: ["Homa Bay Town", "Oyugis", "Mbita Point", "Kendu Bay"]
-  },
-  {
-    name: "Migori County",
-    cities: ["Migori Town", "Isebania", "Kehancha", "Awendo", "Rongo"]
-  },
-  {
     name: "Kisii County",
     cities: ["Kisii Town", "Ogembo", "Suneka", "Keroka"]
-  },
-  {
-    name: "Nyamira County",
-    cities: ["Nyamira Town", "Keroka", "Nyansiongo", "Kebirigo"]
   },
   {
     name: "Nairobi City County",
@@ -157,32 +101,7 @@ export const counties: CountyData[] = [
       "South B",
       "Lang'ata",
       "Ngara",
-      "Riara",
-      "Roysambu",
-      "Zimmerman",
-      "Kasarani",
-      "Githurai 44 / Githurai 45",
-      "Kahawa Sukari / Kahawa Wendani",
-      "Ruaraka",
-      "Donholm",
-      "Buruburu",
-      "Umoja (I, II, and Innercore)",
-      "Embakasi",
-      "Utawala",
-      "Ruai",
-      "Njiru",
-      "Kamulu",
-      "Pangani",
-      "Eastleigh",
-      "Pumwani",
-      "Kariokor",
-      "Ziwani",
-      "Bahati",
-      "Maringo",
-      "Makadara",
-      "Kaloleni",
-      "Dandora",
-      "Kayole"
+      "Riara"
     ]
   }
 ];
