@@ -57,7 +57,6 @@ export default function Footer() {
               <ul className="space-y-3">
                 <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">All Products</Link></li>
                 <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Best Sellers</Link></li>
-                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Vendor Dashboard</Link></li>
                 <li><Link to="/blog" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Market Stories</Link></li>
               </ul>
             </div>
@@ -68,7 +67,7 @@ export default function Footer() {
                 <li><Link to="/profile" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Track Order</Link></li>
                 <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Shipping Info</Link></li>
                 <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Returns & Exchanges</Link></li>
-                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">FAQ</Link></li>
+                <li><Link to="/faq" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">FAQ</Link></li>
               </ul>
             </div>
 
@@ -85,7 +84,7 @@ export default function Footer() {
                 </li>
                 <li className="flex items-center space-x-3 text-sm text-gray-500">
                   <Phone size={18} className="text-orange-600 shrink-0" />
-                  <span>+254 700 888 999</span>
+                  <a href="tel:+254740463021" className="hover:text-orange-600 transition-colors">+254 740 463 021</a>
                 </li>
               </ul>
             </div>

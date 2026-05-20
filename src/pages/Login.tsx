@@ -62,6 +62,8 @@ export default function Login() {
       console.error("Login error:", error);
       if (error.code === "auth/popup-closed-by-user") {
         toast.error("Login cancelled. Please try again.");
+      } else if (error.code === "auth/popup-blocked") {
+        toast.error("Popup blocked! Please allow popups for this site or open the app in a new tab.", { duration: 6000 });
       } else {
         toast.error("Failed to sign in with Google.");
       }

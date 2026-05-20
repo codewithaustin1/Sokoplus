@@ -21,6 +21,7 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Cookies from "./pages/Cookies";
+import FAQ from "./pages/FAQ";
 import { useEffect, useState } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -121,6 +122,7 @@ export default function App() {
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/cookies" element={<Cookies />} />
+              <Route path="/faq" element={<FAQ />} />
             </Routes>
           </main>
           <Footer />
