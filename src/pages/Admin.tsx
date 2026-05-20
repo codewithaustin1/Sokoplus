@@ -105,6 +105,7 @@ export default function Admin({ user }: AdminProps) {
     tagsString: "Artisans, Impact",
     author: "Sokoplus Team",
     readTime: "5 min read",
+    publishedAt: new Date().toISOString().split("T")[0],
   });
 
   const fetchData = async () => {
@@ -514,7 +515,7 @@ export default function Admin({ user }: AdminProps) {
         tags: parsedTags,
         author: newBlog.author || "Sokoplus Team",
         readTime: newBlog.readTime || "5 min read",
-        publishedAt: new Date().toISOString(),
+        publishedAt: `${newBlog.publishedAt || new Date().toISOString().split("T")[0]}T12:00:00Z`,
       });
 
       toast.success("Blog post created successfully!");
@@ -526,6 +527,7 @@ export default function Admin({ user }: AdminProps) {
         tagsString: "Artisans, Impact",
         author: "Sokoplus Team",
         readTime: "5 min read",
+        publishedAt: new Date().toISOString().split("T")[0],
       });
       fetchData();
     } catch (error) {
@@ -1590,6 +1592,20 @@ export default function Admin({ user }: AdminProps) {
               </div>
               <div className="col-span-2">
                 <label className="text-xs font-bold uppercase text-gray-400">
+                  Published Date
+                </label>
+                <input
+                  required
+                  type="date"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 text-gray-950 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium"
+                  value={newBlog.publishedAt}
+                  onChange={(e) =>
+                    setNewBlog({ ...newBlog, publishedAt: e.target.value })
+                  }
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-bold uppercase text-gray-400">
                   Cover Image URL
                 </label>
                 <input
@@ -1698,6 +1714,27 @@ export default function Admin({ user }: AdminProps) {
                   value={editingBlog.readTime || ""}
                   onChange={(e) =>
                     setEditingBlog({ ...editingBlog, readTime: e.target.value })
+                  }
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-bold uppercase text-gray-400">
+                  Published Date
+                </label>
+                <input
+                  required
+                  type="date"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 text-gray-950 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium"
+                  value={
+                    editingBlog.publishedAt && typeof editingBlog.publishedAt === "string"
+                      ? editingBlog.publishedAt.split("T")[0]
+                      : new Date().toISOString().split("T")[0]
+                  }
+                  onChange={(e) =>
+                    setEditingBlog({
+                      ...editingBlog,
+                      publishedAt: `${e.target.value}T12:00:00Z`,
+                    })
                   }
                 />
               </div>
