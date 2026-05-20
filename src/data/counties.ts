@@ -41,10 +41,6 @@ export const counties: CountyData[] = [
     cities: ["Mavoko", "Machakos Town", "Kangundo", "Mlolongo"]
   },
   {
-    name: "Makueni County",
-    cities: ["Wote", "Emali", "Makindu", "Mtito Andei"]
-  },
-  {
     name: "Nyandarua County",
     cities: ["Nyahururu", "Ol Kalou", "Mairo-Inya"]
   },
@@ -115,14 +111,6 @@ export const counties: CountyData[] = [
   {
     name: "Bungoma County",
     cities: ["Bungoma Town", "Kimilili", "Webuye", "Chwele"]
-  },
-  {
-    name: "Busia County",
-    cities: ["Busia Town", "Malaba", "Nambale", "Port Victoria"]
-  },
-  {
-    name: "Siaya County",
-    cities: ["Siaya Town", "Bondo", "Ugunja", "Yala"]
   },
   {
     name: "Kisumu County",

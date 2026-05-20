@@ -15,6 +15,8 @@ interface BlogPost {
   author?: string;
   publishedAt?: any;
   readTime?: string;
+  seoTitle?: string;
+  seoDescription?: string;
 }
 
 const FALLBACK_POSTS: BlogPost[] = [
@@ -71,7 +73,9 @@ export default function Blog() {
             tags: data.tags || [],
             author: data.author || "Sokoplus team",
             publishedAt: data.publishedAt,
-            readTime: data.readTime || "3 min read"
+            readTime: data.readTime || "3 min read",
+            seoTitle: data.seoTitle || "",
+            seoDescription: data.seoDescription || ""
           };
         });
         
@@ -127,8 +131,13 @@ export default function Blog() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-16 space-y-12">
       <SEO 
-        title="Market Stories" 
-        description="Explore stories from local Kenyan artisans, market trends, and the heart of Kenyan commerce on the Sokoplus blog."
+        title={selectedPost ? (selectedPost.seoTitle || selectedPost.title) : "Market Stories"} 
+        description={
+          selectedPost 
+            ? (selectedPost.seoDescription || (selectedPost.content.substring(0, 160).replace(/[#*_`~\n-]/g, " ").trim() + "...")) 
+            : "Explore stories from local Kenyan artisans, market trends, and the heart of Kenyan commerce on the Sokoplus blog."
+        }
+        image={selectedPost ? selectedPost.image : undefined}
       />
       
       {/* Editorial Header Section */}

@@ -106,6 +106,8 @@ export default function Admin({ user }: AdminProps) {
     author: "Sokoplus Team",
     readTime: "5 min read",
     publishedAt: new Date().toISOString().split("T")[0],
+    seoTitle: "",
+    seoDescription: "",
   });
 
   const fetchData = async () => {
@@ -141,6 +143,8 @@ export default function Admin({ user }: AdminProps) {
               author: data.author || "Sokoplus Team",
               readTime: data.readTime || "4 min read",
               publishedAt: data.publishedAt,
+              seoTitle: data.seoTitle || "",
+              seoDescription: data.seoDescription || "",
             } as BlogPost;
           }),
         );
@@ -516,6 +520,8 @@ export default function Admin({ user }: AdminProps) {
         author: newBlog.author || "Sokoplus Team",
         readTime: newBlog.readTime || "5 min read",
         publishedAt: `${newBlog.publishedAt || new Date().toISOString().split("T")[0]}T12:00:00Z`,
+        seoTitle: newBlog.seoTitle || "",
+        seoDescription: newBlog.seoDescription || "",
       });
 
       toast.success("Blog post created successfully!");
@@ -528,6 +534,8 @@ export default function Admin({ user }: AdminProps) {
         author: "Sokoplus Team",
         readTime: "5 min read",
         publishedAt: new Date().toISOString().split("T")[0],
+        seoTitle: "",
+        seoDescription: "",
       });
       fetchData();
     } catch (error) {
@@ -1538,10 +1546,10 @@ export default function Admin({ user }: AdminProps) {
 
       {/* Add Blog Post Modal */}
       {showBlogAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <form
             onSubmit={handleAddBlog}
-            className="bg-white w-full max-w-xl p-8 rounded-3xl shadow-2xl space-y-6"
+            className="bg-white w-full max-w-xl p-8 rounded-3xl shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto"
           >
             <h2 className="text-2xl font-bold text-gray-950">
               Create New Article
@@ -1632,6 +1640,40 @@ export default function Admin({ user }: AdminProps) {
                   }
                 />
               </div>
+
+              {/* SEO Sub-section */}
+              <div className="col-span-2 border-t border-gray-100 pt-4 mt-2">
+                <span className="text-xs font-black uppercase text-orange-600 tracking-wider">SEO Fields (Optional)</span>
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-bold uppercase text-gray-400">
+                  SEO Meta Title
+                </label>
+                <input
+                  type="text"
+                  placeholder="Custom browser tab title for search engines"
+                  className="w-full p-4 bg-gray-55 border border-gray-100 text-gray-950 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium"
+                  value={newBlog.seoTitle}
+                  onChange={(e) =>
+                    setNewBlog({ ...newBlog, seoTitle: e.target.value })
+                  }
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-bold uppercase text-gray-400">
+                  SEO Meta Description
+                </label>
+                <textarea
+                  placeholder="Short, highly indexable summary of this blog post (150-160 characters)"
+                  rows={2}
+                  className="w-full p-4 bg-gray-55 border border-gray-100 text-gray-950 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium"
+                  value={newBlog.seoDescription}
+                  onChange={(e) =>
+                    setNewBlog({ ...newBlog, seoDescription: e.target.value })
+                  }
+                />
+              </div>
+
               <div className="col-span-2">
                 <label className="text-xs font-bold uppercase text-gray-400">
                   Content / Story Message
@@ -1668,10 +1710,10 @@ export default function Admin({ user }: AdminProps) {
 
       {/* Edit Blog Post Modal */}
       {showBlogEditModal && editingBlog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <form
             onSubmit={handleUpdateBlog}
-            className="bg-white w-full max-w-xl p-8 rounded-3xl shadow-2xl space-y-6"
+            className="bg-white w-full max-w-xl p-8 rounded-3xl shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto"
           >
             <h2 className="text-2xl font-bold text-gray-950">Edit Article</h2>
             <div className="grid grid-cols-2 gap-4">
@@ -1745,7 +1787,7 @@ export default function Admin({ user }: AdminProps) {
                 <input
                   type="text"
                   placeholder="https://images.unsplash.com/..."
-                  className="w-full p-4 bg-gray-50 border border-gray-100 text-gray-950 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all"
+                  className="w-full p-4 bg-gray-55 border border-gray-100 text-gray-950 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all"
                   value={editingBlog.image || ""}
                   onChange={(e) =>
                     setEditingBlog({ ...editingBlog, image: e.target.value })
@@ -1772,6 +1814,40 @@ export default function Admin({ user }: AdminProps) {
                   }
                 />
               </div>
+
+              {/* SEO Sub-section */}
+              <div className="col-span-2 border-t border-gray-100 pt-4 mt-2">
+                <span className="text-xs font-black uppercase text-orange-600 tracking-wider">SEO Fields (Optional)</span>
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-bold uppercase text-gray-400">
+                  SEO Meta Title
+                </label>
+                <input
+                  type="text"
+                  placeholder="Custom browser tab title for search engines"
+                  className="w-full p-4 bg-gray-55 border border-gray-100 text-gray-950 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium"
+                  value={editingBlog.seoTitle || ""}
+                  onChange={(e) =>
+                    setEditingBlog({ ...editingBlog, seoTitle: e.target.value })
+                  }
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-bold uppercase text-gray-400">
+                  SEO Meta Description
+                </label>
+                <textarea
+                  placeholder="Short, highly indexable summary of this blog post (150-160 characters)"
+                  rows={2}
+                  className="w-full p-4 bg-gray-55 border border-gray-100 text-gray-950 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium"
+                  value={editingBlog.seoDescription || ""}
+                  onChange={(e) =>
+                    setEditingBlog({ ...editingBlog, seoDescription: e.target.value })
+                  }
+                />
+              </div>
+
               <div className="col-span-2">
                 <label className="text-xs font-bold uppercase text-gray-400">
                   Content / Story Message

@@ -71,5 +71,7 @@ export interface BlogPost {
   author?: string;
   publishedAt?: any;
   readTime?: string;
+  seoTitle?: string;
+  seoDescription?: string;
 }
 
