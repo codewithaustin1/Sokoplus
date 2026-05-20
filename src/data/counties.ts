@@ -17,14 +17,6 @@ export const counties: CountyData[] = [
     cities: ["Malindi", "Kilifi Town", "Mtwapa", "Mariakani"]
   },
   {
-    name: "Tana River County",
-    cities: ["Hola", "Garsen", "Madogo", "Bura"]
-  },
-  {
-    name: "Lamu County",
-    cities: ["Lamu Town", "Mpeketoni", "Mokowe", "Witu"]
-  },
-  {
     name: "Taita-Taveta County",
     cities: ["Voi", "Taveta", "Mwatate", "Wundanyi"]
   },
@@ -33,16 +25,8 @@ export const counties: CountyData[] = [
     cities: ["Moyale", "Marsabit Town", "Laisamis", "North Horr"]
   },
   {
-    name: "Isiolo County",
-    cities: ["Isiolo Town", "Garbatula", "Merti", "Modogashe"]
-  },
-  {
     name: "Meru County",
     cities: ["Meru Town", "Maua", "Nkubu", "Timau"]
-  },
-  {
-    name: "Tharaka-Nithi County",
-    cities: ["Chuka", "Chogoria", "Marimanti", "Kathwana"]
   },
   {
     name: "Embu County",
@@ -127,10 +111,6 @@ export const counties: CountyData[] = [
   {
     name: "Kakamega County",
     cities: ["Kakamega Town", "Mumias", "Malava", "Lumakanda"]
-  },
-  {
-    name: "Vihiga County",
-    cities: ["Mbale", "Chavakali", "Luanda", "Hamisi"]
   },
   {
     name: "Bungoma County",
