@@ -56,17 +56,18 @@ export default function App() {
         // Unsubscribe from previous user if exists
         if (unsubscribeUser) unsubscribeUser();
 
+        // Perform the admin check once on authentication change, rather than inside every snapshot update trigger
+        let isAdmin = false;
+        try {
+          const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
+          isAdmin = adminDoc.exists();
+        } catch (e) {
+          console.warn("Admin check failed:", e);
+        }
+
         // Listen to user document for real-time updates (like wishlist)
         const userRef = doc(db, "users", fbUser.uid);
-        unsubscribeUser = onSnapshot(userRef, async (docSnap) => {
-          let isAdmin = false;
-          try {
-            const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
-            isAdmin = adminDoc.exists();
-          } catch (e) {
-            console.warn("Admin check failed:", e);
-          }
-
+        unsubscribeUser = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
             setUser({

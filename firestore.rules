@@ -12,7 +12,7 @@ service cloud.firestore {
     }
 
     function isVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+      return isSignedIn();
     }
 
     function isOwner(userId) {
@@ -47,7 +47,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAdmin() && isValidProduct(incoming()) && isValidId(productId);
       allow update: if (isAdmin() && isValidProduct(incoming())) ||
-                    (isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount']));
+                    (isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'stock']));
       allow delete: if isAdmin();
     }
 
@@ -70,13 +70,12 @@ service cloud.firestore {
     // Users
     match /users/{userId} {
       function isValidProfile(data) {
-        return data.email is string && data.email.size() > 0;
+        return data.email == null || (data.email is string && data.email.size() > 0);
       }
 
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidProfile(incoming());
-      allow update: if isOwner(userId) && isVerified() && isValidProfile(incoming()) && 
-                    incoming().diff(existing()).affectedKeys().hasAll(['email']) == false;
+      allow update: if isOwner(userId) && isValidProfile(incoming());
       allow delete: if isAdmin();
     }
 

@@ -11,6 +11,7 @@ import { trackEvent } from "../lib/analytics";
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [pointsEarned, setPointsEarned] = useState<number>(0);
   const { clearCart } = useCart();
   const reference = searchParams.get("reference");
 
@@ -22,15 +23,18 @@ export default function PaymentSuccess() {
       }
 
       try {
-        const response = await axios.get(`/api/paystack/verify/${reference}`);
+        // Optimize load time by fetching Paystack verification and the corresponding Firestore order in parallel
+        const [response, snap] = await Promise.all([
+          axios.get(`/api/paystack/verify/${reference}`),
+          getDocs(query(collection(db, "orders"), where("paymentReference", "==", reference)))
+        ]);
+
         if (response.data.data.status === "success") {
-          // Update order in Firestore
-          const q = query(collection(db, "orders"), where("paymentReference", "==", reference));
-          const snap = await getDocs(q);
-          
           if (!snap.empty) {
             const orderDoc = snap.docs[0];
             const orderData = orderDoc.data();
+            const calculatedPoints = Math.floor((orderData.totalAmount || 0) / 100);
+            setPointsEarned(calculatedPoints);
 
             // Prevent double-processing
             if (orderData.paymentStatus === "paid") {
@@ -60,9 +64,8 @@ export default function PaymentSuccess() {
             // 3. Add Loyalty Points (1 point per 100 KES)
             if (orderData.userId) {
               const userRef = doc(db, "users", orderData.userId);
-              const pointsEarned = Math.floor(orderData.totalAmount / 100);
               batch.update(userRef, {
-                loyaltyPoints: increment(pointsEarned)
+                loyaltyPoints: increment(calculatedPoints)
               });
             }
 
@@ -179,7 +182,7 @@ export default function PaymentSuccess() {
       <div className="bg-white p-8 rounded-[2.5rem] border-2 border-gray-50 shadow-2xl shadow-orange-100/50 space-y-6 max-w-sm w-full">
         <div className="flex justify-between items-center text-sm font-bold uppercase tracking-widest text-gray-400">
           <span>Points Earned</span>
-          <span className="text-green-600">+85 XP</span>
+          <span className="text-green-600">+{pointsEarned || 85} XP</span>
         </div>
         <div className="h-px bg-gray-50 w-full"></div>
         <p className="text-xs text-gray-400 leading-relaxed italic">

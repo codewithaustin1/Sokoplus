@@ -262,10 +262,10 @@ export default function Home({ user }: HomeProps) {
         {/* Filtering & Sorting Bar */}
         <div className="flex flex-col space-y-6 mb-12">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
               <button 
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center space-x-2 px-8 py-4 rounded-2xl border transition-all font-bold shadow-sm ${
+                className={`flex items-center space-x-2 px-5 sm:px-8 py-3.5 sm:py-4 rounded-2xl border transition-all font-bold shadow-sm text-sm sm:text-base ${
                   showFilters ? "bg-gray-900 text-white border-gray-900 shadow-xl" : "bg-white text-gray-900 border-gray-100 hover:border-orange-600"
                 }`}
               >
@@ -278,11 +278,11 @@ export default function Home({ user }: HomeProps) {
                 )}
               </button>
               
-              <div className="relative group">
+              <div className="relative group flex-grow sm:flex-grow-0">
                 <select 
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="appearance-none bg-white border border-gray-100 px-8 py-4 pr-12 rounded-2xl font-bold cursor-pointer hover:border-orange-600 transition-all outline-none shadow-sm"
+                  className="w-full sm:w-auto appearance-none bg-white border border-gray-100 px-5 sm:px-8 py-3.5 sm:py-4 pr-10 sm:pr-12 rounded-2xl font-bold cursor-pointer hover:border-orange-600 transition-all outline-none shadow-sm text-sm sm:text-base"
                 >
                   <option value="newest">Sort: Newest</option>
                   <option value="price-low">Price: Low to High</option>
@@ -293,11 +293,11 @@ export default function Home({ user }: HomeProps) {
               </div>
 
               {/* Currency Switching Pill */}
-              <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-100 items-center space-x-1 shadow-sm h-[58px]">
+              <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-100 items-center space-x-1 shadow-sm h-[50px] sm:h-[58px]">
                 <button
                   type="button"
                   onClick={() => setCurrency("KES")}
-                  className={`px-5 h-[48px] rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  className={`px-4 sm:px-5 h-[40px] sm:h-[48px] rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                     currency === "KES"
                       ? "bg-white text-orange-600 shadow-sm"
                       : "text-gray-500 hover:text-gray-900"
@@ -308,7 +308,7 @@ export default function Home({ user }: HomeProps) {
                 <button
                   type="button"
                   onClick={() => setCurrency("USD")}
-                  className={`px-5 h-[48px] rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  className={`px-4 sm:px-5 h-[40px] sm:h-[48px] rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                     currency === "USD"
                       ? "bg-white text-orange-600 shadow-sm"
                       : "text-gray-500 hover:text-gray-900"
@@ -319,7 +319,7 @@ export default function Home({ user }: HomeProps) {
               </div>
             </div>
 
-            <p className="text-gray-500 font-bold bg-gray-50 px-4 py-2 rounded-full border border-gray-100">
+            <p className="text-gray-500 font-bold bg-gray-50 px-4 py-2 rounded-full border border-gray-100 text-sm sm:text-base">
               Found <span className="text-orange-600">{filteredProducts.length}</span> authentic products
             </p>
           </div>

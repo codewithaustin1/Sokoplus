@@ -104,7 +104,7 @@ export default function Checkout({ user }: CheckoutProps) {
       setRedirecting(true);
       setTimeout(() => {
         window.location.href = authorization_url;
-      }, 1500);
+      }, 300);
       
     } catch (error: any) {
       const detail = error.response?.data?.details || error.response?.data?.error || "Failed to process checkout. Please try again.";
