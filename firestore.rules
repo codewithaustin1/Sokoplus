@@ -99,6 +99,30 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Comments
+    match /comments/{commentId} {
+      function isValidComment(data) {
+        return data.postId is string && data.postId.size() > 0 &&
+               data.userId == request.auth.uid &&
+               data.userName is string && data.userName.size() > 0 &&
+               data.content is string && data.content.size() > 0 && data.content.size() <= 2000 &&
+               data.replies is list;
+      }
+
+      allow read: if true;
+      allow create: if isSignedIn() && isValidComment(incoming()) && isValidId(commentId);
+      allow update: if isSignedIn() && (
+        (isOwner(existing().userId) && isValidComment(incoming())) ||
+        (incoming().postId == existing().postId && 
+         incoming().userId == existing().userId && 
+         incoming().userName == existing().userName && 
+         incoming().content == existing().content &&
+         incoming().replies is list && 
+         incoming().replies.size() > existing().replies.size())
+      );
+      allow delete: if isAdmin() || isOwner(existing().userId);
+    }
+
     // Support Tickets
     match /support_tickets/{ticketId} {
       function isValidTicket(data) {

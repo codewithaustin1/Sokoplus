@@ -1,63 +1,239 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, onSnapshot, where, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { ShoppingBag, ArrowRight, Search, Calendar, User, Clock, X, ArrowLeft } from "lucide-react";
+import { 
+  ShoppingBag, ArrowRight, Search, Calendar, User, Clock, X, ArrowLeft, 
+  Share2, MessageSquare, Trash2, CornerDownRight, Send 
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import SEO from "../components/SEO";
 import Markdown from "react-markdown";
+import { Link, useSearchParams } from "react-router-dom";
+import { BlogPost, UserProfile } from "../types";
+import toast from "react-hot-toast";
 
-interface BlogPost {
+interface CommentReply {
   id: string;
-  title: string;
+  userId: string;
+  userName: string;
   content: string;
-  image?: string;
-  tags?: string[];
-  author?: string;
-  publishedAt?: any;
-  readTime?: string;
-  seoTitle?: string;
-  seoDescription?: string;
+  createdAt: string;
 }
 
-const FALLBACK_POSTS: BlogPost[] = [
-  {
-    id: "fallback-1",
-    title: "Empowering Women Weavers in Machakos",
-    content: `In the serene, sun-swept hills of Machakos County, a quiet revolution is taking place at the tips of fingers. Traditional hand-weaving of Sisal baskets—locally known as Kiondos—has been passed down through generations of Akamba women as a social activity.\n\nToday, coordinated self-help collectives are turning this beautiful legacy into high-fashion exports. SokoPlus works directly with these collectives, organizing direct fair wages, supply chain materials, and providing digital channels to showcase their talent to global design enthusiasts.\n\n"Weaving is more than a chore; it is our history," says Mueni, a master weaver of 35 years. "When you hold a finished basket, you hold our songs, our laughs, and our hopes for our children." Every dyed fiber is naturally sourced from local plants, crafted over weeks of intense precision.\n\nBy ensuring that these artisans receive direct, uninterrupted proceeds, we do not only sustain rural households; we preserve the physical memory of Kenya's cultural heritage.`,
-    image: "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?q=80&w=800&auto=format&fit=crop",
-    tags: ["Artisans", "Impact"],
-    author: "Mwende K.",
-    publishedAt: "2026-05-18T12:00:00Z",
-    readTime: "4 min read"
-  },
-  {
-    id: "fallback-2",
-    title: "Why Handcrafted Kenyan Leather Lasts a Lifetime",
-    content: `Walk into any artisan workshop along Nairobi's outer rim, and your senses are instantly greeted by the rich, warm scent of genuine vegetable-tanned leather. Here, master leather workers craft belts, bags, and boots meant to withstand the test of time.\n\nIn an era dominated by fast-fashion synthetics, Kenyan artisan leather stands out because of its architectural honesty and durability. Utilizing locally sourced hides—primarily reclaimed as a by-product of rural livestock husbandry—our makers follow a rigorous vegetable tanning process.\n\n"Synthetic fake leather peels in months. Natural leather matures," explains David, a third-generation saddle and bag maker. "It gains a beautiful patina, absorbing the history of its owner. Each scratch and dark patch becomes a badge of honor."\n\nUnlike assembly-line products, these bags feature individually hand-stitched reinforcement points, sturdy cast-brass buckles, and deep oil feeds to prevent drying out. Buying a SokoPlus leather piece is an investment in a companion that lives and ages alongside you.`,
-    image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=800&auto=format&fit=crop",
-    tags: ["Guides", "Leather"],
-    author: "David O.",
-    publishedAt: "2026-05-15T10:30:00Z",
-    readTime: "5 min read"
-  },
-  {
-    id: "fallback-3",
-    title: "Nairobi's Clay Revolution: From Soil to Stoneware",
-    content: `In the quiet, leafy suburbs of Westlands and Karen, contemporary design studios are breathing abstract ceramic forms into organic Kenyan clays. Inspired by traditional potters of Western and Eastern Kenya, these new wave designers are hand-sculpting functional tableware that competes with international galleries.\n\nThe process remains delightfully close to the soil. Raw clay is often transported directly from the deep riverbeds of Mount Kenya and Athi River, refined by hand, throwing it on electric or manual kick-wheels.\n\n"We are moving past default souvenirs," says Aminah, founder of a modern pottery atelier. "Sokoplus clayware needs to feel completely at home in a chic restaurant or a cozy family dining table. It represents the sophistication of modern African design—minimalist, heavy, textured, and deeply earth-aligned."\n\nEach stoneware cup, bowl, and vase is fired in high-temperature kilns, creating high-durability kitchen items that are fully microwave and dishwasher safe while preserving an irreproducible, dimpled hand-touch charm.`,
-    image: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?q=80&w=800&auto=format&fit=crop",
-    tags: ["Trends", "Home Decor"],
-    author: "Aminah T.",
-    publishedAt: "2026-05-10T09:15:00Z",
-    readTime: "6 min read"
-  }
-];
+interface BlogComment {
+  id: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  content: string;
+  createdAt: string;
+  replies: CommentReply[];
+}
 
-export default function Blog() {
+export default function Blog({ user }: { user: UserProfile | null }) {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTag, setActiveTag] = useState("All");
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Comments state
+  const [comments, setComments] = useState<BlogComment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newCommentText, setNewCommentText] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [newReplyText, setNewReplyText] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
+
+  // Synchronize URL search params with active popup
+  useEffect(() => {
+    const postId = searchParams.get("post");
+    if (postId && posts.length > 0) {
+      const found = posts.find((p) => p.id === postId);
+      if (found) {
+        setSelectedPost(found);
+      }
+    } else {
+      setSelectedPost(null);
+    }
+  }, [posts, searchParams]);
+
+  // Real-time comments listener
+  useEffect(() => {
+    if (!selectedPost) {
+      setComments([]);
+      return;
+    }
+
+    setLoadingComments(true);
+    const q = query(
+      collection(db, "comments"),
+      where("postId", "==", selectedPost.id)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const fetched = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        })) as BlogComment[];
+
+        // Client-side sorting because we can't assume composite index exists
+        fetched.sort((a, b) => {
+          const tA = new Date(a.createdAt).getTime();
+          const tB = new Date(b.createdAt).getTime();
+          return tA - tB;
+        });
+
+        setComments(fetched);
+        setLoadingComments(false);
+      },
+      (error) => {
+        console.error("Error listening to comments:", error);
+        setLoadingComments(false);
+      }
+    );
+
+    return unsubscribe;
+  }, [selectedPost]);
+
+  const handleOpenPost = (post: BlogPost) => {
+    setSelectedPost(post);
+    setSearchParams({ post: post.id });
+  };
+
+  const handleClosePost = () => {
+    setSelectedPost(null);
+    setSearchParams({});
+  };
+
+  const handleShare = async (e: React.MouseEvent, post: BlogPost) => {
+    e.stopPropagation(); // prevent triggering card clicks
+    const shareUrl = `${window.location.origin}/blog?post=${post.id}`;
+    const shareData = {
+      title: post.title,
+      text: post.content.substring(0, 100) + "...",
+      url: shareUrl,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+        toast.success("Shared successfully!");
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          console.error("Error sharing:", err);
+          fallbackCopy(shareUrl);
+        }
+      }
+    } else {
+      fallbackCopy(shareUrl);
+    }
+  };
+
+  const fallbackCopy = (url: string) => {
+    navigator.clipboard.writeText(url)
+      .then(() => {
+        toast.success("Link copied to clipboard!");
+      })
+      .catch((err) => {
+        console.error("Failed to copy link:", err);
+        toast.error("Could not copy link to clipboard.");
+      });
+  };
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      toast.error("Please log in to leave a comment.");
+      return;
+    }
+    if (!selectedPost) return;
+    if (!newCommentText.trim()) return;
+
+    setSubmittingComment(true);
+    try {
+      await addDoc(collection(db, "comments"), {
+        postId: selectedPost.id,
+        userId: user.uid,
+        userName: user.displayName || user.email?.split("@")[0] || "User",
+        content: newCommentText.trim(),
+        createdAt: new Date().toISOString(),
+        replies: []
+      });
+      setNewCommentText("");
+      toast.success("Comment added!");
+    } catch (err) {
+      console.error("Error adding comment:", err);
+      toast.error("Failed to post comment.");
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleAddReply = async (comment: BlogComment) => {
+    if (!user) {
+      toast.error("Please log in to reply.");
+      return;
+    }
+    if (!newReplyText.trim()) return;
+
+    setSubmittingReply(true);
+    try {
+      const updatedReplies = [
+        ...(comment.replies || []),
+        {
+          id: Math.random().toString(36).substring(2, 9),
+          userId: user.uid,
+          userName: user.displayName || user.email?.split("@")[0] || "User",
+          content: newReplyText.trim(),
+          createdAt: new Date().toISOString()
+        }
+      ];
+
+      await updateDoc(doc(db, "comments", comment.id), {
+        replies: updatedReplies
+      });
+      setNewReplyText("");
+      setReplyingToCommentId(null);
+      toast.success("Reply added!");
+    } catch (err) {
+      console.error("Error adding reply:", err);
+      toast.error("Failed to add reply.");
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (window.confirm("Are you sure you want to delete this comment?")) {
+      try {
+        await deleteDoc(doc(db, "comments", commentId));
+        toast.success("Comment deleted!");
+      } catch (err) {
+        console.error("Error deleting comment:", err);
+        toast.error("Failed to delete comment.");
+      }
+    }
+  };
+
+  const handleDeleteReply = async (comment: BlogComment, replyId: string) => {
+    if (window.confirm("Are you sure you want to delete this reply?")) {
+      try {
+        const updatedReplies = comment.replies.filter(r => r.id !== replyId);
+        await updateDoc(doc(db, "comments", comment.id), {
+          replies: updatedReplies
+        });
+        toast.success("Reply deleted!");
+      } catch (err) {
+        console.error("Error deleting reply:", err);
+        toast.error("Failed to delete reply.");
+      }
+    }
+  };
 
   useEffect(() => {
     async function fetchPosts() {
@@ -79,18 +255,10 @@ export default function Blog() {
           };
         });
         
-        // Merge fetched posts with our rich authentic local fallback stories
-        const combined = [...fetched];
-        FALLBACK_POSTS.forEach(fallback => {
-          if (!combined.some(p => p.title.toLowerCase() === fallback.title.toLowerCase())) {
-            combined.push(fallback);
-          }
-        });
-        
-        setPosts(combined);
+        setPosts(fetched);
       } catch (error) {
         console.error("Error fetching blogs:", error);
-        setPosts(FALLBACK_POSTS);
+        setPosts([]);
       } finally {
         setLoading(false);
       }
@@ -188,8 +356,8 @@ export default function Blog() {
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all grid grid-cols-1 lg:grid-cols-12 gap-0 cursor-pointer"
-          onClick={() => setSelectedPost(featuredPost)}
+          className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all grid grid-cols-1 lg:grid-cols-12 gap-0 cursor-pointer relative"
+          onClick={() => handleOpenPost(featuredPost)}
         >
           <div className="lg:col-span-7 aspect-[16/10] lg:aspect-auto min-h-[300px] bg-gray-100 relative">
             {featuredPost.image ? (
@@ -199,9 +367,16 @@ export default function Blog() {
                 <ShoppingBag size={64} />
               </div>
             )}
-            <span className="absolute top-4 left-4 bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-md">
+            <span className="absolute top-4 left-4 bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-md z-10">
               Featured Story
             </span>
+            <button
+              onClick={(e) => handleShare(e, featuredPost)}
+              className="absolute top-4 right-4 p-2.5 bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600 rounded-full shadow-md z-10 transition-all border border-gray-100/50 cursor-pointer flex items-center justify-center"
+              title="Share Story"
+            >
+              <Share2 size={13} />
+            </button>
           </div>
           <div className="lg:col-span-5 p-8 md:p-12 flex flex-col justify-center space-y-6">
             <div className="flex items-center space-x-4 text-xs font-semibold text-gray-400">
@@ -241,8 +416,8 @@ export default function Blog() {
             <motion.article 
               whileHover={{ y: -6 }}
               key={post.id} 
-              className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-full"
-              onClick={() => setSelectedPost(post)}
+              className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-full relative"
+              onClick={() => handleOpenPost(post)}
             >
               <div className="aspect-[16/10] bg-gray-50 overflow-hidden relative">
                  {post.image ? (
@@ -252,6 +427,13 @@ export default function Blog() {
                       <ShoppingBag size={48} />
                    </div>
                  )}
+                 <button
+                   onClick={(e) => handleShare(e, post)}
+                   className="absolute top-4 right-4 p-2.5 bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600 rounded-full shadow-md z-10 transition-all border border-gray-100/50 cursor-pointer flex items-center justify-center"
+                   title="Share Story"
+                 >
+                   <Share2 size={13} />
+                 </button>
               </div>
               
               <div className="p-6 flex flex-col flex-grow justify-between space-y-4">
@@ -266,7 +448,7 @@ export default function Blog() {
                      {post.title}
                    </h2>
                    
-                   <p className="text-gray-500 line-clamp-3 text-xs leading-relaxed">
+                   <p className="text-gray-550 line-clamp-3 text-xs leading-relaxed">
                      {post.content}
                    </p>
                 </div>
@@ -305,7 +487,7 @@ export default function Blog() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedPost(null)}
+              onClick={handleClosePost}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] cursor-zoom-out"
             />
             
@@ -321,19 +503,29 @@ export default function Blog() {
               <div className="sticky top-0 bg-white/95 backdrop-blur-md px-6 py-4 border-b border-gray-100 flex items-center justify-between z-10">
                 <button 
                   type="button"
-                  onClick={() => setSelectedPost(null)}
+                  onClick={handleClosePost}
                   className="flex items-center space-x-2 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-gray-900 transition-colors"
                 >
                   <ArrowLeft size={16} />
                   <span>Back to Stories</span>
                 </button>
-                <button 
-                  type="button"
-                  onClick={() => setSelectedPost(null)}
-                  className="p-2 hover:bg-gray-100 text-gray-400 hover:text-gray-900 rounded-full transition-all"
-                >
-                  <X size={20} />
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button 
+                    type="button"
+                    onClick={(e) => handleShare(e, selectedPost)}
+                    className="p-2 text-gray-500 hover:text-orange-600 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                    title="Share Story"
+                  >
+                    <Share2 size={18} />
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={handleClosePost}
+                    className="p-2 hover:bg-gray-100 text-gray-400 hover:text-gray-900 rounded-full transition-all flex items-center justify-center"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
 
               {/* Scrollable Story content */}
@@ -414,13 +606,229 @@ export default function Blog() {
                     <button 
                       type="button"
                       onClick={() => {
-                        setSelectedPost(null);
+                        handleClosePost();
                         window.scrollTo({ top: 300, behavior: "smooth" });
                       }}
                       className="bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl hover:bg-orange-600 transition-all shadow-md shadow-gray-900/10"
                     >
                       Explore Artisan Creations
                     </button>
+                  </div>
+
+                  <hr className="border-gray-100 my-8" />
+
+                  {/* Comments System Thread */}
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                      <h3 className="text-lg font-black text-gray-900 flex items-center space-x-2">
+                        <MessageSquare size={18} className="text-orange-600" />
+                        <span>Comments ({comments.length})</span>
+                      </h3>
+                      {loadingComments && (
+                        <div className="text-xs text-gray-400 animate-pulse">Syncing...</div>
+                      )}
+                    </div>
+
+                    {/* Thread comments list */}
+                    <div className="space-y-6">
+                      {comments.length > 0 ? (
+                        comments.map((comment) => (
+                          <div key={comment.id} className="space-y-4">
+                            {/* Parent Comment Card */}
+                            <div className="bg-gray-50/50 rounded-2xl p-5 border border-gray-100 space-y-3 relative group">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center space-x-3">
+                                  {/* Initials Avatar */}
+                                  <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-xs font-black uppercase select-none">
+                                    {comment.userName.substring(0, 2)}
+                                  </div>
+                                  <div>
+                                    <h4 className="font-extrabold text-xs text-gray-800">{comment.userName}</h4>
+                                    <span className="text-[10px] text-gray-400 font-medium">
+                                      {new Date(comment.createdAt).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit"
+                                      })}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Delete Parent Comment Button */}
+                                {user && (user.uid === comment.userId || user.isAdmin) && (
+                                  <button
+                                    onClick={() => handleDeleteComment(comment.id)}
+                                    type="button"
+                                    className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors duration-200 cursor-pointer"
+                                    title="Delete Comment"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </div>
+
+                              <p className="text-gray-700 text-xs md:text-sm whitespace-pre-wrap leading-relaxed font-semibold">
+                                {comment.content}
+                              </p>
+
+                              {/* Action row to reply */}
+                              <div className="flex items-center space-x-4 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReplyingToCommentId(
+                                      replyingToCommentId === comment.id ? null : comment.id
+                                    );
+                                    setNewReplyText("");
+                                  }}
+                                  className="text-[10px] font-black uppercase tracking-wider text-orange-600 hover:text-orange-700 flex items-center space-x-1 cursor-pointer"
+                                >
+                                  <CornerDownRight size={12} />
+                                  <span>{replyingToCommentId === comment.id ? "Cancel Reply" : "Reply"}</span>
+                                </button>
+                                {comment.replies && comment.replies.length > 0 && (
+                                  <span className="text-[10px] uppercase font-bold text-gray-400">
+                                    {comment.replies.length} {comment.replies.length === 1 ? "response" : "responses"}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Replies List */}
+                            {comment.replies && comment.replies.length > 0 && (
+                              <div className="pl-6 md:pl-10 space-y-3 border-l-2 border-gray-100">
+                                {comment.replies.map((reply) => (
+                                  <div
+                                    key={reply.id}
+                                    className="bg-orange-50/20 rounded-xl p-4 border border-orange-100/50 space-y-2 relative"
+                                  >
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex items-center space-x-2">
+                                        <div className="w-6 h-6 rounded-full bg-orange-50 text-orange-700 flex items-center justify-center text-[10px] font-black uppercase select-none">
+                                          {reply.userName.substring(0, 2)}
+                                        </div>
+                                        <div>
+                                          <h5 className="font-extrabold text-[11px] text-gray-800">{reply.userName}</h5>
+                                          <span className="text-[9px] text-gray-450 font-medium">
+                                            {new Date(reply.createdAt).toLocaleDateString("en-US", {
+                                              month: "short",
+                                              day: "numeric",
+                                              year: "numeric",
+                                              hour: "2-digit",
+                                              minute: "2-digit"
+                                            })}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {/* Delete Reply Button */}
+                                      {user && (user.uid === reply.userId || user.isAdmin) && (
+                                        <button
+                                          onClick={() => handleDeleteReply(comment, reply.id)}
+                                          type="button"
+                                          className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors duration-200 cursor-pointer"
+                                          title="Delete Reply"
+                                        >
+                                          <Trash2 size={12} />
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    <p className="text-gray-700 text-xs leading-relaxed font-semibold">
+                                      {reply.content}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Inline Reply Form */}
+                            {replyingToCommentId === comment.id && (
+                              <div className="pl-6 md:pl-10">
+                                <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
+                                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400">
+                                    Replying to {comment.userName}
+                                  </label>
+                                  <textarea
+                                    rows={2}
+                                    value={newReplyText}
+                                    onChange={(e) => setNewReplyText(e.target.value)}
+                                    placeholder="Write your response..."
+                                    className="w-full text-xs bg-gray-50 border border-gray-150 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-orange-500 font-semibold"
+                                  />
+                                  <div className="flex justify-end space-x-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setReplyingToCommentId(null)}
+                                      className="px-3 py-1.5 text-[9px] font-black uppercase text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={submittingReply || !newReplyText.trim()}
+                                      onClick={() => handleAddReply(comment)}
+                                      className="bg-orange-600 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center space-x-1 hover:bg-orange-700 transition cursor-pointer"
+                                    >
+                                      <span>{submittingReply ? "Posting..." : "Reply"}</span>
+                                      <Send size={10} />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-8 text-center space-y-2 border border-dashed border-gray-150 rounded-2xl bg-gray-50/30">
+                          <p className="text-xs text-gray-400 font-semibold italic">
+                            No comments yet. Be the first to share your thoughts!
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Write Parent Comment Input */}
+                    <div className="border-t border-gray-150 pt-6">
+                      {user ? (
+                        <form onSubmit={handleAddComment} className="space-y-3">
+                          <label className="block text-xs font-black uppercase tracking-wider text-gray-750">
+                            Join the conversation
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={newCommentText}
+                            onChange={(e) => setNewCommentText(e.target.value)}
+                            placeholder="Write an insightful comment..."
+                            className="w-full text-xs text-gray-800 bg-gray-50 border border-gray-150 rounded-xl p-3 outline-none focus:ring-1 focus:ring-orange-500 font-semibold"
+                          />
+                          <div className="flex justify-end">
+                            <button
+                              type="submit"
+                              disabled={submittingComment || !newCommentText.trim()}
+                              className="bg-gray-950 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl hover:bg-orange-600 transition shadow-md flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                            >
+                              <span>{submittingComment ? "Posting..." : "Add Comment"}</span>
+                              <Send size={12} />
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="bg-orange-50/40 rounded-2xl p-5 border border-orange-100/60 text-center space-y-3">
+                          <p className="text-xs text-gray-650 font-medium">
+                            Join the dialogue. Reading is open, but sharing comments and responses requires an active account.
+                          </p>
+                          <Link
+                            to="/login"
+                            className="inline-block bg-gray-950 text-white text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-lg hover:bg-orange-600 transition-all shadow-md"
+                          >
+                            Sign In to Comment
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

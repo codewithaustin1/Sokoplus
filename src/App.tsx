@@ -127,7 +127,7 @@ export default function App() {
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout user={user} />} />
               <Route path="/admin/*" element={<Admin user={user} />} />
-              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog" element={<Blog user={user} />} />
               <Route path="/login" element={<Login />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />

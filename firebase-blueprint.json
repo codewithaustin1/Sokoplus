@@ -77,6 +77,23 @@
       },
       "required": ["title", "content", "author"]
     },
+    "Comment": {
+      "title": "Comment",
+      "description": "A comment or reply on a specific blog post.",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string", "description": "ID of the associated blog post" },
+        "userId": { "type": "string", "description": "User identifier who crafted the comment" },
+        "userName": { "type": "string", "description": "Display name of the author" },
+        "content": { "type": "string", "description": "Markdown comment text content" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "replies": {
+          "type": "array",
+          "description": "An array of responses containing id, userId, userName, content, and createdAt"
+        }
+      },
+      "required": ["postId", "userId", "userName", "content", "replies"]
+    },
     "SupportTicket": {
       "title": "SupportTicket",
       "description": "Customer support request.",
@@ -113,6 +130,10 @@
     "/blog": {
       "schema": "BlogPost",
       "description": "Marketing articles."
+    },
+    "/comments": {
+      "schema": "Comment",
+      "description": "Blog post comments and replies."
     },
     "/support_tickets": {
       "schema": "SupportTicket",

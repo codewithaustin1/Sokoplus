@@ -463,9 +463,26 @@ export default function Home({ user }: HomeProps) {
                   </button>
                 </Link>
                 <div className="space-y-1">
-                  <div className="flex items-center text-yellow-400 mb-1">
-                     <Star size={14} fill="currentColor" />
-                     <span className="text-gray-500 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center text-yellow-400">
+                       <Star size={14} fill="currentColor" />
+                       <span className="text-gray-500 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
+                    </div>
+                    <div>
+                      {p.stock === 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                          Out of Stock
+                        </span>
+                      ) : p.stock <= 5 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                          Low Stock ({p.stock})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
+                          In Stock
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <Link to={`/product/${p.id}`} className="text-lg font-bold hover:text-orange-600 transition-colors line-clamp-1">
                     {p.name}
@@ -473,11 +490,20 @@ export default function Home({ user }: HomeProps) {
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-xl font-black text-gray-900">{formatPrice(p.price)}</span>
                     <button 
+                      disabled={p.stock === 0}
                       onClick={() => {
+                        if (p.stock === 0) {
+                          toast.error("This product is out of stock!");
+                          return;
+                        }
                         addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
                         toast.success("Added to cart!");
                       }}
-                      className="bg-gray-900 text-white p-2 rounded-lg hover:bg-orange-600 transition-colors"
+                      className={`p-2 rounded-lg transition-colors ${
+                        p.stock === 0 
+                          ? "bg-gray-200 text-gray-400 cursor-not-allowed" 
+                          : "bg-gray-900 text-white hover:bg-orange-600 cursor-pointer"
+                      }`}
                     >
                       <ShoppingBag size={18} />
                     </button>
