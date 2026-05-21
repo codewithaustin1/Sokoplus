@@ -34,6 +34,7 @@ import toast from "react-hot-toast";
 import SupportChat from "./components/SupportChat";
 import VerificationBanner from "./components/VerificationBanner";
 import AnalyticsTracker from "./components/AnalyticsTracker";
+import CookieConsentBanner from "./components/CookieConsentBanner";
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -169,6 +170,7 @@ export default function App() {
           </div>
 
           <SupportChat user={user} isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
+          <CookieConsentBanner />
           <Toaster position="bottom-right" />
         </div>
       </Router>

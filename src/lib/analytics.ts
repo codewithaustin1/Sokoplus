@@ -20,9 +20,16 @@ if (!GA_MEASUREMENT_ID) {
 /**
  * Initializes the Google Analytics script tag and defines window.gtag
  */
-export function initGA() {
+export function initGA(force = false) {
   if (typeof window === "undefined") return;
   if (!GA_MEASUREMENT_ID) return;
+
+  // Track if consent actually exists; if not forced or accepted, defer loading GA
+  const consent = localStorage.getItem("sokoplus_cookie_consent");
+  if (!force && consent !== "accepted") {
+    console.log("[Google Analytics] Deferring initialization: no explicit consent granted.");
+    return;
+  }
 
   // Prevent multiple initializations
   if (window.gtag) return;
