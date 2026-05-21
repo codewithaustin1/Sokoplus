@@ -66,7 +66,7 @@ export default function Footer() {
               <ul className="space-y-3">
                 <li><Link to="/profile" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Track Order</Link></li>
                 <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Shipping Info</Link></li>
-                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Returns & Exchanges</Link></li>
+                <li><Link to="/returns" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Returns & Exchanges</Link></li>
                 <li><Link to="/faq" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">FAQ</Link></li>
               </ul>
             </div>
@@ -101,6 +101,7 @@ export default function Footer() {
               <Link to="/privacy" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Privacy Policy</Link>
               <Link to="/terms" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Terms of Service</Link>
               <Link to="/cookies" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Cookies</Link>
+              <Link to="/returns" className="text-[10px] text-gray-400 hover:text-gray-900 uppercase tracking-tighter font-bold">Return Policy</Link>
             </div>
           </div>
 

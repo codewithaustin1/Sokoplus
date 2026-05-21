@@ -6,6 +6,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { CartProvider } from "./lib/CartContext";
+import { CurrencyProvider } from "./lib/CurrencyContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
@@ -22,6 +23,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Cookies from "./pages/Cookies";
 import FAQ from "./pages/FAQ";
+import ReturnPolicy from "./pages/ReturnPolicy";
 import { useEffect, useState } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -36,6 +38,14 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenSupport = () => setIsSupportOpen(true);
+    window.addEventListener("open-support-chat", handleOpenSupport);
+    return () => {
+      window.removeEventListener("open-support-chat", handleOpenSupport);
+    };
+  }, []);
 
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
@@ -102,8 +112,9 @@ export default function App() {
   if (loading) return <div className="h-screen flex items-center justify-center font-sans">Loading Soplus...</div>;
 
   return (
-    <CartProvider>
-      <Router>
+    <CurrencyProvider>
+      <CartProvider>
+        <Router>
         <div className="min-h-screen flex flex-col font-sans bg-gray-50 text-gray-900 selection:bg-orange-100">
           {user && !user.emailVerified && <VerificationBanner email={user.email} />}
           <Navbar user={user} />
@@ -123,6 +134,7 @@ export default function App() {
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/cookies" element={<Cookies />} />
               <Route path="/faq" element={<FAQ />} />
+              <Route path="/returns" element={<ReturnPolicy />} />
             </Routes>
           </main>
           <Footer />
@@ -158,5 +170,6 @@ export default function App() {
         </div>
       </Router>
     </CartProvider>
+    </CurrencyProvider>
   );
 }

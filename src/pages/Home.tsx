@@ -6,6 +6,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown } from "lucide-react";
 import { useCart } from "../lib/CartContext";
+import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
@@ -21,6 +22,7 @@ export default function Home({ user }: HomeProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchParams, setSearchParams] = useSearchParams();
   const { addToCart } = useCart();
+  const { currency, setCurrency, exchangeRate, formatPrice } = useCurrency();
 
   // Advanced Filters
   const [showFilters, setShowFilters] = useState(false);
@@ -102,10 +104,12 @@ export default function Home({ user }: HomeProps) {
 
     // Advanced Filters
     if (minPrice !== "") {
-      result = result.filter(p => p.price >= Number(minPrice));
+      const minKes = currency === "USD" ? Number(minPrice) / exchangeRate : Number(minPrice);
+      result = result.filter(p => p.price >= minKes);
     }
     if (maxPrice !== "") {
-      result = result.filter(p => p.price <= Number(maxPrice));
+      const maxKes = currency === "USD" ? Number(maxPrice) / exchangeRate : Number(maxPrice);
+      result = result.filter(p => p.price <= maxKes);
     }
     if (minRating > 0) {
       result = result.filter(p => (p.rating || 0) >= minRating);
@@ -124,7 +128,7 @@ export default function Home({ user }: HomeProps) {
     }
 
     setFilteredProducts(result);
-  }, [selectedCategory, products, searchParams, minPrice, maxPrice, minRating, onlyInStock, sortBy]);
+  }, [selectedCategory, products, searchParams, minPrice, maxPrice, minRating, onlyInStock, sortBy, currency, exchangeRate]);
 
   const [showMission, setShowMission] = useState(false);
 
@@ -286,6 +290,32 @@ export default function Home({ user }: HomeProps) {
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
               </div>
+
+              {/* Currency Switching Pill */}
+              <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-100 items-center space-x-1 shadow-sm h-[58px]">
+                <button
+                  type="button"
+                  onClick={() => setCurrency("KES")}
+                  className={`px-5 h-[48px] rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    currency === "KES"
+                      ? "bg-white text-orange-600 shadow-sm"
+                      : "text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  KES
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrency("USD")}
+                  className={`px-5 h-[48px] rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    currency === "USD"
+                      ? "bg-white text-orange-600 shadow-sm"
+                      : "text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  USD
+                </button>
+              </div>
             </div>
 
             <p className="text-gray-500 font-bold bg-gray-50 px-4 py-2 rounded-full border border-gray-100">
@@ -304,7 +334,7 @@ export default function Home({ user }: HomeProps) {
                 <div className="bg-white border border-gray-100 rounded-[2rem] p-8 md:p-10 grid grid-cols-1 md:grid-cols-4 gap-10 shadow-xl shadow-gray-100/50">
                   {/* Price Range */}
                   <div className="space-y-4">
-                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 block">Price Range (KES)</label>
+                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 block">Price Range ({currency})</label>
                     <div className="flex items-center space-x-3">
                        <input 
                          type="number" 
@@ -441,7 +471,7 @@ export default function Home({ user }: HomeProps) {
                     {p.name}
                   </Link>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-xl font-black text-gray-900">KES {p.price.toLocaleString()}</span>
+                    <span className="text-xl font-black text-gray-900">{formatPrice(p.price)}</span>
                     <button 
                       onClick={() => {
                         addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });

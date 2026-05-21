@@ -5,6 +5,7 @@ import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
 import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send } from "lucide-react";
 import { useCart } from "../lib/CartContext";
+import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
 import { motion } from "motion/react";
 import axios from "axios";
@@ -26,6 +27,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [activeImage, setActiveImage] = useState(0);
   const { addToCart } = useCart();
+  const { currency, setCurrency, formatPrice } = useCurrency();
 
   const isWishlisted = user?.wishlist?.includes(id || "") || false;
 
@@ -229,7 +231,35 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </div>
           </div>
 
-          <p className="text-4xl font-black text-orange-600">KES {product.price.toLocaleString()}</p>
+          <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-gray-100">
+            <p className="text-4xl font-black text-orange-600">{formatPrice(product.price)}</p>
+            
+            {/* Currency Switching Pill */}
+            <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-200 items-center space-x-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setCurrency("KES")}
+                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  currency === "KES"
+                    ? "bg-white text-orange-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-950"
+                }`}
+              >
+                KES
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrency("USD")}
+                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  currency === "USD"
+                    ? "bg-white text-orange-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-950"
+                }`}
+              >
+                USD
+              </button>
+            </div>
+          </div>
           
           <div className="flex items-center space-x-2">
             <div className={`w-3 h-3 rounded-full ${product.stock > 0 ? "bg-green-500" : "bg-red-500"}`} />
@@ -392,7 +422,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                   )}
                 </Link>
                 <Link to={`/product/${p.id}`} className="text-lg font-bold hover:text-orange-600 transition-colors line-clamp-1">{p.name}</Link>
-                <p className="text-orange-600 font-black">KES {p.price.toLocaleString()}</p>
+                <p className="text-orange-600 font-black">{formatPrice(p.price)}</p>
               </motion.div>
             ))}
           </div>
