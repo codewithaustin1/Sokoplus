@@ -19,7 +19,7 @@ export default function Home({ user }: HomeProps) {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { addToCart } = useCart();
 
   // Advanced Filters
@@ -215,16 +215,44 @@ export default function Home({ user }: HomeProps) {
              <h2 className="text-4xl font-black tracking-tight text-gray-900">{selectedCategory === "All" ? "Latest Arrivals" : `${selectedCategory} Collection`}</h2>
              <p className="text-gray-500 mt-2 font-medium">Handpicked premium goods from across the 47 counties.</p>
           </div>
-          <Link to="/" onClick={() => {
+          <button onClick={() => {
             setSelectedCategory("All");
             setMinPrice("");
             setMaxPrice("");
             setMinRating(0);
             setOnlyInStock(false);
+            setSearchParams(params => {
+              params.delete("search");
+              return params;
+            });
           }} className="text-orange-600 font-bold flex items-center hover:underline group">
             Reset All <X size={16} className="ml-1 group-hover:rotate-90 transition-transform" />
-          </Link>
+          </button>
         </div>
+
+        {searchParams.get("search") && (
+          <div className="bg-orange-50 border border-orange-100 rounded-[2rem] p-6 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in shadow-inner">
+            <div className="flex flex-col sm:flex-row items-center space-x-0 sm:space-x-3 gap-2">
+              <span className="text-sm font-black text-gray-500 uppercase tracking-wider">Search Results For</span>
+              <span className="bg-orange-600 text-white px-5 py-2 rounded-full text-sm font-bold shadow-md shadow-orange-600/10">
+                "{searchParams.get("search")}"
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setSearchParams((prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.delete("search");
+                  return next;
+                });
+              }}
+              className="flex items-center space-x-2 bg-white text-gray-900 px-5 py-3 rounded-2xl font-bold border border-gray-100 hover:border-red-500 hover:text-red-500 transition-all shadow-sm"
+            >
+              <X size={16} />
+              <span className="text-xs uppercase tracking-wider">Clear Search</span>
+            </button>
+          </div>
+        )}
 
         {/* Filtering & Sorting Bar */}
         <div className="flex flex-col space-y-6 mb-12">
@@ -366,9 +394,11 @@ export default function Home({ user }: HomeProps) {
             actionLabel="Clear Filters"
             onAction={() => {
               setSelectedCategory("All");
-              const url = new URL(window.location.href);
-              url.searchParams.delete("search");
-              window.history.pushState({}, '', url);
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete("search");
+                return next;
+              });
             }}
           />
         ) : (
