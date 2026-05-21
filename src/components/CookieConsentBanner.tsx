@@ -49,7 +49,7 @@ export default function CookieConsentBanner() {
           transition={{ duration: 0.3, ease: "easeOut" }}
           className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-900/95 border-t border-zinc-800 text-white backdrop-blur-md shadow-2xl pointer-events-auto"
         >
-          <div className="relative max-w-7xl mx-auto px-6 pr-12 md:pr-16 py-4 md:py-5 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="max-w-7xl mx-auto px-6 py-4 md:py-5 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center space-x-3 text-center md:text-left">
               <div className="p-2 rounded-xl bg-orange-600/10 border border-orange-600/20 text-orange-500 shrink-0 hidden sm:block">
                 <Cookie size={18} />
@@ -87,16 +87,6 @@ export default function CookieConsentBanner() {
                 <span>Accept Cookies</span>
               </button>
             </div>
-
-            <button
-              id="cookie-close-button"
-              type="button"
-              onClick={() => setIsVisible(false)}
-              className="absolute top-4 right-4 md:top-1/2 md:-translate-y-1/2 md:right-6 text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-all cursor-pointer"
-              aria-label="Dismiss cookie policy banner"
-            >
-              <X size={16} />
-            </button>
           </div>
         </motion.div>
       )}
