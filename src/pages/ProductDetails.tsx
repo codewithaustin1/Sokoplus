@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { doc, getDoc, collection, query, limit, getDocs, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
-import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send } from "lucide-react";
+import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
@@ -15,12 +15,13 @@ interface ProductDetailsProps {
   user: UserProfile | null;
 }
 
-const recommendationCache = new Map<string, Product[]>();
+const recommendationCache = new Map<string, { items: Product[]; source: "ai" | "category" }>();
 
 export default function ProductDetails({ user }: ProductDetailsProps) {
   const { id } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
   const [recommendations, setRecommendations] = useState<Product[]>([]);
+  const [recSource, setRecSource] = useState<"ai" | "category">("category");
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -138,7 +139,11 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
 
           // Fetch recommendations via AI
           if (recommendationCache.has(id)) {
-            setRecommendations(recommendationCache.get(id) || []);
+            const cached = recommendationCache.get(id);
+            if (cached) {
+              setRecommendations(cached.items);
+              setRecSource(cached.source);
+            }
             return;
           }
 
@@ -153,7 +158,8 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             const recIds = recResponse.data.recommendationIds;
             const recs = allProducts.filter(ap => recIds.includes(ap.id)).slice(0, 4);
             setRecommendations(recs);
-            recommendationCache.set(id, recs);
+            setRecSource("ai");
+            recommendationCache.set(id, { items: recs, source: "ai" });
           } catch (e: any) {
             // Fallback to same category silently for quota errors
             if (e.response?.status === 429) {
@@ -164,8 +170,9 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             
             const fallbacks = allProducts.filter(ap => ap.category === p.category && ap.id !== p.id).slice(0, 4);
             setRecommendations(fallbacks);
+            setRecSource("category");
             // Cache the fallback to prevent retrying the 429 endpoint for this product
-            recommendationCache.set(id, fallbacks);
+            recommendationCache.set(id, { items: fallbacks, source: "category" });
           }
         }
       } catch (error) {
@@ -310,6 +317,101 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         </div>
       </div>
 
+      {/* Related / AI Recommendations Section */}
+      {recommendations.length > 0 && (
+        <section className="mt-24 space-y-8 border-t border-gray-100 pt-16">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-orange-600 text-[10px] font-extrabold uppercase tracking-widest bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100/50 flex items-center space-x-1">
+                  {recSource === "ai" ? (
+                    <>
+                      <Sparkles size={12} className="text-orange-500 animate-pulse" />
+                      <span>AI Recommendation</span>
+                    </>
+                  ) : (
+                    <>
+                      <Layers size={12} className="text-orange-500" />
+                      <span>Category Related</span>
+                    </>
+                  )}
+                </span>
+              </div>
+              <h2 className="text-3xl font-black tracking-tight text-gray-900">You Might Also Like</h2>
+              <p className="text-gray-500 text-sm font-medium">
+                {recSource === "ai" 
+                  ? "Sokoplus AI-curated selections tailored to your taste."
+                  : "Similar authentic creations you may find interesting."}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {recommendations.map((p) => (
+              <motion.article 
+                whileHover={{ y: -6 }}
+                key={p.id} 
+                className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-full relative"
+              >
+                <div className="aspect-square bg-gray-50 overflow-hidden relative">
+                   {p.images?.filter(img => !!img && img.trim() !== "")[0] ? (
+                     <img 
+                       src={p.images.filter(img => !!img && img.trim() !== "")[0]} 
+                       alt={p.name} 
+                       className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+                     />
+                   ) : (
+                     <div className="w-full h-full flex items-center justify-center text-gray-200">
+                        <ShoppingBag size={48} />
+                     </div>
+                   )}
+                   {/* Stock Badge Overlay */}
+                   <span className="absolute top-3 left-3 z-10">
+                     {p.stock === 0 ? (
+                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 shadow-sm">
+                         Out of Stock
+                       </span>
+                     ) : p.stock <= 5 ? (
+                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 shadow-sm">
+                         Low Stock
+                       </span>
+                     ) : (
+                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 shadow-sm">
+                         In Stock
+                       </span>
+                     )}
+                   </span>
+                </div>
+                
+                <div className="p-5 flex flex-col flex-grow justify-between space-y-3">
+                   <div className="space-y-1">
+                     <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                       {p.category}
+                     </span>
+                     <Link 
+                       to={`/product/${p.id}`} 
+                       className="block text-sm font-extrabold text-gray-900 hover:text-orange-600 transition-colors line-clamp-1"
+                     >
+                       {p.name}
+                     </Link>
+                   </div>
+                   
+                   <div className="flex items-center justify-between pt-1">
+                     <span className="text-base font-black text-gray-900">{formatPrice(p.price)}</span>
+                     <Link 
+                       to={`/product/${p.id}`}
+                       className="text-xs font-black uppercase tracking-wider text-orange-600 hover:text-orange-700 flex items-center space-x-1"
+                     >
+                       <span>View Details</span>
+                     </Link>
+                   </div>
+                </div>
+              </motion.article>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Reviews Section */}
       <section className="mt-24 grid grid-cols-1 lg:grid-cols-3 gap-12 border-t border-gray-100 pt-16">
         <div className="lg:col-span-1 space-y-8">
@@ -400,34 +502,6 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           )}
         </div>
       </section>
-
-      {/* Recommendations */}
-      {recommendations.length > 0 && (
-        <section className="mt-24 space-y-8">
-          <h2 className="text-3xl font-black tracking-tight">You Might Also Like</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {recommendations.map(p => (
-              <motion.div 
-                whileHover={{ y: -5 }}
-                key={p.id} 
-                className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
-              >
-                <Link to={`/product/${p.id}`} className="block aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 relative">
-                  {p.images?.filter(img => !!img && img.trim() !== "")[0] ? (
-                    <img src={p.images.filter(img => !!img && img.trim() !== "")[0]} alt={p.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-200">
-                      <ShoppingBag size={48} />
-                    </div>
-                  )}
-                </Link>
-                <Link to={`/product/${p.id}`} className="text-lg font-bold hover:text-orange-600 transition-colors line-clamp-1">{p.name}</Link>
-                <p className="text-orange-600 font-black">{formatPrice(p.price)}</p>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }
