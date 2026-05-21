@@ -40,6 +40,40 @@ export default function Checkout({ user }: CheckoutProps) {
   const selectedCountyData = counties.find(c => c.name === address.county) || counties.find(c => c.name === "Nairobi City County") || counties[0];
   const currentCities = selectedCountyData ? selectedCountyData.cities : [];
 
+  const getShippingFee = () => {
+    if (total >= 15000) return 0; // Free shipping threshold of KES 15,000 to reward larger orders responsively
+    
+    const county = address.county;
+    const city = address.city;
+
+    if (county === "Nairobi City County") {
+      const centralSpots = [
+        "Nairobi CBD", "Westlands", "Lavington", "Kilimani", "Kileleshwa", 
+        "Hurlingham", "Parklands", "Highridge", "Ngara"
+      ];
+      if (centralSpots.includes(city)) {
+        return 150; // Local delivery within key central areas
+      }
+      return 200; // Local deliveries to Nairobi suburbs
+    }
+
+    const metroCounties = ["Kiambu County", "Kajiado County", "Machakos County"];
+    if (metroCounties.includes(county)) {
+      return 250; // Nairobi Metropolitan area suburbs
+    }
+
+    const upcountryCities = [
+      "Mombasa City (CBD/Island)", "Kisumu City", "Nakuru City", "Eldoret City"
+    ];
+    if (upcountryCities.includes(city)) {
+      return 350; // Major Upcountry City Centres
+    }
+
+    return 450; // Remote/upcountry destinations standard rate
+  };
+
+  const shippingFee = getShippingFee();
+
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -77,7 +111,7 @@ export default function Checkout({ user }: CheckoutProps) {
       // 2. Initialize Paystack
       const response = await axios.post("/api/paystack/initialize", {
         email: address.email,
-        amount: total + 250,
+        amount: total + shippingFee,
         callback_url: window.location.origin + "/payment-success",
         metadata: {
           userId: user.uid,
@@ -92,7 +126,7 @@ export default function Checkout({ user }: CheckoutProps) {
         userId: user.uid,
         userEmail: address.email,
         items,
-        totalAmount: total + 250,
+        totalAmount: total + shippingFee,
         status: "pending",
         paymentStatus: "unpaid",
         paymentReference: reference,
@@ -228,7 +262,7 @@ export default function Checkout({ user }: CheckoutProps) {
               </>
             ) : (
               <>
-                Confirm & Pay KES {(total + 250).toLocaleString()} 
+                Confirm & Pay KES {(total + shippingFee).toLocaleString()} 
                 <CreditCard className="ml-3 group-hover:translate-x-1 transition-transform" />
               </>
             )}
@@ -257,11 +291,11 @@ export default function Checkout({ user }: CheckoutProps) {
             <div className="border-t border-gray-100 mt-6 pt-6 space-y-2">
               <div className="flex justify-between text-gray-500">
                 <span>Shipping Fee</span>
-                <span>KES 250</span>
+                <span>{shippingFee === 0 ? "FREE" : `KES ${shippingFee.toLocaleString()}`}</span>
               </div>
               <div className="flex justify-between text-2xl font-black pt-2">
                 <span>Total</span>
-                <span>KES {(total + 250).toLocaleString()}</span>
+                <span>KES {(total + shippingFee).toLocaleString()}</span>
               </div>
             </div>
           </div>
