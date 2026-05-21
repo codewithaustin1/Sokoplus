@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 import { motion } from "motion/react";
 import axios from "axios";
 import SEO from "../components/SEO";
+import { trackEvent } from "../lib/analytics";
 
 interface ProductDetailsProps {
   user: UserProfile | null;
@@ -134,6 +135,16 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         if (snap.exists()) {
           const p = { id: snap.id, ...snap.data() } as Product;
           setProduct(p);
+          trackEvent("view_item", {
+            currency: "KES",
+            value: p.price,
+            items: [{
+              item_id: p.id,
+              item_name: p.name,
+              price: p.price,
+              item_category: p.category
+            }]
+          });
           
           fetchReviews();
 
@@ -283,6 +294,15 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             <button 
               onClick={() => {
                 addToCart({ productId: product.id, name: product.name, price: product.price, quantity: 1, image: product.images?.[0] || "" });
+                trackEvent("add_to_cart", {
+                  items: [{
+                    item_id: product.id,
+                    item_name: product.name,
+                    price: product.price,
+                    quantity: 1,
+                    item_category: product.category
+                  }]
+                });
                 toast.success("Added to cart!");
               }}
               disabled={product.stock <= 0}

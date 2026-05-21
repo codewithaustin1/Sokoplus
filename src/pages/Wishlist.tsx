@@ -8,6 +8,9 @@ import { motion } from "motion/react";
 import toast from "react-hot-toast";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
+import { useCart } from "../lib/CartContext";
+import { useCurrency } from "../lib/CurrencyContext";
+import { trackEvent } from "../lib/analytics";
 
 interface WishlistProps {
   user: UserProfile | null;
@@ -17,6 +20,8 @@ export default function Wishlist({ user }: WishlistProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [sortBy, setSortBy] = useState("default");
   const [loading, setLoading] = useState(true);
+  const { addToCart } = useCart();
+  const { formatPrice } = useCurrency();
 
   const toggleWishlist = async (productId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -135,43 +140,108 @@ export default function Wishlist({ user }: WishlistProps) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               key={product.id}
-              className="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100"
+              className="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100 flex flex-col h-full justify-between"
             >
-              <Link to={`/product/${product.id}`} className="block aspect-[4/5] overflow-hidden relative">
-                {product.images?.filter(img => !!img && img.trim() !== "")[0] ? (
-                  <img
-                    src={product.images.filter(img => !!img && img.trim() !== "")[0]}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-50 flex items-center justify-center text-gray-200">
-                    <ShoppingBag size={64} />
-                  </div>
-                )}
+              <div className="relative aspect-[4/5] overflow-hidden bg-gray-50">
+                <Link to={`/product/${product.id}`} className="block w-full h-full">
+                  {product.images?.filter(img => !!img && img.trim() !== "")[0] ? (
+                    <img
+                      src={product.images.filter(img => !!img && img.trim() !== "")[0]}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-200">
+                      <ShoppingBag size={64} />
+                    </div>
+                  )}
+                </Link>
+                
+                {/* Always visible Trash / Remove button on overlay */}
                 <button
                   onClick={(e) => toggleWishlist(product.id, e)}
-                  className="absolute top-4 right-4 bg-white/90 backdrop-blur-md p-2 rounded-xl text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 shadow-lg"
+                  className="absolute top-4 right-4 bg-white/95 backdrop-blur-md p-2.5 rounded-xl text-red-500 hover:bg-red-50 transition-all shadow-md z-10 hover:scale-105 active:scale-95"
+                  title="Remove from wishlist"
                 >
-                  <Trash2 size={20} />
+                  <Trash2 size={18} />
                 </button>
-              </Link>
-              <div className="p-6 space-y-4">
+
+                {/* Stock Tag on image overlay */}
+                <span className="absolute bottom-4 left-4 z-10">
+                  {product.stock === 0 ? (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700 shadow-sm border border-red-200/50">
+                      Out of Stock
+                    </span>
+                  ) : product.stock <= 5 ? (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 shadow-sm border border-amber-200/50">
+                      Low Stock ({product.stock})
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-700 shadow-sm border border-green-200/50">
+                      In Stock
+                    </span>
+                  )}
+                </span>
+              </div>
+              
+              <div className="p-6 space-y-4 flex-grow flex flex-col justify-between">
                 <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                      {product.category}
+                    </span>
+                  </div>
                   <Link to={`/product/${product.id}`} className="text-xl font-bold text-gray-900 hover:text-orange-600 transition-colors line-clamp-1">
                     {product.name}
                   </Link>
-                  <p className="text-sm text-gray-500 font-medium">{product.category}</p>
                 </div>
+                
                 <div className="flex items-center justify-between">
-                  <p className="text-2xl font-black text-orange-600">KES {product.price.toLocaleString()}</p>
+                  <span className="text-2xl font-black text-gray-900">{formatPrice(product.price)}</span>
                 </div>
-                <Link
-                  to={`/product/${product.id}`}
-                  className="w-full bg-gray-50 text-gray-900 py-3 rounded-xl font-bold text-center block hover:bg-orange-600 hover:text-white transition-all underline-none"
-                >
-                  View Details
-                </Link>
+                
+                <div className="grid grid-cols-5 gap-2 pt-1 font-sans">
+                  <Link
+                    to={`/product/${product.id}`}
+                    className="col-span-2 text-center bg-gray-50 text-gray-700 py-3 rounded-xl font-black text-xs hover:bg-gray-100 hover:text-gray-950 transition-all flex items-center justify-center border border-gray-100"
+                  >
+                    Details
+                  </Link>
+                  <button
+                    disabled={product.stock === 0}
+                    onClick={() => {
+                      if (product.stock === 0) {
+                        toast.error("This product is out of stock!");
+                        return;
+                      }
+                      addToCart({
+                        productId: product.id,
+                        name: product.name,
+                        price: product.price,
+                        quantity: 1,
+                        image: product.images?.filter((img) => !!img && img.trim() !== "")[0] || "",
+                      });
+                      trackEvent("add_to_cart", {
+                        items: [{
+                          item_id: product.id,
+                          item_name: product.name,
+                          price: product.price,
+                          quantity: 1,
+                          item_category: product.category
+                        }]
+                      });
+                      toast.success("Added to cart!");
+                    }}
+                    className={`col-span-3 py-3 rounded-xl font-black text-xs transition-all flex items-center justify-center space-x-1.5 ${
+                      product.stock === 0
+                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        : "bg-gray-900 text-white hover:bg-orange-600 hover:shadow-md hover:shadow-orange-100 cursor-pointer active:scale-98"
+                    }`}
+                  >
+                    <ShoppingBag size={14} />
+                    <span>Add to Cart</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           ))}

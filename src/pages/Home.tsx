@@ -10,6 +10,7 @@ import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
+import { trackEvent } from "../lib/analytics";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -497,6 +498,15 @@ export default function Home({ user }: HomeProps) {
                           return;
                         }
                         addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
+                        trackEvent("add_to_cart", {
+                          items: [{
+                            item_id: p.id,
+                            item_name: p.name,
+                            price: p.price,
+                            quantity: 1,
+                            item_category: p.category
+                          }]
+                        });
                         toast.success("Added to cart!");
                       }}
                       className={`p-2 rounded-lg transition-colors ${

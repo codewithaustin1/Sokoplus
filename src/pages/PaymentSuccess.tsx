@@ -6,6 +6,7 @@ import { useCart } from "../lib/CartContext";
 import { doc, updateDoc, collection, query, where, getDocs, increment, writeBatch } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { motion } from "motion/react";
+import { trackEvent } from "../lib/analytics";
 
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
@@ -64,6 +65,19 @@ export default function PaymentSuccess() {
                 loyaltyPoints: increment(pointsEarned)
               });
             }
+
+            // Track GA4 Purchase conversion event
+            trackEvent("purchase", {
+              transaction_id: reference || orderDoc.id,
+              value: orderData.totalAmount || 0,
+              currency: "KES",
+              items: (orderData.items || []).map((item: any) => ({
+                item_id: item.productId,
+                item_name: item.name,
+                price: item.price,
+                quantity: item.quantity
+              }))
+            });
 
             await batch.commit();
           }

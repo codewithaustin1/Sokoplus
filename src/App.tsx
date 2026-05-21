@@ -33,6 +33,7 @@ import { MessageCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import SupportChat from "./components/SupportChat";
 import VerificationBanner from "./components/VerificationBanner";
+import AnalyticsTracker from "./components/AnalyticsTracker";
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -115,6 +116,7 @@ export default function App() {
     <CurrencyProvider>
       <CartProvider>
         <Router>
+          <AnalyticsTracker />
         <div className="min-h-screen flex flex-col font-sans bg-gray-50 text-gray-900 selection:bg-orange-100">
           {user && !user.emailVerified && <VerificationBanner email={user.email} />}
           <Navbar user={user} />

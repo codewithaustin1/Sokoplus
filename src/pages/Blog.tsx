@@ -306,6 +306,12 @@ export default function Blog({ user }: { user: UserProfile | null }) {
             : "Explore stories from local Kenyan artisans, market trends, and the heart of Kenyan commerce on the Sokoplus blog."
         }
         image={selectedPost ? selectedPost.image : undefined}
+        url={
+          selectedPost 
+            ? `${window.location.origin}/blog?post=${selectedPost.id}` 
+            : `${window.location.origin}/blog`
+        }
+        type={selectedPost ? "article" : "website"}
       />
       
       {/* Editorial Header Section */}

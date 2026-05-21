@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Trash2, ShoppingBag, Plus, Minus, ArrowRight } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { motion } from "motion/react";
+import { trackEvent } from "../lib/analytics";
 
 export default function Cart() {
   const { items, removeFromCart, addToCart, total } = useCart();
@@ -97,6 +98,18 @@ export default function Cart() {
             </div>
             <Link 
               to="/checkout"
+              onClick={() => {
+                trackEvent("begin_checkout", {
+                  value: total,
+                  currency: "KES",
+                  items: items.map(t => ({
+                    item_id: t.productId,
+                    item_name: t.name,
+                    price: t.price,
+                    quantity: t.quantity
+                  }))
+                });
+              }}
               className="w-full block text-center bg-orange-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-orange-700 transition-all shadow-lg shadow-orange-100 flex items-center justify-center"
             >
               Secure Checkout <ArrowRight size={20} className="ml-2" />
