@@ -43,58 +43,48 @@ export default function CookieConsentBanner() {
       {isVisible && (
         <motion.div
           id="cookie-consent-container"
-          initial={{ opacity: 0, y: 50, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 30, scale: 0.95 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:max-w-md w-auto z-50 pointer-events-auto"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 30 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-900/95 border-t border-zinc-800 text-white backdrop-blur-md shadow-2xl pointer-events-auto"
         >
-          <div className="bg-gray-905 bg-zinc-900 border border-zinc-800 text-white rounded-[2rem] p-6 md:p-8 shadow-2xl relative overflow-hidden backdrop-blur-md">
-            {/* Ambient Background Glow Effect */}
-            <div className="absolute -right-12 -top-12 w-32 h-32 bg-orange-600/10 rounded-full blur-3xl pointer-events-none"></div>
-            
-            <div className="flex items-start space-x-4">
-              <div className="bg-orange-600/10 border border-orange-600/20 p-3 rounded-2xl text-orange-500 shrink-0">
-                <Cookie size={24} className="animate-spin-slow" />
+          <div className="max-w-7xl mx-auto px-6 py-4 md:py-5 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center space-x-3 text-center md:text-left">
+              <div className="p-2 rounded-xl bg-orange-600/10 border border-orange-600/20 text-orange-500 shrink-0 hidden sm:block">
+                <Cookie size={18} />
               </div>
-              <div className="space-y-3">
-                <h3 className="font-extrabold tracking-tight text-white text-lg">
-                  Soko<span className="text-orange-500">plus</span> Cookie Consent
-                </h3>
-                <p className="text-zinc-400 text-xs md:text-sm leading-relaxed font-medium">
-                  We use cookies and analytical tracking like Google Analytics to measure marketplace traffic, improve our loading performance, and provide a seamless checkout experience. 
-                  Read our{" "}
-                  <Link 
-                    to="/cookies" 
-                    className="text-orange-500 hover:text-orange-400 underline font-bold transition-colors inline-flex items-center"
-                    onClick={() => setIsVisible(false)}
-                  >
-                    Cookie Policy <ArrowRight size={10} className="ml-0.5 inline" />
-                  </Link>{" "}
-                  to learn more.
-                </p>
-              </div>
+              <p className="text-zinc-300 text-xs md:text-sm font-medium leading-relaxed">
+                We use cookies to analyze traffic, improve performance, and provide a seamless checkout experience. 
+                Read our{" "}
+                <Link 
+                  to="/cookies" 
+                  className="text-orange-500 hover:text-orange-400 underline font-bold transition-colors inline-flex items-center"
+                  onClick={() => setIsVisible(false)}
+                >
+                  Cookie Policy <ArrowRight size={10} className="ml-0.5 inline" />
+                </Link>{" "}
+                to learn more.
+              </p>
             </div>
 
-            <div className="h-px bg-zinc-800 my-6"></div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
+            <div className="flex items-center gap-3 w-full md:w-auto justify-center md:justify-end shrink-0">
               <button
                 id="cookie-decline-button"
                 type="button"
                 onClick={handleDecline}
-                className="w-full sm:w-auto px-6 py-3 rounded-2xl border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 hover:bg-zinc-800 transition-all text-xs font-black uppercase tracking-widest cursor-pointer"
+                className="px-5 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 hover:bg-zinc-800 transition-all text-xs font-black uppercase tracking-wider cursor-pointer"
               >
-                No Analytics
+                Decline
               </button>
               <button
                 id="cookie-accept-button"
                 type="button"
                 onClick={handleAccept}
-                className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-orange-600 text-white hover:bg-orange-500 transition-all text-xs font-black uppercase tracking-widest flex items-center justify-center space-x-1.5 shadow-lg shadow-orange-950/40 cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-orange-600 text-white hover:bg-orange-500 transition-all text-xs font-black uppercase tracking-wider flex items-center space-x-1 shadow-lg shadow-orange-950/40 cursor-pointer"
               >
-                <Check size={14} className="stroke-[3]" />
-                <span>Accept Analytics</span>
+                <Check size={12} className="stroke-[3]" />
+                <span>Accept Cookies</span>
               </button>
             </div>
           </div>
