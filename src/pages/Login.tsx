@@ -72,10 +72,17 @@ export default function Login() {
     }
   };
 
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const handleForgotPassword = async () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
       toast.error("Please enter your email address first.");
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      toast.error("Please enter a valid email address format (e.g., user@example.com).");
       return;
     }
     
@@ -98,6 +105,11 @@ export default function Login() {
     const cleanPassword = password; // Do not trim passwords as spaces can be intentional
 
     if (!trimmedEmail || !cleanPassword || loading) return;
+
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      toast.error("Please enter a valid email address format (e.g., user@example.com).");
+      return;
+    }
 
     if (isSignUp && cleanPassword.length < 6) {
       toast.error("Password must be at least 6 characters long.");

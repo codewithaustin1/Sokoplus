@@ -33,6 +33,7 @@ import {
   ListOrdered,
   Quote,
   Link,
+  Star,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -81,6 +82,9 @@ export default function Admin({ user }: AdminProps) {
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [blogSearchTerm, setBlogSearchTerm] = useState("");
+  const [productSearchTerm, setProductSearchTerm] = useState("");
+  const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
+  const [productSortBy, setProductSortBy] = useState<string>("default");
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -731,23 +735,129 @@ export default function Admin({ user }: AdminProps) {
           /* Products Table */
           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
             <h2 className="text-xl font-bold mb-6">Inventory Management</h2>
+            
+            {/* Filter controls */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-6 border-b border-gray-50">
+              <div className="flex flex-wrap items-center gap-4">
+                {/* Minimum Rating Selector */}
+                <div className="flex flex-col space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Minimum Rating</span>
+                  <select
+                    value={minRatingFilter}
+                    onChange={(e) => setMinRatingFilter(Number(e.target.value))}
+                    className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[140px]"
+                  >
+                    <option value={0}>All Ratings</option>
+                    <option value={1}>1.0+ Stars</option>
+                    <option value={2}>2.0+ Stars</option>
+                    <option value={3}>3.0+ Stars</option>
+                    <option value={4}>4.0+ Stars</option>
+                    <option value={4.5}>4.5+ Stars</option>
+                    <option value={5}>5.0 Stars</option>
+                  </select>
+                </div>
+
+                {/* Sort dropdown */}
+                <div className="flex flex-col space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Sort By</span>
+                  <select
+                    value={productSortBy}
+                    onChange={(e) => setProductSortBy(e.target.value)}
+                    className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[180px]"
+                  >
+                    <option value="default">Default</option>
+                    <option value="rating-desc">Rating: High to Low</option>
+                    <option value="rating-asc">Rating: Low to High</option>
+                    <option value="price-desc">Price: High to Low</option>
+                    <option value="price-asc">Price: Low to High</option>
+                    <option value="stock-asc">Stock: Low to High</option>
+                    <option value="stock-desc">Stock: High to Low</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Product search input */}
+              <div className="flex flex-col space-y-1 w-full md:max-w-xs">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Search Directory</span>
+                <div className="relative group">
+                  <Search
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors"
+                    size={16}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search product name or category..."
+                    value={productSearchTerm}
+                    onChange={(e) => setProductSearchTerm(e.target.value)}
+                    className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm text-gray-900"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
                     <th className="pb-4 uppercase">Product</th>
                     <th className="pb-4 uppercase">Category</th>
+                    <th className="pb-4 uppercase text-center">Rating</th>
                     <th className="pb-4 uppercase text-center">Stock</th>
                     <th className="pb-4 uppercase text-right">Price</th>
                     <th className="pb-4 uppercase text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {products.map((p) => (
-                    <tr key={p.id} className="text-sm hover:bg-gray-50/50">
-                      <td className="py-4 font-bold">{p.name}</td>
-                      <td className="py-4 text-gray-500">{p.category}</td>
-                      <td className="py-4 text-center">
+                  {products
+                    .filter((p) => {
+                      const rating = p.rating || 0;
+                      if (rating < minRatingFilter) return false;
+                      
+                      if (
+                        productSearchTerm.trim() !== "" &&
+                        !p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
+                        !p.category.toLowerCase().includes(productSearchTerm.toLowerCase())
+                      ) {
+                        return false;
+                      }
+                      
+                      return true;
+                    })
+                    .sort((a, b) => {
+                      if (productSortBy === "rating-desc") {
+                        return (b.rating || 0) - (a.rating || 0);
+                      }
+                      if (productSortBy === "rating-asc") {
+                        return (a.rating || 0) - (b.rating || 0);
+                      }
+                      if (productSortBy === "price-desc") {
+                        return b.price - a.price;
+                      }
+                      if (productSortBy === "price-asc") {
+                        return a.price - b.price;
+                      }
+                      if (productSortBy === "stock-asc") {
+                        return a.stock - b.stock;
+                      }
+                      if (productSortBy === "stock-desc") {
+                        return b.stock - a.stock;
+                      }
+                      return 0;
+                    })
+                    .map((p) => (
+                      <tr key={p.id} className="text-sm hover:bg-gray-50/50">
+                        <td className="py-4 font-bold">{p.name}</td>
+                        <td className="py-4 text-gray-500">{p.category}</td>
+                        <td className="py-4 text-center">
+                          <div className="flex items-center justify-center space-x-1 font-bold text-gray-700 bg-amber-50/50 py-1 px-2.5 rounded-full border border-amber-100/30 w-fit mx-auto">
+                            <Star size={12} className="text-amber-400 fill-amber-400" />
+                            <span>{p.rating?.toFixed(1) || "N/A"}</span>
+                            {p.reviewCount !== undefined && p.reviewCount > 0 && (
+                              <span className="text-[10px] text-gray-400 font-medium">({p.reviewCount})</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 text-center">
                         <div className="flex items-center justify-center space-x-2">
                           <input
                             type="number"
