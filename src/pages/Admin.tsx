@@ -81,6 +81,7 @@ export default function Admin({ user }: AdminProps) {
   >("inventory");
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
+  const [orderSortBy, setOrderSortBy] = useState<string>("newest");
   const [blogSearchTerm, setBlogSearchTerm] = useState("");
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
@@ -612,12 +613,30 @@ export default function Admin({ user }: AdminProps) {
     0,
   );
 
-  const filteredOrders = orders.filter(
-    (o) =>
-      (o.id.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
-        o.userId.toLowerCase().includes(orderSearchTerm.toLowerCase())) &&
-      (orderStatusFilter === "all" || o.status === orderStatusFilter),
-  );
+  const getOrderTimestamp = (order: any): number => {
+    if (!order.createdAt) return 0;
+    if (typeof order.createdAt.toDate === "function") {
+      return order.createdAt.toDate().getTime();
+    }
+    if (order.createdAt.seconds !== undefined) {
+      return order.createdAt.seconds * 1000 + (order.createdAt.nanoseconds || 0) / 1000000;
+    }
+    const date = new Date(order.createdAt);
+    return isNaN(date.getTime()) ? 0 : date.getTime();
+  };
+
+  const filteredOrders = orders
+    .filter(
+      (o) =>
+        (o.id.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
+          o.userId.toLowerCase().includes(orderSearchTerm.toLowerCase())) &&
+        (orderStatusFilter === "all" || o.status === orderStatusFilter),
+    )
+    .sort((a, b) => {
+      const timeA = getOrderTimestamp(a);
+      const timeB = getOrderTimestamp(b);
+      return orderSortBy === "newest" ? timeB - timeA : timeA - timeB;
+    });
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 space-y-12">
@@ -938,6 +957,14 @@ export default function Admin({ user }: AdminProps) {
                   <option value="delivered">Delivered</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
+                <select
+                  value={orderSortBy}
+                  onChange={(e) => setOrderSortBy(e.target.value)}
+                  className="bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                </select>
                 <div className="relative group flex-grow max-w-xs">
                   <Search
                     className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors"
@@ -972,7 +999,14 @@ export default function Admin({ user }: AdminProps) {
                           #{o.id.slice(0, 8)}
                         </td>
                         <td className="py-4 text-gray-700">
-                          {o.userEmail || o.userId.slice(0, 8)}
+                          <div>{o.userEmail || o.userId.slice(0, 8)}</div>
+                          {o.createdAt && (
+                            <div className="text-[11px] text-gray-400 font-medium mt-0.5">
+                              {o.createdAt.toDate
+                                ? o.createdAt.toDate().toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })
+                                : new Date(o.createdAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })}
+                            </div>
+                          )}
                         </td>
                         <td className="py-4">
                           <select
