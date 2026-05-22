@@ -41,6 +41,17 @@ import toast from "react-hot-toast";
 import axios from "axios";
 import RichTextEditor from "../components/RichTextEditor";
 import { downloadReceipt } from "../utils/pdfGenerator";
+import {
+  ComposedChart,
+  Area,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 interface AdminProps {
   user: UserProfile | null;
@@ -670,6 +681,33 @@ export default function Admin({ user }: AdminProps) {
     return isNaN(date.getTime()) ? 0 : date.getTime();
   };
 
+  // Past 30 Days Business Performance Analytics Data
+  const analyticsData = Array.from({ length: 30 }, (_, i) => {
+    const day = new Date();
+    day.setDate(day.getDate() - (29 - i));
+    const label = day.toLocaleDateString("en-KE", { month: "short", day: "numeric" });
+    
+    const startOfThisDay = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+    const endOfThisDay = startOfThisDay + 24 * 60 * 60 * 1000;
+
+    const dayOrders = orders.filter((o) => {
+      const ts = getOrderTimestamp(o);
+      return ts >= startOfThisDay && ts < endOfThisDay;
+    });
+
+    const dailyRevenue = dayOrders.reduce(
+      (sum, o) =>
+        sum + (o.status !== "cancelled" ? (o.totalAmount || 0) : 0),
+      0
+    );
+
+    return {
+      date: label,
+      "Orders Count": dayOrders.length,
+      "Revenue (KES)": dailyRevenue,
+    };
+  });
+
   const filteredOrders = orders
     .filter(
       (o) =>
@@ -758,6 +796,90 @@ export default function Admin({ user }: AdminProps) {
             Blog Stories
           </p>
           <p className="text-2xl font-black">{blogs.length}</p>
+        </div>
+      </div>
+
+      {/* Analytics Chart Section */}
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Past 30 Days Business Performance</h2>
+            <p className="text-xs text-gray-400 font-semibold mt-1">
+              Visualizing order volume and total sales revenue over the last 30 days.
+            </p>
+          </div>
+          <p className="text-xs text-gray-400 font-bold">
+            * Canceled / Unpaid orders excluded from revenue
+          </p>
+        </div>
+
+        <div className="h-80 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={analyticsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ea580c" stopOpacity={0.25}/>
+                  <stop offset="95%" stopColor="#ea580c" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+              <XAxis 
+                dataKey="date" 
+                stroke="#6b7280" 
+                fontSize={10} 
+                tickLine={false} 
+                axisLine={false} 
+              />
+              <YAxis 
+                yAxisId="left" 
+                stroke="#4b5563" 
+                fontSize={10} 
+                tickLine={false} 
+                axisLine={false}
+                allowDecimals={false}
+                label={{ value: 'Orders Received', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: 10, fill: '#4b5563', fontWeight: 'bold' } }}
+              />
+              <YAxis 
+                yAxisId="right" 
+                orientation="right" 
+                stroke="#ea580c" 
+                fontSize={10} 
+                tickLine={false} 
+                axisLine={false}
+                tickFormatter={(val) => `KES ${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`}
+                label={{ value: 'Sales Revenue (KES)', angle: 90, position: 'insideRight', style: { textAnchor: 'middle', fontSize: 10, fill: '#ea580c', fontWeight: 'bold' } }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#ffffff', 
+                  border: '1px solid #e5e7eb', 
+                  borderRadius: '1.25rem', 
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '12px',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' 
+                }} 
+              />
+              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
+              <Bar 
+                yAxisId="left" 
+                dataKey="Orders Count" 
+                fill="#ffedd5" 
+                stroke="#fdba74"
+                strokeWidth={1}
+                radius={[4, 4, 0, 0]} 
+                maxBarSize={22}
+              />
+              <Area 
+                yAxisId="right" 
+                type="monotone" 
+                dataKey="Revenue (KES)" 
+                stroke="#ea580c" 
+                strokeWidth={2.5}
+                fillOpacity={1} 
+                fill="url(#colorRevenue)" 
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
