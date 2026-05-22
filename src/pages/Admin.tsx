@@ -10,6 +10,8 @@ import {
   deleteDoc,
   doc,
   updateDoc,
+  getDoc,
+  setDoc,
 } from "firebase/firestore";
 import {
   Plus,
@@ -36,6 +38,9 @@ import {
   Star,
   Eye,
   X,
+  Settings,
+  Upload,
+  Image,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -92,8 +97,10 @@ export default function Admin({ user }: AdminProps) {
   const [selectedViewOrder, setSelectedViewOrder] = useState<any | null>(null);
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "inbox" | "blogs"
+    "inventory" | "orders" | "inbox" | "blogs" | "settings"
   >("inventory");
+  const [homepageHeroUrl, setHomepageHeroUrl] = useState<string>("");
+  const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [orderSortBy, setOrderSortBy] = useState<string>("newest");
@@ -212,6 +219,16 @@ export default function Admin({ user }: AdminProps) {
           blogErr,
         );
       }
+
+      try {
+        const settingsRef = doc(db, "settings", "homepage");
+        const settingsSnap = await getDoc(settingsRef);
+        if (settingsSnap.exists() && settingsSnap.data().heroImageUrl) {
+          setHomepageHeroUrl(settingsSnap.data().heroImageUrl);
+        }
+      } catch (settingsError) {
+        console.warn("Could not retrieve hero image settings: ", settingsError);
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, "products/orders");
     } finally {
@@ -223,6 +240,68 @@ export default function Admin({ user }: AdminProps) {
     if (!user?.isAdmin) return;
     fetchData();
   }, [user]);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2.5 * 1024 * 1024) {
+      toast.error("Image file is too large! Maximum limit is 2.5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        setHomepageHeroUrl(reader.result);
+        toast.success("Image successfully loaded! Click 'Save Changes' below to publish.");
+      }
+    };
+    reader.onerror = () => {
+      toast.error("Failed to read image file.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSettings(true);
+    try {
+      const settingsRef = doc(db, "settings", "homepage");
+      await setDoc(settingsRef, {
+        heroImageUrl: homepageHeroUrl,
+        updatedAt: new Date(),
+        updatedBy: user?.email || "Admin",
+      }, { merge: true });
+      toast.success("Homepage settings successfully saved! Changes are now live.");
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      toast.error("Failed to save homepage settings.");
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleResetSettings = async () => {
+    if (confirm("Are you sure you want to reset the hero banner back to default?")) {
+      setIsSavingSettings(true);
+      try {
+        const settingsRef = doc(db, "settings", "homepage");
+        await setDoc(settingsRef, {
+          heroImageUrl: "",
+          updatedAt: new Date(),
+          updatedBy: user?.email || "Admin",
+        }, { merge: true });
+        setHomepageHeroUrl("");
+        toast.success("Successfully reset to default hero banner!");
+      } catch (error) {
+        console.error("Error resetting settings:", error);
+        toast.error("Failed to reset settings.");
+      } finally {
+        setIsSavingSettings(false);
+      }
+    }
+  };
 
   const seedData = async () => {
     try {
@@ -914,6 +993,12 @@ export default function Admin({ user }: AdminProps) {
         >
           Blog Manager
         </button>
+        <button
+          onClick={() => setActiveTab("settings")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "settings" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          Admin Settings
+        </button>
       </div>
 
       <div>
@@ -1484,6 +1569,155 @@ export default function Admin({ user }: AdminProps) {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === "settings" && (
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-8 animate-fade-in text-gray-950">
+          <div>
+            <h2 className="text-xl font-bold flex items-center text-gray-950">
+              <Settings className="mr-2 text-orange-600 animate-spin-slow" /> Administrative Website Controls
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Configure active marketing campaigns, visual headers, and customizable homepage assets.
+            </p>
+          </div>
+
+          <form onSubmit={handleSaveSettings} className="grid grid-cols-1 lg:grid-cols-12 gap-8 font-sans">
+            {/* Left Column: Form Settings controls */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="p-6 bg-orange-50/40 rounded-3xl border border-orange-100/50 space-y-3">
+                <h3 className="text-sm font-bold text-orange-850 flex items-center">
+                  <Image size={16} className="mr-2 text-orange-600" /> Homepage Hero Banner Configuration
+                </h3>
+                <p className="text-xs text-orange-705 leading-relaxed font-medium">
+                  Personalize the first visual banner shown to Kenyan shoppers and global collectors. You can either paste an image URL or upload a custom image file below.
+                </p>
+              </div>
+
+              {/* URL Option */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                  Custom Image Source URL
+                </label>
+                <div className="relative">
+                  <input
+                    type="url"
+                    placeholder="e.g. https://images.unsplash.com/photo-..."
+                    value={homepageHeroUrl}
+                    onChange={(e) => setHomepageHeroUrl(e.target.value)}
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs font-sans text-gray-950"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">
+                  Paste the direct URL of any high-resolution image hosted online.
+                </p>
+              </div>
+
+              {/* Upload Option */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                  Or Upload Direct Image Target
+                </label>
+                <div className="border border-dashed border-gray-200 hover:border-orange-300 rounded-2xl p-6 bg-gray-50/50 hover:bg-orange-50/10 transition-colors flex flex-col items-center justify-center text-center relative group min-h-[140px]">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                    title="Upload homepage hero image"
+                  />
+                  <Upload size={28} className="text-gray-400 group-hover:text-orange-600 transition-colors duration-200" />
+                  <p className="text-xs font-bold text-gray-705 mt-2">
+                    Click or Drag to Upload
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-1 font-semibold leading-relaxed">
+                    PNG, JPG, JPEG formats accepted (Max size: 2.5MB)
+                  </p>
+                </div>
+              </div>
+
+              {/* Sizing, Aspect, and Placement safety guidance */}
+              <div className="p-5 bg-gray-50 rounded-2xl space-y-2 text-xs border border-gray-100/50">
+                <p className="font-bold text-gray-800 uppercase tracking-tight text-[11px]">Recommended Asset Specifications:</p>
+                <ul className="space-y-1.5 text-gray-500 font-semibold list-disc pl-4 text-[11px]">
+                  <li><strong className="text-gray-700">Aspect Ratio:</strong> Strictly 1:1 Square (e.g., 800x800px or 1000x1000px) ensures balanced spatial rhythm and prevents visual warping on responsive viewports.</li>
+                  <li><strong className="text-gray-700">Dimensions:</strong> Recommended minimum of 600px width for premium organic sharpness.</li>
+                  <li><strong className="text-gray-700">Aesthetics:</strong> High-contrasting colors, vibrant warm tones, or minimalist negative space backgrounds to preserve the premium African marketplace visual identity.</li>
+                </ul>
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={isSavingSettings}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white font-bold px-6 py-3.5 rounded-2xl text-xs transition-colors shadow-sm cursor-pointer"
+                >
+                  {isSavingSettings ? "Saving Settings..." : "Save Marketing Settings"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetSettings}
+                  disabled={isSavingSettings}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-5 py-3.5 rounded-2xl text-xs transition-colors cursor-pointer"
+                >
+                  Clear &amp; Reset to Default
+                </button>
+              </div>
+            </div>
+
+            {/* Right Column: Hero Live Preview */}
+            <div className="lg:col-span-5 space-y-4">
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-400 block">
+                Live Rendering Preview
+              </label>
+              
+              <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100/80 flex flex-col items-center justify-center relative">
+                {/* Simulated Container of the Hero banner */}
+                <div className="w-full max-w-[280px] sm:max-w-sm aspect-square bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 relative group">
+                  {homepageHeroUrl ? (
+                    <img
+                      src={homepageHeroUrl}
+                      alt="Hero Live Preview"
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-orange-600 p-8 text-center">
+                      <Image size={40} className="mb-2 opacity-50" />
+                      <p className="text-xs font-extrabold">Default Master Image</p>
+                      <p className="text-[10px] text-gray-400 font-medium mt-1">Showing our standard high-quality supplied art banner.</p>
+                    </div>
+                  )}
+
+                  {/* Superimposed badge mirroring Home page precisely */}
+                  <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl flex items-center justify-between border border-white/20 shadow-lg text-left">
+                    <div>
+                      <p className="text-[9px] text-orange-600 font-black tracking-wider uppercase">Vetted excellence</p>
+                      <p className="text-xs font-black text-gray-900 mt-0.5">Authentic &amp; Trusted Goods</p>
+                    </div>
+                    <div className="flex -space-x-1.5">
+                      {[1, 2, 3].map((n) => (
+                        <div key={n} className="w-5 h-5 rounded-full bg-orange-100 border border-white flex items-center justify-center text-[8px] font-bold text-orange-650 animate-pulse">
+                          ✦
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 text-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-2.5 py-1 rounded">
+                    Real-time Frame Preview
+                  </span>
+                  <p className="text-[11px] text-gray-400 mt-2 leading-relaxed font-medium">
+                    This mimics the exact responsive layout container of the homepage main stage. Use it to check alignment, crop balance, and aesthetic color consistency.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </form>
         </div>
       )}
 

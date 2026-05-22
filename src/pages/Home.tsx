@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, limit, query, doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { collection, getDocs, limit, query, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
 import { Link, useSearchParams } from "react-router-dom";
@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
 import { trackEvent } from "../lib/analytics";
+import heroImage from "../assets/images/kenyan_market_hero_1779469825593.png";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -18,6 +19,7 @@ interface HomeProps {
 
 export default function Home({ user }: HomeProps) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [heroImageUrl, setHeroImageUrl] = useState<string>("");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
@@ -76,6 +78,16 @@ export default function Home({ user }: HomeProps) {
         const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         setProducts(fetched);
         setFilteredProducts(fetched);
+
+        try {
+          const settingsRef = doc(db, "settings", "homepage");
+          const settingsSnap = await getDoc(settingsRef);
+          if (settingsSnap.exists() && settingsSnap.data().heroImageUrl) {
+            setHeroImageUrl(settingsSnap.data().heroImageUrl);
+          }
+        } catch (settingsErr) {
+          console.warn("Could not retrieve homepage settings:", settingsErr);
+        }
       } catch (error) {
         console.error("Fetch products error:", error);
       } finally {
@@ -180,10 +192,25 @@ export default function Home({ user }: HomeProps) {
             className="md:w-1/2 mt-12 md:mt-0 relative"
           >
             <div className="w-80 h-80 md:w-[450px] md:h-[450px] bg-orange-200 rounded-full blur-3xl absolute -top-10 -right-10 opacity-50"></div>
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl border-8 border-white bg-white aspect-square flex items-center justify-center">
-               <ShoppingBag size={120} className="text-orange-600 opacity-20" />
-               <div className="absolute inset-0 flex items-center justify-center text-gray-400 font-mono text-sm uppercase tracking-widest px-8 text-center italic">
-                 Authentic. Trusted. Efficient.
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl border-8 border-white bg-white aspect-square">
+               <img
+                 src={heroImageUrl || heroImage}
+                 alt="Authentic Kenyan Crafts & Products on SokoPlus"
+                 className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-700"
+                 referrerPolicy="no-referrer"
+               />
+               <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md px-6 py-4 rounded-2xl flex items-center justify-between border border-white/20 shadow-lg">
+                 <div>
+                   <p className="text-[10px] text-orange-600 font-black tracking-wider uppercase">Vetted excellence</p>
+                   <p className="text-sm font-black text-gray-900 mt-0.5">Authentic &amp; Trusted Goods</p>
+                 </div>
+                 <div className="flex -space-x-2">
+                   {[1, 2, 3].map((n) => (
+                     <div key={n} className="w-7 h-7 rounded-full bg-orange-100 border border-white flex items-center justify-center text-[10px] font-bold text-orange-650">
+                       ✦
+                     </div>
+                   ))}
+                 </div>
                </div>
             </div>
           </motion.div>

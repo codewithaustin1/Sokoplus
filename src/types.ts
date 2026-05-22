@@ -75,3 +75,4 @@ export interface BlogPost {
   seoDescription?: string;
 }
 
+
