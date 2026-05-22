@@ -3,11 +3,12 @@ import { Navigate, Link } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone } from "lucide-react";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
+import { downloadReceipt } from "../utils/pdfGenerator";
 
 interface ProfileProps {
   user: UserProfile | null;
@@ -189,10 +190,21 @@ export default function Profile({ user }: ProfileProps) {
                   </div>
                   
                   <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
-                    <p className="text-gray-500 font-medium">Total Amount</p>
-                    <p className="text-2xl font-black text-orange-600">
-                      KES {order.totalAmount.toLocaleString()}
-                    </p>
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Total Amount</p>
+                      <p className="text-xl font-black text-gray-900 leading-tight">
+                        KES {order.totalAmount.toLocaleString()}
+                      </p>
+                    </div>
+                    <button
+                      id={`download-receipt-${order.id}`}
+                      type="button"
+                      onClick={() => downloadReceipt(order, user)}
+                      className="inline-flex items-center space-x-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 font-extrabold px-3.5 py-2.5 rounded-2xl text-xs transition-colors cursor-pointer border border-orange-100/50"
+                    >
+                      <Download size={14} />
+                      <span>Receipt</span>
+                    </button>
                   </div>
                 </div>
               </motion.div>

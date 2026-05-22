@@ -34,10 +34,13 @@ import {
   Quote,
   Link,
   Star,
+  Eye,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
 import RichTextEditor from "../components/RichTextEditor";
+import { downloadReceipt } from "../utils/pdfGenerator";
 
 interface AdminProps {
   user: UserProfile | null;
@@ -75,6 +78,7 @@ export default function Admin({ user }: AdminProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [selectedViewOrder, setSelectedViewOrder] = useState<any | null>(null);
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [activeTab, setActiveTab] = useState<
     "inventory" | "orders" | "inbox" | "blogs"
@@ -125,7 +129,45 @@ export default function Admin({ user }: AdminProps) {
       const oSnap = await getDocs(
         query(collection(db, "orders"), orderBy("createdAt", "desc")),
       );
-      setOrders(oSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as any));
+      let loadedOrders = oSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
+
+      // Capping recent orders to 50: autodelete excess Completed/Cancelled orders
+      if (loadedOrders.length >= 50) {
+        const deletable = loadedOrders.filter(
+          (o: any) => o.status === "delivered" || o.status === "cancelled"
+        );
+        if (deletable.length > 0) {
+          // Sort oldest first based on timestamp
+          const sortedDeletable = [...deletable].sort((a: any, b: any) => {
+            const getTs = (ord: any): number => {
+              if (!ord.createdAt) return 0;
+              if (typeof ord.createdAt.toDate === "function") {
+                return ord.createdAt.toDate().getTime();
+              }
+              if (ord.createdAt.seconds !== undefined) {
+                return ord.createdAt.seconds * 1000 + (ord.createdAt.nanoseconds || 0) / 1000000;
+              }
+              const date = new Date(ord.createdAt);
+              return isNaN(date.getTime()) ? 0 : date.getTime();
+            };
+            return getTs(a) - getTs(b);
+          });
+
+          // To stay under 50 total orders, delete excess delivered/cancelled orders
+          const maxAllowed = 49;
+          const numToDelete = loadedOrders.length - maxAllowed;
+          if (numToDelete > 0) {
+            const toDelete = sortedDeletable.slice(0, numToDelete);
+            for (const ord of toDelete) {
+              await deleteDoc(doc(db, "orders", ord.id));
+            }
+            const deletedIds = new Set(toDelete.map((o: any) => o.id));
+            loadedOrders = loadedOrders.filter((o: any) => !deletedIds.has(o.id));
+            toast.success(`Enforced cap of 50 orders: auto-deleted ${toDelete.length} outdated archives (delivered/cancelled).`);
+          }
+        }
+      }
+      setOrders(loadedOrders);
 
       const tSnap = await getDocs(
         query(collection(db, "support_tickets"), orderBy("createdAt", "desc")),
@@ -370,6 +412,9 @@ export default function Admin({ user }: AdminProps) {
         ),
       );
       toast.success("Order updated.");
+      if (status === "delivered" || status === "cancelled") {
+        fetchData();
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
     }
@@ -1033,18 +1078,28 @@ export default function Admin({ user }: AdminProps) {
                           KES {o.totalAmount.toLocaleString()}
                         </td>
                         <td className="py-4 text-right">
-                          {o.status === "delivered" || o.status === "cancelled" ? (
+                          <div className="flex items-center justify-end space-x-2">
                             <button
                               type="button"
-                              onClick={() => deleteOrder(o.id)}
-                              className="inline-flex items-center justify-center text-red-500 p-2 hover:bg-red-50 rounded-xl transition-all hover:text-red-700 group"
-                              title="Delete Order"
+                              onClick={() => setSelectedViewOrder(o)}
+                              className="inline-flex items-center justify-center text-orange-600 p-2 hover:bg-orange-50 rounded-xl transition-all group cursor-pointer"
+                              title="View Details"
                             >
-                              <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
+                              <Eye size={16} className="group-hover:scale-110 transition-transform" />
                             </button>
-                          ) : (
-                            <span className="text-xs text-gray-300 select-none font-medium pr-2">—</span>
-                          )}
+                            {o.status === "delivered" || o.status === "cancelled" ? (
+                              <button
+                                type="button"
+                                onClick={() => deleteOrder(o.id)}
+                                className="inline-flex items-center justify-center text-red-500 p-2 hover:bg-red-50 rounded-xl transition-all hover:text-red-700 group cursor-pointer"
+                                title="Delete Order"
+                              >
+                                <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
+                              </button>
+                            ) : (
+                              <div className="w-8 shrink-0"></div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -2023,6 +2078,148 @@ export default function Admin({ user }: AdminProps) {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* View Order Details Modal */}
+      {selectedViewOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white w-full max-w-2xl p-8 rounded-3xl shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto relative text-gray-950 font-sans">
+            {/* Close button */}
+            <button
+              onClick={() => setSelectedViewOrder(null)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-2 rounded-2xl transition-all cursor-pointer"
+              title="Close"
+            >
+              <X size={18} />
+            </button>
+
+            <div>
+              <span className="text-[10px] font-black uppercase text-orange-600 tracking-wider bg-orange-50 px-2.5 py-1 rounded-md">
+                Order details
+              </span>
+              <h2 className="text-2xl font-black mt-2">Order #{selectedViewOrder.id.slice(0, 8)}</h2>
+              <p className="text-xs text-gray-400 font-semibold mt-1">
+                Placed on:{" "}
+                {selectedViewOrder.createdAt?.toDate
+                  ? selectedViewOrder.createdAt.toDate().toLocaleString("en-KE")
+                  : new Date(selectedViewOrder.createdAt).toLocaleString("en-KE")}
+              </p>
+            </div>
+
+            {/* Customer Details info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-55 p-6 rounded-3xl border border-gray-100/50 text-xs">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Customer info</p>
+                <p className="font-extrabold text-gray-800 break-all">{selectedViewOrder.userEmail || "Guest User"}</p>
+                <p className="text-[11px] text-gray-500 font-medium">ID: {selectedViewOrder.userId}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Delivery Address</p>
+                <p className="font-extrabold text-gray-800">
+                  {selectedViewOrder.shippingAddress?.fullName || "N/A"}
+                </p>
+                <p className="text-xs text-gray-650 leading-relaxed">
+                  {selectedViewOrder.shippingAddress?.streetAddress || selectedViewOrder.shippingAddress?.street}, {selectedViewOrder.shippingAddress?.city},{" "}
+                  {selectedViewOrder.shippingAddress?.county} Kenya.
+                </p>
+                {selectedViewOrder.shippingAddress?.phone && (
+                  <p className="text-xs text-orange-605 font-bold">
+                    Phone: {selectedViewOrder.shippingAddress.phone}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Items order details */}
+            <div className="space-y-3">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Items Ordered</p>
+              <div className="divide-y divide-gray-100 border border-gray-100 rounded-3xl overflow-hidden bg-white">
+                {selectedViewOrder.items && selectedViewOrder.items.map((item: any, idx: number) => (
+                  <div key={idx} className="p-4 flex items-center justify-between text-sm hover:bg-gray-50/30 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-10 h-10 object-cover rounded-xl border border-gray-100 shrink-0"
+                          referrerPolicy="no-referrer"
+                        />
+                      )}
+                      <div>
+                        <p className="font-bold text-gray-955">{item.name}</p>
+                        <p className="text-xs text-gray-450 font-medium">Qty: {item.quantity} × KES {item.price.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <p className="font-black text-gray-955 text-right">
+                      KES {(item.quantity * item.price).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Financial summaries */}
+            <div className="pt-4 border-t border-gray-100 flex flex-col space-y-3">
+              <div className="flex items-center justify-between text-sm text-gray-500 font-semibold">
+                <span>Status</span>
+                <span className={`text-[10px] tracking-wider uppercase font-bold px-2.5 py-0.5 rounded-md ${
+                  selectedViewOrder.status === "delivered"
+                    ? "bg-green-100 text-green-700"
+                    : selectedViewOrder.status === "cancelled"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-yellow-100 text-yellow-700"
+                }`}>
+                  {selectedViewOrder.status}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-gray-500 font-semibold">
+                <span>Shipping Fee</span>
+                <span className="text-gray-950 font-black">
+                  KES {(selectedViewOrder.shippingFee || 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Total Amount</p>
+                  <p className="text-xl font-black text-gray-950 tracking-tight leading-tight">
+                    KES {selectedViewOrder.totalAmount.toLocaleString()}
+                  </p>
+                  <p className="text-[9px] text-gray-400 font-bold tracking-tight">
+                    Prices are inclusive of 16% VAT.
+                  </p>
+                </div>
+
+                <div className="flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const dummyUser: UserProfile = {
+                        uid: selectedViewOrder.userId,
+                        email: selectedViewOrder.userEmail || "customer@sokoplus.com",
+                        displayName: selectedViewOrder.shippingAddress?.fullName || selectedViewOrder.userEmail?.split("@")[0] || "Valued Customer",
+                        phoneNumber: selectedViewOrder.shippingAddress?.phone || "",
+                        isAdmin: false,
+                        loyaltyPoints: 0,
+                        emailVerified: true,
+                      };
+                      downloadReceipt(selectedViewOrder, dummyUser);
+                    }}
+                    className="inline-flex items-center bg-orange-50 hover:bg-orange-100 text-orange-700 font-extrabold px-4 py-3 rounded-2xl text-xs transition-colors cursor-pointer border border-orange-100/50"
+                  >
+                    <span>Download Receipt</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedViewOrder(null)}
+                    className="px-5 py-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-xs transition-colors cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

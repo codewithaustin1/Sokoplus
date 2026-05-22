@@ -297,6 +297,9 @@ export default function Checkout({ user }: CheckoutProps) {
                 <span>Total</span>
                 <span>KES {(total + shippingFee).toLocaleString()}</span>
               </div>
+              <p className="text-[10px] text-gray-400 text-right font-medium pt-1">
+                Prices are inclusive of 16% VAT.
+              </p>
             </div>
           </div>
         </div>
