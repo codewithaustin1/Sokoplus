@@ -80,7 +80,7 @@ export default function Navbar({ user }: NavbarProps) {
   ];
 
   return (
-    <nav id="main-nav" className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+    <nav id="main-nav" className="sticky top-0 z-50 bg-white/95 md:bg-white/90 backdrop-blur-md border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -370,6 +370,7 @@ export default function Navbar({ user }: NavbarProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
               onClick={() => setIsMobileMenuOpen(false)}
               className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
             />
@@ -377,7 +378,7 @@ export default function Navbar({ user }: NavbarProps) {
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               className="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 md:hidden p-6 flex flex-col space-y-8"
             >
               <div className="flex justify-between items-center">

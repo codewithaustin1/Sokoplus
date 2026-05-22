@@ -65,7 +65,7 @@ export default function Footer() {
               <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest border-b border-orange-100 pb-2 w-fit">Support</h3>
               <ul className="space-y-3">
                 <li><Link to="/profile" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Track Order</Link></li>
-                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Shipping Info</Link></li>
+                <li><Link to="/shipping" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Shipping Info</Link></li>
                 <li><Link to="/returns" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Returns & Exchanges</Link></li>
                 <li><Link to="/faq" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">FAQ</Link></li>
               </ul>

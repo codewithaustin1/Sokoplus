@@ -24,6 +24,7 @@ import TermsOfService from "./pages/TermsOfService";
 import Cookies from "./pages/Cookies";
 import FAQ from "./pages/FAQ";
 import ReturnPolicy from "./pages/ReturnPolicy";
+import Shipping from "./pages/Shipping";
 import { useEffect, useState } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -139,6 +140,7 @@ export default function App() {
               <Route path="/cookies" element={<Cookies />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/returns" element={<ReturnPolicy />} />
+              <Route path="/shipping" element={<Shipping />} />
             </Routes>
           </main>
           <Footer />
