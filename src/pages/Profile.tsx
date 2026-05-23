@@ -41,13 +41,45 @@ export default function Profile({ user }: ProfileProps) {
   useEffect(() => {
     async function fetchOrders() {
       if (!user) return;
+      setLoading(true);
       try {
-        const q = query(
-          collection(db, "orders"),
-          where("userId", "==", user.uid),
-          orderBy("createdAt", "desc")
-        );
-        const snap = await getDocs(q);
+        let snap;
+        try {
+          // Attempt optimized date-bounded firestore query
+          let q = query(
+            collection(db, "orders"),
+            where("userId", "==", user.uid)
+          );
+
+          const currentDate = new Date();
+          if (timeFilter === "this-month") {
+            const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1, 0, 0, 0, 0);
+            q = query(q, where("createdAt", ">=", startOfMonth));
+          } else if (timeFilter === "last-12-months") {
+            const twelveMonthsAgo = new Date();
+            twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+            twelveMonthsAgo.setHours(0, 0, 0, 0);
+            q = query(q, where("createdAt", ">=", twelveMonthsAgo));
+          } else if (timeFilter === "specific-month" && selectedMonth) {
+            const [year, month] = selectedMonth.split("-").map(Number);
+            const startOfMonth = new Date(year, month, 1, 0, 0, 0, 0);
+            const endOfMonth = new Date(year, month + 1, 1, 0, 0, 0, 0);
+            q = query(q, where("createdAt", ">=", startOfMonth), where("createdAt", "<", endOfMonth));
+          }
+
+          q = query(q, orderBy("createdAt", "desc"));
+          snap = await getDocs(q);
+        } catch (indexError: any) {
+          console.warn("[Profile] Date-bounded index not ready, falling back to client-side filtering:", indexError.message);
+          // Fallback query (already indexed)
+          const fallbackQ = query(
+            collection(db, "orders"),
+            where("userId", "==", user.uid),
+            orderBy("createdAt", "desc")
+          );
+          snap = await getDocs(fallbackQ);
+        }
+
         const allFetchedOrders = snap.docs.map(d => ({ id: d.id, ...d.data() } as Order));
         
         // Auto delete Delivered or Cancelled orders older than one year
@@ -91,7 +123,7 @@ export default function Profile({ user }: ProfileProps) {
     }
 
     fetchOrders();
-  }, [user]);
+  }, [user, timeFilter, selectedMonth]);
 
   const getFilteredOrders = () => {
     const currentDate = new Date();

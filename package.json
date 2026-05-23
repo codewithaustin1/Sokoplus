@@ -23,6 +23,7 @@
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "firebase": "^12.13.0",
+    "firebase-admin": "^13.10.0",
     "framer-motion": "^12.38.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.546.0",

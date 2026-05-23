@@ -151,6 +151,33 @@ export default function Admin({ user }: AdminProps) {
       );
       let loadedOrders = oSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
 
+      // 1-Year Order History TTL Cleanup policy
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+      const ordersOlderThanOneYear = loadedOrders.filter((order: any) => {
+        let orderDate: Date;
+        if (order.createdAt?.toDate) {
+          orderDate = order.createdAt.toDate();
+        } else if (order.createdAt?.seconds) {
+          orderDate = new Date(order.createdAt.seconds * 1000);
+        } else if (order.createdAt) {
+          orderDate = new Date(order.createdAt);
+        } else {
+          orderDate = new Date();
+        }
+        return orderDate < oneYearAgo && (order.status === "delivered" || order.status === "cancelled");
+      });
+
+      if (ordersOlderThanOneYear.length > 0) {
+        for (const ord of ordersOlderThanOneYear) {
+          await deleteDoc(doc(db, "orders", ord.id));
+        }
+        const deletedIds = new Set(ordersOlderThanOneYear.map((o: any) => o.id));
+        loadedOrders = loadedOrders.filter((o: any) => !deletedIds.has(o.id));
+        toast.success(`Automated TTL: Cleared ${ordersOlderThanOneYear.length} Delivered/Cancelled orders older than one year.`);
+      }
+
       // Capping recent orders to 50: autodelete excess Completed/Cancelled orders
       if (loadedOrders.length >= 50) {
         const deletable = loadedOrders.filter(
