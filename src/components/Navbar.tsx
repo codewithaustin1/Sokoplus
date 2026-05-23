@@ -29,7 +29,9 @@ export default function Navbar({ user }: NavbarProps) {
       try {
         const q = query(collection(db, "products"), limit(50));
         const snapshot = await getDocs(q);
-        const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        const fetched = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+          .filter(p => p.active !== false);
         setAllProducts(fetched);
       } catch (err) {
         console.warn("Failed to fetch products for search suggestions:", err);

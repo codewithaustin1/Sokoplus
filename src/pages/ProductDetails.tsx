@@ -134,6 +134,11 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
           const p = { id: snap.id, ...snap.data() } as Product;
+          if (p.active === false && !user?.isAdmin) {
+            setProduct(null);
+            setLoading(false);
+            return;
+          }
           setProduct(p);
           trackEvent("view_item", {
             currency: "KES",
@@ -159,7 +164,9 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           }
 
           const allProductsSnap = await getDocs(query(collection(db, "products"), limit(20)));
-          const allProducts = allProductsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+          const allProducts = allProductsSnap.docs
+            .map(d => ({ id: d.id, ...d.data() } as Product))
+            .filter(ap => ap.active !== false);
           
           try {
             const recResponse = await axios.post("/api/recommendations", {

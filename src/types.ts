@@ -8,6 +8,7 @@ export interface Product {
   stock: number;
   rating?: number;
   reviewCount?: number;
+  active?: boolean;
 }
 
 export interface CartItem {

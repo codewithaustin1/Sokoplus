@@ -1155,6 +1155,7 @@ export default function Admin({ user }: AdminProps) {
                     <th className="pb-4 uppercase">Product</th>
                     <th className="pb-4 uppercase">Category</th>
                     <th className="pb-4 uppercase text-center">Rating</th>
+                    <th className="pb-4 uppercase text-center">Status</th>
                     <th className="pb-4 uppercase text-center">Stock</th>
                     <th className="pb-4 uppercase text-right">Price</th>
                     <th className="pb-4 uppercase text-center">Action</th>
@@ -1198,7 +1199,7 @@ export default function Admin({ user }: AdminProps) {
                       return 0;
                     })
                     .map((p) => (
-                      <tr key={p.id} className="text-sm hover:bg-gray-50/50">
+                      <tr key={p.id} className={`text-sm hover:bg-gray-50/50 transition-all ${p.active === false ? "opacity-60 bg-gray-50/20" : ""}`}>
                         <td className="py-4 font-bold">{p.name}</td>
                         <td className="py-4 text-gray-500">{p.category}</td>
                         <td className="py-4 text-center">
@@ -1208,6 +1209,50 @@ export default function Admin({ user }: AdminProps) {
                             {p.reviewCount !== undefined && p.reviewCount > 0 && (
                               <span className="text-[10px] text-gray-400 font-medium">({p.reviewCount})</span>
                             )}
+                          </div>
+                        </td>
+                        <td className="py-4 text-center">
+                          <div className="flex items-center justify-center space-x-2">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const newStatus = p.active === false;
+                                try {
+                                  await updateDoc(doc(db, "products", p.id), {
+                                    active: newStatus,
+                                  });
+                                  setProducts((prev) =>
+                                    prev.map((prod) =>
+                                      prod.id === p.id
+                                        ? { ...prod, active: newStatus }
+                                        : prod,
+                                    ),
+                                  );
+                                  toast.success(
+                                    `"${p.name}" is now ${newStatus ? "Active" : "Inactive"}`
+                                  );
+                                } catch (error) {
+                                  handleFirestoreError(
+                                    error,
+                                    OperationType.UPDATE,
+                                    `products/${p.id}`,
+                                  );
+                                }
+                              }}
+                              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                p.active !== false ? "bg-orange-600" : "bg-gray-200"
+                              }`}
+                              title={p.active !== false ? "Switch to Inactive" : "Switch to Active"}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                  p.active !== false ? "translate-x-4" : "translate-x-0"
+                                }`}
+                              />
+                            </button>
+                            <span className={`text-[10px] uppercase tracking-wider font-extrabold select-none ${p.active !== false ? "text-green-600" : "text-gray-400"}`}>
+                              {p.active !== false ? "Active" : "Inactive"}
+                            </span>
                           </div>
                         </td>
                         <td className="py-4 text-center">

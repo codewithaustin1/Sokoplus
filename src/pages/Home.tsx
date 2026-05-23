@@ -87,7 +87,9 @@ export default function Home({ user }: HomeProps) {
       try {
         const q = query(collection(db, "products"), limit(20));
         const snapshot = await getDocs(q);
-        const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        const fetched = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+          .filter(p => p.active !== false);
         setProducts(fetched);
         setFilteredProducts(fetched);
 

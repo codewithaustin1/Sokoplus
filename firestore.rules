@@ -41,7 +41,8 @@ service cloud.firestore {
         return data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
                data.price is number && data.price >= 0 &&
                data.category is string &&
-               data.stock is int && data.stock >= 0;
+               data.stock is int && data.stock >= 0 &&
+               (!data.keys().hasAll(['active']) || data.active is bool);
       }
 
       allow read: if true;

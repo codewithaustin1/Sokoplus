@@ -14,7 +14,8 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" },
         "rating": { "type": "number", "description": "Average rating" },
-        "reviewCount": { "type": "integer", "description": "Number of reviews" }
+        "reviewCount": { "type": "integer", "description": "Number of reviews" },
+        "active": { "type": "boolean", "description": "Active status of the product" }
       },
       "required": ["name", "price", "category", "stock"]
     },

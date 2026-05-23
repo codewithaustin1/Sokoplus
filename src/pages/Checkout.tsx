@@ -174,51 +174,51 @@ export default function Checkout({ user }: CheckoutProps) {
       </AnimatePresence>
 
       {/* Numbered Path Tracker */}
-      <div className="mb-10 bg-white p-6 rounded-3xl border border-gray-100/80 shadow-sm">
-        <div className="flex items-center justify-center space-x-4 md:space-x-8 max-w-2xl mx-auto">
+      <div className="mb-8 bg-white p-4 md:p-6 rounded-3xl border border-gray-100/80 shadow-sm">
+        <div className="flex items-center justify-between max-w-xl mx-auto px-1 sm:px-4">
           {/* Step 1: Shipping */}
-          <div className="flex items-center space-x-2.5">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm transition-all duration-300 ${
+          <div className="flex items-center space-x-1.5 md:space-x-2.5 shrink-0">
+            <div className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center font-black text-xs md:text-sm transition-all duration-300 ${
               !redirecting 
                 ? "bg-orange-600 text-white shadow-lg shadow-orange-100 scale-105" 
                 : "bg-orange-50 text-orange-600 border border-orange-100"
             }`}>
               1
             </div>
-            <span className={`text-xs md:text-sm font-black uppercase tracking-wider transition-colors duration-300 ${
+            <span className={`text-[10px] md:text-xs lg:text-sm font-black uppercase tracking-wider transition-colors duration-300 ${
               !redirecting ? "text-gray-900" : "text-gray-400"
             }`}>
               Shipping
             </span>
           </div>
 
-          <div className="w-8 md:w-16 h-0.5 bg-gray-200"></div>
+          <div className="flex-grow h-0.5 bg-gray-200 mx-2 max-w-[3rem] md:max-w-[4rem]"></div>
 
           {/* Step 2: Payment */}
-          <div className="flex items-center space-x-2.5">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm transition-all duration-300 ${
+          <div className="flex items-center space-x-1.5 md:space-x-2.5 shrink-0">
+            <div className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center font-black text-xs md:text-sm transition-all duration-300 ${
               redirecting 
                 ? "bg-orange-600 text-white shadow-lg shadow-orange-100 scale-105" 
                 : "bg-gray-50 border border-gray-200 text-gray-400"
             }`}>
               2
             </div>
-            <span className={`text-xs md:text-sm font-black uppercase tracking-wider transition-colors duration-300 ${
+            <span className={`text-[10px] md:text-xs lg:text-sm font-black uppercase tracking-wider transition-colors duration-300 ${
               redirecting ? "text-gray-900" : "text-gray-400"
             }`}>
               Payment
             </span>
           </div>
 
-          <div className="w-8 md:w-16 h-0.5 bg-gray-200"></div>
+          <div className="flex-grow h-0.5 bg-gray-200 mx-2 max-w-[3rem] md:max-w-[4rem]"></div>
 
           {/* Step 3: Confirmation */}
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 text-gray-400 flex items-center justify-center font-black text-sm">
+          <div className="flex items-center space-x-1.5 md:space-x-2.5 shrink-0">
+            <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gray-50 border border-gray-200 text-gray-400 flex items-center justify-center font-black text-xs md:text-sm">
               3
             </div>
-            <span className="text-xs md:text-sm font-black uppercase tracking-wider text-gray-400">
-              Confirmation
+            <span className="text-[10px] md:text-xs lg:text-sm font-black uppercase tracking-wider text-gray-400">
+              Confirm
             </span>
           </div>
         </div>
