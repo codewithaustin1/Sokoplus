@@ -66,6 +66,7 @@ service cloud.firestore {
       allow update: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid && 
                     incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
                     incoming().status == 'cancelled' && existing().status == 'pending');
+      allow delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
     }
 
     // Users
