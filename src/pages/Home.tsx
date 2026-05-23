@@ -168,6 +168,44 @@ export default function Home({ user }: HomeProps) {
 
   const [showMission, setShowMission] = useState(false);
 
+  const homeSchema = {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    "name": "Sokoplus",
+    "description": "Shop the best authentic Kenyan products. From local artisans to global quality standards, Sokoplus is your home for Kenyan excellence.",
+    "url": window.location.origin,
+    "logo": `${window.location.origin}/logo.jpg`,
+    "telephone": "+254700000000",
+    "priceRange": "KES",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Nairobi CBD",
+      "addressLocality": "Nairobi",
+      "addressRegion": "Nairobi County",
+      "postalCode": "00100",
+      "addressCountry": "KE"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": -1.2921,
+      "longitude": 36.8219
+    },
+    "openingHoursSpecification": {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday"
+      ],
+      "opens": "00:00",
+      "closes": "23:59"
+    }
+  };
+
   const scrollToProducts = () => {
     document.getElementById("products-section")?.scrollIntoView({ behavior: "smooth" });
   };
@@ -177,6 +215,7 @@ export default function Home({ user }: HomeProps) {
       <SEO 
         title="Premium Kenyan Marketplace" 
         description="Shop the best authentic Kenyan products. From local artisans to global quality standards, Sokoplus is your home for Kenyan excellence."
+        schema={homeSchema}
       />
       {/* Hero Section */}
       <section className="relative bg-orange-50 py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">

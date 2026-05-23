@@ -41,6 +41,7 @@ import {
   Settings,
   Upload,
   Image,
+  Download,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -909,6 +910,52 @@ export default function Admin({ user }: AdminProps) {
       return orderSortBy === "newest" ? timeB - timeA : timeA - timeB;
     });
 
+  const handleDownloadCSV = () => {
+    const headers = ["Order ID", "Customer ID / Email", "Date", "Status", "Total Amount"];
+    
+    const escapeCSV = (val: any) => {
+      if (val === null || val === undefined) return "";
+      const str = String(val);
+      if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = filteredOrders.map((o) => {
+      let dateStr = "";
+      if (o.createdAt) {
+        const dateObj = o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+        dateStr = dateObj.toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" });
+      } else {
+        dateStr = "N/A";
+      }
+      return [
+        o.id,
+        o.userEmail || o.userId,
+        dateStr,
+        o.status,
+        `KES ${o.totalAmount}`
+      ];
+    });
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map(escapeCSV).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `sokoplus_orders_export_${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("CSV report downloaded successfully!");
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 space-y-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -1384,6 +1431,15 @@ export default function Admin({ user }: AdminProps) {
                     className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm"
                   />
                 </div>
+                <button
+                  type="button"
+                  id="admin-download-csv-btn"
+                  onClick={handleDownloadCSV}
+                  className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 rounded-2xl text-sm font-bold shadow-sm flex items-center space-x-2 transition-all cursor-pointer hover:shadow"
+                >
+                  <Download size={16} />
+                  <span>Download CSV</span>
+                </button>
               </div>
             </div>
             <div className="overflow-x-auto">

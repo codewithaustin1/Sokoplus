@@ -7,6 +7,7 @@ interface SEOProps {
   image?: string;
   url?: string;
   type?: string;
+  schema?: Record<string, any>;
 }
 
 export default function SEO({ 
@@ -14,7 +15,8 @@ export default function SEO({
   description = "Sokoplus - Kenya's premium marketplace for local artisans and global quality standards.", 
   image = "/og-image.jpg", 
   url = "https://sokoplus.com", 
-  type = "website" 
+  type = "website",
+  schema
 }: SEOProps) {
   const finalImage = (image && image.trim() !== "") ? image : "/og-image.jpg";
   const siteTitle = "Sokoplus";
@@ -39,6 +41,13 @@ export default function SEO({
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={finalImage} />
+
+      {/* Dynamic Schema JSON-LD */}
+      {schema && (
+        <script type="application/ld+json">
+          {JSON.stringify(schema)}
+        </script>
+      )}
     </Helmet>
   );
 }

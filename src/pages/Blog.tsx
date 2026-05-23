@@ -296,6 +296,36 @@ export default function Blog({ user }: { user: UserProfile | null }) {
     }
   };
 
+  const blogSchema = selectedPost ? {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": selectedPost.title,
+    "image": [selectedPost.image],
+    "datePublished": selectedPost.publishedAt?.toDate ? selectedPost.publishedAt.toDate().toISOString() : new Date().toISOString(),
+    "author": {
+      "@type": "Person",
+      "name": selectedPost.author || "Sokoplus Team"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Sokoplus",
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${window.location.origin}/logo.jpg`
+      }
+    },
+    "description": selectedPost.seoDescription || (selectedPost.content.substring(0, 160).replace(/[#*_`~\n-]/g, " ").trim() + "...")
+  } : {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "name": "Sokoplus Market Stories",
+    "description": "Explore stories from local Kenyan artisans, market trends, and the heart of Kenyan commerce on the Sokoplus blog.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Sokoplus"
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-16 space-y-12">
       <SEO 
@@ -312,6 +342,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
             : `${window.location.origin}/blog`
         }
         type={selectedPost ? "article" : "website"}
+        schema={blogSchema}
       />
       
       {/* Editorial Header Section */}

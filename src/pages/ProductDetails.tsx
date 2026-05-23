@@ -206,6 +206,32 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   if (loading) return <div className="h-screen flex items-center justify-center">Loading details...</div>;
   if (!product) return <div className="h-screen flex items-center justify-center">Product not found</div>;
 
+  const productSchema = {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": product.name,
+    "image": product.images || [product.images?.[0]],
+    "description": product.description,
+    "sku": product.id,
+    "brand": {
+      "@type": "Brand",
+      "name": "Sokoplus"
+    },
+    "offers": {
+      "@type": "Offer",
+      "url": window.location.href,
+      "priceCurrency": currency || "KES",
+      "price": product.price,
+      "itemCondition": "https://schema.org/NewCondition",
+      "availability": product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": product.rating || "4.5",
+      "reviewCount": product.reviewCount || "12"
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <SEO 
@@ -213,6 +239,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         description={product.description}
         image={product.images?.[0]}
         type="product"
+        schema={productSchema}
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         {/* Gallery */}

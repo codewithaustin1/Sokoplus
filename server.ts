@@ -164,6 +164,91 @@ app.get("/api/paystack/verify/:reference", async (req, res) => {
   }
 });
 
+// XML Sitemap Endpoint: Queries products & blogs dynamically from Firestore
+app.get("/sitemap.xml", async (req, res) => {
+  try {
+    const host = req.get("host") || "sokoplus.com";
+    const baseUrl = `https://${host}`;
+
+    const staticPaths = [
+      "",
+      "/blog",
+      "/faq",
+      "/shipping",
+      "/terms",
+      "/privacy",
+      "/cookies"
+    ];
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+    // Static pages setup
+    for (const p of staticPaths) {
+      xml += `  <url>\n`;
+      xml += `    <loc>${baseUrl}${p}</loc>\n`;
+      xml += `    <changefreq>daily</changefreq>\n`;
+      xml += `    <priority>${p === "" ? "1.0" : "0.8"}</priority>\n`;
+      xml += `  </url>\n`;
+    }
+
+    // Dynamic Products fetching from Firestore index
+    try {
+      const productsRef = adminDb.collection("products");
+      const pSnap = await productsRef.get();
+      pSnap.forEach((doc) => {
+        xml += `  <url>\n`;
+        xml += `    <loc>${baseUrl}/product/${doc.id}</loc>\n`;
+        xml += `    <changefreq>weekly</changefreq>\n`;
+        xml += `    <priority>0.9</priority>\n`;
+        xml += `  </url>\n`;
+      });
+    } catch (dbErr) {
+      console.warn("Sitemap: Failed to load dynamic products from Firestore", dbErr);
+    }
+
+    // Dynamic Blogs fetching from Firestore index
+    try {
+      const blogRef = adminDb.collection("blog");
+      const bSnap = await blogRef.get();
+      bSnap.forEach((doc) => {
+        xml += `  <url>\n`;
+        xml += `    <loc>${baseUrl}/blog?post=${doc.id}</loc>\n`;
+        xml += `    <changefreq>weekly</changefreq>\n`;
+        xml += `    <priority>0.7</priority>\n`;
+        xml += `  </url>\n`;
+      });
+    } catch (dbErr) {
+      console.warn("Sitemap: Failed to load dynamic blog posts from Firestore", dbErr);
+    }
+
+    xml += `</urlset>`;
+
+    res.header("Content-Type", "application/xml");
+    res.status(200).send(xml);
+  } catch (err: any) {
+    console.error("Sitemap generation failed:", err);
+    res.status(500).send("Error generating sitemap");
+  }
+});
+
+// robots.txt Crawler Configuration Directives
+app.get("/robots.txt", (req, res) => {
+  const host = req.get("host") || "sokoplus.com";
+  const baseUrl = `https://${host}`;
+  
+  let content = "User-agent: *\n";
+  content += "Allow: /\n";
+  content += "Disallow: /admin\n";
+  content += "Disallow: /profile\n";
+  content += "Disallow: /api/\n";
+  content += "\n";
+  content += `Sitemap: ${baseUrl}/sitemap.xml\n`;
+
+  res.header("Content-Type", "text/plain");
+  res.status(200).send(content);
+});
+
 // Simple in-memory cache for recommendations
 const recommendationCache = new Map<string, string[]>();
 let quotaCooldownUntil = 0;
