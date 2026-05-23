@@ -25,6 +25,60 @@ const adminApp = admin.initializeApp({
 
 const adminDb = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
 
+// Helper functions for parsing Firestore REST responses reliably inside backends
+function parseFirestoreValue(valueObj: any): any {
+  if (!valueObj) return null;
+  const type = Object.keys(valueObj)[0];
+  const value = valueObj[type];
+  switch (type) {
+    case "stringValue":
+      return value;
+    case "integerValue":
+      return parseInt(value, 10);
+    case "doubleValue":
+      return parseFloat(value);
+    case "booleanValue":
+      return value;
+    case "arrayValue":
+      return (value.values || []).map((v: any) => parseFirestoreValue(v));
+    case "mapValue": {
+      const res: any = {};
+      const fields = value.fields || {};
+      for (const k of Object.keys(fields)) {
+        res[k] = parseFirestoreValue(fields[k]);
+      }
+      return res;
+    }
+    case "timestampValue":
+      return new Date(value);
+    case "nullValue":
+    default:
+      return value;
+  }
+}
+
+function parseFirestoreDocument(doc: any): any {
+  const id = doc.name.split("/").pop();
+  const fields = doc.fields || {};
+  const data: any = { id };
+  for (const k of Object.keys(fields)) {
+    data[k] = parseFirestoreValue(fields[k]);
+  }
+  return data;
+}
+
+async function fetchCollectionFromREST(collectionName: string): Promise<any[]> {
+  try {
+    const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/${firebaseConfig.firestoreDatabaseId || "(default)"}/documents/${collectionName}?key=${firebaseConfig.apiKey}`;
+    const response = await axios.get(url);
+    const documents = response.data.documents || [];
+    return documents.map(parseFirestoreDocument);
+  } catch (err: any) {
+    console.error(`REST fetch for collection ${collectionName} failed:`, err.message || err);
+    return []; // Return empty array on failure instead of throwing to maintain seamless service
+  }
+}
+
 /**
  * Automagic Time-To-Live (TTL) Ordered History Cleanup Process
  * Auto-deletes DELIVERED and CANCELLED orders older than 1 year (365 days).
@@ -194,8 +248,7 @@ app.get("/sitemap.xml", async (req, res) => {
 
     // Dynamic Products fetching from Firestore index
     try {
-      const productsRef = adminDb.collection("products");
-      const pSnap = await productsRef.get();
+      const pSnap = await fetchCollectionFromREST("products");
       pSnap.forEach((doc) => {
         xml += `  <url>\n`;
         xml += `    <loc>${baseUrl}/product/${doc.id}</loc>\n`;
@@ -209,8 +262,7 @@ app.get("/sitemap.xml", async (req, res) => {
 
     // Dynamic Blogs fetching from Firestore index
     try {
-      const blogRef = adminDb.collection("blog");
-      const bSnap = await blogRef.get();
+      const bSnap = await fetchCollectionFromREST("blog");
       bSnap.forEach((doc) => {
         xml += `  <url>\n`;
         xml += `    <loc>${baseUrl}/blog?post=${doc.id}</loc>\n`;
@@ -261,7 +313,7 @@ app.post("/api/recommendations", async (req, res) => {
     if (Date.now() < quotaCooldownUntil) {
       return res.status(429).json({ 
         error: "Quota reached", 
-        message: "AI is on cooldown",
+        message: "Assistant is on cooldown",
         type: "QUOTA_EXCEEDED"
       });
     }
@@ -308,14 +360,100 @@ app.post("/api/recommendations", async (req, res) => {
       quotaCooldownUntil = Date.now() + (5 * 60 * 1000); // 5 minutes cooldown
       
       return res.status(429).json({ 
-        error: "AI limit reached", 
-        message: "The AI recommendation engine is currently busy due to high demand. Please try again in a few minutes.",
+        error: "Recommendation limit reached", 
+        message: "The smart recommendation engine is currently busy due to high demand. Please try again in a few minutes.",
         type: "QUOTA_EXCEEDED"
       });
     }
 
     console.error("Gemini Error:", error);
     res.status(500).json({ error: "Failed to get recommendations" });
+  }
+});
+
+// Gemini-powered AI Support Chat Assistant
+app.post("/api/support-chat/ai", async (req, res) => {
+  try {
+    const { messages } = req.body;
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "Invalid or missing messages array" });
+    }
+
+    // 1. Fetch live product catalog from Firestore securely using client body override or fallback REST API
+    const productsData: any[] = [];
+    if (req.body.products && Array.isArray(req.body.products) && req.body.products.length > 0) {
+      req.body.products.forEach((doc: any) => {
+        if (doc.active === false) return;
+        productsData.push({
+          id: doc.id,
+          name: doc.name,
+          category: doc.category,
+          price: doc.price,
+          description: doc.description,
+          stock: doc.stock,
+          rating: doc.rating || 5
+        });
+      });
+    } else {
+      try {
+        const snap = await fetchCollectionFromREST("products");
+        snap.forEach((doc) => {
+          if (doc.active === false) return;
+          productsData.push({
+            id: doc.id,
+            name: doc.name,
+            category: doc.category,
+            price: doc.price,
+            description: doc.description,
+            stock: doc.stock,
+            rating: doc.rating || 5
+          });
+        });
+      } catch (dbErr) {
+        console.warn("AI Chat: Failed to fetch products dynamically", dbErr);
+      }
+    }
+
+    // 2. Define standard system instructions supplying catalog context dynamically
+    const systemInstruction = `You are "SokoSmart", the intelligent, friendly, and helpful Customer Support Assistant for Sokoplus, a premier Kenyan e-commerce marketplace. 
+
+Your objectives:
+1. Provide accurate, context-aware information about the products in our storefront catalog.
+2. Help users find suitable products, answer questions about product features, pricing (expressed in KES / Kenyan Shillings), availability/stock, and categories.
+3. Be extremely polite and show genuine warm Kenyan hospitality. Use words like "Habari" (Hello), "Karibu" (Welcome), or "Asante" (Thank you) when welcoming or thanking the customer. Keep your responses primarily in English.
+4. Keep answers nicely styled with clean markdown bullets, but concise and reader-friendly. Avoid overly long walls of text.
+5. If a user asks about their specific order status or needs technical support, guide them to use our standard ticket form (available in the "Email Us" mode of the support window) or write a ticket, and our team will get in touch.
+6. Return responses in standard Markdown. Do not include any private JSON data formats in the text.
+
+Here is the current active Sokoplus product catalog:
+${JSON.stringify(productsData)}
+`;
+
+    // 3. Map messages to Gemini API contents format: user -> user; bot/assistant -> model
+    const contents = messages.map((m: any) => ({
+      role: m.sender === "user" ? "user" : "model",
+      parts: [{ text: m.text }],
+    }));
+
+    const ai = getGenAI();
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: contents,
+      config: {
+        systemInstruction,
+      },
+    });
+
+    res.json({ text: response.text });
+  } catch (error: any) {
+    console.error("Smart Support Chat Assistant Error:", error);
+    if (error.status === "RESOURCE_EXHAUSTED" || error.code === 429 || (error.message && error.message.includes("quota"))) {
+      return res.status(429).json({ 
+        error: "Assistant limit reached", 
+        message: "SokoSmart is currently experiencing high volume of inquiries. Please try again in a few moments."
+      });
+    }
+    res.status(500).json({ error: "Failed to generate smart response", details: error.message });
   }
 });
 

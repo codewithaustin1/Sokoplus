@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   GoogleAuthProvider, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -20,6 +22,8 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
   const navigate = useNavigate();
 
   const handleProfileSync = async (user: User) => {
@@ -49,21 +53,63 @@ export default function Login() {
     }
   };
 
+  useEffect(() => {
+    // Process redirect sign-in result automatically on mount
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          setLoading(true);
+          await handleProfileSync(result.user);
+          toast.success(`Welcome back, ${result.user.displayName || 'Customer'}!`);
+          navigate("/");
+        }
+      } catch (error: any) {
+        console.error("Redirect login result handler failed:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    handleRedirectResult();
+  }, [navigate]);
+
   const handleGoogleLogin = async () => {
     if (loading) return;
     setLoading(true);
     const provider = new GoogleAuthProvider();
+    
+    // Proactive iframe/sandbox detection: use Redirect style immediately for friction-free sign-in
+    const isInIframe = window.self !== window.top;
+    if (isInIframe) {
+      try {
+        toast.loading("Establishing secure session in sandbox. Redirecting to Google account sign-in...", { duration: 4000 });
+        await signInWithRedirect(auth, provider);
+        return;
+      } catch (redirectErr: any) {
+        console.error("Proactive Google redirect failed, falling back to popup flow:", redirectErr);
+      }
+    }
+
     try {
       const result = await signInWithPopup(auth, provider);
       await handleProfileSync(result.user);
       toast.success(`Welcome back, ${result.user.displayName || 'Customer'}!`);
       navigate("/");
     } catch (error: any) {
-      console.error("Login error:", error);
-      if (error.code === "auth/popup-closed-by-user") {
-        toast.error("Login cancelled. Please try again.");
-      } else if (error.code === "auth/popup-blocked") {
-        toast.error("Popup blocked! Please allow popups for this site or open the app in a new tab.", { duration: 6000 });
+      console.error("Login popup failed:", error);
+      if (
+        error.code === "auth/popup-closed-by-user" || 
+        error.code === "auth/popup-blocked" || 
+        error.code === "auth/cancelled-popup-request" ||
+        error.message?.includes("iframe")
+      ) {
+        try {
+          toast.loading("Google Popup blocked/closed in browser. Redirecting to Google Account Sign-In instead...", { duration: 4000 });
+          await signInWithRedirect(auth, provider);
+        } catch (fallbackRedirectErr: any) {
+          console.error("Fallback redirect sign-in failed:", fallbackRedirectErr);
+          toast.error("Google sign-in is blocked in this browser orientation. Please sign in using Email and Password below.");
+        }
       } else {
         toast.error("Failed to sign in with Google.");
       }
@@ -74,10 +120,11 @@ export default function Login() {
 
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const handleForgotPassword = async () => {
-    const trimmedEmail = email.trim();
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedEmail = resetEmail.trim();
     if (!trimmedEmail) {
-      toast.error("Please enter your email address first.");
+      toast.error("Please enter your email address.");
       return;
     }
 
@@ -86,9 +133,11 @@ export default function Login() {
       return;
     }
     
+    setLoading(true);
     try {
       await sendPasswordResetEmail(auth, trimmedEmail);
       toast.success("Password reset link sent to your email!");
+      setIsForgotPassword(false); // Return to standard sign in automatically
     } catch (error: any) {
       console.error("Reset error:", error);
       if (error.code === "auth/user-not-found") {
@@ -96,6 +145,8 @@ export default function Login() {
       } else {
         toast.error("Failed to send reset link. Please try again.");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -166,13 +217,20 @@ export default function Login() {
           </div>
           <div className="space-y-2">
             <h1 className="text-4xl font-black tracking-tight text-gray-900 italic">Sokoplus</h1>
-            <p className="text-gray-500 font-medium">{isSignUp ? "Create your account" : "Welcome back"}</p>
+            <p className="text-gray-500 font-medium">
+              {isForgotPassword 
+                ? "Reset your password" 
+                : (isSignUp ? "Create your account" : "Welcome back")}
+            </p>
           </div>
         </div>
 
         <div className="space-y-8 relative">
-          <form onSubmit={handleEmailAuth} className="space-y-4">
-            <div className="space-y-4">
+          {isForgotPassword ? (
+            <form onSubmit={handleForgotPasswordSubmit} className="space-y-6">
+              <p className="text-sm text-gray-500 leading-relaxed font-medium">
+                Enter your email address below and we'll send a password reset link to your inbox.
+              </p>
               <div className="space-y-2">
                 <label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Email Address</label>
                 <div className="relative">
@@ -180,84 +238,127 @@ export default function Login() {
                   <input
                     type="email"
                     placeholder="name@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
                     className="w-full bg-gray-50 border-2 border-transparent focus:border-orange-600 focus:bg-white rounded-2xl py-4 pl-14 pr-6 font-bold transition-all outline-none"
                     required
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between items-center ml-1">
-                  <label className="text-xs font-black uppercase tracking-widest text-gray-400">Password</label>
-                  {!isSignUp && (
-                    <button 
-                      type="button"
-                      onClick={handleForgotPassword}
-                      className="text-[10px] font-bold text-orange-600 hover:underline uppercase tracking-tighter"
-                    >
-                      Forgot Password?
-                    </button>
-                  )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl hover:shadow-orange-200 disabled:opacity-50 flex items-center justify-center space-x-2 group cursor-pointer"
+              >
+                <span>{loading ? "Sending..." : "Send Reset Link"}</span>
+                {!loading && <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />}
+              </button>
+
+              <div className="text-center">
+                <button 
+                  type="button"
+                  onClick={() => setIsForgotPassword(false)}
+                  className="text-sm font-bold text-gray-500 hover:text-orange-600 transition-colors cursor-pointer"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <form onSubmit={handleEmailAuth} className="space-y-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Email Address</label>
+                    <div className="relative">
+                      <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <input
+                        type="email"
+                        placeholder="name@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-gray-50 border-2 border-transparent focus:border-orange-600 focus:bg-white rounded-2xl py-4 pl-14 pr-6 font-bold transition-all outline-none"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center ml-1">
+                      <label className="text-xs font-black uppercase tracking-widest text-gray-400">Password</label>
+                      {!isSignUp && (
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setResetEmail(email);
+                            setIsForgotPassword(true);
+                          }}
+                          className="text-[10px] font-bold text-orange-600 hover:underline uppercase tracking-tighter cursor-pointer"
+                        >
+                          Forgot Password?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-gray-50 border-2 border-transparent focus:border-orange-600 focus:bg-white rounded-2xl py-4 pl-14 pr-14 font-bold transition-all outline-none"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="relative">
-                  <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-gray-50 border-2 border-transparent focus:border-orange-600 focus:bg-white rounded-2xl py-4 pl-14 pr-14 font-bold transition-all outline-none"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl hover:shadow-orange-200 disabled:opacity-50 flex items-center justify-center space-x-2 group"
+                >
+                  <span>{loading ? "Processing..." : (isSignUp ? "Join Sokoplus" : "Sign In")}</span>
+                  {!loading && (isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />)}
+                </button>
+              </form>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-100"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase tracking-widest">
+                  <span className="bg-white px-4 text-gray-400 font-bold">Or continue with</span>
                 </div>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl hover:shadow-orange-200 disabled:opacity-50 flex items-center justify-center space-x-2 group"
-            >
-              <span>{loading ? "Processing..." : (isSignUp ? "Join Sokoplus" : "Sign In")}</span>
-              {!loading && (isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />)}
-            </button>
-          </form>
+              <button
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full flex items-center justify-center space-x-4 bg-white border-2 border-gray-100 py-4 px-6 rounded-2xl font-black hover:bg-gray-50 hover:border-gray-200 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
+                <span>Google Account</span>
+              </button>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-100"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase tracking-widest">
-              <span className="bg-white px-4 text-gray-400 font-bold">Or continue with</span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleGoogleLogin}
-            disabled={loading}
-            className="w-full flex items-center justify-center space-x-4 bg-white border-2 border-gray-100 py-4 px-6 rounded-2xl font-black hover:bg-gray-50 hover:border-gray-200 transition-all shadow-sm disabled:opacity-50"
-          >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
-            <span>Google Account</span>
-          </button>
-
-          <div className="text-center">
-            <button 
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm font-bold text-gray-500 hover:text-orange-600 transition-colors"
-            >
-              {isSignUp ? "Already have an account? Sign In" : "New to Sokoplus? Create an account"}
-            </button>
-          </div>
+              <div className="text-center">
+                <button 
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-sm font-bold text-gray-500 hover:text-orange-600 transition-colors cursor-pointer"
+                >
+                  {isSignUp ? "Already have an account? Sign In" : "New to Sokoplus? Create an account"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <p className="text-[10px] text-gray-400 text-center leading-relaxed font-medium">

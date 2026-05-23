@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { UserProfile, SupportTicket } from "../types";
 import { db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { Send, X, MessageSquare, Loader2 } from "lucide-react";
+import { collection, addDoc, serverTimestamp, getDocs, query, limit } from "firebase/firestore";
+import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity } from "lucide-react";
 import toast from "react-hot-toast";
+import axios from "axios";
+import ReactMarkdown from "react-markdown";
 
 interface SupportProps {
   user: UserProfile | null;
@@ -11,11 +13,54 @@ interface SupportProps {
   onClose: () => void;
 }
 
+interface Message {
+  id: string;
+  sender: "user" | "bot";
+  text: string;
+}
+
 export default function Support({ user, isOpen, onClose }: SupportProps) {
+  // Tabs: "ai" for custom Gemini product assistant; "whatsapp" for direct live chat; "email" for Firestore ticketing helpdesk
+  const [mode, setMode] = useState<"ai" | "whatsapp" | "email">("ai");
+  
+  // Traditional form states
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState<SupportTicket["subject"]>("General Inquiry");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Smart Chat states
+  const [chatInput, setChatInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [aiMessages, setAiMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      sender: "bot",
+      text: "Habari! I am SokoSmart, your friendly customer care representative. Ask me anything about Sokoplus products, pricing, design materials, collections, or stock availability! Karibu."
+    }
+  ]);
+
+  // Load products client side to supply chatbot context reliably (bypasses REST 403 & Admin SDK 7 Permission Denied issues)
+  useEffect(() => {
+    if (isOpen && products.length === 0) {
+      const fetchProductsForAI = async () => {
+        try {
+          const q = query(collection(db, "products"), limit(50));
+          const snap = await getDocs(q);
+          const retrieved = snap.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter((p: any) => p.active !== false);
+          setProducts(retrieved);
+        } catch (error) {
+          console.error("SupportChat client products fetch failed:", error);
+        }
+      };
+      fetchProductsForAI();
+    }
+  }, [isOpen, products.length]);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user?.email) {
@@ -23,6 +68,18 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
     }
   }, [user]);
 
+  // Auto scroll to chat bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    if (mode === "ai") {
+      scrollToBottom();
+    }
+  }, [aiMessages, mode, aiLoading]);
+
+  // Traditional feedback submission handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
@@ -49,11 +106,63 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
     }
   };
 
+  // AI Assistant message handler
+  const handleSendAiMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedInput = chatInput.trim();
+    if (!trimmedInput || aiLoading) return;
+
+    const userMsg: Message = {
+      id: `m-user-${Date.now()}`,
+      sender: "user",
+      text: trimmedInput,
+    };
+
+    setAiMessages((prev) => [...prev, userMsg]);
+    setChatInput("");
+    setAiLoading(true);
+
+    try {
+      const response = await axios.post("/api/support-chat/ai", {
+        messages: [...aiMessages, userMsg].map((m) => ({
+          sender: m.sender,
+          text: m.text,
+        })),
+        products: products,
+      });
+
+      const replyText = response.data?.text || "Pardon me, please check your connection and try asking that again.";
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          id: `m-bot-${Date.now()}`,
+          sender: "bot",
+          text: replyText,
+        },
+      ]);
+    } catch (err: any) {
+      console.error("AI assistant call unsuccessful:", err);
+      const errText = err.response?.data?.message || "I had trouble fetching the live Sokoplus product list. Please try again soon!";
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          id: `m-err-${Date.now()}`,
+          sender: "bot",
+          text: `⚠️ **Error Code:** ${errText}`,
+        },
+      ]);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-end p-4 pointer-events-none">
-      <div className="bg-white w-full max-w-md h-[600px] max-h-[80vh] rounded-3xl shadow-2xl flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-bottom-8 duration-300 border border-gray-100">
+      <div className="bg-white w-full max-w-md h-[650px] max-h-[90vh] rounded-3xl shadow-2xl flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-bottom-8 duration-300 border border-gray-100">
+        
+        {/* Chat Widget Header */}
         <div className="bg-gray-900 p-6 text-white flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="bg-orange-600 p-2 rounded-xl">
@@ -61,94 +170,285 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
             </div>
             <div>
               <h3 className="font-bold">Customer Support</h3>
-              <p className="text-xs text-gray-400">Offline • Typically replies in 2h</p>
+              <p className="text-xs text-gray-400">Usually replies instantly</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-all">
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-all cursor-pointer">
             <X size={20} />
           </button>
         </div>
 
-        <div className="flex-grow overflow-y-auto p-6 space-y-6">
-          <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 italic text-sm text-blue-800">
-            "Habari! How can we help you today? Leave us a message and our team will get back to you via email."
-          </div>
+        {/* Support Modes Navigation Pills */}
+        <div className="flex border-b border-gray-100 p-2 bg-gray-50/50 gap-1">
+          <button
+            type="button"
+            id="support-tab-ai"
+            onClick={() => setMode("ai")}
+            className={`flex-1 py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+              mode === "ai"
+                ? "bg-white text-orange-600 shadow-sm border border-gray-100"
+                : "text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            <Sparkles size={12} className={mode === "ai" ? "text-orange-600" : "text-gray-400"} />
+            <span>SokoSmart Chat</span>
+          </button>
 
-          <div className="space-y-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 ml-1">Instant Support</p>
-            <a 
-              href="https://wa.me/254740463021" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center space-x-3 w-full bg-[#25D366] text-white py-4 rounded-2xl font-black shadow-lg hover:bg-[#128C7E] transition-all group"
-            >
-              <MessageSquare size={20} className="group-hover:scale-110 transition-transform" />
-              <span>CHAT ON WHATSAPP</span>
-            </a>
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-100"></div>
-            </div>
-            <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
-              <span className="bg-white px-4 text-gray-300 font-bold">Or Email Us</span>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1 underline decoration-orange-500/30">Your Registered Email</label>
-              <input 
-                type="email" 
-                required 
-                placeholder="email@example.com"
-                className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                readOnly={!!user?.email}
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1 underline decoration-orange-500/30">Subject Category</label>
-              <select 
-                className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium appearance-none"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value as SupportTicket["subject"])}
-              >
-                <option value="Technical Support">Technical Support</option>
-                <option value="Billing/Invoices">Billing/Invoices</option>
-                <option value="Order Status">Order Status</option>
-                <option value="General Inquiry">General Inquiry</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block mb-1 underline decoration-orange-500/30">Detailed Message</label>
-              <textarea 
-                required
-                rows={4}
-                placeholder="Tell us what's happening..."
-                className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium resize-none"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-              ></textarea>
-            </div>
-
-            <button 
-              disabled={loading}
-              type="submit" 
-              className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl hover:bg-orange-700 transition-all flex items-center justify-center space-x-2 shadow-lg shadow-orange-600/20 disabled:opacity-50"
-            >
-              {loading ? <Loader2 className="animate-spin" /> : <Send size={18} />}
-              <span>{loading ? "SENDING..." : "SEND MESSAGE"}</span>
-            </button>
-          </form>
+          <button
+            type="button"
+            id="support-tab-whatsapp"
+            onClick={() => setMode("whatsapp")}
+            className={`flex-1 py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+              mode === "whatsapp"
+                ? "bg-white text-green-600 shadow-sm border border-gray-100"
+                : "text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            <MessageCircle size={12} className={mode === "whatsapp" ? "text-green-500" : "text-gray-400"} />
+            <span>WhatsApp</span>
+          </button>
+          
+          <button
+            type="button"
+            id="support-tab-email"
+            onClick={() => setMode("email")}
+            className={`flex-1 py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+              mode === "email"
+                ? "bg-white text-orange-600 shadow-sm border border-gray-100"
+                : "text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            <Mail size={12} className={mode === "email" ? "text-orange-600" : "text-gray-400"} />
+            <span>Email Ticket</span>
+          </button>
         </div>
 
+        {/* Mode Meta/Details Bar */}
+        {mode === "ai" && (
+          <div className="flex justify-between items-center text-[10px] text-gray-400 font-bold px-4 py-2 border-b border-gray-100 bg-gray-50/30">
+            <div className="flex items-center space-x-1.5">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+              <span>SokoSmart Live Assistant</span>
+            </div>
+            <button
+              type="button"
+              id="support-clear-chat-btn"
+              onClick={() => setAiMessages([
+                {
+                  id: "welcome",
+                  sender: "bot",
+                  text: "Habari! I am SokoSmart, your friendly customer care representative. Ask me anything about Sokoplus products, pricing, design materials, collections, or stock availability! Karibu."
+                }
+              ])}
+              className="hover:text-red-500 flex items-center space-x-1 transition-colors cursor-pointer"
+            >
+              <Trash2 size={10} />
+              <span>Clear Log</span>
+            </button>
+          </div>
+        )}
+
+        {/* Chat Widget Content Areas */}
+        <div className="flex-grow overflow-y-auto min-h-0">
+          {mode === "ai" && (
+            /* Smart Chat Log Area */
+            <div className="p-4 space-y-4 flex flex-col h-full overflow-y-auto">
+              {aiMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex flex-col max-w-[85%] ${
+                    msg.sender === "user" ? "self-end items-end" : "self-start items-start"
+                  }`}
+                >
+                  <p className="text-[9px] font-bold text-gray-400 mb-1 ml-1.5 uppercase tracking-wide">
+                    {msg.sender === "user" ? "You" : "SokoSmart"}
+                  </p>
+                  <div
+                    className={`rounded-3xl px-4 py-3 shadow-sm text-sm ${
+                      msg.sender === "user"
+                        ? "bg-orange-600 text-white rounded-tr-none font-medium"
+                        : "bg-gray-50 border border-gray-100 text-gray-800 rounded-tl-none"
+                    }`}
+                  >
+                    {msg.sender === "user" ? (
+                      msg.text
+                    ) : (
+                      <div className="markdown-body space-y-1 prose prose-sm leading-relaxed text-gray-800">
+                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              
+              {aiLoading && (
+                <div className="flex items-start space-x-2.5 self-start max-w-[85%] animate-pulse">
+                  <div className="bg-gray-50 border border-gray-100 rounded-3xl rounded-bl-none p-3.5 shadow-sm text-xs font-bold text-gray-400 italic flex items-center space-x-2">
+                    <Loader2 size={13} className="animate-spin text-orange-500" />
+                    <span>Searching catalog catalog...</span>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+
+          {mode === "whatsapp" && (
+            /* Premium Dedicated WhatsApp Hub Screen */
+            <div className="p-6 space-y-6 animate-in fade-in duration-200">
+              <div className="bg-green-50 border border-green-100 rounded-2xl p-5 flex items-start space-x-3.5">
+                <div className="bg-green-500 text-white p-2.5 rounded-xl mt-0.5 relative">
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-white rounded-full">
+                    <span className="absolute top-0 left-0 w-2.5 h-2.5 bg-green-350 rounded-full animate-ping"></span>
+                  </span>
+                  <MessageCircle size={18} />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-green-950">Live Support</h4>
+                  <p className="text-xs text-green-800 font-medium mt-0.5">Average response: &lt; 5 minutes</p>
+                  <div className="flex items-center space-x-1.5 mt-2 bg-green-100/50 text-green-800 py-0.5 px-2 rounded-lg text-[10px] font-black w-max tracking-wider uppercase">
+                    <Activity size={10} className="animate-pulse text-green-600" />
+                    <span>Active Now</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Ideal WhatsApp Topics</p>
+                <div className="space-y-3">
+                  <div className="bg-gray-50 hover:bg-gray-100 border border-gray-155 rounded-2xl p-4 transition-all">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm">🌸</span>
+                      <span className="font-bold text-xs text-gray-800">Customizations</span>
+                    </div>
+                    <p className="text-[11px] text-gray-400 italic font-medium mt-1 pl-6">
+                      Request custom fabrics, frame resizing, or custom-made Kenyan furniture.
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 hover:bg-gray-100 border border-gray-155 rounded-2xl p-4 transition-all">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm">🚚</span>
+                      <span className="font-bold text-xs text-gray-800">Urgent Order Changes</span>
+                    </div>
+                    <p className="text-[11px] text-gray-400 italic font-medium mt-1 pl-6">
+                      Modify shipping addresses or expedite dispatch orders quickly before departure.
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 hover:bg-gray-100 border border-gray-155 rounded-2xl p-4 transition-all">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm">💳</span>
+                      <span className="font-bold text-xs text-gray-800">M-Pesa Verification</span>
+                    </div>
+                    <p className="text-[11px] text-gray-400 italic font-medium mt-1 pl-6">
+                      Send transaction statements or offline payment screenshots for verification.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <a 
+                href="https://wa.me/254740463021" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center space-x-3 w-full bg-[#25D366] text-white py-4 px-6 rounded-2xl font-black shadow-lg shadow-green-100 text-xs hover:bg-[#128C7E] active:scale-95 transition-all group cursor-pointer"
+              >
+                <MessageSquare size={16} className="group-hover:scale-110 transition-transform" />
+                <span>LAUNCH SECURE WHATSAPP SESSION</span>
+              </a>
+
+              <p className="text-[10px] text-center text-gray-400 font-medium leading-relaxed px-2">
+                We will launch a secure dialogue frame within WhatsApp Messenger or web app. Your details are encrypted.
+              </p>
+            </div>
+          )}
+
+          {mode === "email" && (
+            /* Traditional Helpdesk Form Area */
+            <div className="p-6 space-y-6">
+              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 italic text-xs text-blue-800 leading-relaxed font-medium">
+                "Habari! Use this official ticketing desk to register formal inquiries requiring catalog/account inspections. Our support technicians review tickets matching database records every 24 hours."
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4 pb-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1 underline decoration-orange-500/30">Your Registered Email</label>
+                  <input 
+                    type="email" 
+                    required 
+                    placeholder="email@example.com"
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium text-xs"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    readOnly={!!user?.email}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1 underline decoration-orange-500/30">Subject Category</label>
+                  <select 
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium appearance-none text-xs"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value as SupportTicket["subject"])}
+                  >
+                    <option value="Technical Support">Technical Support</option>
+                    <option value="Billing/Invoices">Billing/Invoices</option>
+                    <option value="Order Status">Order Status</option>
+                    <option value="General Inquiry">General Inquiry</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1 underline decoration-orange-500/30">Detailed Message</label>
+                  <textarea 
+                    required
+                    rows={4}
+                    placeholder="Tell us what's happening..."
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium resize-none shadow-inner text-xs"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                  ></textarea>
+                </div>
+
+                <button 
+                  disabled={loading}
+                  type="submit" 
+                  className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl hover:bg-orange-700 transition-all flex items-center justify-center space-x-2 shadow-lg shadow-orange-600/20 disabled:opacity-50 cursor-pointer text-xs uppercase"
+                >
+                  {loading ? <Loader2 className="animate-spin" /> : <Send size={15} />}
+                  <span>{loading ? "SENDING..." : "REGISTER TICKET"}</span>
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+
+        {/* Fixed Input Form for Smart mode at the absolute bottom */}
+        {mode === "ai" && (
+          <form onSubmit={handleSendAiMessage} className="p-3 border-t border-gray-100 bg-white flex items-center space-x-2">
+            <input
+              type="text"
+              id="support-ai-input-field"
+              placeholder="Ask SokoSmart about products, prices, etc..."
+              required
+              className="flex-grow p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-bold text-xs"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              disabled={aiLoading}
+            />
+            <button
+              type="submit"
+              disabled={aiLoading || !chatInput.trim()}
+              className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white p-4 rounded-2xl transition-all shadow-md active:scale-95 cursor-pointer"
+            >
+              <Send size={15} />
+            </button>
+          </form>
+        )}
+
         <div className="p-4 text-center border-t border-gray-50 bg-gray-50/50">
-          <p className="text-[10px] text-gray-400 uppercase tracking-tighter">Powered by Sokoplus Support Engine v2.4</p>
+          <p className="text-[10px] text-gray-400 uppercase tracking-tighter">Powered by Sokoplus Support Engine v2.5</p>
         </div>
       </div>
     </div>

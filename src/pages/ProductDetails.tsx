@@ -377,32 +377,12 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         </div>
       </div>
 
-      {/* Related / AI Recommendations Section */}
+      {/* Related / Smart Recommendations Section */}
       {recommendations.length > 0 && (
         <section className="mt-24 space-y-8 border-t border-gray-100 pt-16">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-orange-600 text-[10px] font-extrabold uppercase tracking-widest bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100/50 flex items-center space-x-1">
-                  {recSource === "ai" ? (
-                    <>
-                      <Sparkles size={12} className="text-orange-500 animate-pulse" />
-                      <span>AI Recommendation</span>
-                    </>
-                  ) : (
-                    <>
-                      <Layers size={12} className="text-orange-500" />
-                      <span>Category Related</span>
-                    </>
-                  )}
-                </span>
-              </div>
               <h2 className="text-3xl font-black tracking-tight text-gray-900">You Might Also Like</h2>
-              <p className="text-gray-500 text-sm font-medium">
-                {recSource === "ai" 
-                  ? "Sokoplus AI-curated selections tailored to your taste."
-                  : "Similar authentic creations you may find interesting."}
-              </p>
             </div>
           </div>
 

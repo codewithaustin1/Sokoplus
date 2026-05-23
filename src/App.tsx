@@ -145,27 +145,15 @@ export default function App() {
           </main>
           <Footer />
           <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-4 z-[60]">
-            <a 
-              href="https://wa.me/254740463021" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-4 bg-[#25D366] text-white rounded-full shadow-2xl hover:scale-110 transition-all group flex items-center"
-              title="Official WhatsApp Support"
-            >
-              <MessageCircle size={24} />
-              <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
-                WhatsApp Us
-              </span>
-            </a>
-            
             <button 
-              className={`p-4 rounded-full shadow-2xl transition-all group flex items-center ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
+              id="unified-support-trigger-btn"
+              className={`p-4 rounded-full shadow-2xl transition-all group flex items-center cursor-pointer ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
               onClick={() => setIsSupportOpen(!isSupportOpen)}
             >
               <MessageCircle size={24} />
               {!isSupportOpen && (
                 <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
-                  Chat with us
+                  Help & Support
                 </span>
               )}
             </button>
