@@ -135,6 +135,17 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    // Settings
+    match /settings/{settingId} {
+      function isValidSettings(data) {
+        return (data.heroImageUrl == null || (data.heroImageUrl is string && data.heroImageUrl.size() <= 2000000)) &&
+               (data.updatedBy == null || (data.updatedBy is string && data.updatedBy.size() <= 200));
+      }
+
+      allow read: if true;
+      allow write: if isAdmin() && isValidSettings(incoming()) && isValidId(settingId);
+    }
+
     // Admins
     match /admins/{adminId} {
       allow read: if isSignedIn();

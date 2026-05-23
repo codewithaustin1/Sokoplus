@@ -108,6 +108,16 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["email", "subject", "message", "status"]
+    },
+    "HomepageSettings": {
+      "title": "HomepageSettings",
+      "description": "Customizable homepage settings like custom hero images.",
+      "type": "object",
+      "properties": {
+        "heroImageUrl": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      }
     }
   },
   "firestore": {
@@ -138,6 +148,10 @@
     "/support_tickets": {
       "schema": "SupportTicket",
       "description": "Customer support requests."
+    },
+    "/settings": {
+      "schema": "HomepageSettings",
+      "description": "Administrative global website elements."
     }
   }
 }

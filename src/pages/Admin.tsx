@@ -245,20 +245,74 @@ export default function Admin({ user }: AdminProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2.5 * 1024 * 1024) {
-      toast.error("Image file is too large! Maximum limit is 2.5MB.");
+    if (file.size > 12 * 1024 * 1024) {
+      toast.error("Image file is too large! Maximum limit is 12MB.");
       return;
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === "string") {
-        setHomepageHeroUrl(reader.result);
-        toast.success("Image successfully loaded! Click 'Save Changes' below to publish.");
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        // High-definition but optimized boundary sizing
+        const maxDim = 1000;
+        let width = img.width;
+        let height = img.height;
+
+        // Perform resize maintaining standard aspect ratio
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+
+        if (ctx) {
+          // Render white solid background first (so transparent PNGs are clean JPEGs)
+          ctx.fillStyle = "#FFFFFF";
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+
+          try {
+            // Compress with high quality parameter to JPEG
+            const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.75);
+            
+            // Validate against the exact Firestore 1MB document limit
+            const sizeInBytes = Math.round((compressedDataUrl.length * 3) / 4);
+            if (sizeInBytes > 800 * 1024) {
+              toast.error("The image is still too large to store. Please select a simpler image with less complexity.");
+              return;
+            }
+
+            setHomepageHeroUrl(compressedDataUrl);
+            toast.success("Image successfully optimized & loaded! Click 'Save Changes' to update the site.");
+          } catch (compressErr) {
+            console.error("Compression error:", compressErr);
+            toast.error("Failed to compress and optimize the image file.");
+          }
+        } else {
+          toast.error("Could not initialize browser canvas for graphics compression.");
+        }
+      };
+
+      img.onerror = () => {
+        toast.error("Failed to parse upload as a valid image.");
+      };
+
+      if (typeof event.target?.result === "string") {
+        img.src = event.target.result;
       }
     };
     reader.onerror = () => {
-      toast.error("Failed to read image file.");
+      toast.error("Failed to process the uploaded source file.");
     };
     reader.readAsDataURL(file);
   };
@@ -267,6 +321,13 @@ export default function Admin({ user }: AdminProps) {
     e.preventDefault();
     setIsSavingSettings(true);
     try {
+      // Direct guard against Firestore document exceeding 1 MiB limit
+      if (homepageHeroUrl && homepageHeroUrl.startsWith("data:") && homepageHeroUrl.length > 1.2 * 1024 * 1024) {
+        toast.error("Saved settings exceed Firestore document limit! Please clear and upload an optimized image.");
+        setIsSavingSettings(false);
+        return;
+      }
+
       const settingsRef = doc(db, "settings", "homepage");
       await setDoc(settingsRef, {
         heroImageUrl: homepageHeroUrl,
@@ -274,9 +335,13 @@ export default function Admin({ user }: AdminProps) {
         updatedBy: user?.email || "Admin",
       }, { merge: true });
       toast.success("Homepage settings successfully saved! Changes are now live.");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving settings:", error);
-      toast.error("Failed to save homepage settings.");
+      if (error?.message && error.message.includes("exceeds the maximum")) {
+        toast.error("Image file is still too large for the database limits. Try uploading a smaller size or link/URL.");
+      } else {
+        toast.error("Failed to save homepage settings.");
+      }
     } finally {
       setIsSavingSettings(false);
     }
