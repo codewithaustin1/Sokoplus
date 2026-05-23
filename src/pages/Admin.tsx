@@ -100,6 +100,8 @@ export default function Admin({ user }: AdminProps) {
     "inventory" | "orders" | "inbox" | "blogs" | "settings"
   >("inventory");
   const [homepageHeroUrl, setHomepageHeroUrl] = useState<string>("");
+  const [homepageHeroBadge, setHomepageHeroBadge] = useState<string>("Vetted excellence");
+  const [homepageHeroHeading, setHomepageHeroHeading] = useState<string>("Authentic & Trusted Goods");
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
@@ -223,8 +225,17 @@ export default function Admin({ user }: AdminProps) {
       try {
         const settingsRef = doc(db, "settings", "homepage");
         const settingsSnap = await getDoc(settingsRef);
-        if (settingsSnap.exists() && settingsSnap.data().heroImageUrl) {
-          setHomepageHeroUrl(settingsSnap.data().heroImageUrl);
+        if (settingsSnap.exists()) {
+          const settingsData = settingsSnap.data();
+          if (settingsData.heroImageUrl) {
+            setHomepageHeroUrl(settingsData.heroImageUrl);
+          }
+          if (settingsData.heroBadgeText) {
+            setHomepageHeroBadge(settingsData.heroBadgeText);
+          }
+          if (settingsData.heroHeadingText) {
+            setHomepageHeroHeading(settingsData.heroHeadingText);
+          }
         }
       } catch (settingsError) {
         console.warn("Could not retrieve hero image settings: ", settingsError);
@@ -331,6 +342,8 @@ export default function Admin({ user }: AdminProps) {
       const settingsRef = doc(db, "settings", "homepage");
       await setDoc(settingsRef, {
         heroImageUrl: homepageHeroUrl,
+        heroBadgeText: homepageHeroBadge,
+        heroHeadingText: homepageHeroHeading,
         updatedAt: new Date(),
         updatedBy: user?.email || "Admin",
       }, { merge: true });
@@ -354,11 +367,15 @@ export default function Admin({ user }: AdminProps) {
         const settingsRef = doc(db, "settings", "homepage");
         await setDoc(settingsRef, {
           heroImageUrl: "",
+          heroBadgeText: "Vetted excellence",
+          heroHeadingText: "Authentic & Trusted Goods",
           updatedAt: new Date(),
           updatedBy: user?.email || "Admin",
         }, { merge: true });
         setHomepageHeroUrl("");
-        toast.success("Successfully reset to default hero banner!");
+        setHomepageHeroBadge("Vetted excellence");
+        setHomepageHeroHeading("Authentic & Trusted Goods");
+        toast.success("Successfully reset to default hero banner & texts!");
       } catch (error) {
         console.error("Error resetting settings:", error);
         toast.error("Failed to reset settings.");
@@ -1702,6 +1719,43 @@ export default function Admin({ user }: AdminProps) {
                 </div>
               </div>
 
+              {/* Overlay Badge and Heading Settings */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-400 block">
+                    Hero Badge Text Overlay
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={30}
+                    placeholder="e.g. Vetted excellence"
+                    value={homepageHeroBadge}
+                    onChange={(e) => setHomepageHeroBadge(e.target.value)}
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs font-sans text-gray-950"
+                  />
+                  <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">
+                    Max 30 characters. Describes active standard trust label (e.g., "Verified Artisans").
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-400 block">
+                    Hero Main Headline Overlay
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={40}
+                    placeholder="e.g. Authentic & Trusted Goods"
+                    value={homepageHeroHeading}
+                    onChange={(e) => setHomepageHeroHeading(e.target.value)}
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs font-sans text-gray-950"
+                  />
+                  <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">
+                    Max 40 characters. High-impact text displayed over image template.
+                  </p>
+                </div>
+              </div>
+
               {/* Sizing, Aspect, and Placement safety guidance */}
               <div className="p-5 bg-gray-50 rounded-2xl space-y-2 text-xs border border-gray-100/50">
                 <p className="font-bold text-gray-800 uppercase tracking-tight text-[11px]">Recommended Asset Specifications:</p>
@@ -1759,8 +1813,8 @@ export default function Admin({ user }: AdminProps) {
                   {/* Superimposed badge mirroring Home page precisely */}
                   <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl flex items-center justify-between border border-white/20 shadow-lg text-left">
                     <div>
-                      <p className="text-[9px] text-orange-600 font-black tracking-wider uppercase">Vetted excellence</p>
-                      <p className="text-xs font-black text-gray-900 mt-0.5">Authentic &amp; Trusted Goods</p>
+                      <p className="text-[9px] text-orange-600 font-black tracking-wider uppercase">{homepageHeroBadge}</p>
+                      <p className="text-xs font-black text-gray-900 mt-0.5">{homepageHeroHeading}</p>
                     </div>
                     <div className="flex -space-x-1.5">
                       {[1, 2, 3].map((n) => (

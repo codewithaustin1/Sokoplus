@@ -149,6 +149,11 @@ export default function Wishlist({ user }: WishlistProps) {
                       src={product.images.filter(img => !!img && img.trim() !== "")[0]}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      loading="lazy"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgNDAwIj4gPGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIj48c3RvcCBvZmZzZXQ9IjUlIiBzdG9wLWNvbG9yPSIjZjNmNGY2Ii8+PHN0b3Agb2Zmc2V0PSIyNSUiIHN0b3AtY29sb3I9IiNlNWU3ZWIiLz48c3RvcCBvZmZzZXQ9IjM1JSIgc3RvcC1jb2xvcj0iI2YzZjRmNiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZykiLz48L3N2Zz4=")`,
+                        backgroundSize: "cover"
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-200">
@@ -158,13 +163,16 @@ export default function Wishlist({ user }: WishlistProps) {
                 </Link>
                 
                 {/* Always visible Trash / Remove button on overlay */}
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 0.8 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 12 }}
                   onClick={(e) => toggleWishlist(product.id, e)}
-                  className="absolute top-4 right-4 bg-white/95 backdrop-blur-md p-2.5 rounded-xl text-red-500 hover:bg-red-50 transition-all shadow-md z-10 hover:scale-105 active:scale-95"
+                  className="absolute top-4 right-4 bg-white/95 backdrop-blur-md p-2.5 rounded-xl text-red-500 hover:bg-red-50 transition-colors shadow-md z-10 cursor-pointer"
                   title="Remove from wishlist"
                 >
                   <Trash2 size={18} />
-                </button>
+                </motion.button>
 
                 {/* Stock Tag on image overlay */}
                 <span className="absolute bottom-4 left-4 z-10">
@@ -207,7 +215,10 @@ export default function Wishlist({ user }: WishlistProps) {
                   >
                     Details
                   </Link>
-                  <button
+                  <motion.button
+                    whileHover={product.stock === 0 ? {} : { scale: 1.05, y: -1 }}
+                    whileTap={product.stock === 0 ? {} : { scale: 0.95, y: 0 }}
+                    transition={{ type: "spring", stiffness: 450, damping: 12 }}
                     disabled={product.stock === 0}
                     onClick={() => {
                       if (product.stock === 0) {
@@ -232,15 +243,15 @@ export default function Wishlist({ user }: WishlistProps) {
                       });
                       toast.success("Added to cart!");
                     }}
-                    className={`col-span-3 py-3 rounded-xl font-black text-xs transition-all flex items-center justify-center space-x-1.5 ${
+                    className={`col-span-3 py-3 rounded-xl font-black text-xs transition-colors flex items-center justify-center space-x-1.5 ${
                       product.stock === 0
                         ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-gray-900 text-white hover:bg-orange-600 hover:shadow-md hover:shadow-orange-100 cursor-pointer active:scale-98"
+                        : "bg-gray-900 text-white hover:bg-orange-600 hover:shadow-md hover:shadow-orange-100 cursor-pointer"
                     }`}
                   >
                     <ShoppingBag size={14} />
                     <span>Add to Cart</span>
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             </motion.div>

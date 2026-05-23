@@ -139,6 +139,8 @@ service cloud.firestore {
     match /settings/{settingId} {
       function isValidSettings(data) {
         return (data.heroImageUrl == null || (data.heroImageUrl is string && data.heroImageUrl.size() <= 2000000)) &&
+               (data.heroBadgeText == null || (data.heroBadgeText is string && data.heroBadgeText.size() <= 100)) &&
+               (data.heroHeadingText == null || (data.heroHeadingText is string && data.heroHeadingText.size() <= 150)) &&
                (data.updatedBy == null || (data.updatedBy is string && data.updatedBy.size() <= 200));
       }
 

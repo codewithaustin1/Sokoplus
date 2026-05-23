@@ -115,6 +115,8 @@
       "type": "object",
       "properties": {
         "heroImageUrl": { "type": "string" },
+        "heroBadgeText": { "type": "string" },
+        "heroHeadingText": { "type": "string" },
         "updatedAt": { "type": "string", "format": "date-time" },
         "updatedBy": { "type": "string" }
       }

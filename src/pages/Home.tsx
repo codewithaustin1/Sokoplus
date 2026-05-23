@@ -20,6 +20,8 @@ interface HomeProps {
 export default function Home({ user }: HomeProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [heroImageUrl, setHeroImageUrl] = useState<string>("");
+  const [heroBadgeText, setHeroBadgeText] = useState<string>("Vetted excellence");
+  const [heroHeadingText, setHeroHeadingText] = useState<string>("Authentic & Trusted Goods");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
@@ -34,6 +36,16 @@ export default function Home({ user }: HomeProps) {
   const [minRating, setMinRating] = useState<number>(0);
   const [onlyInStock, setOnlyInStock] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high" | "rating">("newest");
+
+  // Dynamic slider range calculation based on inventory
+  const sliderMax = Math.ceil(
+    products.length > 0
+      ? Math.max(...products.map(p => currency === "USD" ? p.price * exchangeRate : p.price))
+      : (currency === "USD" ? 250 : 25000)
+  ) || (currency === "USD" ? 250 : 25000);
+
+  const tempMin = minPrice === "" ? 0 : Number(minPrice);
+  const tempMax = maxPrice === "" ? sliderMax : Number(maxPrice);
 
   const toggleWishlist = async (productId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -82,8 +94,17 @@ export default function Home({ user }: HomeProps) {
         try {
           const settingsRef = doc(db, "settings", "homepage");
           const settingsSnap = await getDoc(settingsRef);
-          if (settingsSnap.exists() && settingsSnap.data().heroImageUrl) {
-            setHeroImageUrl(settingsSnap.data().heroImageUrl);
+          if (settingsSnap.exists()) {
+            const settingsData = settingsSnap.data();
+            if (settingsData.heroImageUrl) {
+              setHeroImageUrl(settingsData.heroImageUrl);
+            }
+            if (settingsData.heroBadgeText) {
+              setHeroBadgeText(settingsData.heroBadgeText);
+            }
+            if (settingsData.heroHeadingText) {
+              setHeroHeadingText(settingsData.heroHeadingText);
+            }
           }
         } catch (settingsErr) {
           console.warn("Could not retrieve homepage settings:", settingsErr);
@@ -201,8 +222,8 @@ export default function Home({ user }: HomeProps) {
                />
                <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md px-6 py-4 rounded-2xl flex items-center justify-between border border-white/20 shadow-lg">
                  <div>
-                   <p className="text-[10px] text-orange-600 font-black tracking-wider uppercase">Vetted excellence</p>
-                   <p className="text-sm font-black text-gray-900 mt-0.5">Authentic &amp; Trusted Goods</p>
+                   <p className="text-[10px] text-orange-600 font-black tracking-wider uppercase">{heroBadgeText}</p>
+                   <p className="text-sm font-black text-gray-900 mt-0.5">{heroHeadingText}</p>
                  </div>
                  <div className="flex -space-x-2">
                    {[1, 2, 3].map((n) => (
@@ -362,24 +383,97 @@ export default function Home({ user }: HomeProps) {
                 <div className="bg-white border border-gray-100 rounded-[2rem] p-8 md:p-10 grid grid-cols-1 md:grid-cols-4 gap-10 shadow-xl shadow-gray-100/50">
                   {/* Price Range */}
                   <div className="space-y-4">
-                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 block">Price Range ({currency})</label>
-                    <div className="flex items-center space-x-3">
-                       <input 
-                         type="number" 
-                         placeholder="Min" 
-                         value={minPrice}
-                         onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                         className="w-full bg-gray-50 border-none rounded-xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-orange-600 transition-all"
-                       />
-                       <div className="h-0.5 w-4 bg-gray-200"></div>
-                       <input 
-                         type="number" 
-                         placeholder="Max" 
-                         value={maxPrice}
-                         onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                         className="w-full bg-gray-50 border-none rounded-xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-orange-600 transition-all"
-                       />
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 block">Price Range ({currency})</label>
+                      <span className="text-xs font-black text-orange-600 bg-orange-50 px-2.5 py-1 rounded-lg">
+                        {currency === "USD" ? "$" : "KES "}
+                        {Math.round(tempMin).toLocaleString()} - {currency === "USD" ? "$" : "KES "}
+                        {Math.round(tempMax).toLocaleString()}
+                      </span>
                     </div>
+
+                    <div className="relative h-6 flex items-center select-none pt-2">
+                      {/* Underlay Track */}
+                      <div className="absolute left-0 right-0 h-2 bg-gray-100 rounded-full"></div>
+                      
+                      {/* Active highlighted range strip */}
+                      <div 
+                        className="absolute h-2 bg-orange-600 rounded-full"
+                        style={{
+                          left: `${sliderMax > 0 ? (tempMin / sliderMax) * 100 : 0}%`,
+                          right: `${sliderMax > 0 ? 100 - (tempMax / sliderMax) * 100 : 0}%`
+                        }}
+                      ></div>
+
+                      {/* Absolute Range sliders overlaid */}
+                      <input 
+                        type="range"
+                        min={0}
+                        max={sliderMax}
+                        value={tempMin}
+                        onChange={(e) => {
+                          const val = Math.min(Number(e.target.value), tempMax - (sliderMax * 0.05));
+                          setMinPrice(val);
+                        }}
+                        className="absolute left-0 right-0 w-full appearance-none bg-transparent pointer-events-none focus:outline-none [-webkit-appearance:none] h-2 cursor-pointer"
+                        style={{
+                          zIndex: tempMin > sliderMax / 2 ? 15 : 14
+                        }}
+                      />
+                      <input 
+                        type="range"
+                        min={0}
+                        max={sliderMax}
+                        value={tempMax}
+                        onChange={(e) => {
+                          const val = Math.max(Number(e.target.value), tempMin + (sliderMax * 0.05));
+                          setMaxPrice(val);
+                        }}
+                        className="absolute left-0 right-0 w-full appearance-none bg-transparent pointer-events-none focus:outline-none [-webkit-appearance:none] h-2 cursor-pointer"
+                        style={{
+                          zIndex: tempMin > sliderMax / 2 ? 14 : 15
+                        }}
+                      />
+                    </div>
+                    
+                    <style>{`
+                      input[type="range"]::-webkit-slider-thumb {
+                        pointer-events: auto;
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 50%;
+                        background: #ea580c;
+                        border: 2px solid #ffffff;
+                        cursor: pointer;
+                        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+                        -webkit-appearance: none;
+                        transition: transform 0.1s ease;
+                        margin-top: 0px;
+                      }
+                      input[type="range"]::-webkit-slider-thumb:hover {
+                        transform: scale(1.18);
+                      }
+                      input[type="range"]::-webkit-slider-thumb:active {
+                        transform: scale(1.24);
+                      }
+                      input[type="range"]::-moz-range-thumb {
+                        pointer-events: auto;
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 50%;
+                        background: #ea580c;
+                        border: 2px solid #ffffff;
+                        cursor: pointer;
+                        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+                        transition: transform 0.1s ease;
+                      }
+                      input[type="range"]::-moz-range-thumb:hover {
+                        transform: scale(1.18);
+                      }
+                      input[type="range"]::-moz-range-thumb:active {
+                        transform: scale(1.24);
+                      }
+                    `}</style>
                   </div>
 
                   {/* Rating */}
@@ -470,7 +564,17 @@ export default function Home({ user }: HomeProps) {
                 <Link to={`/product/${p.id}`} className="block aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 relative group">
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-all"></div>
                   {p.images?.filter(img => !!img && img.trim() !== "")[0] ? (
-                    <img referrerPolicy="no-referrer" src={p.images.filter(img => !!img && img.trim() !== "")[0]} alt={p.name} className="w-full h-full object-cover" />
+                    <img 
+                      referrerPolicy="no-referrer" 
+                      src={p.images.filter(img => !!img && img.trim() !== "")[0]} 
+                      alt={p.name} 
+                      className="w-full h-full object-cover" 
+                      loading="lazy"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgNDAwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciPjxzdG9wIG9mZnNldD0iNSUiIHN0b3AtY29sb3I9IiNmM2Y0ZjYiLz48c3RvcCBvZmZzZXQ9IjI1JSIgc3RvcC1jb2xvcj0iI2U1ZTdlYiIvPjxzdG9wIG9mZnNldD0iMzUlIiBzdG9wLWNvbG9yPSIjZjNmNGY2Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNnKSIvPjwvc3ZnPg==")`,
+                        backgroundSize: "cover"
+                      }}
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-300">
                       <ShoppingBag size={48} />
@@ -479,16 +583,19 @@ export default function Home({ user }: HomeProps) {
                   <div className="absolute top-2 right-2 bg-white/90 backdrop-blur px-2 py-1 rounded-full text-[10px] font-bold shadow-sm z-10">
                     {p.category}
                   </div>
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.18 }}
+                    whileTap={{ scale: 0.8 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 12 }}
                     onClick={(e) => toggleWishlist(p.id, e)}
-                    className={`absolute top-2 left-2 p-2 rounded-full shadow-sm z-10 transition-all ${
+                    className={`absolute top-2 left-2 p-2 rounded-full shadow-sm z-10 transition-colors ${
                       user?.wishlist?.includes(p.id) 
                         ? "bg-red-50 text-red-500 hover:bg-red-100" 
                         : "bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white"
                     }`}
                   >
                     <Heart size={16} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
-                  </button>
+                  </motion.button>
                 </Link>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between mb-1">
@@ -517,7 +624,10 @@ export default function Home({ user }: HomeProps) {
                   </Link>
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-xl font-black text-gray-900">{formatPrice(p.price)}</span>
-                    <button 
+                    <motion.button 
+                      whileHover={p.stock === 0 ? {} : { scale: 1.15, rotate: -3 }}
+                      whileTap={p.stock === 0 ? {} : { scale: 0.85, rotate: 3 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
                       disabled={p.stock === 0}
                       onClick={() => {
                         if (p.stock === 0) {
@@ -543,7 +653,7 @@ export default function Home({ user }: HomeProps) {
                       }`}
                     >
                       <ShoppingBag size={18} />
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
               </motion.div>

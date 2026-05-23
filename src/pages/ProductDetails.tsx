@@ -291,7 +291,10 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           </p>
 
           <div className="flex space-x-4">
-            <button 
+            <motion.button 
+              whileHover={product.stock > 0 ? { scale: 1.02, y: -2 } : {}}
+              whileTap={product.stock > 0 ? { scale: 0.96, y: 0 } : {}}
+              transition={{ type: "spring", stiffness: 450, damping: 12 }}
               onClick={() => {
                 addToCart({ productId: product.id, name: product.name, price: product.price, quantity: 1, image: product.images?.[0] || "" });
                 trackEvent("add_to_cart", {
@@ -306,18 +309,21 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                 toast.success("Added to cart!");
               }}
               disabled={product.stock <= 0}
-              className="flex-grow bg-gray-900 text-white py-5 rounded-2xl font-black text-xl hover:bg-orange-600 transition-all shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
+              className="flex-grow bg-gray-900 text-white py-5 rounded-2xl font-black text-xl hover:bg-orange-600 transition-colors shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 cursor-pointer"
             >
               {product.stock > 0 ? "Add to Cart" : "Out of Stock"} <ShoppingBag className="ml-3" size={24} />
-            </button>
-            <button 
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: "spring", stiffness: 450, damping: 12 }}
               onClick={toggleWishlist}
-              className={`p-5 border rounded-2xl transition-all ${
+              className={`p-5 border rounded-2xl transition-colors cursor-pointer ${
                 isWishlisted ? "bg-red-50 border-red-100 text-red-500" : "border-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-500"
               }`}
             >
               <Heart size={24} fill={isWishlisted ? "currentColor" : "none"} />
-            </button>
+            </motion.button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-gray-100">
@@ -379,7 +385,11 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                        src={p.images.filter(img => !!img && img.trim() !== "")[0]} 
                        alt={p.name} 
                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
-                     />
+                       loading="lazy"
+                       style={{
+                         backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgNDAwIj4gPGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIj48c3RvcCBvZmZzZXQ9IjUlIiBzdG9wLWNvbG9yPSIjZjNmNGY2Ii8+PHN0b3Agb2Zmc2V0PSIyNSUiIHN0b3AtY29sb3I9IiNlNWU3ZWIiLz48c3RvcCBvZmZzZXQ9IjM1JSIgc3RvcC1jb2xvcj0iI2YzZjRmNiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZykiLz48L3N2Zz4=")`,
+                         backgroundSize: "cover"
+                       }}                     />
                    ) : (
                      <div className="w-full h-full flex items-center justify-center text-gray-200">
                         <ShoppingBag size={48} />

@@ -173,6 +173,57 @@ export default function Checkout({ user }: CheckoutProps) {
         )}
       </AnimatePresence>
 
+      {/* Numbered Path Tracker */}
+      <div className="mb-10 bg-white p-6 rounded-3xl border border-gray-100/80 shadow-sm">
+        <div className="flex items-center justify-center space-x-4 md:space-x-8 max-w-2xl mx-auto">
+          {/* Step 1: Shipping */}
+          <div className="flex items-center space-x-2.5">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm transition-all duration-300 ${
+              !redirecting 
+                ? "bg-orange-600 text-white shadow-lg shadow-orange-100 scale-105" 
+                : "bg-orange-50 text-orange-600 border border-orange-100"
+            }`}>
+              1
+            </div>
+            <span className={`text-xs md:text-sm font-black uppercase tracking-wider transition-colors duration-300 ${
+              !redirecting ? "text-gray-900" : "text-gray-400"
+            }`}>
+              Shipping
+            </span>
+          </div>
+
+          <div className="w-8 md:w-16 h-0.5 bg-gray-200"></div>
+
+          {/* Step 2: Payment */}
+          <div className="flex items-center space-x-2.5">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-sm transition-all duration-300 ${
+              redirecting 
+                ? "bg-orange-600 text-white shadow-lg shadow-orange-100 scale-105" 
+                : "bg-gray-50 border border-gray-200 text-gray-400"
+            }`}>
+              2
+            </div>
+            <span className={`text-xs md:text-sm font-black uppercase tracking-wider transition-colors duration-300 ${
+              redirecting ? "text-gray-900" : "text-gray-400"
+            }`}>
+              Payment
+            </span>
+          </div>
+
+          <div className="w-8 md:w-16 h-0.5 bg-gray-200"></div>
+
+          {/* Step 3: Confirmation */}
+          <div className="flex items-center space-x-2.5">
+            <div className="w-9 h-9 rounded-full bg-gray-50 border border-gray-200 text-gray-400 flex items-center justify-center font-black text-sm">
+              3
+            </div>
+            <span className="text-xs md:text-sm font-black uppercase tracking-wider text-gray-400">
+              Confirmation
+            </span>
+          </div>
+        </div>
+      </div>
+
       <h1 className="text-4xl font-black mb-10 tracking-tight italic">Checkout</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
