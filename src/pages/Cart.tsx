@@ -29,53 +29,70 @@ export default function Cart() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         {/* Items List */}
         <div className="lg:col-span-2 space-y-6">
-          {items.map((item) => (
-            <motion.div 
-              layout
-              key={item.productId} 
-              className="flex items-center space-x-6 p-6 bg-white border border-gray-100 rounded-2xl shadow-sm"
-            >
-              <div className="w-24 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0">
-                {item.image && item.image.trim() !== "" ? (
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-200">
-                    <ShoppingBag size={32} />
-                  </div>
-                )}
-              </div>
-              <div className="flex-grow">
-                <h3 className="text-lg font-bold">{item.name}</h3>
-                <p className="text-orange-600 font-bold">KES {item.price.toLocaleString()}</p>
-                <div className="flex items-center space-x-4 mt-2">
-                  <div className="flex items-center border border-gray-100 rounded-lg p-1 bg-gray-50">
-                    <button 
-                      onClick={() => removeFromCart(item.productId)}
-                      className="p-1 hover:text-orange-600 transition-colors"
-                    >
-                      <Minus size={16} />
-                    </button>
-                    <span className="px-4 font-bold text-sm">{item.quantity}</span>
-                    <button 
-                      onClick={() => addToCart({ ...item, quantity: 1 })}
-                      className="p-1 hover:text-orange-600 transition-colors"
-                    >
-                      <Plus size={16} />
-                    </button>
-                  </div>
-                  <button 
-                    onClick={() => removeFromCart(item.productId)}
-                    className="text-gray-400 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+          {items.map((item) => {
+            const uniqueKey = `${item.productId}-${item.customizations?.material || "default"}-${item.customizations?.color || "default"}`;
+            return (
+              <motion.div 
+                layout
+                key={uniqueKey} 
+                className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6 p-6 bg-white border border-gray-100 rounded-2xl shadow-sm"
+              >
+                <div className="w-24 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0">
+                  {item.image && item.image.trim() !== "" ? (
+                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-200">
+                      <ShoppingBag size={32} />
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="text-right font-black text-xl">
-                KES {(item.price * item.quantity).toLocaleString()}
-              </div>
-            </motion.div>
-          ))}
+                <div className="flex-grow w-full">
+                  <h3 className="text-lg font-bold">{item.name}</h3>
+                  <p className="text-orange-600 font-bold">KES {item.price.toLocaleString()}</p>
+                  
+                  {item.customizations && (
+                    <div className="mt-2 p-3 bg-orange-50/30 rounded-xl border border-orange-100/30 flex flex-col space-y-1 text-xs">
+                      <div className="flex items-center space-x-2">
+                        <span className="w-2.5 h-2.5 rounded-full border border-gray-200" style={{ backgroundColor: item.customizations.color }}></span>
+                        <span className="text-gray-600 font-semibold">Swahili Color: <strong className="text-gray-900">{item.customizations.colorName}</strong></span>
+                      </div>
+                      <span className="text-gray-650 font-semibold">Base Hardwood & Fabric: <strong className="text-gray-900">{item.customizations.material}</strong></span>
+                      {item.customizations.notes && (
+                        <span className="text-orange-650 italic mt-1 font-bold">{item.customizations.notes}</span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center space-x-4 mt-3">
+                    <div className="flex items-center border border-gray-100 rounded-lg p-1 bg-gray-50">
+                      <button 
+                        onClick={() => removeFromCart(item.productId, item.customizations)}
+                        className="p-1 hover:text-orange-655 transition-colors cursor-pointer"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="px-4 font-bold text-sm">{item.quantity}</span>
+                      <button 
+                        onClick={() => addToCart({ ...item, quantity: 1 })}
+                        className="p-1 hover:text-orange-600 transition-colors cursor-pointer"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                    <button 
+                      onClick={() => removeFromCart(item.productId, item.customizations)}
+                      className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+                <div className="text-right font-black text-xl w-full md:w-auto">
+                  KES {(item.price * item.quantity).toLocaleString()}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* Order Summary */}

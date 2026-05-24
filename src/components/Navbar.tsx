@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award } from "lucide-react";
+import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { auth, db } from "../lib/firebase";
 import { UserProfile, Product } from "../types";
@@ -77,6 +77,7 @@ export default function Navbar({ user }: NavbarProps) {
 
   const navLinks = [
     { label: "Home", path: "/" },
+    { label: "Visual Sandbox", path: "/sandbox" },
     { label: "Blog", path: "/blog" },
     ...(user?.isAdmin ? [{ label: "Admin", path: "/admin" }] : []),
   ];
@@ -415,6 +416,18 @@ export default function Navbar({ user }: NavbarProps) {
                   <span>Home</span>
                   <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
                     <ShoppingBag size={24} />
+                  </div>
+                </Link>
+
+                {/* Visual Sandbox */}
+                <Link
+                  to="/sandbox"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-2xl font-black text-gray-900 flex items-center justify-between group py-1"
+                >
+                  <span>Visual Sandbox</span>
+                  <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
+                    <Layers size={24} />
                   </div>
                 </Link>
 
