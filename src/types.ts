@@ -17,6 +17,12 @@ export interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  customizations?: {
+    material?: string;
+    color?: string;
+    colorName?: string;
+    notes?: string;
+  };
 }
 
 export interface UserProfile {

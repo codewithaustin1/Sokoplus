@@ -141,14 +141,71 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
         },
       ]);
     } catch (err: any) {
-      console.error("AI assistant call unsuccessful:", err);
+      console.warn("AI proxy endpoint failed, attempting direct client-side fallback (Option B)...", err);
+      
+      const clientApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (clientApiKey) {
+        try {
+          const { GoogleGenAI } = await import("@google/genai");
+          const aiInstance = new GoogleGenAI({ apiKey: clientApiKey });
+          
+          const systemInstruction = `You are "SokoSmart", the intelligent, friendly, and helpful Customer Support Assistant for Sokoplus, a premier Kenyan e-commerce marketplace. 
+
+Your objectives:
+1. Provide accurate, context-aware information about the products in our storefront catalog.
+2. Help users find suitable products, answer questions about product features, pricing (expressed in KES / Kenyan Shillings), availability/stock, and categories.
+3. Be extremely polite and show genuine warm Kenyan hospitality. Use words like "Habari" (Hello), "Karibu" (Welcome), or "Asante" (Thank you) when welcoming or thanking the customer. Keep your responses primarily in English.
+4. Keep answers nicely styled with clean markdown bullets, but concise and reader-friendly. Avoid overly long walls of text.
+5. If a user asks about their specific order status or needs technical support, guide them to use our standard ticket form (available in the "Email Us" mode of the support window) or write a ticket, and our team will get in touch.
+6. Return responses in standard Markdown. Do not include any private JSON data formats in the text.
+
+Here is the current active Sokoplus product catalog:
+${JSON.stringify(products.map(p => ({
+  id: p.id,
+  name: p.name,
+  category: p.category,
+  price: p.price,
+  description: p.description,
+  stock: p.stock,
+  rating: p.rating || 5
+})))}
+`;
+
+          const contents = [...aiMessages, userMsg].map((m) => ({
+            role: m.sender === "user" ? "user" : "model",
+            parts: [{ text: m.text }],
+          }));
+
+          const fallbackResponse = await aiInstance.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: contents,
+            config: {
+              systemInstruction,
+            },
+          });
+
+          const replyText = fallbackResponse.text || "Pardon me, please check your connection and try asking that again.";
+          setAiMessages((prev) => [
+            ...prev,
+            {
+              id: `m-bot-${Date.now()}`,
+              sender: "bot",
+              text: replyText,
+            },
+          ]);
+          return;
+        } catch (fallbackErr: any) {
+          console.error("Direct client-side Gemini fallback failed:", fallbackErr);
+        }
+      }
+
       const errText = err.response?.data?.message || "I had trouble fetching the live Sokoplus product list. Please try again soon!";
       setAiMessages((prev) => [
         ...prev,
         {
           id: `m-err-${Date.now()}`,
           sender: "bot",
-          text: `⚠️ **Error Code:** ${errText}`,
+          text: `⚠️ **Error Code:** ${errText}. (For Vercel builds, ensure VITE_GEMINI_API_KEY is configured in Vercel env fields)`,
         },
       ]);
     } finally {
