@@ -3,7 +3,7 @@ import { collection, getDocs, query, orderBy, onSnapshot, where, addDoc, updateD
 import { db } from "../lib/firebase";
 import { 
   ShoppingBag, ArrowRight, Search, Calendar, User, Clock, X, ArrowLeft, 
-  Share2, MessageSquare, Trash2, CornerDownRight, Send 
+  Share2, MessageSquare, Trash2, CornerDownRight, Send, Bookmark 
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import SEO from "../components/SEO";
@@ -46,6 +46,39 @@ export default function Blog({ user }: { user: UserProfile | null }) {
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
   const [newReplyText, setNewReplyText] = useState("");
   const [submittingReply, setSubmittingReply] = useState(false);
+
+  // Bookmarking state with local storage persistence
+  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("blog_bookmarks");
+      if (saved) {
+        setBookmarkedIds(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error("Failed to load blog bookmarks:", e);
+    }
+  }, []);
+
+  const toggleBookmark = (e: React.MouseEvent, postId: string) => {
+    e.stopPropagation();
+    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
+    let updated: string[];
+    if (isCurrentlyBookmarked) {
+      updated = bookmarkedIds.filter(id => id !== postId);
+      toast.success("Bookmark removed!");
+    } else {
+      updated = [...bookmarkedIds, postId];
+      toast.success("Story bookmarked successfully!");
+    }
+    setBookmarkedIds(updated);
+    try {
+      localStorage.setItem("blog_bookmarks", JSON.stringify(updated));
+    } catch (err) {
+      console.error("Failed to save blog bookmarks:", err);
+    }
+  };
 
   // Synchronize URL search params with active popup
   useEffect(() => {
@@ -464,13 +497,26 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                       <ShoppingBag size={48} />
                    </div>
                  )}
-                 <button
-                   onClick={(e) => handleShare(e, post)}
-                   className="absolute top-4 right-4 p-2.5 bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600 rounded-full shadow-md z-10 transition-all border border-gray-100/50 cursor-pointer flex items-center justify-center"
-                   title="Share Story"
-                 >
-                   <Share2 size={13} />
-                 </button>
+                 <div className="absolute top-4 right-4 flex items-center space-x-2 z-10">
+                   <button
+                     onClick={(e) => toggleBookmark(e, post.id)}
+                     className={`p-2.5 rounded-full shadow-md transition-all border border-gray-100/50 cursor-pointer flex items-center justify-center ${
+                       bookmarkedIds.includes(post.id)
+                         ? "bg-orange-600 hover:bg-orange-700 text-white border-orange-600"
+                         : "bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600"
+                     }`}
+                     title={bookmarkedIds.includes(post.id) ? "Remove Bookmark" : "Bookmark Story"}
+                   >
+                     <Bookmark size={13} fill={bookmarkedIds.includes(post.id) ? "currentColor" : "none"} />
+                   </button>
+                   <button
+                     onClick={(e) => handleShare(e, post)}
+                     className="p-2.5 bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600 rounded-full shadow-md transition-all border border-gray-100/50 cursor-pointer flex items-center justify-center"
+                     title="Share Story"
+                   >
+                     <Share2 size={13} />
+                   </button>
+                 </div>
               </div>
               
               <div className="p-6 md:p-8 flex flex-col flex-grow justify-between space-y-4 sm:w-3/5">

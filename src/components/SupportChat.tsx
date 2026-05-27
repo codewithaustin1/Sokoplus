@@ -199,13 +199,14 @@ ${JSON.stringify(products.map(p => ({
         }
       }
 
-      const errText = err.response?.data?.message || "I had trouble fetching the live Sokoplus product list. Please try again soon!";
       setAiMessages((prev) => [
         ...prev,
         {
           id: `m-err-${Date.now()}`,
           sender: "bot",
-          text: `⚠️ **Error Code:** ${errText}. (For Vercel builds, ensure VITE_GEMINI_API_KEY is configured in Vercel env fields)`,
+          text: `Habari! SokoSmart is currently experiencing extremely high traffic volume. 
+
+To prevent any delay, feel free to browse our main collections directly on the home page, or tap the **WhatsApp** or **Email Ticket** tabs above to reach us directly! Asante sana for your patience.`,
         },
       ]);
     } finally {

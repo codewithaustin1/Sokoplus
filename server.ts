@@ -305,17 +305,107 @@ app.get("/robots.txt", (req, res) => {
 const recommendationCache = new Map<string, string[]>();
 let quotaCooldownUntil = 0;
 
-app.post("/api/recommendations", async (req, res) => {
-  try {
-    const { history, products } = req.body;
+// Local Heuristic Fallback Search Engine for Support Chat
+function generateLocalHeuristicResponse(userQuery: string, products: any[]): string {
+  const query = userQuery.toLowerCase();
+  
+  // 1. Greet back Swahili/English style
+  let greeting = "";
+  if (query.includes("habari") || query.includes("hello") || query.includes("hi") || query.includes("jambo") || query.includes("mambo") || query.includes("karibu")) {
+    greeting = "Habari! Karibu sana to Sokoplus! 😊 I am SokoSmart. Due to high traffic, I am operating in our High-Performance Offline Catalog Mode to assist you instantly!\n\n";
+  } else {
+    greeting = "Habari! SokoSmart here. To ensure a lag-free experience, I am assisting you using our local instant search engine!\n\n";
+  }
+
+  // 2. Helpdesk routing
+  if (query.includes("order") || query.includes("ticket") || query.includes("track") || query.includes("billing") || query.includes("pay") || query.includes("mpesa")) {
+    return `${greeting}For direct status trackings, payment questions, or off-grid orders, please write a Ticket matching your registered email inside the **Email Ticket** tab, or chat with us instantly under the **WhatsApp** tab! Our human care coordinators handle these requests 24/7. \n\nHow else can I assist you with our catalog today?`;
+  }
+
+  // 3. Shipping info
+  if (query.includes("shipping") || query.includes("delivery") || query.includes("deliver") || query.includes("ship") || query.includes("location") || query.includes("county")) {
+    return `${greeting}Sokoplus delivers across Kenya including Nairobi, Mombasa, Kisumu, Nakuru, Eldoret, and all counties!\n\n* **Standard Delivery**: 24-48 hours.
+* **Payment**: Secure via M-Pesa or Paystack.
+* Any dynamic adjustments to addresses can be done via our **WhatsApp** support channel under the WhatsApp tab. Let me know if you would like me to find custom artisanal products for you!`;
+  }
+
+  // 4. Products search heuristic
+  const matches = products.filter(p => {
+    const name = (p.name || "").toLowerCase();
+    const desc = (p.description || "").toLowerCase();
+    const cat = (p.category || "").toLowerCase();
+    return name.includes(query) || desc.includes(query) || cat.includes(query);
+  });
+
+  if (matches.length > 0) {
+    let listStr = `${greeting}I found **${matches.length} matches** in our catalog matching "${userQuery}":\n\n`;
+    matches.slice(0, 5).forEach(m => {
+      const stockText = m.stock > 0 ? `In Stock (${m.stock} available)` : "Out of Stock (Pre-order available)";
+      listStr += `* **${m.name}**\n`;
+      listStr += `  * 🏷️ Category: *${m.category}*\n`;
+      listStr += `  * 💰 Price: **KES ${Number(m.price).toLocaleString()}**\n`;
+      listStr += `  * 📦 Availability: *${stockText}*\n`;
+      if (m.description) {
+        listStr += `  * 📝 Description: ${m.description.slice(0, 100)}${m.description.length > 100 ? "..." : ""}\n`;
+      }
+      listStr += `\n`;
+    });
+    listStr += `Feel free to select these products in the checkout or click on them to view full details! How else can I help?`;
+    return listStr;
+  }
+
+  // 5. Category-based browser guide
+  const categories: {[key: string]: any[]} = {};
+  products.forEach(p => {
+    const cat = p.category || "General";
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(p);
+  });
+
+  const availableCategories = Object.keys(categories);
+  if (availableCategories.length > 0) {
+    let categoryGuide = `${greeting}I couldn't find a direct match for "${userQuery}" in our items, but I am here to help you browse Sokoplus! We currently have these live collections:\n\n`;
     
+    availableCategories.forEach(cat => {
+      const count = categories[cat].length;
+      const sample = categories[cat].slice(0, 2).map(p => p.name).join(", ");
+      categoryGuide += `* **${cat}** (${count} items live) — *e.g., ${sample}*\n`;
+    });
+
+    categoryGuide += `\nType one of the categories above, or ask me about items like soap, beads, jewelry, art, or honey to search our store!`;
+    return categoryGuide;
+  }
+
+  return `${greeting}I couldn't find matches for "${userQuery}" in our items, but I'm here to browse our catalog. Please try searching for jewelry, craft material, pottery, beeswax, or other authentic Kenyan products!`;
+}
+
+app.post("/api/recommendations", async (req, res) => {
+  const { history, products } = req.body;
+  const safeProducts = Array.isArray(products) ? products : [];
+  
+  // Custom fallback helper for product recommendations
+  const getLocalFallbackRecommendations = () => {
+    const category = history?.category;
+    let fallbackIds = safeProducts
+      .filter((p: any) => p.category === category && p.id !== history?.id)
+      .slice(0, 4)
+      .map((p: any) => p.id);
+      
+    if (fallbackIds.length < 4) {
+      const extraIds = safeProducts
+        .filter((p: any) => p.id !== history?.id && !fallbackIds.includes(p.id))
+        .slice(0, 4 - fallbackIds.length)
+        .map((p: any) => p.id);
+      fallbackIds = [...fallbackIds, ...extraIds];
+    }
+    return fallbackIds;
+  };
+
+  try {
     // Check quota cooldown
     if (Date.now() < quotaCooldownUntil) {
-      return res.status(429).json({ 
-        error: "Quota reached", 
-        message: "Assistant is on cooldown",
-        type: "QUOTA_EXCEEDED"
-      });
+      console.warn("Recommendations: AI limit hit / cooldown active in server.ts. Using local heuristic fallback.");
+      return res.json({ recommendationIds: getLocalFallbackRecommendations() });
     }
 
     // Attempt to cache by the first item in history if it's the current product
@@ -354,35 +444,54 @@ app.post("/api/recommendations", async (req, res) => {
     
     res.json({ recommendationIds });
   } catch (error: any) {
-    // Check for quota exceeded error
-    if (error.status === "RESOURCE_EXHAUSTED" || error.code === 429 || (error.message && error.message.includes("quota"))) {
-      console.warn("Gemini Quota Exceeded. Entering 5-minute cooldown.");
-      quotaCooldownUntil = Date.now() + (5 * 60 * 1000); // 5 minutes cooldown
-      
-      return res.status(429).json({ 
-        error: "Recommendation limit reached", 
-        message: "The smart recommendation engine is currently busy due to high demand. Please try again in a few minutes.",
-        type: "QUOTA_EXCEEDED"
-      });
-    }
+    const errStr = (error.message || "") + " " + JSON.stringify(error) + " " + String(error);
+    const isQuotaError = 
+      error.status === "RESOURCE_EXHAUSTED" || 
+      error.status === 429 || 
+      error.code === 429 || 
+      error.error?.code === 429 ||
+      error.error?.status === "RESOURCE_EXHAUSTED" ||
+      errStr.toLowerCase().includes("429") || 
+      errStr.toLowerCase().includes("quota") || 
+      errStr.toLowerCase().includes("resource_exhausted") ||
+      errStr.toLowerCase().includes("exhausted");
 
-    console.error("Gemini Error:", error);
-    res.status(500).json({ error: "Failed to get recommendations" });
+    if (isQuotaError) {
+      quotaCooldownUntil = Date.now() + (10 * 60 * 1000); // 10 minutes cooldown
+      console.warn("[Recommendations] Gemini quota limit reached (429). Activating 10-minute local backup recommendations.");
+    } else {
+      console.warn("Recommendations Gemini error, utilizing local recommendation fallback engine:", error.message || error);
+    }
+    res.json({ recommendationIds: getLocalFallbackRecommendations() });
   }
 });
 
 // Gemini-powered AI Support Chat Assistant
 app.post("/api/support-chat/ai", async (req, res) => {
-  try {
-    const { messages } = req.body;
-    if (!messages || !Array.isArray(messages)) {
-      return res.status(400).json({ error: "Invalid or missing messages array" });
-    }
+  const { messages } = req.body;
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: "Invalid or missing messages array" });
+  }
 
-    // 1. Fetch live product catalog from Firestore securely using client body override or fallback REST API
-    const productsData: any[] = [];
-    if (req.body.products && Array.isArray(req.body.products) && req.body.products.length > 0) {
-      req.body.products.forEach((doc: any) => {
+  // 1. Fetch live product catalog from Firestore securely using client body override or fallback REST API
+  const productsData: any[] = [];
+  if (req.body.products && Array.isArray(req.body.products) && req.body.products.length > 0) {
+    req.body.products.forEach((doc: any) => {
+      if (doc.active === false) return;
+      productsData.push({
+        id: doc.id,
+        name: doc.name,
+        category: doc.category,
+        price: doc.price,
+        description: doc.description,
+        stock: doc.stock,
+        rating: doc.rating || 5
+      });
+    });
+  } else {
+    try {
+      const snap = await fetchCollectionFromREST("products");
+      snap.forEach((doc) => {
         if (doc.active === false) return;
         productsData.push({
           id: doc.id,
@@ -394,26 +503,20 @@ app.post("/api/support-chat/ai", async (req, res) => {
           rating: doc.rating || 5
         });
       });
-    } else {
-      try {
-        const snap = await fetchCollectionFromREST("products");
-        snap.forEach((doc) => {
-          if (doc.active === false) return;
-          productsData.push({
-            id: doc.id,
-            name: doc.name,
-            category: doc.category,
-            price: doc.price,
-            description: doc.description,
-            stock: doc.stock,
-            rating: doc.rating || 5
-          });
-        });
-      } catch (dbErr) {
-        console.warn("AI Chat: Failed to fetch products dynamically", dbErr);
-      }
+    } catch (dbErr) {
+      console.warn("AI Chat: Failed to fetch products dynamically", dbErr);
     }
+  }
 
+  // Check if we are currently on cooldown
+  if (Date.now() < quotaCooldownUntil) {
+    console.warn("Support Chat: AI limit hit / cooldown active in server.ts. Instantly serving local heuristic fallback.");
+    const lastUserMsg = messages[messages.length - 1]?.text || "";
+    const fallbackText = generateLocalHeuristicResponse(lastUserMsg, productsData);
+    return res.json({ text: fallbackText });
+  }
+
+  try {
     // 2. Define standard system instructions supplying catalog context dynamically
     const systemInstruction = `You are "SokoSmart", the intelligent, friendly, and helpful Customer Support Assistant for Sokoplus, a premier Kenyan e-commerce marketplace. 
 
@@ -446,14 +549,30 @@ ${JSON.stringify(productsData)}
 
     res.json({ text: response.text });
   } catch (error: any) {
-    console.error("Smart Support Chat Assistant Error:", error);
-    if (error.status === "RESOURCE_EXHAUSTED" || error.code === 429 || (error.message && error.message.includes("quota"))) {
-      return res.status(429).json({ 
-        error: "Assistant limit reached", 
-        message: "SokoSmart is currently experiencing high volume of inquiries. Please try again in a few moments."
-      });
+    const errStr = (error.message || "") + " " + JSON.stringify(error) + " " + String(error);
+    const isQuotaError = 
+      error.status === "RESOURCE_EXHAUSTED" || 
+      error.status === 429 || 
+      error.code === 429 || 
+      error.error?.code === 429 ||
+      error.error?.status === "RESOURCE_EXHAUSTED" ||
+      errStr.toLowerCase().includes("429") || 
+      errStr.toLowerCase().includes("quota") || 
+      errStr.toLowerCase().includes("resource_exhausted") ||
+      errStr.toLowerCase().includes("exhausted");
+
+    if (isQuotaError) {
+      quotaCooldownUntil = Date.now() + (10 * 60 * 1000); // 10 minutes cooldown
+      console.warn("[SokoSmart] Gemini quota rate-limited (429). Operating in High-Performance Local Search mode.");
+    } else {
+      console.error("Smart Support Chat Assistant Error caught in server.ts. Activating Offline fallback search:", error.message || error);
     }
-    res.status(500).json({ error: "Failed to generate smart response", details: error.message });
+    
+    // Fall back to our local search instead of sending 429 or showing raw errors
+    const lastUserMsg = messages[messages.length - 1]?.text || "";
+    const fallbackText = generateLocalHeuristicResponse(lastUserMsg, productsData);
+    
+    res.json({ text: fallbackText });
   }
 });
 
