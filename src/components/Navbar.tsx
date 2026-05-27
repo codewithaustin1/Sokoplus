@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { auth, db } from "../lib/firebase";
@@ -22,7 +22,14 @@ export default function Navbar({ user }: NavbarProps) {
   const [showDesktopSuggestions, setShowDesktopSuggestions] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0);
+
+  // Auto-close menu when route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setIsMobileSearchOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     async function fetchProducts() {
@@ -369,30 +376,54 @@ export default function Navbar({ user }: NavbarProps) {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
+            {/* Elegant premium backdrop with deep blur */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.2 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
+              className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 md:hidden"
             />
+            {/* Spring-physics powered right-to-left drawer with interactive swipe close gesture */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 md:hidden p-6 flex flex-col space-y-8"
+              transition={{ type: "spring", damping: 28, stiffness: 240, restDelta: 0.5 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 320 }}
+              dragElastic={{ left: 0, right: 0.6 }}
+              onDragEnd={(e, info) => {
+                if (info.offset.x > 80) {
+                  setIsMobileMenuOpen(false);
+                }
+              }}
+              className="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 md:hidden p-6 flex flex-col space-y-7 touch-pan-y"
             >
               <div className="flex justify-between items-center">
-                <span className="text-xl font-bold tracking-tighter">Menu</span>
-                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-gray-400">
-                  <X size={24} />
-                </button>
+                <span className="text-xl font-bold tracking-tighter text-gray-900 flex items-center space-x-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-600 animate-pulse" />
+                  <span>Sokoplus Menu</span>
+                </span>
+                <motion.button 
+                  whileHover={{ scale: 1.15, rotate: 90 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsMobileMenuOpen(false)} 
+                  className="p-2 text-gray-400 hover:text-orange-600 transition-colors bg-gray-55 rounded-xl border border-gray-100"
+                >
+                  <X size={20} />
+                </motion.button>
               </div>
 
               {/* Mobile Search */}
-              <form onSubmit={handleSearch} className="relative">
+              <motion.form 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                onSubmit={handleSearch} 
+                className="relative"
+              >
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
                   <Search size={18} />
                 </span>
@@ -400,132 +431,217 @@ export default function Navbar({ user }: NavbarProps) {
                   type="text"
                   value={search}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  placeholder="Search products..."
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none"
+                  placeholder="Express search products..."
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-150 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all focus:border-orange-500 focus:bg-white font-medium"
                 />
-              </form>
+              </motion.form>
 
-              {/* Links */}
-              <div className="flex flex-col space-y-4">
+              {/* Staggered Links */}
+              <motion.div 
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: {
+                      staggerChildren: 0.04,
+                      delayChildren: 0.1
+                    }
+                  }
+                }}
+                initial="hidden"
+                animate="show"
+                className="flex flex-col space-y-4"
+              >
                 {/* Home */}
-                <Link
-                  to="/"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-2xl font-black text-gray-900 flex items-center justify-between group py-1"
+                <motion.div 
+                  variants={{
+                    hidden: { opacity: 0, x: 25 },
+                    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
+                  }}
+                  whileHover={{ x: 6 }} 
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <span>Home</span>
-                  <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
-                    <ShoppingBag size={24} />
-                  </div>
-                </Link>
+                  <Link
+                    to="/"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
+                  >
+                    <span>Home</span>
+                    <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
+                      <ShoppingBag size={20} />
+                    </div>
+                  </Link>
+                </motion.div>
 
                 {/* Visual Sandbox */}
-                <Link
-                  to="/sandbox"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-2xl font-black text-gray-900 flex items-center justify-between group py-1"
+                <motion.div 
+                  variants={{
+                    hidden: { opacity: 0, x: 25 },
+                    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
+                  }}
+                  whileHover={{ x: 6 }} 
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <span>Visual Sandbox</span>
-                  <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
-                    <Layers size={24} />
-                  </div>
-                </Link>
+                  <Link
+                    to="/sandbox"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
+                  >
+                    <span>Visual Sandbox</span>
+                    <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
+                      <Layers size={20} />
+                    </div>
+                  </Link>
+                </motion.div>
 
                 {/* Blog */}
-                <Link
-                  to="/blog"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-2xl font-black text-gray-900 flex items-center justify-between group py-1"
+                <motion.div 
+                  variants={{
+                    hidden: { opacity: 0, x: 25 },
+                    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
+                  }}
+                  whileHover={{ x: 6 }} 
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <span>Blog</span>
-                  <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
-                    <Award size={24} />
-                  </div>
-                </Link>
+                  <Link
+                    to="/blog"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
+                  >
+                    <span>Blog</span>
+                    <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
+                      <Award size={20} />
+                    </div>
+                  </Link>
+                </motion.div>
 
                 {/* Wishlist */}
-                <Link
-                  to="/wishlist"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-2xl font-black text-gray-900 flex items-center justify-between group py-1"
+                <motion.div 
+                  variants={{
+                    hidden: { opacity: 0, x: 25 },
+                    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
+                  }}
+                  whileHover={{ x: 6 }} 
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <div className="flex items-center space-x-2">
-                    <span>Wishlist</span>
-                    {user?.wishlist && user.wishlist.length > 0 && (
-                      <span className="bg-red-500 text-white text-[11px] font-black px-2 py-0.5 rounded-full">
-                        {user.wishlist.length}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-gray-400 group-hover:text-red-500 transition-colors">
-                    <Heart size={24} />
-                  </div>
-                </Link>
+                  <Link
+                    to="/wishlist"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span>Wishlist</span>
+                      {user?.wishlist && user.wishlist.length > 0 && (
+                        <span className="bg-red-505 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                          {user.wishlist.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-gray-400 group-hover:text-red-505 transition-colors">
+                      <Heart size={20} />
+                    </div>
+                  </Link>
+                </motion.div>
 
                 {/* Profile */}
-                <Link
-                  to="/profile"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-2xl font-black text-gray-900 flex items-center justify-between group py-1"
+                <motion.div 
+                  variants={{
+                    hidden: { opacity: 0, x: 25 },
+                    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
+                  }}
+                  whileHover={{ x: 6 }} 
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <span>Account Profile</span>
-                  <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
-                    <User size={24} />
-                  </div>
-                </Link>
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
+                  >
+                    <span>Account Profile</span>
+                    <div className="text-gray-405 group-hover:text-orange-600 transition-colors">
+                      <User size={20} />
+                    </div>
+                  </Link>
+                </motion.div>
 
                 {/* Admin Control */}
                 {user?.isAdmin && (
-                  <Link
-                    to="/admin"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-2xl font-black text-gray-900 flex items-center justify-between group py-1"
+                  <motion.div 
+                    variants={{
+                      hidden: { opacity: 0, x: 25 },
+                      show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
+                    }}
+                    whileHover={{ x: 6 }} 
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <span className="text-orange-600">Admin Control</span>
-                    <div className="text-orange-600">
-                      <Award size={24} />
-                    </div>
-                  </Link>
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="text-lg font-black text-orange-600 flex items-center justify-between group py-1"
+                    >
+                      <span>Admin Control</span>
+                      <div className="text-orange-605">
+                        <Award size={20} />
+                      </div>
+                    </Link>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
 
-              <div className="mt-auto pt-8 border-t border-gray-100 flex flex-col space-y-4">
+              {/* Bottom footer profile / controls with entry slide up */}
+              <motion.div 
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.25 }}
+                className="mt-auto pt-6 border-t border-gray-150 flex flex-col space-y-4"
+              >
                 {user ? (
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-3 p-4 bg-orange-50 rounded-2xl">
-                      <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold">
+                    <div className="flex items-center space-x-3 p-4 bg-orange-50/50 rounded-2xl border border-orange-100/30">
+                      <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white font-bold shadow-sm">
                         {user.displayName[0]}
                       </div>
-                      <div className="flex-grow">
-                        <p className="text-sm font-bold text-gray-900">{user.displayName}</p>
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-gray-500">{user.email}</p>
-                          <span className="bg-white px-2 py-0.5 rounded-lg text-[10px] font-black text-orange-600 border border-orange-100 flex items-center shadow-sm">
-                            <Award size={10} className="mr-1" /> {user.loyaltyPoints || 0}
+                      <div className="flex-grow min-w-0">
+                        <p className="text-sm font-bold text-gray-900 truncate">{user.displayName}</p>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <p className="text-xs text-gray-500 truncate mr-2">{user.email}</p>
+                          <span className="bg-white px-2 py-0.5 rounded-lg text-[9px] font-black text-orange-600 border border-orange-100 flex items-center shadow-xs flex-shrink-0">
+                            <Award size={10} className="mr-0.5" /> {user.loyaltyPoints || 0}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <button 
+                    <motion.button 
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => {
                         setShowLogoutConfirm(true);
                       }}
-                      className="w-full flex items-center justify-center space-x-2 text-gray-600 font-bold p-4 hover:text-red-500"
+                      className="w-full flex items-center justify-center space-x-2 text-gray-500 hover:text-red-500 font-bold p-3 bg-gray-50 rounded-2xl border border-gray-100 text-sm transition-colors cursor-pointer"
                     >
-                      <LogOut size={20} />
+                      <LogOut size={16} />
                       <span>Sign Out</span>
-                    </button>
+                    </motion.button>
                   </div>
                 ) : (
-                  <Link
-                    to="/login"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="w-full bg-orange-600 text-white text-center py-4 rounded-2xl font-bold text-lg"
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    Get Started
-                  </Link>
+                    <Link
+                      to="/login"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block w-full bg-orange-600 hover:bg-orange-700 text-white text-center py-4 rounded-2xl font-bold text-base transition-colors shadow-md"
+                    >
+                      Get Started
+                    </Link>
+                  </motion.div>
                 )}
-              </div>
+                
+                <div className="text-[10px] text-center text-gray-400 font-medium tracking-tight">
+                  Drag right or tap backdrop to close • Sokoplus V2.5
+                </div>
+              </motion.div>
             </motion.div>
           </>
         )}
