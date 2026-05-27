@@ -12,6 +12,8 @@ import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
 import { trackEvent } from "../lib/analytics";
 import heroImage from "../assets/images/kenyan_market_hero_1779469825593.png";
+import { FastImage } from "../components/FastImage";
+import { prefetchProductAssets } from "../utils/imagePrefetcher";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -602,25 +604,18 @@ export default function Home({ user }: HomeProps) {
                 key={p.id} 
                 className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
               >
-                <Link to={`/product/${p.id}`} className="block aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 relative group">
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-all"></div>
-                  {p.images?.filter(img => !!img && img.trim() !== "")[0] ? (
-                    <img 
-                      referrerPolicy="no-referrer" 
-                      src={p.images.filter(img => !!img && img.trim() !== "")[0]} 
-                      alt={p.name} 
-                      className="w-full h-full object-cover" 
-                      loading="lazy"
-                      style={{
-                        backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgNDAwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciPjxzdG9wIG9mZnNldD0iNSUiIHN0b3AtY29sb3I9IiNmM2Y0ZjYiLz48c3RvcCBvZmZzZXQ9IjI1JSIgc3RvcC1jb2xvcj0iI2U1ZTdlYiIvPjxzdG9wIG9mZnNldD0iMzUlIiBzdG9wLWNvbG9yPSIjZjNmNGY2Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNnKSIvPjwvc3ZnPg==")`,
-                        backgroundSize: "cover"
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300">
-                      <ShoppingBag size={48} />
-                    </div>
-                  )}
+                <Link 
+                  to={`/product/${p.id}`} 
+                  onMouseEnter={() => prefetchProductAssets(p)}
+                  onTouchStart={() => prefetchProductAssets(p)}
+                  className="block aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 relative group"
+                >
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-all text-orange-600"></div>
+                  <FastImage 
+                    src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
+                    alt={p.name} 
+                    fallbackIconSize={48}
+                  />
                   <div className="absolute top-2 right-2 bg-white/90 backdrop-blur px-2 py-1 rounded-full text-[10px] font-bold shadow-sm z-10">
                     {p.category}
                   </div>

@@ -6,6 +6,8 @@ import { auth, db } from "../lib/firebase";
 import { UserProfile, Product } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { collection, getDocs, query, limit } from "firebase/firestore";
+import { FastImage } from "./FastImage";
+import { prefetchProductAssets } from "../utils/imagePrefetcher";
 
 interface NavbarProps {
   user: UserProfile | null;
@@ -153,16 +155,16 @@ export default function Navbar({ user }: NavbarProps) {
                             <div
                               key={p.id}
                               onClick={() => handleProductSelect(p.id)}
-                              className="flex items-center space-x-3 py-3 cursor-pointer hover:bg-gray-50 rounded-2xl px-2 group transition-all"
+                              onMouseEnter={() => prefetchProductAssets(p)}
+                              onTouchStart={() => prefetchProductAssets(p)}
+                              className="flex items-center space-x-3 py-3 cursor-pointer hover:bg-gray-55 rounded-2xl px-2 group transition-all"
                             >
                               <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-200/50">
-                                {p.images?.[0] ? (
-                                  <img referrerPolicy="no-referrer" src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                    <ShoppingBag size={16} />
-                                  </div>
-                                )}
+                                <FastImage 
+                                  src={p.images?.[0] || ""} 
+                                  alt={p.name} 
+                                  fallbackIconSize={16}
+                                />
                               </div>
                               <div className="flex-grow min-w-0">
                                 <p className="text-sm font-bold text-gray-900 truncate group-hover:text-orange-600 transition-colors">{p.name}</p>
@@ -318,16 +320,16 @@ export default function Navbar({ user }: NavbarProps) {
                       <div
                         key={p.id}
                         onClick={() => handleProductSelect(p.id)}
+                        onMouseEnter={() => prefetchProductAssets(p)}
+                        onTouchStart={() => prefetchProductAssets(p)}
                         className="flex items-center space-x-3 py-3 cursor-pointer hover:bg-gray-55 group transition-all"
                       >
                         <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-200/50">
-                          {p.images?.[0] ? (
-                            <img referrerPolicy="no-referrer" src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400">
-                              <ShoppingBag size={18} />
-                            </div>
-                          )}
+                          <FastImage 
+                            src={p.images?.[0] || ""} 
+                            alt={p.name} 
+                            fallbackIconSize={18}
+                          />
                         </div>
                         <div className="flex-grow min-w-0">
                           <p className="text-sm font-bold text-gray-900 truncate group-hover:text-orange-600 transition-colors">{p.name}</p>

@@ -447,16 +447,16 @@ export default function Blog({ user }: { user: UserProfile | null }) {
       )}
 
       {/* Grid of Other / Regular Stories */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {(activeTag !== "All" || searchTerm ? filteredPosts : regularPosts).length > 0 ? (
           (activeTag !== "All" || searchTerm ? filteredPosts : regularPosts).map(post => (
             <motion.article 
               whileHover={{ y: -6 }}
               key={post.id} 
-              className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-full relative"
+              className="news-card bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col sm:flex-row h-full relative"
               onClick={() => handleOpenPost(post)}
             >
-              <div className="aspect-[16/10] bg-gray-50 overflow-hidden relative">
+              <div className="w-full sm:w-2/5 aspect-[16/10] sm:aspect-auto sm:min-h-full bg-gray-50 overflow-hidden relative flex-shrink-0">
                  {post.image ? (
                    <img src={post.image} alt={post.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
                  ) : (
@@ -473,7 +473,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                  </button>
               </div>
               
-              <div className="p-6 flex flex-col flex-grow justify-between space-y-4">
+              <div className="p-6 md:p-8 flex flex-col flex-grow justify-between space-y-4 sm:w-3/5">
                 <div className="space-y-2">
                    {/* Meta information tags */}
                    <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider">

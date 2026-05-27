@@ -11,6 +11,8 @@ import { motion } from "motion/react";
 import axios from "axios";
 import SEO from "../components/SEO";
 import { trackEvent } from "../lib/analytics";
+import { FastImage } from "../components/FastImage";
+import { prefetchProductAssets } from "../utils/imagePrefetcher";
 
 interface ProductDetailsProps {
   user: UserProfile | null;
@@ -140,6 +142,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             return;
           }
           setProduct(p);
+          prefetchProductAssets(p);
           trackEvent("view_item", {
             currency: "KES",
             value: p.price,
@@ -245,22 +248,25 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         {/* Gallery */}
         <div className="space-y-4">
           <div className="aspect-square bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm">
-            {product.images?.[activeImage] ? (
-              <img src={product.images[activeImage]} alt={product.name} className="w-full h-full object-cover transition-opacity duration-300" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-200">
-                <ShoppingBag size={100} />
-              </div>
-            )}
+            <FastImage 
+              src={product.images?.[activeImage] || ""} 
+              alt={product.name} 
+              fallbackIconSize={100}
+              priority={true}
+            />
           </div>
           <div className="grid grid-cols-4 gap-4">
             {product.images?.filter(img => !!img && img.trim() !== "").map((img, i) => (
               <div 
                 key={i} 
                 onClick={() => setActiveImage(i)}
-                className={`aspect-square rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${activeImage === i ? "border-orange-600 scale-95 shadow-lg" : "border-transparent bg-gray-50 opacity-70 hover:opacity-100"}`}
+                className={`aspect-square rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${activeImage === i ? "border-orange-600 scale-95 shadow-lg animate-pulse" : "border-transparent bg-gray-50 opacity-70 hover:opacity-100"}`}
               >
-                <img src={img} alt={`${product.name} ${i}`} className="w-full h-full object-cover" />
+                <FastImage 
+                  src={img} 
+                  alt={`${product.name} thumbnail ${i}`} 
+                  fallbackIconSize={30}
+                />
               </div>
             ))}
           </div>
@@ -386,29 +392,21 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {recommendations.map((p) => (
-              <motion.article 
-                whileHover={{ y: -6 }}
-                key={p.id} 
-                className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-full relative"
-              >
-                <div className="aspect-square bg-gray-50 overflow-hidden relative">
-                   {p.images?.filter(img => !!img && img.trim() !== "")[0] ? (
-                     <img 
-                       src={p.images.filter(img => !!img && img.trim() !== "")[0]} 
-                       alt={p.name} 
-                       className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
-                       loading="lazy"
-                       style={{
-                         backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgNDAwIj4gPGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIj48c3RvcCBvZmZzZXQ9IjUlIiBzdG9wLWNvbG9yPSIjZjNmNGY2Ii8+PHN0b3Agb2Zmc2V0PSIyNSUiIHN0b3AtY29sb3I9IiNlNWU3ZWIiLz48c3RvcCBvZmZzZXQ9IjM1JSIgc3RvcC1jb2xvcj0iI2YzZjRmNiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZykiLz48L3N2Zz4=")`,
-                         backgroundSize: "cover"
-                       }}                     />
-                   ) : (
-                     <div className="w-full h-full flex items-center justify-center text-gray-200">
-                        <ShoppingBag size={48} />
-                     </div>
-                   )}
+           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+             {recommendations.map((p) => (
+               <motion.article 
+                 onMouseEnter={() => prefetchProductAssets(p)}
+                 onTouchStart={() => prefetchProductAssets(p)}
+                 whileHover={{ y: -6 }}
+                 key={p.id} 
+                 className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-full relative"
+               >
+                 <div className="aspect-square bg-gray-50 overflow-hidden relative">
+                    <FastImage 
+                      src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
+                      alt={p.name} 
+                      fallbackIconSize={48}
+                    />
                    {/* Stock Badge Overlay */}
                    <span className="absolute top-3 left-3 z-10">
                      {p.stock === 0 ? (
