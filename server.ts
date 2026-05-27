@@ -153,6 +153,18 @@ app.post("/api/paystack/initialize", async (req, res) => {
       return res.status(400).json({ error: "Invalid or missing email/amount", received: { email, amount } });
     }
 
+    // Build a secure dynamic callback URL targeting this working server
+    const proto = req.headers["x-forwarded-proto"] || "https";
+    const host = req.headers.host || "ais-pre-slwyb6ysjq5n7amom7xdqp-362246085340.europe-west2.run.app";
+    const serverCallbackUrl = `${proto}://${host}/payment-success`;
+
+    let finalCallbackUrl = callback_url || serverCallbackUrl;
+    // Self-healing check: If the callback points to vercel.app but we are on standard active server, override it to prevent 404.
+    if (finalCallbackUrl.includes("vercel.app")) {
+      console.warn(`[Self-healing] Overriding Vercel callback_url (${finalCallbackUrl}) with working server URL (${serverCallbackUrl}) to prevent 404.`);
+      finalCallbackUrl = serverCallbackUrl;
+    }
+
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
       {
@@ -160,7 +172,7 @@ app.post("/api/paystack/initialize", async (req, res) => {
         amount: Math.round(amount * 100), // Ensure integer (cents/kobo)
         metadata,
         currency: "KES",
-        callback_url: callback_url || `${process.env.APP_URL}/payment-success`
+        callback_url: finalCallbackUrl
       },
       {
         headers: {
