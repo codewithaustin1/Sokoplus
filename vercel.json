@@ -14,7 +14,11 @@
       "destination": "/api"
     },
     {
-      "source": "/:path*",
+      "source": "/payment-success",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!api|sitemap\\.xml|robots\\.txt).*)",
       "destination": "/index.html"
     }
   ]
