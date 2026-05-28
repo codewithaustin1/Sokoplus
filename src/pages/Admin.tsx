@@ -431,6 +431,7 @@ export default function Admin({ user }: AdminProps) {
     name: "",
     description: "",
     price: 0,
+    originalPrice: 0,
     category: "Fashion",
     stock: 10,
     images: [""],
@@ -815,6 +816,7 @@ export default function Admin({ user }: AdminProps) {
       await addDoc(collection(db, "products"), {
         ...newProduct,
         images: sanitizedImages.length > 0 ? sanitizedImages : [],
+        originalPrice: newProduct.originalPrice && newProduct.originalPrice > 0 ? newProduct.originalPrice : null,
         rating: 4.5,
         reviewCount: 0,
         createdAt: new Date().toISOString(),
@@ -825,6 +827,7 @@ export default function Admin({ user }: AdminProps) {
         name: "",
         description: "",
         price: 0,
+        originalPrice: 0,
         category: "Fashion",
         stock: 10,
         images: [""],
@@ -893,6 +896,7 @@ export default function Admin({ user }: AdminProps) {
       await updateDoc(doc(db, "products", id), {
         ...updateData,
         images: sanitizedImages.length > 0 ? sanitizedImages : [],
+        originalPrice: editingProduct.originalPrice && editingProduct.originalPrice > 0 ? editingProduct.originalPrice : null,
       });
       toast.success("Product updated successfully!");
       setShowEditModal(false);
@@ -2285,10 +2289,11 @@ export default function Admin({ user }: AdminProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <form
             onSubmit={handleAddProduct}
-            className="bg-white w-full max-w-xl p-8 rounded-3xl shadow-2xl space-y-6"
+            className="bg-white w-full max-w-xl p-8 rounded-3xl shadow-2xl flex flex-col max-h-[90vh]"
           >
-            <h2 className="text-2xl font-bold">Add New Product</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <h2 className="text-2xl font-bold mb-4">Add New Product</h2>
+            <div className="overflow-y-auto pr-1 flex-grow space-y-6 scrollbar-thin">
+              <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="text-xs font-bold uppercase text-gray-400">
                   Product Name
@@ -2314,7 +2319,7 @@ export default function Admin({ user }: AdminProps) {
                   Category
                 </label>
                 <select
-                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-sm font-semibold text-gray-800"
                   value={newProduct.category}
                   onChange={(e) =>
                     setNewProduct({ ...newProduct, category: e.target.value })
@@ -2328,13 +2333,39 @@ export default function Admin({ user }: AdminProps) {
               </div>
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400">
-                  Price (KES)
+                  Stock Quantity
                 </label>
                 <input
                   required
                   type="number"
+                  placeholder="e.g. 10"
+                  className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.stock ? "border-red-500 focus:ring-red-500" : "border-gray-100 focus:ring-orange-600"}`}
+                  value={newProduct.stock === 0 ? "" : newProduct.stock}
+                  onChange={(e) => {
+                    setNewProduct({
+                      ...newProduct,
+                      stock: Number(e.target.value),
+                    });
+                    if (errors.stock) setErrors({ ...errors, stock: "" });
+                  }}
+                />
+                {errors.stock && (
+                  <p className="text-red-500 text-xs mt-1 font-medium">
+                    {errors.stock}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-400 flex items-center gap-1">
+                  <span>Selling Price (KES)</span>
+                  <span className="text-orange-600 font-extrabold text-[10px] uppercase">(Active)</span>
+                </label>
+                <input
+                  required
+                  type="number"
+                  placeholder="e.g. 1500"
                   className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.price ? "border-red-500 focus:ring-red-500" : "border-gray-100 focus:ring-orange-600"}`}
-                  value={newProduct.price}
+                  value={newProduct.price === 0 ? "" : newProduct.price}
                   onChange={(e) => {
                     setNewProduct({
                       ...newProduct,
@@ -2350,27 +2381,25 @@ export default function Admin({ user }: AdminProps) {
                 )}
               </div>
               <div>
-                <label className="text-xs font-bold uppercase text-gray-400">
-                  Stock Quantity
+                <label className="text-xs font-bold uppercase text-gray-400 flex items-center gap-1">
+                  <span>Original Price (KES)</span>
+                  <span className="text-gray-400 font-bold text-[10px] uppercase">(Optional)</span>
                 </label>
                 <input
-                  required
                   type="number"
-                  className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.stock ? "border-red-500 focus:ring-red-500" : "border-gray-100 focus:ring-orange-600"}`}
-                  value={newProduct.stock}
+                  placeholder="e.g. 2000 for discount"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm"
+                  value={newProduct.originalPrice || ""}
                   onChange={(e) => {
                     setNewProduct({
                       ...newProduct,
-                      stock: Number(e.target.value),
+                      originalPrice: e.target.value ? Number(e.target.value) : 0,
                     });
-                    if (errors.stock) setErrors({ ...errors, stock: "" });
                   }}
                 />
-                {errors.stock && (
-                  <p className="text-red-500 text-xs mt-1 font-medium">
-                    {errors.stock}
-                  </p>
-                )}
+                <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                  Enter a higher number to display a stricken price markdown badge.
+                </p>
               </div>
               <div className="col-span-2 space-y-2">
                 <label className="text-xs font-bold uppercase text-gray-400">
@@ -2389,7 +2418,8 @@ export default function Admin({ user }: AdminProps) {
                 />
               </div>
             </div>
-            <div className="flex space-x-4">
+            </div>
+            <div className="flex space-x-4 mt-6 border-t border-gray-100 pt-4">
               <button
                 disabled={loading}
                 type="submit"
@@ -2414,10 +2444,11 @@ export default function Admin({ user }: AdminProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <form
             onSubmit={handleUpdateProduct}
-            className="bg-white w-full max-w-xl p-8 rounded-3xl shadow-2xl space-y-6"
+            className="bg-white w-full max-w-xl p-8 rounded-3xl shadow-2xl flex flex-col max-h-[90vh]"
           >
-            <h2 className="text-2xl font-bold">Edit Product</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <h2 className="text-2xl font-bold mb-4">Edit Product</h2>
+            <div className="overflow-y-auto pr-1 flex-grow space-y-6 scrollbar-thin">
+              <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="text-xs font-bold uppercase text-gray-400">
                   Product Name
@@ -2446,7 +2477,7 @@ export default function Admin({ user }: AdminProps) {
                   Category
                 </label>
                 <select
-                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-sm font-semibold text-gray-800"
                   value={editingProduct.category}
                   onChange={(e) =>
                     setEditingProduct({
@@ -2463,11 +2494,37 @@ export default function Admin({ user }: AdminProps) {
               </div>
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400">
-                  Price (KES)
+                  Stock Quantity
                 </label>
                 <input
                   required
                   type="number"
+                  placeholder="e.g. 10"
+                  className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.stock ? "border-red-500 focus:ring-red-500" : "border-gray-100 focus:ring-orange-600"}`}
+                  value={editingProduct.stock}
+                  onChange={(e) => {
+                    setEditingProduct({
+                      ...editingProduct,
+                      stock: Number(e.target.value),
+                    });
+                    if (errors.stock) setErrors({ ...errors, stock: "" });
+                  }}
+                />
+                {errors.stock && (
+                  <p className="text-red-500 text-xs mt-1 font-medium">
+                    {errors.stock}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-400 flex items-center gap-1">
+                  <span>Selling Price (KES)</span>
+                  <span className="text-orange-600 font-extrabold text-[10px] uppercase">(Active)</span>
+                </label>
+                <input
+                  required
+                  type="number"
+                  placeholder="e.g. 1500"
                   className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.price ? "border-red-500 focus:ring-red-500" : "border-gray-100 focus:ring-orange-600"}`}
                   value={editingProduct.price}
                   onChange={(e) => {
@@ -2485,27 +2542,25 @@ export default function Admin({ user }: AdminProps) {
                 )}
               </div>
               <div>
-                <label className="text-xs font-bold uppercase text-gray-400">
-                  Stock Quantity
+                <label className="text-xs font-bold uppercase text-gray-400 flex items-center gap-1">
+                  <span>Original Price (KES)</span>
+                  <span className="text-gray-400 font-bold text-[10px] uppercase">(Optional)</span>
                 </label>
                 <input
-                  required
                   type="number"
-                  className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none focus:ring-1 transition-all ${errors.stock ? "border-red-500 focus:ring-red-500" : "border-gray-100 focus:ring-orange-600"}`}
-                  value={editingProduct.stock}
+                  placeholder="e.g. 2000 for discount"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm"
+                  value={editingProduct.originalPrice || ""}
                   onChange={(e) => {
                     setEditingProduct({
                       ...editingProduct,
-                      stock: Number(e.target.value),
+                      originalPrice: e.target.value ? Number(e.target.value) : 0,
                     });
-                    if (errors.stock) setErrors({ ...errors, stock: "" });
                   }}
                 />
-                {errors.stock && (
-                  <p className="text-red-500 text-xs mt-1 font-medium">
-                    {errors.stock}
-                  </p>
-                )}
+                <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                  Enter a higher number to display a stricken price markdown badge.
+                </p>
               </div>
               <div className="col-span-2 space-y-2">
                 <label className="text-xs font-bold uppercase text-gray-400">
@@ -2524,7 +2579,8 @@ export default function Admin({ user }: AdminProps) {
                 />
               </div>
             </div>
-            <div className="flex space-x-4">
+            </div>
+            <div className="flex space-x-4 mt-6 border-t border-gray-100 pt-4">
               <button
                 disabled={loading}
                 type="submit"

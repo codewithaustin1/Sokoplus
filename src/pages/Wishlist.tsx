@@ -190,6 +190,13 @@ export default function Wishlist({ user }: WishlistProps) {
                     </span>
                   )}
                 </span>
+
+                {/* Discount overlay badge */}
+                {product.originalPrice && product.originalPrice > product.price && (
+                  <span className="absolute top-4 left-4 bg-red-600 border border-red-700 text-white font-extrabold text-[10px] px-2.5 py-1 rounded-xl shadow-md z-10 animate-pulse-subtle">
+                    -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 105 / 1.05)}%
+                  </span>
+                )}
               </div>
               
               <div className="p-6 space-y-4 flex-grow flex flex-col justify-between">
@@ -205,7 +212,14 @@ export default function Wishlist({ user }: WishlistProps) {
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <span className="text-2xl font-black text-gray-900">{formatPrice(product.price)}</span>
+                  <div className="flex flex-col">
+                    <span className="text-2xl font-black text-gray-900 leading-none">{formatPrice(product.price)}</span>
+                    {product.originalPrice && product.originalPrice > product.price && (
+                      <span className="text-xs text-gray-400 line-through mt-1 font-medium select-none">
+                        {formatPrice(product.originalPrice)}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-5 gap-2 pt-1 font-sans">

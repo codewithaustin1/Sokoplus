@@ -291,7 +291,19 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-gray-100">
-            <p className="text-4xl font-black text-orange-600">{formatPrice(product.price)}</p>
+            <div className="flex items-baseline space-x-3">
+              <p className="text-4xl font-black text-orange-600">{formatPrice(product.price)}</p>
+              {product.originalPrice && product.originalPrice > product.price && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg text-gray-400 line-through font-semibold">
+                    {formatPrice(product.originalPrice)}
+                  </span>
+                  <span className="bg-red-50 text-red-600 text-xs font-extrabold px-2.5 py-1 rounded-xl border border-red-100 uppercase animate-pulse-subtle">
+                    Save {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 105 / 1.05)}%
+                  </span>
+                </div>
+              )}
+            </div>
             
             {/* Currency Switching Pill */}
             <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-200 items-center space-x-1 shadow-sm">

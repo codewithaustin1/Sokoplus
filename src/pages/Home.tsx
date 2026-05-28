@@ -616,8 +616,15 @@ export default function Home({ user }: HomeProps) {
                     alt={p.name} 
                     fallbackIconSize={48}
                   />
-                  <div className="absolute top-2 right-2 bg-white/90 backdrop-blur px-2 py-1 rounded-full text-[10px] font-bold shadow-sm z-10">
-                    {p.category}
+                  <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
+                    <div className="bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-gray-600 shadow-sm">
+                      {p.category}
+                    </div>
+                    {p.originalPrice && p.originalPrice > p.price && (
+                      <div className="bg-red-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
+                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
+                      </div>
+                    )}
                   </div>
                   <motion.button
                     whileHover={{ scale: 1.18 }}
@@ -659,7 +666,14 @@ export default function Home({ user }: HomeProps) {
                     {p.name}
                   </Link>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-xl font-black text-gray-900">{formatPrice(p.price)}</span>
+                    <div className="flex flex-col">
+                      <span className="text-xl font-black text-gray-900 leading-none">{formatPrice(p.price)}</span>
+                      {p.originalPrice && p.originalPrice > p.price && (
+                        <span className="text-xs text-gray-400 line-through mt-1 font-medium select-none">
+                          {formatPrice(p.originalPrice)}
+                        </span>
+                      )}
+                    </div>
                     <motion.button 
                       whileHover={p.stock === 0 ? {} : { scale: 1.15, rotate: -3 }}
                       whileTap={p.stock === 0 ? {} : { scale: 0.85, rotate: 3 }}
