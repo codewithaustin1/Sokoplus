@@ -13,6 +13,7 @@ import SEO from "../components/SEO";
 import { trackEvent } from "../lib/analytics";
 import { FastImage } from "../components/FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
+import Markdown from "react-markdown";
 
 interface ProductDetailsProps {
   user: UserProfile | null;
@@ -326,9 +327,50 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </p>
           </div>
 
-          <p className="text-gray-600 leading-relaxed text-lg">
-            {product.description}
-          </p>
+          <div className="text-gray-650 leading-relaxed text-sm select-text border-t border-b border-gray-100 py-6 my-6 bg-white rounded-2xl p-6 shadow-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Product Description & Details</h3>
+            <Markdown
+              components={{
+                h2: ({ ...props }) => (
+                  <h2
+                    className="text-lg font-black text-gray-900 mt-5 first:mt-0 mb-3 border-b border-gray-100 pb-1 font-sans"
+                    {...props}
+                  />
+                ),
+                h3: ({ ...props }) => (
+                  <h3 className="text-base font-bold text-gray-850 mt-4 mb-2 font-sans" {...props} />
+                ),
+                p: ({ ...props }) => (
+                  <p className="text-sm text-gray-700 leading-relaxed mb-4 font-sans" {...props} />
+                ),
+                ul: ({ ...props }) => (
+                  <ul className="list-disc pl-5 mb-4 space-y-1.5 text-sm text-gray-700 font-sans" {...props} />
+                ),
+                ol: ({ ...props }) => (
+                  <ol className="list-decimal pl-5 mb-4 space-y-1.5 text-sm text-gray-700 font-sans" {...props} />
+                ),
+                li: ({ ...props }) => <li className="text-gray-700 font-medium font-sans" {...props} />,
+                a: ({ ...props }) => (
+                  <a
+                    className="text-orange-600 hover:text-orange-700 underline font-semibold transition-colors"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    {...props}
+                  />
+                ),
+                blockquote: ({ ...props }) => (
+                  <blockquote
+                    className="border-l-4 border-orange-500 pl-4 italic text-gray-600 my-4 bg-gray-50 py-1 pr-2 rounded-r-lg"
+                    {...props}
+                  />
+                ),
+                strong: ({ ...props }) => <strong className="font-extrabold text-gray-950" {...props} />,
+                em: ({ ...props }) => <em className="italic" {...props} />,
+              }}
+            >
+              {product.description || "No description provided."}
+            </Markdown>
+          </div>
 
           <div className="flex space-x-4">
             <motion.button 

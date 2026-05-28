@@ -42,6 +42,9 @@ import {
   Upload,
   Image,
   Download,
+  ChevronUp,
+  ChevronDown,
+  UploadCloud,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -89,6 +92,311 @@ function handleFirestoreError(
   };
   console.error("Firestore Error: ", JSON.stringify(errInfo));
   toast.error(`Error: ${errInfo.error}`);
+}
+
+const compressImageFile = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const maxDim = 800; // Optimal HD but lightweight product sizing
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.fillStyle = "#FFFFFF";
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          try {
+            const compressed = canvas.toDataURL("image/jpeg", 0.7);
+            resolve(compressed);
+          } catch (e) {
+            reject(new Error("Failed to compress image"));
+          }
+        } else {
+          reject(new Error("Failed to resize image"));
+        }
+      };
+      img.onerror = () => reject(new Error("Failed to load image resource"));
+      if (typeof event.target?.result === "string") {
+        img.src = event.target.result;
+      }
+    };
+    reader.onerror = () => reject(new Error("Failed to read image file"));
+    reader.readAsDataURL(file);
+  });
+};
+
+interface ProductImageManagerProps {
+  images: string[];
+  onChange: (images: string[]) => void;
+}
+
+function ProductImageManager({ images, onChange }: ProductImageManagerProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleUrlChange = (idx: number, val: string) => {
+    const updated = [...images];
+    updated[idx] = val;
+    onChange(updated);
+  };
+
+  const handleAddField = () => {
+    onChange([...images, ""]);
+  };
+
+  const handleRemoveField = (idx: number) => {
+    const updated = images.filter((_, i) => i !== idx);
+    onChange(updated.length > 0 ? updated : [""]);
+  };
+
+  const moveUp = (idx: number) => {
+    if (idx === 0) return;
+    const updated = [...images];
+    const temp = updated[idx];
+    updated[idx] = updated[idx - 1];
+    updated[idx - 1] = temp;
+    onChange(updated);
+    toast.success("Image order updated! First image is now the main thumbnail.");
+  };
+
+  const moveDown = (idx: number) => {
+    if (idx === images.length - 1) return;
+    const updated = [...images];
+    const temp = updated[idx];
+    updated[idx] = updated[idx + 1];
+    updated[idx + 1] = temp;
+    onChange(updated);
+    toast.success("Image order updated! First image is now the main thumbnail.");
+  };
+
+  const handleFiles = async (files: FileList) => {
+    setIsProcessing(true);
+    const validFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
+    if (validFiles.length === 0) {
+      toast.error("Please drop or select valid image files only.");
+      setIsProcessing(false);
+      return;
+    }
+
+    const loaders = validFiles.map(async (file) => {
+      try {
+        return await compressImageFile(file);
+      } catch (err: any) {
+        console.error(err);
+        toast.error(`Could not process "${file.name}": ${err.message}`);
+        return null;
+      }
+    });
+
+    const results = (await Promise.all(loaders)).filter((res): res is string => res !== null);
+    if (results.length > 0) {
+      const currentFiltered = images.filter(img => img.trim() !== "");
+      onChange([...currentFiltered, ...results]);
+      toast.success(`Successfully uploaded & optimized ${results.length} product image(s).`);
+    }
+    setIsProcessing(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files) {
+      handleFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      handleFiles(e.target.files);
+    }
+  };
+
+  const handleReplaceSlotWithFile = async (idx: number, file: File) => {
+    try {
+      setIsProcessing(true);
+      const optimized = await compressImageFile(file);
+      const updated = [...images];
+      updated[idx] = optimized;
+      onChange(updated);
+      toast.success("Image slot updated with fine optimized file.");
+    } catch (err: any) {
+      toast.error(`Failed to upload to slot: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-bold uppercase text-gray-400">
+          Product Images (Upload or Link)
+        </label>
+        <button
+          type="button"
+          onClick={handleAddField}
+          className="text-xs font-extrabold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-xl transition-all"
+        >
+          + Add Empty Link Slot
+        </button>
+      </div>
+
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`border-2 border-dashed rounded-3xl p-6 text-center transition-all relative ${
+          isDragging ? "border-orange-500 bg-orange-50/50" : "border-gray-200 bg-gray-50/50 hover:bg-gray-50"
+        }`}
+      >
+        <UploadCloud className="mx-auto text-gray-400 mb-3" size={36} />
+        <p className="text-sm font-semibold text-gray-700">
+          Drag & drop product images here, or{" "}
+          <label className="text-orange-600 underline cursor-pointer hover:text-orange-700 font-bold">
+            browse local files
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileInputChange}
+            />
+          </label>
+        </p>
+        <p className="text-xs text-gray-400 mt-1 font-medium">
+          Supports JPG, PNG, WebP. Auto-resizes to deliver ultra-fast page speeds.
+        </p>
+        {isProcessing && (
+          <div className="absolute inset-x-0 bottom-2 text-center text-xs text-orange-600 font-bold animate-pulse">
+            Cropping and optimizing product images...
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        {images.map((url, idx) => {
+          const isValidUrl = url && url.trim().length > 0;
+          const isCover = idx === 0;
+
+          return (
+            <div
+              key={idx}
+              className={`flex flex-col sm:flex-row gap-3 p-4 border rounded-2xl relative transition-all ${
+                isCover ? "border-orange-200 bg-orange-50/10" : "border-gray-150 bg-white"
+              }`}
+            >
+              <div className="absolute -top-2.5 -left-2 flex items-center">
+                {isCover ? (
+                  <span className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
+                    ★ COVER PREVIEW
+                  </span>
+                ) : (
+                  <span className="bg-gray-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                    Slot {idx + 1}
+                  </span>
+                )}
+              </div>
+
+              <div className="w-16 h-16 rounded-xl border border-gray-150 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {isValidUrl ? (
+                  <img
+                    src={url}
+                    alt={`Product slot ${idx}`}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        "https://images.unsplash.com/photo-1594122230689-45899d9e6f69?auto=format&fit=crop&q=80&w=200";
+                    }}
+                  />
+                ) : (
+                  <Image className="text-gray-300" size={24} />
+                )}
+              </div>
+
+              <div className="flex-grow flex flex-col gap-1 min-w-0">
+                <input
+                  type="text"
+                  placeholder="Paste un-encoded image URL address or upload below"
+                  className="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-150 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-800"
+                  value={url}
+                  onChange={(e) => handleUrlChange(idx, e.target.value)}
+                />
+                <label className="text-[10px] text-gray-400 hover:text-orange-600 font-extrabold uppercase cursor-pointer flex items-center gap-1 w-fit">
+                  <Upload size={10} />
+                  <span>Upload file here</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleReplaceSlotWithFile(idx, file);
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div className="flex sm:flex-col items-center justify-end gap-1.5 self-center sm:self-stretch">
+                <div className="flex sm:flex-col gap-1">
+                  <button
+                    type="button"
+                    disabled={idx === 0}
+                    onClick={() => moveUp(idx)}
+                    className="p-1 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    title="Make main preview thumbnail"
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={idx === images.length - 1}
+                    onClick={() => moveDown(idx)}
+                    className="p-1 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    title="Move image down"
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveField(idx)}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                  title="Remove image slot"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function Admin({ user }: AdminProps) {
@@ -2064,76 +2372,21 @@ export default function Admin({ user }: AdminProps) {
                   </p>
                 )}
               </div>
-              <div className="col-span-2">
+              <div className="col-span-2 space-y-2">
                 <label className="text-xs font-bold uppercase text-gray-400">
-                  Description
+                  Product Description (& Formatting Tools)
                 </label>
-                <textarea
-                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none h-24"
-                  value={newProduct.description}
-                  onChange={(e) =>
-                    setNewProduct({
-                      ...newProduct,
-                      description: e.target.value,
-                    })
-                  }
-                ></textarea>
+                <RichTextEditor
+                  content={newProduct.description}
+                  onChange={(val) => setNewProduct({ ...newProduct, description: val })}
+                  placeholder="Describe your premium item (supports bold, headings, bullets, lists, link-items, quotes...)"
+                />
               </div>
-              <div className="col-span-2 space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase text-gray-400">
-                    Product Images (URLs)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setNewProduct({
-                        ...newProduct,
-                        images: [...newProduct.images, ""],
-                      })
-                    }
-                    className="text-xs font-bold text-orange-600 hover:underline"
-                  >
-                    + Add Another Image
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {newProduct.images.map((url, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="https://images.unsplash.com/..."
-                        className="flex-grow p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600"
-                        value={url}
-                        onChange={(e) => {
-                          const updatedImages = [...newProduct.images];
-                          updatedImages[idx] = e.target.value;
-                          setNewProduct({
-                            ...newProduct,
-                            images: updatedImages,
-                          });
-                        }}
-                      />
-                      {newProduct.images.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updatedImages = newProduct.images.filter(
-                              (_, i) => i !== idx,
-                            );
-                            setNewProduct({
-                              ...newProduct,
-                              images: updatedImages,
-                            });
-                          }}
-                          className="p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-all"
-                        >
-                          <Trash2 size={20} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              <div className="col-span-2">
+                <ProductImageManager
+                  images={newProduct.images}
+                  onChange={(imgs) => setNewProduct({ ...newProduct, images: imgs })}
+                />
               </div>
             </div>
             <div className="flex space-x-4">
@@ -2254,76 +2507,21 @@ export default function Admin({ user }: AdminProps) {
                   </p>
                 )}
               </div>
-              <div className="col-span-2">
+              <div className="col-span-2 space-y-2">
                 <label className="text-xs font-bold uppercase text-gray-400">
-                  Description
+                  Product Description (& Formatting Tools)
                 </label>
-                <textarea
-                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none h-24"
-                  value={editingProduct.description}
-                  onChange={(e) =>
-                    setEditingProduct({
-                      ...editingProduct,
-                      description: e.target.value,
-                    })
-                  }
-                ></textarea>
+                <RichTextEditor
+                  content={editingProduct.description}
+                  onChange={(val) => setEditingProduct({ ...editingProduct, description: val })}
+                  placeholder="Describe your premium item (supports bold, headings, bullets, lists, link-items, quotes...)"
+                />
               </div>
-              <div className="col-span-2 space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase text-gray-400">
-                    Product Images (URLs)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        images: [...editingProduct.images, ""],
-                      })
-                    }
-                    className="text-xs font-bold text-orange-600 hover:underline"
-                  >
-                    + Add Another Image
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {editingProduct.images.map((url, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="https://images.unsplash.com/..."
-                        className="flex-grow p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600"
-                        value={url}
-                        onChange={(e) => {
-                          const updatedImages = [...editingProduct.images];
-                          updatedImages[idx] = e.target.value;
-                          setEditingProduct({
-                            ...editingProduct,
-                            images: updatedImages,
-                          });
-                        }}
-                      />
-                      {editingProduct.images.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updatedImages = editingProduct.images.filter(
-                              (_, i) => i !== idx,
-                            );
-                            setEditingProduct({
-                              ...editingProduct,
-                              images: updatedImages,
-                            });
-                          }}
-                          className="p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-all"
-                        >
-                          <Trash2 size={20} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              <div className="col-span-2">
+                <ProductImageManager
+                  images={editingProduct.images}
+                  onChange={(imgs) => setEditingProduct({ ...editingProduct, images: imgs })}
+                />
               </div>
             </div>
             <div className="flex space-x-4">
