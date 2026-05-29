@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { doc, getDoc, collection, query, limit, getDocs, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
-import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers } from "lucide-react";
+import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2 } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
@@ -63,6 +63,50 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
     } catch (error) {
       console.error("Wishlist error:", error);
       toast.error("Failed to update wishlist");
+    }
+  };
+
+  const fallbackShare = () => {
+    if (!product) return;
+    try {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard! Share it with your friends.");
+      trackEvent("share", {
+        item_id: product.id,
+        item_name: product.name,
+        method: "Clipboard Fallback"
+      });
+    } catch (e) {
+      console.error("Clipboard copy failed:", e);
+      toast.error("Sharing not supported on this browser.");
+    }
+  };
+
+  const handleShare = async () => {
+    if (!product) return;
+    const shareData = {
+      title: product.name,
+      text: `Buy ${product.name} on Sokoplus for only ${formatPrice(product.price)}!`,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        toast.success("Shared successfully!");
+        trackEvent("share", {
+          item_id: product.id,
+          item_name: product.name,
+          method: "Web Share API"
+        });
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          console.error("Error sharing:", err);
+          fallbackShare();
+        }
+      }
+    } else {
+      fallbackShare();
     }
   };
 
@@ -384,10 +428,10 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </Markdown>
           </div>
 
-          <div className="flex space-x-4">
+          <div className="flex space-x-3">
             <motion.button 
-              whileHover={product.stock > 0 ? { scale: 1.02, y: -2 } : {}}
-              whileTap={product.stock > 0 ? { scale: 0.96, y: 0 } : {}}
+              whileHover={product.stock > 0 ? { scale: 1.01, y: -1 } : {}}
+              whileTap={product.stock > 0 ? { scale: 0.98, y: 0 } : {}}
               transition={{ type: "spring", stiffness: 450, damping: 12 }}
               onClick={() => {
                 addToCart({ productId: product.id, name: product.name, price: product.price, quantity: 1, image: product.images?.[0] || "" });
@@ -403,7 +447,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                 toast.success("Added to cart!");
               }}
               disabled={product.stock <= 0}
-              className="flex-grow bg-gray-900 text-white py-5 rounded-2xl font-black text-xl hover:bg-orange-600 transition-colors shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 cursor-pointer"
+              className="flex-grow bg-gray-900 text-white py-5 rounded-2xl font-black text-lg sm:text-xl hover:bg-orange-600 transition-colors shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 cursor-pointer"
             >
               {product.stock > 0 ? "Add to Cart" : "Out of Stock"} <ShoppingBag className="ml-3" size={24} />
             </motion.button>
@@ -412,11 +456,22 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
               whileTap={{ scale: 0.88 }}
               transition={{ type: "spring", stiffness: 450, damping: 12 }}
               onClick={toggleWishlist}
-              className={`p-5 border rounded-2xl transition-colors cursor-pointer ${
+              className={`p-5 border rounded-2xl transition-colors cursor-pointer flex-shrink-0 ${
                 isWishlisted ? "bg-red-50 border-red-100 text-red-500" : "border-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-500"
               }`}
+              title="Add to Wishlist"
             >
               <Heart size={24} fill={isWishlisted ? "currentColor" : "none"} />
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: "spring", stiffness: 450, damping: 12 }}
+              onClick={handleShare}
+              className="p-5 border border-gray-100 text-gray-400 hover:bg-orange-50 hover:text-orange-600 rounded-2xl transition-colors cursor-pointer flex-shrink-0"
+              title="Share Product"
+            >
+              <Share2 size={24} />
             </motion.button>
           </div>
 
