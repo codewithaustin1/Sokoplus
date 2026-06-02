@@ -31,6 +31,16 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [activeImage, setActiveImage] = useState(0);
+  const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
+  const [isZoomed, setIsZoomed] = useState(false);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    setZoomPos({ x, y });
+  };
+
   const { addToCart } = useCart();
   const { currency, setCurrency, formatPrice } = useCurrency();
 
@@ -336,13 +346,31 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         {/* Gallery */}
         <div className="space-y-4">
-          <div className="aspect-square bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm">
-            <FastImage 
-              src={product.images?.[activeImage] || ""} 
-              alt={product.name} 
-              fallbackIconSize={100}
-              priority={true}
-            />
+          <div 
+            className="group relative aspect-square bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm cursor-zoom-in"
+            onMouseEnter={() => setIsZoomed(true)}
+            onMouseLeave={() => setIsZoomed(false)}
+            onMouseMove={handleMouseMove}
+          >
+            <div 
+              className="w-full h-full"
+              style={{
+                transform: isZoomed ? "scale(2.2)" : "scale(1)",
+                transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
+                transition: isZoomed ? "transform 0.05s ease-out" : "transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)"
+              }}
+            >
+              <FastImage 
+                src={product.images?.[activeImage] || ""} 
+                alt={product.name} 
+                fallbackIconSize={100}
+                priority={true}
+              />
+            </div>
+            {/* Elegant overlay hint */}
+            <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 bg-gray-950/80 backdrop-blur-md text-white text-[11px] px-3.5 py-1.5 rounded-full pointer-events-none select-none font-bold tracking-wide transition-all ${isZoomed ? "opacity-0 scale-95" : "opacity-0 group-hover:opacity-100 scale-100 duration-300"}`}>
+              Move mouse to zoom & pan
+            </div>
           </div>
           <div className="grid grid-cols-4 gap-4">
             {product.images?.filter(img => !!img && img.trim() !== "").map((img, i) => (
