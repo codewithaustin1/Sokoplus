@@ -30,17 +30,35 @@ import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { UserProfile } from "./types";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, ArrowUp } from "lucide-react";
 import toast from "react-hot-toast";
 import SupportChat from "./components/SupportChat";
 import VerificationBanner from "./components/VerificationBanner";
 import AnalyticsTracker from "./components/AnalyticsTracker";
 import CookieConsentBanner from "./components/CookieConsentBanner";
+import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 600) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   useEffect(() => {
     const handleOpenSupport = () => setIsSupportOpen(true);
@@ -145,6 +163,24 @@ export default function App() {
           </main>
           <Footer />
           <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-4 z-[60]">
+            <AnimatePresence>
+              {showScrollTop && (
+                <motion.button
+                  key="back-to-top"
+                  initial={{ opacity: 0, scale: 0.8, y: 15 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.8, y: 15 }}
+                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  onClick={scrollToTop}
+                  className="p-4 rounded-full shadow-2xl bg-white border border-gray-100 text-orange-600 hover:text-white hover:bg-orange-600 transition-all cursor-pointer flex items-center justify-center group"
+                  title="Back to Top"
+                  id="back-to-top-btn"
+                >
+                  <ArrowUp size={24} className="group-hover:-translate-y-1 transition-transform" />
+                </motion.button>
+              )}
+            </AnimatePresence>
+
             <button 
               id="unified-support-trigger-btn"
               className={`p-4 rounded-full shadow-2xl transition-all group flex items-center cursor-pointer ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
