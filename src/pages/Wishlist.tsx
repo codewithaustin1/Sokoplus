@@ -201,11 +201,6 @@ export default function Wishlist({ user }: WishlistProps) {
                   <Link to={`/product/${product.id}`} className="text-xl font-bold text-gray-900 hover:text-orange-600 transition-colors line-clamp-1">
                     {product.name}
                   </Link>
-                  {product.artisan && (
-                    <div className="text-[11px] font-bold text-orange-650 tracking-wide mt-0.5">
-                      by {product.artisan}
-                    </div>
-                  )}
                 </div>
                 
                 <div className="flex items-center justify-between">

@@ -11,6 +11,7 @@ export interface Product {
   reviewCount?: number;
   active?: boolean;
   artisan?: string;
+  buyingPrice?: number;
 }
 
 export interface CartItem {

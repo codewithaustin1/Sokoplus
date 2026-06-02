@@ -43,7 +43,8 @@ service cloud.firestore {
                data.category is string &&
                data.stock is int && data.stock >= 0 &&
                (!data.keys().hasAll(['active']) || data.active is bool) &&
-               (!data.keys().hasAll(['artisan']) || (data.artisan is string && data.artisan.size() <= 100));
+               (!data.keys().hasAll(['artisan']) || (data.artisan is string && data.artisan.size() <= 100)) &&
+               (!data.keys().hasAll(['buyingPrice']) || data.buyingPrice is number);
       }
 
       allow read: if true;

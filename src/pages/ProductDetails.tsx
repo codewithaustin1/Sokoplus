@@ -398,7 +398,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             <h1 className="text-4xl font-black tracking-tight text-gray-900">{product.name}</h1>
             {product.artisan && (
               <div className="flex items-center space-x-2 text-xs font-semibold text-gray-655 bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 w-fit">
-                <span className="text-gray-400">Crafted by:</span>
+                <span className="text-gray-400">By:</span>
                 <span className="font-extrabold text-orange-600">{product.artisan}</span>
               </div>
             )}

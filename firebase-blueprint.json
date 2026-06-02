@@ -16,7 +16,8 @@
         "rating": { "type": "number", "description": "Average rating" },
         "reviewCount": { "type": "integer", "description": "Number of reviews" },
         "active": { "type": "boolean", "description": "Active status of the product" },
-        "artisan": { "type": "string", "description": "The creative artisan or craftsperson behind the product" }
+        "artisan": { "type": "string", "description": "The creative artisan or craftsperson behind the product" },
+        "buyingPrice": { "type": "number", "description": "The internal buying cost from creator/supplier for profit calculation" }
       },
       "required": ["name", "price", "category", "stock"]
     },

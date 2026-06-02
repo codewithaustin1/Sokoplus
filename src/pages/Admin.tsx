@@ -46,6 +46,7 @@ import {
   ChevronUp,
   ChevronDown,
   UploadCloud,
+  Coins,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -437,6 +438,7 @@ export default function Admin({ user }: AdminProps) {
     stock: 10,
     images: [""],
     artisan: "",
+    buyingPrice: 0,
   });
 
   const [newBlog, setNewBlog] = useState({
@@ -737,6 +739,7 @@ export default function Admin({ user }: AdminProps) {
             "https://images.unsplash.com/photo-1629196914068-3974bcda318b?auto=format&fit=crop&q=80&w=2000",
           ],
           artisan: "Mama Stacey of Narok Maasai Crafts",
+          buyingPrice: 1500,
         },
         {
           name: "Sokoplus Tech Bag",
@@ -748,6 +751,7 @@ export default function Admin({ user }: AdminProps) {
             "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=2000",
           ],
           artisan: "Kariobangi Leather Artisans",
+          buyingPrice: 2800,
         },
         {
           name: "Coffee - Mount Kenya Special",
@@ -759,6 +763,7 @@ export default function Admin({ user }: AdminProps) {
             "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=2000",
           ],
           artisan: "Nyeri Smallholder Coffee Coop",
+          buyingPrice: 700,
         },
         {
           name: "Bamboo Speaker",
@@ -770,6 +775,7 @@ export default function Admin({ user }: AdminProps) {
             "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&q=80&w=2000",
           ],
           artisan: "Mombasa Sustainable Woodworks",
+          buyingPrice: 1900,
         },
       ];
       for (const p of sampleProducts) {
@@ -838,6 +844,7 @@ export default function Admin({ user }: AdminProps) {
         stock: 10,
         images: [""],
         artisan: "",
+        buyingPrice: 0,
       });
       setErrors({});
       fetchData();
@@ -1206,6 +1213,25 @@ export default function Admin({ user }: AdminProps) {
     0,
   );
 
+  const totalProfit = orders.reduce((acc, o) => {
+    if (o.status === "cancelled" || o.paymentStatus !== "paid") return acc;
+    const orderCost = o.items.reduce((costSum, item) => {
+      const prod = products.find((p) => p.id === item.productId);
+      const unitCost = prod && prod.buyingPrice !== undefined ? prod.buyingPrice : (item.price * 0.6);
+      return costSum + unitCost * item.quantity;
+    }, 0);
+    const orderRevenue = o.items.reduce((revSum, item) => revSum + item.price * item.quantity, 0);
+    const orderProfit = orderRevenue - orderCost;
+    return acc + orderProfit;
+  }, 0);
+
+  const totalItemsRevenue = orders.reduce((acc, o) => {
+    if (o.status === "cancelled" || o.paymentStatus !== "paid") return acc;
+    const orderRevenue = o.items.reduce((revSum, item) => revSum + item.price * item.quantity, 0);
+    return acc + orderRevenue;
+  }, 0);
+  const averageMarginPercentage = totalItemsRevenue > 0 ? (totalProfit / totalItemsRevenue) * 100 : 0;
+
   const getOrderTimestamp = (order: any): number => {
     if (!order.createdAt) return 0;
     if (typeof order.createdAt.toDate === "function") {
@@ -1341,7 +1367,7 @@ export default function Admin({ user }: AdminProps) {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
           <div className="text-orange-600 bg-orange-50 w-10 h-10 rounded-xl flex items-center justify-center">
             <TrendingUp size={20} />
@@ -1351,6 +1377,23 @@ export default function Admin({ user }: AdminProps) {
           </p>
           <p className="text-2xl font-black">
             KES {totalSales.toLocaleString()}
+          </p>
+        </div>
+        <div className="bg-orange-950/5 p-6 rounded-3xl border border-orange-100/50 shadow-sm space-y-2 relative overflow-hidden">
+          <div className="absolute right-2 top-2 text-[9px] uppercase font-black text-orange-650 bg-orange-100 px-2.5 py-1 rounded-full border border-orange-200/50 tracking-tighter">
+            Internal
+          </div>
+          <div className="text-orange-655 bg-orange-100/50 w-10 h-10 rounded-xl flex items-center justify-center">
+            <Coins size={20} />
+          </div>
+          <p className="text-xs font-bold text-gray-550 uppercase">
+            Est. Gross Profit
+          </p>
+          <p className="text-2xl font-black text-orange-850">
+            KES {totalProfit.toLocaleString()}
+          </p>
+          <p className="text-[11px] font-bold text-orange-600 uppercase tracking-tight">
+            ★ Avg Margin: {averageMarginPercentage.toFixed(1)}%
           </p>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
@@ -2438,6 +2481,28 @@ export default function Admin({ user }: AdminProps) {
               </div>
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400 flex items-center gap-1">
+                  <span>Buying Price / Cost (KES)</span>
+                  <span className="text-orange-650 font-black text-[10px] uppercase">(Internal Only)</span>
+                </label>
+                <input
+                  required
+                  type="number"
+                  placeholder="e.g. 1000"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm font-semibold text-gray-800"
+                  value={newProduct.buyingPrice === 0 ? "" : newProduct.buyingPrice}
+                  onChange={(e) => {
+                    setNewProduct({
+                      ...newProduct,
+                      buyingPrice: Number(e.target.value),
+                    });
+                  }}
+                />
+                <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                  Used strictly internally to evaluate profit margins.
+                </p>
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-400 flex items-center gap-1">
                   <span>Original Price (KES)</span>
                   <span className="text-gray-400 font-bold text-[10px] uppercase">(Optional)</span>
                 </label>
@@ -2613,6 +2678,28 @@ export default function Admin({ user }: AdminProps) {
                     {errors.price}
                   </p>
                 )}
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-400 flex items-center gap-1">
+                  <span>Buying Price / Cost (KES)</span>
+                  <span className="text-orange-655 font-black text-[10px] uppercase">(Internal Only)</span>
+                </label>
+                <input
+                  required
+                  type="number"
+                  placeholder="e.g. 1000"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm font-semibold text-gray-800"
+                  value={editingProduct.buyingPrice || ""}
+                  onChange={(e) => {
+                    setEditingProduct({
+                      ...editingProduct,
+                      buyingPrice: Number(e.target.value),
+                    });
+                  }}
+                />
+                <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                  Used strictly internally to evaluate profit margins.
+                </p>
               </div>
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400 flex items-center gap-1">
@@ -3065,33 +3152,64 @@ export default function Admin({ user }: AdminProps) {
             <div className="space-y-3">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Items Ordered</p>
               <div className="divide-y divide-gray-100 border border-gray-100 rounded-3xl overflow-hidden bg-white">
-                {selectedViewOrder.items && selectedViewOrder.items.map((item: any, idx: number) => (
-                  <div key={idx} className="p-4 flex items-center justify-between text-sm hover:bg-gray-50/30 transition-colors">
-                    <div className="flex items-center space-x-3">
-                      {item.image && (
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-10 h-10 object-cover rounded-xl border border-gray-100 shrink-0"
-                          referrerPolicy="no-referrer"
-                        />
-                      )}
-                      <div>
-                        <p className="font-bold text-gray-955">{item.name}</p>
-                        <p className="text-xs text-gray-450 font-medium">Qty: {item.quantity} × KES {item.price.toLocaleString()}</p>
+                {selectedViewOrder.items && selectedViewOrder.items.map((item: any, idx: number) => {
+                  const itemProd = products.find((p) => p.id === item.productId);
+                  const itemBuyingPrice = itemProd && itemProd.buyingPrice !== undefined ? itemProd.buyingPrice : (item.price * 0.6);
+                  const itemProfit = (item.price - itemBuyingPrice) * item.quantity;
+                  return (
+                    <div key={idx} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between text-sm hover:bg-gray-50/30 transition-colors gap-2">
+                      <div className="flex items-center space-x-3">
+                        {item.image && (
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-10 h-10 object-cover rounded-xl border border-gray-100 shrink-0"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                        <div>
+                          <p className="font-bold text-gray-955">{item.name}</p>
+                          <p className="text-xs text-gray-450 font-medium">Qty: {item.quantity} × KES {item.price.toLocaleString()}</p>
+                          <div className="mt-1 text-[11px] text-orange-655 font-bold bg-orange-50/50 rounded-lg border border-orange-100/10 px-2 py-0.5 w-fit">
+                            Est. Profit: KES {itemProfit.toLocaleString()} <span className="text-gray-400 font-semibold">(Cost: KES {itemBuyingPrice.toLocaleString()}/unit)</span>
+                          </div>
+                        </div>
                       </div>
+                      <p className="font-black text-gray-955 text-right shrink-0">
+                        KES {(item.quantity * item.price).toLocaleString()}
+                      </p>
                     </div>
-                    <p className="font-black text-gray-955 text-right">
-                      KES {(item.quantity * item.price).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
             {/* Financial summaries */}
             <div className="pt-4 border-t border-gray-100 flex flex-col space-y-3">
-              <div className="flex items-center justify-between text-sm text-gray-500 font-semibold">
+              {(() => {
+                const orderTotalCost = selectedViewOrder.items ? selectedViewOrder.items.reduce((sum: number, item: any) => {
+                  const prod = products.find((p) => p.id === item.productId);
+                  const unitCost = prod && prod.buyingPrice !== undefined ? prod.buyingPrice : (item.price * 0.6);
+                  return sum + (unitCost * item.quantity);
+                }, 0) : 0;
+                const orderItemsRevenue = selectedViewOrder.items ? selectedViewOrder.items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0) : 0;
+                const orderTotalProfit = orderItemsRevenue - orderTotalCost;
+                const orderProfitMargin = orderItemsRevenue > 0 ? (orderTotalProfit / orderItemsRevenue) * 100 : 0;
+                return (
+                  <div className="flex items-center justify-between text-sm text-gray-500 font-semibold bg-orange-50/30 border border-orange-150/20 p-4 rounded-3xl mb-1.5 shadow-sm">
+                    <div>
+                      <span className="text-[10px] uppercase tracking-widest font-black text-orange-700 block mb-0.5">Estimated Order Profit (Internal)</span>
+                      <span className="text-lg font-black text-orange-850">KES {orderTotalProfit.toLocaleString()}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase tracking-widest font-black text-orange-700 block mb-0.5">Profit Margin</span>
+                      <span className="text-xs font-black text-white bg-orange-600 px-3 py-1 rounded-full">{orderProfitMargin.toFixed(1)}% Margin</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="flex items-center justify-between text-sm text-gray-500 font-semibold items-center">
                 <span>Status</span>
                 <span className={`text-[10px] tracking-wider uppercase font-bold px-2.5 py-0.5 rounded-md ${
                   selectedViewOrder.status === "delivered"
