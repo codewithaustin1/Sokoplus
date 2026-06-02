@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { doc, getDoc, collection, query, limit, getDocs, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
-import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2 } from "lucide-react";
+import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
@@ -33,6 +33,50 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   const [activeImage, setActiveImage] = useState(0);
   const { addToCart } = useCart();
   const { currency, setCurrency, formatPrice } = useCurrency();
+
+  const [alertEmail, setAlertEmail] = useState(user?.email || "");
+  const [isSettingAlert, setIsSettingAlert] = useState(false);
+  const [alertSetSuccessfully, setAlertSetSuccessfully] = useState(false);
+
+  useEffect(() => {
+    if (user?.email) {
+      setAlertEmail(user.email);
+    }
+  }, [user]);
+
+  const handleSetPriceDropAlert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!product) return;
+    if (!alertEmail || alertEmail.trim() === "" || !alertEmail.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    setIsSettingAlert(true);
+    try {
+      await addDoc(collection(db, "price_drop_alerts"), {
+        productId: product.id,
+        productName: product.name,
+        email: alertEmail.trim(),
+        userId: user ? user.uid : null,
+        targetPrice: product.price,
+        status: "active",
+        createdAt: new Date().toISOString(),
+      });
+      setAlertSetSuccessfully(true);
+      toast.success("Price drop notification alert set!");
+      trackEvent("set_price_alert", {
+        item_id: product.id,
+        item_name: product.name,
+        email: alertEmail.trim(),
+      });
+    } catch (err) {
+      console.error("Error setting price alert:", err);
+      toast.error("Failed to set alert. Please try again.");
+    } finally {
+      setIsSettingAlert(false);
+    }
+  };
 
   const isWishlisted = user?.wishlist?.includes(id || "") || false;
 
@@ -473,6 +517,40 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             >
               <Share2 size={24} />
             </motion.button>
+          </div>
+
+          {/* Price Drop Alert Section */}
+          <div className="p-5 bg-orange-50/10 border border-orange-100/30 rounded-2xl space-y-3">
+            <div className="flex items-center space-x-3 text-orange-600">
+              <Bell size={20} className="animate-pulse" />
+              <h4 className="font-bold text-sm text-gray-900">Notify Me of Price Drops</h4>
+            </div>
+            <p className="text-xs text-gray-500 leading-normal">
+              Interested in this item? Enter your email to be automatically notified when the price of <strong>{product.name}</strong> decreases below {formatPrice(product.price)}.
+            </p>
+            {alertSetSuccessfully ? (
+              <div className="p-3 bg-green-50 border border-green-150 rounded-xl flex items-center justify-center space-x-2 text-green-700 text-xs font-semibold animate-fade-in">
+                <span>✓ Price alert set successfully for {alertEmail}!</span>
+              </div>
+            ) : (
+              <form onSubmit={handleSetPriceDropAlert} className="flex gap-2">
+                <input
+                  type="email"
+                  required
+                  placeholder="name@example.com"
+                  className="flex-grow p-3 text-xs bg-white border border-gray-200 rounded-xl outline-none focus:border-orange-500 font-medium transition-all"
+                  value={alertEmail}
+                  onChange={(e) => setAlertEmail(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  disabled={isSettingAlert}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white text-xs font-extrabold px-5 py-3 rounded-xl transition-colors shrink-0 cursor-pointer"
+                >
+                  {isSettingAlert ? "Setting..." : "Alert Me"}
+                </button>
+              </form>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-gray-100">

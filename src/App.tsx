@@ -10,7 +10,6 @@ import { CurrencyProvider } from "./lib/CurrencyContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
-import Sandbox from "./pages/Sandbox";
 import ProductDetails from "./pages/ProductDetails";
 import Wishlist from "./pages/Wishlist";
 import Profile from "./pages/Profile";
@@ -127,7 +126,6 @@ export default function App() {
           <main className="flex-grow">
             <Routes>
               <Route path="/" element={<Home user={user} />} />
-              <Route path="/sandbox" element={<Sandbox />} />
               <Route path="/product/:id" element={<ProductDetails user={user} />} />
               <Route path="/wishlist" element={<Wishlist user={user} />} />
               <Route path="/profile" element={<Profile user={user} />} />

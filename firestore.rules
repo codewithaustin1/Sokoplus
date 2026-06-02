@@ -137,6 +137,20 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    // Price Drop Alerts
+    match /price_drop_alerts/{alertId} {
+      function isValidAlert(data) {
+        return data.productId is string && data.productId.size() > 0 &&
+               data.productName is string && data.productName.size() > 0 &&
+               data.email is string && data.email.size() > 0 &&
+               data.targetPrice is number && data.targetPrice >= 0 &&
+               data.status in ["active", "triggered"];
+      }
+
+      allow create: if isValidAlert(incoming()) && isValidId(alertId);
+      allow read, update, delete: if isAdmin();
+    }
+
     // Settings
     match /settings/{settingId} {
       function isValidSettings(data) {

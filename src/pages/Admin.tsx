@@ -12,6 +12,7 @@ import {
   updateDoc,
   getDoc,
   setDoc,
+  where,
 } from "firebase/firestore";
 import {
   Plus,
@@ -893,11 +894,40 @@ export default function Admin({ user }: AdminProps) {
       const sanitizedImages = updateData.images.filter(
         (url) => !!url && url.trim() !== "",
       );
+      
+      const previousProduct = products.find((p) => p.id === id);
+      const isPriceDropped = previousProduct && updateData.price < previousProduct.price;
+
       await updateDoc(doc(db, "products", id), {
         ...updateData,
         images: sanitizedImages.length > 0 ? sanitizedImages : [],
         originalPrice: editingProduct.originalPrice && editingProduct.originalPrice > 0 ? editingProduct.originalPrice : null,
       });
+
+      if (isPriceDropped) {
+        try {
+          const q = query(
+            collection(db, "price_drop_alerts"),
+            where("productId", "==", id),
+            where("status", "==", "active")
+          );
+          const alertsSnap = await getDocs(q);
+          if (!alertsSnap.empty) {
+            const batchPromises = alertsSnap.docs.map((alertDoc) => 
+              updateDoc(doc(db, "price_drop_alerts", alertDoc.id), {
+                status: "triggered",
+                triggeredAt: new Date().toISOString(),
+                triggeredPrice: updateData.price,
+              })
+            );
+            await Promise.all(batchPromises);
+            toast.success(`Triggered ${alertsSnap.size} price drop notification alert(s) for subscribed customers!`);
+          }
+        } catch (alertErr) {
+          console.error("Failed to process alerts on price drop:", alertErr);
+        }
+      }
+
       toast.success("Product updated successfully!");
       setShowEditModal(false);
       setEditingProduct(null);

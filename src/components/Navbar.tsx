@@ -86,7 +86,6 @@ export default function Navbar({ user }: NavbarProps) {
 
   const navLinks = [
     { label: "Home", path: "/" },
-    { label: "Visual Sandbox", path: "/sandbox" },
     { label: "Blog", path: "/blog" },
     ...(user?.isAdmin ? [{ label: "Admin", path: "/admin" }] : []),
   ];
@@ -475,26 +474,7 @@ export default function Navbar({ user }: NavbarProps) {
                   </Link>
                 </motion.div>
 
-                {/* Visual Sandbox */}
-                <motion.div 
-                  variants={{
-                    hidden: { opacity: 0, x: 25 },
-                    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
-                  }}
-                  whileHover={{ x: 6 }} 
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link
-                    to="/sandbox"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
-                  >
-                    <span>Visual Sandbox</span>
-                    <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
-                      <Layers size={20} />
-                    </div>
-                  </Link>
-                </motion.div>
+
 
                 {/* Blog */}
                 <motion.div 

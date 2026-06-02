@@ -11,6 +11,7 @@ import EmptyState from "../components/EmptyState";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { trackEvent } from "../lib/analytics";
+import { FastImage } from "../components/FastImage";
 
 interface WishlistProps {
   user: UserProfile | null;
@@ -144,22 +145,13 @@ export default function Wishlist({ user }: WishlistProps) {
             >
               <div className="relative aspect-[4/5] overflow-hidden bg-gray-50">
                 <Link to={`/product/${product.id}`} className="block w-full h-full">
-                  {product.images?.filter(img => !!img && img.trim() !== "")[0] ? (
-                    <img
-                      src={product.images.filter(img => !!img && img.trim() !== "")[0]}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      loading="lazy"
-                      style={{
-                        backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgNDAwIj4gPGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIj48c3RvcCBvZmZzZXQ9IjUlIiBzdG9wLWNvbG9yPSIjZjNmNGY2Ii8+PHN0b3Agb2Zmc2V0PSIyNSUiIHN0b3AtY29sb3I9IiNlNWU3ZWIiLz48c3RvcCBvZmZzZXQ9IjM1JSIgc3RvcC1jb2xvcj0iI2YzZjRmNiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZykiLz48L3N2Zz4=")`,
-                        backgroundSize: "cover"
-                      }}
+                  <div className="w-full h-full group-hover:scale-105 transition-transform duration-500 overflow-hidden">
+                    <FastImage 
+                      src={product.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
+                      alt={product.name} 
+                      fallbackIconSize={64}
                     />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-200">
-                      <ShoppingBag size={64} />
-                    </div>
-                  )}
+                  </div>
                 </Link>
                 
                 {/* Always visible Trash / Remove button on overlay */}

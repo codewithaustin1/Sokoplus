@@ -28,67 +28,97 @@ export default function Cart() {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         {/* Items List */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4">
           {items.map((item) => {
             const uniqueKey = `${item.productId}-${item.customizations?.material || "default"}-${item.customizations?.color || "default"}`;
             return (
               <motion.div 
                 layout
                 key={uniqueKey} 
-                className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6 p-6 bg-white border border-gray-100 rounded-2xl shadow-sm"
+                className="flex items-start space-x-3 sm:space-x-6 p-3 sm:p-6 bg-white border border-gray-100 rounded-2xl shadow-sm min-w-0"
               >
-                <div className="w-24 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0">
+                {/* Image */}
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 self-center">
                   {item.image && item.image.trim() !== "" ? (
                     <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-200">
-                      <ShoppingBag size={32} />
+                      <ShoppingBag size={24} className="sm:hidden" />
+                      <ShoppingBag size={32} className="hidden sm:block" />
                     </div>
                   )}
                 </div>
-                <div className="flex-grow w-full">
-                  <h3 className="text-lg font-bold">{item.name}</h3>
-                  <p className="text-orange-600 font-bold">KES {item.price.toLocaleString()}</p>
-                  
-                  {item.customizations && (
-                    <div className="mt-2 p-3 bg-orange-50/30 rounded-xl border border-orange-100/30 flex flex-col space-y-1 text-xs">
-                      <div className="flex items-center space-x-2">
-                        <span className="w-2.5 h-2.5 rounded-full border border-gray-200" style={{ backgroundColor: item.customizations.color }}></span>
-                        <span className="text-gray-600 font-semibold">Swahili Color: <strong className="text-gray-900">{item.customizations.colorName}</strong></span>
-                      </div>
-                      <span className="text-gray-650 font-semibold">Base Hardwood & Fabric: <strong className="text-gray-900">{item.customizations.material}</strong></span>
-                      {item.customizations.notes && (
-                        <span className="text-orange-650 italic mt-1 font-bold">{item.customizations.notes}</span>
-                      )}
-                    </div>
-                  )}
 
-                  <div className="flex items-center space-x-4 mt-3">
-                    <div className="flex items-center border border-gray-100 rounded-lg p-1 bg-gray-50">
+                {/* Info & Action Area */}
+                <div className="flex-grow min-w-0 flex flex-col justify-between self-stretch">
+                  <div>
+                    {/* Header Row: Title & Remove button */}
+                    <div className="flex items-start justify-between gap-1">
+                      <h3 className="text-sm sm:text-lg font-bold text-gray-900 leading-snug line-clamp-1 sm:line-clamp-2">
+                        {item.name}
+                      </h3>
                       <button 
                         onClick={() => removeFromCart(item.productId, item.customizations)}
-                        className="p-1 hover:text-orange-655 transition-colors cursor-pointer"
+                        className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0 p-1 -m-1"
+                        title="Remove all"
                       >
-                        <Minus size={16} />
-                      </button>
-                      <span className="px-4 font-bold text-sm">{item.quantity}</span>
-                      <button 
-                        onClick={() => addToCart({ ...item, quantity: 1 })}
-                        className="p-1 hover:text-orange-600 transition-colors cursor-pointer"
-                      >
-                        <Plus size={16} />
+                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>
-                    <button 
-                      onClick={() => removeFromCart(item.productId, item.customizations)}
-                      className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+
+                    {/* Unit Price */}
+                    <p className="text-xs sm:text-sm font-semibold text-orange-600 mt-0.5">
+                      KES {item.price.toLocaleString()} each
+                    </p>
+
+                    {/* Customization Details (Highly compact on mobile) */}
+                    {item.customizations && (
+                      <div className="mt-1.5 p-2 bg-orange-50/20 rounded-xl border border-orange-100/30 flex flex-col space-y-0.5 text-[10px] sm:text-xs">
+                        <div className="flex items-center space-x-1.5">
+                          <span 
+                            className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full border border-gray-200 flex-shrink-0" 
+                            style={{ backgroundColor: item.customizations.color }}
+                          ></span>
+                          <span className="text-gray-500">Color: <strong className="text-gray-800 font-semibold">{item.customizations.colorName}</strong></span>
+                        </div>
+                        <span className="text-gray-500">Material & Hardwood: <strong className="text-gray-800 font-semibold">{item.customizations.material}</strong></span>
+                        {item.customizations.notes && (
+                          <span className="text-orange-700 italic mt-0.5 font-medium line-clamp-1">{item.customizations.notes}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="text-right font-black text-xl w-full md:w-auto">
-                  KES {(item.price * item.quantity).toLocaleString()}
+
+                  {/* Quantity and Subtotal Row */}
+                  <div className="flex items-center justify-between gap-4 mt-2 pt-1 border-t border-gray-50 sm:border-t-0 sm:pt-0">
+                    {/* Quantity selectors */}
+                    <div className="flex items-center border border-gray-100 rounded-lg p-0.5 bg-gray-50">
+                      <button 
+                        onClick={() => removeFromCart(item.productId, item.customizations)}
+                        className="p-1 text-gray-500 hover:text-orange-600 transition-colors cursor-pointer"
+                        title="Decrease"
+                      >
+                        <Minus size={12} className="sm:hidden" />
+                        <Minus size={16} className="hidden sm:block" />
+                      </button>
+                      <span className="px-2 sm:px-4 font-bold text-xs sm:text-sm text-gray-800 select-none">
+                        {item.quantity}
+                      </span>
+                      <button 
+                        onClick={() => addToCart({ ...item, quantity: 1 })}
+                        className="p-1 text-gray-500 hover:text-orange-600 transition-colors cursor-pointer"
+                        title="Increase"
+                      >
+                        <Plus size={12} className="sm:hidden" />
+                        <Plus size={16} className="hidden sm:block" />
+                      </button>
+                    </div>
+
+                    {/* Subtotal */}
+                    <div className="text-right font-black text-sm sm:text-lg text-gray-900">
+                      KES {(item.price * item.quantity).toLocaleString()}
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             );

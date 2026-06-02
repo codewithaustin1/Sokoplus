@@ -486,20 +486,30 @@ app.post("/api/recommendations", async (req, res) => {
     res.json({ recommendationIds });
   } catch (error: any) {
     const errStr = (error.message || "") + " " + JSON.stringify(error) + " " + String(error);
-    const isQuotaError = 
+    const isQuotaOrOverloadError = 
       error.status === "RESOURCE_EXHAUSTED" || 
       error.status === 429 || 
       error.code === 429 || 
       error.error?.code === 429 ||
       error.error?.status === "RESOURCE_EXHAUSTED" ||
+      error.status === "UNAVAILABLE" ||
+      error.status === 503 ||
+      error.code === 503 ||
+      error.error?.code === 503 ||
+      error.error?.status === "UNAVAILABLE" ||
       errStr.toLowerCase().includes("429") || 
+      errStr.toLowerCase().includes("503") || 
       errStr.toLowerCase().includes("quota") || 
       errStr.toLowerCase().includes("resource_exhausted") ||
-      errStr.toLowerCase().includes("exhausted");
+      errStr.toLowerCase().includes("exhausted") ||
+      errStr.toLowerCase().includes("unavailable") ||
+      errStr.toLowerCase().includes("high demand") ||
+      errStr.toLowerCase().includes("overloaded") ||
+      errStr.toLowerCase().includes("experiencing high demand");
 
-    if (isQuotaError) {
+    if (isQuotaOrOverloadError) {
       quotaCooldownUntil = Date.now() + (10 * 60 * 1000); // 10 minutes cooldown
-      console.warn("[Recommendations] Gemini quota limit reached (429). Activating 10-minute local backup recommendations.");
+      console.warn("[Recommendations] Gemini quota limit or high demand overloaded status detected. Activating 10-minute local backup recommendations.");
     } else if (error.message === "GEMINI_API_KEY is missing") {
       console.info("[Sokoplus Recommendations] Gemini API Key is not configured yet. Utilizing SokoSmart high-performance local recommendation fallback engine. Add GEMINI_API_KEY in the Settings panel to activate AI recommendations.");
     } else {
@@ -593,20 +603,30 @@ ${JSON.stringify(productsData)}
     res.json({ text: response.text });
   } catch (error: any) {
     const errStr = (error.message || "") + " " + JSON.stringify(error) + " " + String(error);
-    const isQuotaError = 
+    const isQuotaOrOverloadError = 
       error.status === "RESOURCE_EXHAUSTED" || 
       error.status === 429 || 
       error.code === 429 || 
       error.error?.code === 429 ||
       error.error?.status === "RESOURCE_EXHAUSTED" ||
+      error.status === "UNAVAILABLE" ||
+      error.status === 503 ||
+      error.code === 503 ||
+      error.error?.code === 503 ||
+      error.error?.status === "UNAVAILABLE" ||
       errStr.toLowerCase().includes("429") || 
+      errStr.toLowerCase().includes("503") || 
       errStr.toLowerCase().includes("quota") || 
       errStr.toLowerCase().includes("resource_exhausted") ||
-      errStr.toLowerCase().includes("exhausted");
+      errStr.toLowerCase().includes("exhausted") ||
+      errStr.toLowerCase().includes("unavailable") ||
+      errStr.toLowerCase().includes("high demand") ||
+      errStr.toLowerCase().includes("overloaded") ||
+      errStr.toLowerCase().includes("experiencing high demand");
 
-    if (isQuotaError) {
+    if (isQuotaOrOverloadError) {
       quotaCooldownUntil = Date.now() + (10 * 60 * 1000); // 10 minutes cooldown
-      console.warn("[SokoSmart] Gemini quota rate-limited (429). Operating in High-Performance Local Search mode.");
+      console.warn("[SokoSmart] Gemini quota rate-limited or high demand overloaded status detected. Operating in High-Performance Local Search mode.");
     } else {
       console.error("Smart Support Chat Assistant Error caught in server.ts. Activating Offline fallback search:", error.message || error);
     }
