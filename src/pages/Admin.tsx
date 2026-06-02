@@ -436,6 +436,7 @@ export default function Admin({ user }: AdminProps) {
     category: "Fashion",
     stock: 10,
     images: [""],
+    artisan: "",
   });
 
   const [newBlog, setNewBlog] = useState({
@@ -735,6 +736,7 @@ export default function Admin({ user }: AdminProps) {
           images: [
             "https://images.unsplash.com/photo-1629196914068-3974bcda318b?auto=format&fit=crop&q=80&w=2000",
           ],
+          artisan: "Mama Stacey of Narok Maasai Crafts",
         },
         {
           name: "Sokoplus Tech Bag",
@@ -745,6 +747,7 @@ export default function Admin({ user }: AdminProps) {
           images: [
             "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=2000",
           ],
+          artisan: "Kariobangi Leather Artisans",
         },
         {
           name: "Coffee - Mount Kenya Special",
@@ -755,6 +758,7 @@ export default function Admin({ user }: AdminProps) {
           images: [
             "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=2000",
           ],
+          artisan: "Nyeri Smallholder Coffee Coop",
         },
         {
           name: "Bamboo Speaker",
@@ -765,6 +769,7 @@ export default function Admin({ user }: AdminProps) {
           images: [
             "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&q=80&w=2000",
           ],
+          artisan: "Mombasa Sustainable Woodworks",
         },
       ];
       for (const p of sampleProducts) {
@@ -832,6 +837,7 @@ export default function Admin({ user }: AdminProps) {
         category: "Fashion",
         stock: 10,
         images: [""],
+        artisan: "",
       });
       setErrors({});
       fetchData();
@@ -1586,7 +1592,8 @@ export default function Admin({ user }: AdminProps) {
                       if (
                         productSearchTerm.trim() !== "" &&
                         !p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
-                        !p.category.toLowerCase().includes(productSearchTerm.toLowerCase())
+                        !p.category.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
+                        !(p.artisan || "").toLowerCase().includes(productSearchTerm.toLowerCase())
                       ) {
                         return false;
                       }
@@ -1616,7 +1623,12 @@ export default function Admin({ user }: AdminProps) {
                     })
                     .map((p) => (
                       <tr key={p.id} className={`text-sm hover:bg-gray-50/50 transition-all ${p.active === false ? "opacity-60 bg-gray-50/20" : ""}`}>
-                        <td className="py-4 font-bold">{p.name}</td>
+                        <td className="py-4">
+                          <div className="font-bold">{p.name}</div>
+                          {p.artisan && (
+                            <div className="text-[11px] font-semibold text-orange-600">by {p.artisan}</div>
+                          )}
+                        </td>
                         <td className="py-4 text-gray-500">{p.category}</td>
                         <td className="py-4 text-center">
                           <div className="flex items-center justify-center space-x-1 font-bold text-gray-700 bg-amber-50/50 py-1 px-2.5 rounded-full border border-amber-100/30 w-fit mx-auto">
@@ -2363,6 +2375,20 @@ export default function Admin({ user }: AdminProps) {
               </div>
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400">
+                  Artisan / Creator
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mama Stacey of Narok Maasai Crafts"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm font-semibold text-gray-800"
+                  value={newProduct.artisan}
+                  onChange={(e) =>
+                    setNewProduct({ ...newProduct, artisan: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-400">
                   Stock Quantity
                 </label>
                 <input
@@ -2521,6 +2547,23 @@ export default function Admin({ user }: AdminProps) {
                   <option>Local Crafts</option>
                   <option>Groceries</option>
                 </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-400">
+                  Artisan / Creator
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mama Stacey of Narok Maasai Crafts"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm font-semibold text-gray-800"
+                  value={editingProduct.artisan || ""}
+                  onChange={(e) =>
+                    setEditingProduct({
+                      ...editingProduct,
+                      artisan: e.target.value,
+                    })
+                  }
+                />
               </div>
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400">

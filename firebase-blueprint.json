@@ -15,7 +15,8 @@
         "updatedAt": { "type": "string", "format": "date-time" },
         "rating": { "type": "number", "description": "Average rating" },
         "reviewCount": { "type": "integer", "description": "Number of reviews" },
-        "active": { "type": "boolean", "description": "Active status of the product" }
+        "active": { "type": "boolean", "description": "Active status of the product" },
+        "artisan": { "type": "string", "description": "The creative artisan or craftsperson behind the product" }
       },
       "required": ["name", "price", "category", "stock"]
     },
@@ -136,6 +137,17 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["productId", "productName", "email", "targetPrice", "status"]
+    },
+    "NewsletterSubscriber": {
+      "title": "NewsletterSubscriber",
+      "description": "An email subscriber to the SokoPlus Chronicles newsletter.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "description": "Subscriber email address" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the user subscribed" },
+        "userId": { "type": ["string", "null"], "description": "Authenticated user identifier, if logged in" }
+      },
+      "required": ["email", "createdAt"]
     }
   },
   "firestore": {
@@ -174,6 +186,10 @@
     "/settings": {
       "schema": "HomepageSettings",
       "description": "Administrative global website elements."
+    },
+    "/newsletter_subscribers": {
+      "schema": "NewsletterSubscriber",
+      "description": "Email addresses subscribed to SokoPlus Chronicles."
     }
   }
 }

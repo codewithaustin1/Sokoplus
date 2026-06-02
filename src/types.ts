@@ -10,6 +10,7 @@ export interface Product {
   rating?: number;
   reviewCount?: number;
   active?: boolean;
+  artisan?: string;
 }
 
 export interface CartItem {

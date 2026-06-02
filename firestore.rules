@@ -42,7 +42,8 @@ service cloud.firestore {
                data.price is number && data.price >= 0 &&
                data.category is string &&
                data.stock is int && data.stock >= 0 &&
-               (!data.keys().hasAll(['active']) || data.active is bool);
+               (!data.keys().hasAll(['active']) || data.active is bool) &&
+               (!data.keys().hasAll(['artisan']) || (data.artisan is string && data.artisan.size() <= 100));
       }
 
       allow read: if true;
@@ -148,6 +149,18 @@ service cloud.firestore {
       }
 
       allow create: if isValidAlert(incoming()) && isValidId(alertId);
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Newsletter Subscribers
+    match /newsletter_subscribers/{subscriberId} {
+      function isValidSubscriber(data) {
+        return data.email is string && data.email.size() > 0 && data.email.size() <= 256 &&
+               data.createdAt is string && data.createdAt.size() > 0 && data.createdAt.size() <= 50 &&
+               (data.userId == null || (data.userId is string && data.userId.size() <= 128));
+      }
+
+      allow create: if isValidSubscriber(incoming()) && isValidId(subscriberId);
       allow read, update, delete: if isAdmin();
     }
 

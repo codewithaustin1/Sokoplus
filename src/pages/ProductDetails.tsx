@@ -396,6 +396,12 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
               {product.category}
             </div>
             <h1 className="text-4xl font-black tracking-tight text-gray-900">{product.name}</h1>
+            {product.artisan && (
+              <div className="flex items-center space-x-2 text-xs font-semibold text-gray-655 bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 w-fit">
+                <span className="text-gray-400">Crafted by:</span>
+                <span className="font-extrabold text-orange-600">{product.artisan}</span>
+              </div>
+            )}
             <div className="flex items-center space-x-4">
               <div className="flex items-center text-yellow-400">
                 <Star fill="currentColor" size={20} />
@@ -498,6 +504,23 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             >
               {product.description || "No description provided."}
             </Markdown>
+
+            {product.artisan && (
+              <div className="mt-8 p-6 bg-gradient-to-br from-orange-50/20 via-orange-50/5 to-transparent border border-orange-100 rounded-3xl space-y-4">
+                <div className="flex items-center space-x-3.5">
+                  <div className="w-12 h-12 rounded-full bg-orange-100/60 text-orange-600 border border-orange-200/40 flex items-center justify-center font-black text-lg shadow-sm shrink-0">
+                    {product.artisan.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-widest leading-none mb-1">Meet the Craftsman</h4>
+                    <p className="text-base font-black text-gray-900 leading-tight">{product.artisan}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-550 leading-relaxed font-semibold">
+                  Every selection in our marketplace empowers independent creators like <strong>{product.artisan}</strong>. Sokoplus works closely with Kenyan artisan guilds, ensuring fair wages, safe workshops, and community growth.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex space-x-3">

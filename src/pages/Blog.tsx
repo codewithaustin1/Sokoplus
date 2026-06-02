@@ -11,6 +11,7 @@ import Markdown from "react-markdown";
 import { Link, useSearchParams } from "react-router-dom";
 import { BlogPost, UserProfile } from "../types";
 import toast from "react-hot-toast";
+import { NewsletterSignup } from "../components/NewsletterSignup";
 
 interface CommentReply {
   id: string;
@@ -560,6 +561,9 @@ export default function Blog({ user }: { user: UserProfile | null }) {
           </div>
         )}
       </div>
+
+      {/* Newsletter Signup Section */}
+      <NewsletterSignup />
 
       {/* Elegant Popup Story Reader Drawer */}
       <AnimatePresence>

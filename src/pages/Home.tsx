@@ -665,6 +665,11 @@ export default function Home({ user }: HomeProps) {
                   <Link to={`/product/${p.id}`} className="text-lg font-bold hover:text-orange-600 transition-colors line-clamp-1">
                     {p.name}
                   </Link>
+                  {p.artisan && (
+                    <div className="text-[11px] font-bold text-orange-600/90 tracking-wide mt-0.5">
+                      by {p.artisan}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between mt-2">
                     <div className="flex flex-col">
                       <span className="text-xl font-black text-gray-900 leading-none">{formatPrice(p.price)}</span>
