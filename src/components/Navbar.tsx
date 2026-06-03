@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { collection, getDocs, query, limit } from "firebase/firestore";
 import { FastImage } from "./FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
+import { productCache } from "../utils/productCache";
 
 interface NavbarProps {
   user: UserProfile | null;
@@ -42,6 +43,7 @@ export default function Navbar({ user }: NavbarProps) {
           .map(doc => ({ id: doc.id, ...doc.data() } as Product))
           .filter(p => p.active !== false);
         setAllProducts(fetched);
+        fetched.forEach(p => productCache.set(p.id, p));
       } catch (err) {
         console.warn("Failed to fetch products for search suggestions:", err);
       }
@@ -76,7 +78,8 @@ export default function Navbar({ user }: NavbarProps) {
   };
 
   const handleProductSelect = (productId: string) => {
-    navigate(`/product/${productId}`);
+    const matchedProduct = allProducts.find(p => p.id === productId);
+    navigate(`/product/${productId}`, { state: matchedProduct ? { product: matchedProduct } : undefined });
     setSearch("");
     setSuggestedProducts([]);
     setShowDesktopSuggestions(false);

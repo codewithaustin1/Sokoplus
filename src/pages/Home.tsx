@@ -14,6 +14,7 @@ import { trackEvent } from "../lib/analytics";
 import heroImage from "../assets/images/kenyan_market_hero_1779469825593.png";
 import { FastImage } from "../components/FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
+import { productCache } from "../utils/productCache";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -94,6 +95,7 @@ export default function Home({ user }: HomeProps) {
           .filter(p => p.active !== false);
         setProducts(fetched);
         setFilteredProducts(fetched);
+        fetched.forEach(p => productCache.set(p.id, p));
 
         try {
           const settingsRef = doc(db, "settings", "homepage");
@@ -606,6 +608,7 @@ export default function Home({ user }: HomeProps) {
               >
                 <Link 
                   to={`/product/${p.id}`} 
+                  state={{ product: p }}
                   onMouseEnter={() => prefetchProductAssets(p)}
                   onTouchStart={() => prefetchProductAssets(p)}
                   className="block aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 relative group"
@@ -662,7 +665,7 @@ export default function Home({ user }: HomeProps) {
                       )}
                     </div>
                   </div>
-                  <Link to={`/product/${p.id}`} className="text-lg font-bold hover:text-orange-600 transition-colors line-clamp-1">
+                  <Link to={`/product/${p.id}`} state={{ product: p }} className="text-lg font-bold hover:text-orange-600 transition-colors line-clamp-1">
                     {p.name}
                   </Link>
                   <div className="flex items-center justify-between mt-2">

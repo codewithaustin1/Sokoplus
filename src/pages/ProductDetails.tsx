@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { doc, getDoc, collection, query, limit, getDocs, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
@@ -13,6 +13,7 @@ import SEO from "../components/SEO";
 import { trackEvent } from "../lib/analytics";
 import { FastImage } from "../components/FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
+import { productCache } from "../utils/productCache";
 import Markdown from "react-markdown";
 
 interface ProductDetailsProps {
@@ -23,11 +24,30 @@ const recommendationCache = new Map<string, { items: Product[]; source: "ai" | "
 
 export default function ProductDetails({ user }: ProductDetailsProps) {
   const { id } = useParams();
-  const [product, setProduct] = useState<Product | null>(null);
+  const location = useLocation();
+  const [product, setProduct] = useState<Product | null>(() => {
+    if (id) {
+      const cached = productCache.get(id);
+      if (cached) return cached;
+    }
+    const stateProduct = location.state?.product as Product | undefined;
+    if (stateProduct && stateProduct.id === id) {
+      productCache.set(id, stateProduct);
+      return stateProduct;
+    }
+    return null;
+  });
   const [recommendations, setRecommendations] = useState<Product[]>([]);
   const [recSource, setRecSource] = useState<"ai" | "category">("category");
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    if (id) {
+      if (productCache.has(id)) return false;
+    }
+    const stateProduct = location.state?.product as Product | undefined;
+    if (stateProduct && stateProduct.id === id) return false;
+    return true;
+  });
   const [submittingReview, setSubmittingReview] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [activeImage, setActiveImage] = useState(0);
@@ -229,7 +249,10 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   useEffect(() => {
     async function fetchProduct() {
       if (!id) return;
-      setLoading(true);
+      const hasProductPreloaded = productCache.has(id) || (location.state?.product && (location.state.product as Product).id === id);
+      if (!hasProductPreloaded) {
+        setLoading(true);
+      }
       try {
         const docRef = doc(db, "products", id);
         const snap = await getDoc(docRef);
@@ -241,6 +264,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             return;
           }
           setProduct(p);
+          productCache.set(snap.id, p);
           prefetchProductAssets(p);
           trackEvent("view_item", {
             currency: "KES",
@@ -278,6 +302,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             const recIds = recResponse.data.recommendationIds;
             const recs = allProducts.filter(ap => recIds.includes(ap.id)).slice(0, 4);
             setRecommendations(recs);
+            recs.forEach(rp => productCache.set(rp.id, rp));
             setRecSource("ai");
             recommendationCache.set(id, { items: recs, source: "ai" });
           } catch (e: any) {
@@ -290,6 +315,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             
             const fallbacks = allProducts.filter(ap => ap.category === p.category && ap.id !== p.id).slice(0, 4);
             setRecommendations(fallbacks);
+            fallbacks.forEach(rp => productCache.set(rp.id, rp));
             setRecSource("category");
             // Cache the fallback to prevent retrying the 429 endpoint for this product
             recommendationCache.set(id, { items: fallbacks, source: "category" });
@@ -670,6 +696,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                      </span>
                      <Link 
                        to={`/product/${p.id}`} 
+                       state={{ product: p }}
                        className="block text-sm font-extrabold text-gray-900 hover:text-orange-600 transition-colors line-clamp-1"
                      >
                        {p.name}
@@ -680,6 +707,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                      <span className="text-base font-black text-gray-900">{formatPrice(p.price)}</span>
                      <Link 
                        to={`/product/${p.id}`}
+                       state={{ product: p }}
                        className="text-xs font-black uppercase tracking-wider text-orange-600 hover:text-orange-700 flex items-center space-x-1"
                      >
                        <span>View Details</span>

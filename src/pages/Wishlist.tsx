@@ -12,6 +12,7 @@ import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { trackEvent } from "../lib/analytics";
 import { FastImage } from "../components/FastImage";
+import { productCache } from "../utils/productCache";
 
 interface WishlistProps {
   user: UserProfile | null;
@@ -71,7 +72,9 @@ export default function Wishlist({ user }: WishlistProps) {
         for (const id of user.wishlist) {
           const docSnap = await getDoc(doc(db, "products", id));
           if (docSnap.exists()) {
-            fetchedProducts.push({ id: docSnap.id, ...docSnap.data() } as Product);
+            const prod = { id: docSnap.id, ...docSnap.data() } as Product;
+            fetchedProducts.push(prod);
+            productCache.set(prod.id, prod);
           }
         }
         setProducts(fetchedProducts);
@@ -144,7 +147,7 @@ export default function Wishlist({ user }: WishlistProps) {
               className="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100 flex flex-col h-full justify-between"
             >
               <div className="relative aspect-[4/5] overflow-hidden bg-gray-50">
-                <Link to={`/product/${product.id}`} className="block w-full h-full">
+                <Link to={`/product/${product.id}`} state={{ product }} className="block w-full h-full">
                   <div className="w-full h-full group-hover:scale-105 transition-transform duration-500 overflow-hidden">
                     <FastImage 
                       src={product.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
@@ -198,7 +201,7 @@ export default function Wishlist({ user }: WishlistProps) {
                       {product.category}
                     </span>
                   </div>
-                  <Link to={`/product/${product.id}`} className="text-xl font-bold text-gray-900 hover:text-orange-600 transition-colors line-clamp-1">
+                  <Link to={`/product/${product.id}`} state={{ product }} className="text-xl font-bold text-gray-900 hover:text-orange-600 transition-colors line-clamp-1">
                     {product.name}
                   </Link>
                 </div>
@@ -217,6 +220,7 @@ export default function Wishlist({ user }: WishlistProps) {
                 <div className="grid grid-cols-5 gap-2 pt-1 font-sans">
                   <Link
                     to={`/product/${product.id}`}
+                    state={{ product }}
                     className="col-span-2 text-center bg-gray-50 text-gray-700 py-3 rounded-xl font-black text-xs hover:bg-gray-100 hover:text-gray-950 transition-all flex items-center justify-center border border-gray-100"
                   >
                     Details
