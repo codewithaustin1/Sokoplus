@@ -62,6 +62,11 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  Line,
+  LineChart,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 
 interface AdminProps {
@@ -401,6 +406,111 @@ function ProductImageManager({ images, onChange }: ProductImageManagerProps) {
   );
 }
 
+const PIE_COLORS = [
+  "#ea580c", // principal orange-600
+  "#3b82f6", // blue-500
+  "#10b981", // emerald-500
+  "#8b5cf6", // violet-500
+  "#ec4899", // pink-500
+  "#d97706", // amber-600
+  "#06b6d4", // cyan-500
+];
+
+const CustomTrendsTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const rev = payload.find((p: any) => p.name === "Revenue (KES)")?.value || 0;
+    const cost = payload.find((p: any) => p.name === "Cost of Goods (KES)")?.value || 0;
+    const profit = payload.find((p: any) => p.name === "Gross Profit (KES)")?.value || 0;
+    const ordersCount = payload.find((p: any) => p.name === "Orders Count")?.value ?? 
+                        payload[0]?.payload?.["Orders Count"] ?? 0;
+    const margin = rev > 0 ? (profit / rev) * 100 : 0;
+
+    return (
+      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-xl space-y-2.5 text-xs text-gray-800 font-sans">
+        <p className="font-extrabold text-gray-900 border-b border-gray-100 pb-1.5">{label}</p>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-6">
+            <span className="flex items-center gap-1.5 text-gray-500 font-semibold">
+              <span className="w-2.5 h-2.5 rounded-full bg-orange-600 inline-block shrink-0"></span>
+              Revenue:
+            </span>
+            <span className="font-black text-gray-900">KES {rev.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between gap-6">
+            <span className="flex items-center gap-1.5 text-gray-500 font-semibold">
+              <span className="w-2.5 h-2.5 rounded-full bg-gray-400 inline-block shrink-0"></span>
+              Cost of Goods:
+            </span>
+            <span className="font-bold text-gray-700">KES {cost.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between gap-6 border-t border-dashed border-gray-100 pt-1.5">
+            <span className="flex items-center gap-1.5 text-emerald-700 font-black">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0"></span>
+              Gross Profit:
+            </span>
+            <span className="font-black text-emerald-600 text-sm">KES {profit.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between gap-6 pt-1">
+            <span className="text-gray-400 font-bold text-[10px] uppercase">Margin %:</span>
+            <span className="font-extrabold text-emerald-700 text-[10px] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100/10">
+              {margin.toFixed(1)}% Margin
+            </span>
+          </div>
+          {ordersCount !== undefined && (
+            <div className="flex items-center justify-between gap-6 border-t border-gray-100 pt-1 mt-1 text-[10px] text-gray-400 font-bold">
+              <span>Orders Received:</span>
+              <span>{ordersCount}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomCategoryTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    const rev = data["Revenue (KES)"] || 0;
+    const cost = data["Cost of Goods (KES)"] || 0;
+    const profit = data["Gross Profit (KES)"] || 0;
+    const units = data["Units Sold"] || 0;
+    const margin = rev > 0 ? (profit / rev) * 100 : 0;
+
+    return (
+      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xl space-y-2 text-xs text-gray-800 font-sans z-50">
+        <p className="font-extrabold text-orange-900 border-b border-gray-150 pb-1.5">{data.name}</p>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-6">
+            <span className="text-gray-500 font-semibold">Total Revenue:</span>
+            <span className="font-black text-gray-900">KES {rev.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between gap-6">
+            <span className="text-gray-500 font-semibold">Cost of Goods:</span>
+            <span className="font-bold text-gray-700">KES {cost.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between border-t border-dashed border-gray-100 pt-1.5">
+            <span className="font-black text-emerald-600">Actual Profit:</span>
+            <span className="font-black text-emerald-600">KES {profit.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between gap-6 pt-1">
+            <span className="text-gray-400 font-bold text-[10px] uppercase">Margin %:</span>
+            <span className="font-extrabold text-white bg-emerald-650 px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider">
+              {margin.toFixed(1)}%
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-6 text-[10px] text-gray-400 font-bold pt-1">
+            <span>Units Sold:</span>
+            <span>{units} pcs</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function Admin({ user }: AdminProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -422,6 +532,7 @@ export default function Admin({ user }: AdminProps) {
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [productSortBy, setProductSortBy] = useState<string>("default");
   const [loading, setLoading] = useState(true);
+  const [trendsPeriod, setTrendsPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -1244,8 +1355,8 @@ export default function Admin({ user }: AdminProps) {
     return isNaN(date.getTime()) ? 0 : date.getTime();
   };
 
-  // Past 30 Days Business Performance Analytics Data
-  const analyticsData = Array.from({ length: 30 }, (_, i) => {
+  // Daily Performance (Past 30 Days)
+  const dailyAnalyticsData = Array.from({ length: 30 }, (_, i) => {
     const day = new Date();
     day.setDate(day.getDate() - (29 - i));
     const label = day.toLocaleDateString("en-KE", { month: "short", day: "numeric" });
@@ -1255,21 +1366,149 @@ export default function Admin({ user }: AdminProps) {
 
     const dayOrders = orders.filter((o) => {
       const ts = getOrderTimestamp(o);
-      return ts >= startOfThisDay && ts < endOfThisDay;
+      return ts >= startOfThisDay && ts < endOfThisDay && o.status !== "cancelled";
     });
 
     const dailyRevenue = dayOrders.reduce(
-      (sum, o) =>
-        sum + (o.status !== "cancelled" ? (o.totalAmount || 0) : 0),
+      (sum, o) => sum + (o.totalAmount || 0),
       0
     );
 
+    const dailyCOGS = dayOrders.reduce((sum, o) => {
+      return sum + o.items.reduce((itemSum, item) => {
+        const prod = products.find((p) => p.id === item.productId);
+        const unitCost = prod && prod.buyingPrice !== undefined ? prod.buyingPrice : (item.price * 0.6);
+        return itemSum + unitCost * item.quantity;
+      }, 0);
+    }, 0);
+
+    const dailyProfit = Math.max(0, dailyRevenue - dailyCOGS);
+
     return {
       date: label,
-      "Orders Count": dayOrders.length,
       "Revenue (KES)": dailyRevenue,
+      "Cost of Goods (KES)": dailyCOGS,
+      "Gross Profit (KES)": dailyProfit,
+      "Orders Count": dayOrders.length,
     };
   });
+
+  // Weekly Performance (Past 12 Weeks)
+  const weeklyAnalyticsData = Array.from({ length: 12 }, (_, i) => {
+    const today = new Date();
+    const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() - (11 - i) * 7);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const label = `Wk ${i + 1} (${startOfWeek.toLocaleDateString("en-KE", { month: "short", day: "numeric" })})`;
+
+    const weekOrders = orders.filter((o) => {
+      const ts = getOrderTimestamp(o);
+      return ts >= startOfWeek.getTime() && ts < endOfWeek.getTime() && o.status !== "cancelled";
+    });
+
+    const weeklyRevenue = weekOrders.reduce(
+      (sum, o) => sum + (o.totalAmount || 0),
+      0
+    );
+
+    const weeklyCOGS = weekOrders.reduce((sum, o) => {
+      return sum + o.items.reduce((itemSum, item) => {
+        const prod = products.find((p) => p.id === item.productId);
+        const unitCost = prod && prod.buyingPrice !== undefined ? prod.buyingPrice : (item.price * 0.6);
+        return itemSum + unitCost * item.quantity;
+      }, 0);
+    }, 0);
+
+    const weeklyProfit = Math.max(0, weeklyRevenue - weeklyCOGS);
+
+    return {
+      date: label,
+      "Revenue (KES)": weeklyRevenue,
+      "Cost of Goods (KES)": weeklyCOGS,
+      "Gross Profit (KES)": weeklyProfit,
+      "Orders Count": weekOrders.length,
+    };
+  });
+
+  // Monthly Performance (Past 12 Months)
+  const monthlyAnalyticsData = Array.from({ length: 12 }, (_, i) => {
+    const today = new Date();
+    const monthDate = new Date(today.getFullYear(), today.getMonth() - (11 - i), 1);
+    const label = monthDate.toLocaleDateString("en-KE", { month: "short", year: "2-digit" });
+
+    const startOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1).getTime();
+    const endOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1).getTime();
+
+    const monthOrders = orders.filter((o) => {
+      const ts = getOrderTimestamp(o);
+      return ts >= startOfMonth && ts < endOfMonth && o.status !== "cancelled";
+    });
+
+    const monthlyRevenue = monthOrders.reduce(
+      (sum, o) => sum + (o.totalAmount || 0),
+      0
+    );
+
+    const monthlyCOGS = monthOrders.reduce((sum, o) => {
+      return sum + o.items.reduce((itemSum, item) => {
+        const prod = products.find((p) => p.id === item.productId);
+        const unitCost = prod && prod.buyingPrice !== undefined ? prod.buyingPrice : (item.price * 0.6);
+        return itemSum + unitCost * item.quantity;
+      }, 0);
+    }, 0);
+
+    const monthlyProfit = Math.max(0, monthlyRevenue - monthlyCOGS);
+
+    return {
+      date: label,
+      "Revenue (KES)": monthlyRevenue,
+      "Cost of Goods (KES)": monthlyCOGS,
+      "Gross Profit (KES)": monthlyProfit,
+      "Orders Count": monthOrders.length,
+    };
+  });
+
+  // Category Earnings & Profitability Breakdown
+  const categoryAnalytics = (() => {
+    const categoriesMap: { [key: string]: { revenue: number; cogs: number; profit: number; unitsSold: number } } = {};
+    
+    orders.forEach((o) => {
+      if (o.status === "cancelled" || o.paymentStatus !== "paid") return;
+      o.items.forEach((item) => {
+        const prod = products.find((p) => p.id === item.productId);
+        const category = prod?.category || "Uncategorized";
+        const unitCost = prod && prod.buyingPrice !== undefined ? prod.buyingPrice : (item.price * 0.6);
+        
+        const itemRevenue = item.price * item.quantity;
+        const itemCost = unitCost * item.quantity;
+        const itemProfit = itemRevenue - itemCost;
+
+        if (!categoriesMap[category]) {
+          categoriesMap[category] = { revenue: 0, cogs: 0, profit: 0, unitsSold: 0 };
+        }
+        categoriesMap[category].revenue += itemRevenue;
+        categoriesMap[category].cogs += itemCost;
+        categoriesMap[category].profit += itemProfit;
+        categoriesMap[category].unitsSold += item.quantity;
+      });
+    });
+
+    return Object.entries(categoriesMap).map(([category, data]) => ({
+      name: category,
+      "Revenue (KES)": data.revenue,
+      "Cost of Goods (KES)": data.cogs,
+      "Gross Profit (KES)": Math.max(0, data.profit),
+      "Units Sold": data.unitsSold,
+    })).sort((a, b) => b["Revenue (KES)"] - a["Revenue (KES)"]);
+  })();
+
+  const activeTrendsData = 
+    trendsPeriod === "daily" 
+      ? dailyAnalyticsData 
+      : trendsPeriod === "weekly" 
+        ? weeklyAnalyticsData 
+        : monthlyAnalyticsData;
 
   const filteredOrders = orders
     .filter(
@@ -1427,85 +1666,200 @@ export default function Admin({ user }: AdminProps) {
 
       {/* Analytics Chart Section */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Past 30 Days Business Performance</h2>
-            <p className="text-xs text-gray-400 font-semibold mt-1">
-              Visualizing order volume and total sales revenue over the last 30 days.
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Trends Chart details (Col Span 2) */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <TrendingUp className="text-orange-600" size={20} />
+                  <span>Business Performance Trend Lines</span>
+                </h2>
+                <p className="text-xs text-gray-400 font-semibold mt-1">
+                  Interactive visualization of paid revenue, internal costs, and real gross profit margins.
+                </p>
+              </div>
+
+              {/* Timescale Selector toggles */}
+              <div className="flex bg-gray-50 border border-gray-100/80 p-1 rounded-2xl w-fit self-start sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => setTrendsPeriod("daily")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    trendsPeriod === "daily"
+                      ? "bg-white shadow-sm text-orange-600"
+                      : "text-gray-500 hover:text-gray-800"
+                  }`}
+                >
+                  Daily
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrendsPeriod("weekly")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    trendsPeriod === "weekly"
+                      ? "bg-white shadow-sm text-orange-600"
+                      : "text-gray-500 hover:text-gray-800"
+                  }`}
+                >
+                  Weekly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrendsPeriod("monthly")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    trendsPeriod === "monthly"
+                      ? "bg-white shadow-sm text-orange-600"
+                      : "text-gray-500 hover:text-gray-800"
+                  }`}
+                >
+                  Monthly
+                </button>
+              </div>
+            </div>
+
+            {/* Recharts Trend Line View */}
+            <div className="h-80 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={activeTrendsData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorProfitGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#9ca3af" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false} 
+                  />
+                  <YAxis 
+                    stroke="#9ca3af" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false}
+                    tickFormatter={(val) => `KES ${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`}
+                  />
+                  <Tooltip content={<CustomTrendsTooltip />} />
+                  <Legend 
+                    verticalAlign="top" 
+                    height={36} 
+                    iconType="circle" 
+                    wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} 
+                  />
+
+                  <Area 
+                    type="monotone" 
+                    dataKey="Gross Profit (KES)" 
+                    stroke="#10b981" 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorProfitGradient)" 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Revenue (KES)" 
+                    stroke="#ea580c" 
+                    strokeWidth={2.5}
+                    dot={{ r: 3, strokeWidth: 1 }}
+                    activeDot={{ r: 5 }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="Cost of Goods (KES)" 
+                    stroke="#6b7280" 
+                    strokeWidth={1.5}
+                    strokeDasharray="4 4"
+                    dot={false}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Category Profits Breakdown (Col Span 1) */}
+          <div className="bg-orange-50/15 border border-orange-100 rounded-3xl p-6 flex flex-col justify-between space-y-4">
+            <div>
+              <h3 className="text-md font-bold text-gray-900 flex items-center gap-1.5">
+                <Coins className="text-orange-655" size={16} />
+                <span>Earnings by Category</span>
+              </h3>
+              <p className="text-[11px] text-gray-400 font-bold uppercase mt-0.5">
+                Acquisition Optimizer
+              </p>
+            </div>
+
+            {categoryAnalytics.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 space-y-2 border border-dashed border-gray-100 rounded-2xl bg-white/50">
+                <Package className="text-gray-300" size={32} />
+                <p className="text-[11px] font-bold text-gray-400 uppercase">No completed orders data</p>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col justify-center space-y-6">
+                
+                {/* Pie Chart element */}
+                <div className="h-32 w-full flex items-center justify-center relative">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-[9px] text-gray-400 uppercase font-black tracking-tight leading-none">Total Profit</span>
+                    <span className="text-sm font-black text-emerald-600 mt-0.5">KES {totalProfit.toLocaleString()}</span>
+                  </div>
+                  
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryAnalytics}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={60}
+                        paddingAngle={3}
+                        dataKey="Gross Profit (KES)"
+                      >
+                        {categoryAnalytics.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<CustomCategoryTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Legend list with exact numbers and metrics */}
+                <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                  {categoryAnalytics.map((entry, index) => {
+                    const profit = entry["Gross Profit (KES)"];
+                    const rev = entry["Revenue (KES)"];
+                    const margin = rev > 0 ? (profit / rev) * 100 : 0;
+                    return (
+                      <div key={entry.name} className="flex items-center justify-between text-xs font-semibold bg-white p-2 border border-gray-100/50 hover:bg-orange-50/20 transition-all">
+                        <div className="flex items-center space-x-2 truncate">
+                          <span 
+                            className="w-2.5 h-2.5 rounded-md inline-block shrink-0" 
+                            style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
+                          />
+                          <span className="text-gray-800 text-xs font-bold truncate">{entry.name}</span>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-black text-gray-950 text-[11px]">KES {profit.toLocaleString()}</p>
+                          <p className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">{margin.toFixed(0)}% margin ({entry["Units Sold"]} sold)</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <p className="text-[9px] text-gray-400 font-extrabold text-center uppercase tracking-tight">
+              * Higher margins highlight best categories to acquire
             </p>
           </div>
-          <p className="text-xs text-gray-400 font-bold">
-            * Canceled / Unpaid orders excluded from revenue
-          </p>
-        </div>
 
-        <div className="h-80 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={analyticsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ea580c" stopOpacity={0.25}/>
-                  <stop offset="95%" stopColor="#ea580c" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis 
-                dataKey="date" 
-                stroke="#6b7280" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false} 
-              />
-              <YAxis 
-                yAxisId="left" 
-                stroke="#4b5563" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false}
-                allowDecimals={false}
-                label={{ value: 'Orders Received', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: 10, fill: '#4b5563', fontWeight: 'bold' } }}
-              />
-              <YAxis 
-                yAxisId="right" 
-                orientation="right" 
-                stroke="#ea580c" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false}
-                tickFormatter={(val) => `KES ${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`}
-                label={{ value: 'Sales Revenue (KES)', angle: 90, position: 'insideRight', style: { textAnchor: 'middle', fontSize: 10, fill: '#ea580c', fontWeight: 'bold' } }}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#ffffff', 
-                  border: '1px solid #e5e7eb', 
-                  borderRadius: '1.25rem', 
-                  fontFamily: 'Inter, sans-serif',
-                  fontSize: '12px',
-                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' 
-                }} 
-              />
-              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
-              <Bar 
-                yAxisId="left" 
-                dataKey="Orders Count" 
-                fill="#ffedd5" 
-                stroke="#fdba74"
-                strokeWidth={1}
-                radius={[4, 4, 0, 0]} 
-                maxBarSize={22}
-              />
-              <Area 
-                yAxisId="right" 
-                type="monotone" 
-                dataKey="Revenue (KES)" 
-                stroke="#ea580c" 
-                strokeWidth={2.5}
-                fillOpacity={1} 
-                fill="url(#colorRevenue)" 
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
         </div>
       </div>
 
