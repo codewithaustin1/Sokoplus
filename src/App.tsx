@@ -36,6 +36,7 @@ import SupportChat from "./components/SupportChat";
 import VerificationBanner from "./components/VerificationBanner";
 import AnalyticsTracker from "./components/AnalyticsTracker";
 import CookieConsentBanner from "./components/CookieConsentBanner";
+import { OfflineNotifier } from "./components/OfflineNotifier";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
@@ -197,6 +198,7 @@ export default function App() {
 
           <SupportChat user={user} isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
           <CookieConsentBanner />
+          <OfflineNotifier />
           <Toaster position="bottom-right" />
         </div>
       </Router>

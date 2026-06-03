@@ -4,7 +4,7 @@ import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown } from "lucide-react";
+import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
@@ -15,6 +15,7 @@ import heroImage from "../assets/images/kenyan_market_hero_1779469825593.png";
 import { FastImage } from "../components/FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
+import { saveProductsToCache, getCachedProducts, saveHomepageSettings, getHomepageSettings } from "../utils/offlineDb";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -28,6 +29,7 @@ export default function Home({ user }: HomeProps) {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [isOfflineView, setIsOfflineView] = useState<boolean>(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const { addToCart } = useCart();
   const { currency, setCurrency, exchangeRate, formatPrice } = useCurrency();
@@ -87,6 +89,32 @@ export default function Home({ user }: HomeProps) {
 
   useEffect(() => {
     async function fetchProducts() {
+      // Offline Flow Check
+      if (!navigator.onLine) {
+        try {
+          const cached = await getCachedProducts();
+          if (cached && cached.length > 0) {
+            setProducts(cached);
+            setFilteredProducts(cached);
+            setIsOfflineView(true);
+            cached.forEach(p => productCache.set(p.id, p));
+          }
+          
+          const cachedSettings = await getHomepageSettings("hero");
+          if (cachedSettings) {
+            if (cachedSettings.heroImageUrl) setHeroImageUrl(cachedSettings.heroImageUrl);
+            if (cachedSettings.heroBadgeText) setHeroBadgeText(cachedSettings.heroBadgeText);
+            if (cachedSettings.heroHeadingText) setHeroHeadingText(cachedSettings.heroHeadingText);
+          }
+        } catch (cacheErr) {
+          console.error("Failed to load products from local cached database:", cacheErr);
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+
+      // Online Flow Path
       try {
         const q = query(collection(db, "products"), limit(20));
         const snapshot = await getDocs(q);
@@ -95,33 +123,74 @@ export default function Home({ user }: HomeProps) {
           .filter(p => p.active !== false);
         setProducts(fetched);
         setFilteredProducts(fetched);
+        setIsOfflineView(false);
         fetched.forEach(p => productCache.set(p.id, p));
+
+        // Save downloaded listings in background IndexedDB
+        saveProductsToCache(fetched).catch((err) =>
+          console.error("IndexedDB storage cache failure:", err)
+        );
 
         try {
           const settingsRef = doc(db, "settings", "homepage");
           const settingsSnap = await getDoc(settingsRef);
           if (settingsSnap.exists()) {
             const settingsData = settingsSnap.data();
-            if (settingsData.heroImageUrl) {
-              setHeroImageUrl(settingsData.heroImageUrl);
-            }
-            if (settingsData.heroBadgeText) {
-              setHeroBadgeText(settingsData.heroBadgeText);
-            }
-            if (settingsData.heroHeadingText) {
-              setHeroHeadingText(settingsData.heroHeadingText);
-            }
+            const newImg = settingsData.heroImageUrl || "";
+            const newBadge = settingsData.heroBadgeText || "Vetted excellence";
+            const newHeading = settingsData.heroHeadingText || "Authentic & Trusted Goods";
+            
+            if (newImg) setHeroImageUrl(newImg);
+            if (newBadge) setHeroBadgeText(newBadge);
+            if (newHeading) setHeroHeadingText(newHeading);
+
+            // Back up settings in offline db
+            saveHomepageSettings("hero", {
+              heroImageUrl: newImg,
+              heroBadgeText: newBadge,
+              heroHeadingText: newHeading
+            }).catch(e => console.error(e));
           }
         } catch (settingsErr) {
           console.warn("Could not retrieve homepage settings:", settingsErr);
         }
       } catch (error) {
-        console.error("Fetch products error:", error);
+        console.error("Fetch products error, attempting local cache fallback:", error);
+        try {
+          const cached = await getCachedProducts();
+          if (cached && cached.length > 0) {
+            setProducts(cached);
+            setFilteredProducts(cached);
+            setIsOfflineView(true);
+            cached.forEach(p => productCache.set(p.id, p));
+            toast.success("Loaded products offline from local storage", { icon: "📦" });
+          }
+          
+          const cachedSettings = await getHomepageSettings("hero");
+          if (cachedSettings) {
+            if (cachedSettings.heroImageUrl) setHeroImageUrl(cachedSettings.heroImageUrl);
+            if (cachedSettings.heroBadgeText) setHeroBadgeText(cachedSettings.heroBadgeText);
+            if (cachedSettings.heroHeadingText) setHeroHeadingText(cachedSettings.heroHeadingText);
+          }
+        } catch (cachedErr) {
+          console.error("Local database error during fallback:", cachedErr);
+        }
       } finally {
         setLoading(false);
       }
     }
+
     fetchProducts();
+
+    // Listen to custom 'network-sync' event triggered when connection restores
+    const handleSync = () => {
+      fetchProducts();
+    };
+
+    window.addEventListener("network-sync", handleSync);
+    return () => {
+      window.removeEventListener("network-sync", handleSync);
+    };
   }, []);
 
   useEffect(() => {
@@ -412,9 +481,17 @@ export default function Home({ user }: HomeProps) {
               </div>
             </div>
 
-            <p className="text-gray-500 font-bold bg-gray-50 px-4 py-2 rounded-full border border-gray-100 text-sm sm:text-base">
-              Found <span className="text-orange-600">{filteredProducts.length}</span> authentic products
-            </p>
+            <div className="flex items-center gap-3">
+              {isOfflineView && (
+                <span className="flex items-center gap-1.5 text-xs font-extrabold text-amber-700 bg-amber-50 px-4 py-2 rounded-full border border-amber-200 shadow-sm animate-fade-in shrink-0">
+                  <WifiOff size={14} className="animate-pulse shrink-0" />
+                  Offline Cache View
+                </span>
+              )}
+              <p className="text-gray-500 font-bold bg-gray-50 px-4 py-2 rounded-full border border-gray-100 text-sm sm:text-base whitespace-nowrap">
+                Found <span className="text-orange-600">{filteredProducts.length}</span> authentic products
+              </p>
+            </div>
           </div>
 
           <AnimatePresence>
