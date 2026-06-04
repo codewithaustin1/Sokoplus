@@ -26,7 +26,7 @@ import Cookies from "./pages/Cookies";
 import FAQ from "./pages/FAQ";
 import ReturnPolicy from "./pages/ReturnPolicy";
 import Shipping from "./pages/Shipping";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -41,11 +41,89 @@ import { OfflineNotifier } from "./components/OfflineNotifier";
 import { NotificationManager } from "./components/NotificationManager";
 import { motion, AnimatePresence } from "motion/react";
 
+/**
+ * Synthesizes a subtle, high-quality browser-native 'whoosh' sound
+ * using the Web Audio API (white noise bandpass filter sweeps).
+ */
+function playWhoosh(type: "appear" | "disappear") {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    
+    const duration = 0.35; // Short duration for a snappy transition
+    const bufferSize = ctx.sampleRate * duration;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    // Fill with random noise
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    
+    const noiseSource = ctx.createBufferSource();
+    noiseSource.buffer = buffer;
+    
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.Q.value = 4.0; // Resonant frequency filter sweep
+    
+    const gainNode = ctx.createGain();
+    
+    noiseSource.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    const now = ctx.currentTime;
+    
+    if (type === "appear") {
+      // Frequency sweeping up
+      filter.frequency.setValueAtTime(200, now);
+      filter.frequency.exponentialRampToValueAtTime(1400, now + duration);
+      
+      // Smooth subtle envelope
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(0.08, now + 0.08); // Subtle volume
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    } else {
+      // Frequency sweeping down
+      filter.frequency.setValueAtTime(1200, now);
+      filter.frequency.exponentialRampToValueAtTime(150, now + duration);
+      
+      // Fast decay envelope
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(0.06, now + 0.05);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    }
+    
+    noiseSource.start(now);
+    noiseSource.stop(now + duration);
+    
+    // Auto-clean audio context resources to be memory efficient
+    setTimeout(() => {
+      ctx.close().catch(() => {});
+    }, (duration + 0.1) * 1000);
+  } catch (error) {
+    // Fail silently in unsupported/blocked environments
+    console.debug("Native whoosh play skipped:", error);
+  }
+}
+
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const isFirstMount = useRef(true);
+
+  // Trigger browser-native whoosh sound when back-to-top appears / disappears
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    playWhoosh(showScrollTop ? "appear" : "disappear");
+  }, [showScrollTop]);
 
   useEffect(() => {
     const handleScroll = () => {
