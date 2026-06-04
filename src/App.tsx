@@ -135,6 +135,7 @@ export default function App() {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollTopBg, setScrollTopBg] = useState("rgb(234, 88, 12)"); // Dynamic background color
+  const [scrollProgress, setScrollProgress] = useState(0); // Tracks scroll percentage
   const isFirstMount = useRef(true);
   const lastScrollYRef = useRef(0);
 
@@ -152,6 +153,11 @@ export default function App() {
       const currentScrollY = window.scrollY;
       const isBelowThreshold = currentScrollY > 600;
       const isScrollingUp = currentScrollY < lastScrollYRef.current;
+
+      // Calculate total page scroll percentage
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = docHeight > 0 ? (currentScrollY / docHeight) * 100 : 0;
+      setScrollProgress(pct);
 
       if (isBelowThreshold) {
         if (isScrollingUp) {
@@ -293,20 +299,51 @@ export default function App() {
             <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-4 z-[60]">
               <AnimatePresence>
                 {showScrollTop && (
-                  <motion.button
-                    key="back-to-top"
+                  <motion.div
+                    key="back-to-top-wrapper"
                     initial={{ opacity: 0, scale: 0.8, y: 15 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.8, y: 15 }}
                     transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                    onClick={scrollToTop}
-                    style={{ backgroundColor: scrollTopBg }}
-                    className="p-4 rounded-full shadow-2xl border border-white/10 text-white hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center group"
-                    title="Back to Top"
-                    id="back-to-top-btn"
+                    className="relative w-16 h-16 flex items-center justify-center pointer-events-auto"
                   >
-                    <ArrowUp size={24} className="group-hover:-translate-y-1 transition-transform" />
-                  </motion.button>
+                    {/* SVG circular progress ring tracker */}
+                    <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+                      {/* background track */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        stroke="rgba(0, 0, 0, 0.08)"
+                        strokeWidth="6"
+                        fill="transparent"
+                      />
+                      {/* active progress circle */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="42"
+                        stroke={scrollTopBg}
+                        strokeWidth="6"
+                        fill="transparent"
+                        strokeDasharray={2 * Math.PI * 42}
+                        strokeDashoffset={2 * Math.PI * 42 * (1 - scrollProgress / 100)}
+                        strokeLinecap="round"
+                        className="transition-all duration-75 ease"
+                      />
+                    </svg>
+
+                    {/* Dynamic back-to-top click button */}
+                    <button
+                      onClick={scrollToTop}
+                      style={{ backgroundColor: scrollTopBg }}
+                      className="w-11 h-11 rounded-full shadow-lg border border-white/10 text-white hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center group/btn z-10"
+                      title="Back to Top"
+                      id="back-to-top-btn"
+                    >
+                      <ArrowUp size={20} className="group-hover/btn:-translate-y-1 transition-transform" />
+                    </button>
+                  </motion.div>
                 )}
               </AnimatePresence>
 
