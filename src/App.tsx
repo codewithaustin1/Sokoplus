@@ -134,6 +134,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [scrollTopBg, setScrollTopBg] = useState("rgb(234, 88, 12)"); // Dynamic background color
   const isFirstMount = useRef(true);
   const lastScrollYRef = useRef(0);
 
@@ -159,6 +160,18 @@ export default function App() {
           // Hide when scrolling down
           setShowScrollTop(false);
         }
+
+        // Dynamically compute the color transition based on proximity to threshold/top
+        const minScroll = 600;
+        const maxScroll = 1200;
+        const scrollVal = Math.min(maxScroll, Math.max(minScroll, currentScrollY));
+        const ratio = (scrollVal - minScroll) / (maxScroll - minScroll); // 0 at 600, 1 at 1200+
+        
+        // Interpolate between Gray (75, 85, 99) and Orange (234, 88, 12)
+        const r = Math.round(75 + (234 - 75) * ratio);
+        const g = Math.round(85 + (88 - 85) * ratio);
+        const b = Math.round(99 + (12 - 99) * ratio);
+        setScrollTopBg(`rgb(${r}, ${g}, ${b})`);
       } else {
         // Below threshold, always hide
         setShowScrollTop(false);
@@ -287,7 +300,8 @@ export default function App() {
                     exit={{ opacity: 0, scale: 0.8, y: 15 }}
                     transition={{ type: "spring", stiffness: 350, damping: 25 }}
                     onClick={scrollToTop}
-                    className="p-4 rounded-full shadow-2xl bg-white border border-gray-100 text-orange-600 hover:text-white hover:bg-orange-600 transition-all cursor-pointer flex items-center justify-center group"
+                    style={{ backgroundColor: scrollTopBg }}
+                    className="p-4 rounded-full shadow-2xl border border-white/10 text-white hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center group"
                     title="Back to Top"
                     id="back-to-top-btn"
                   >
