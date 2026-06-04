@@ -73,6 +73,57 @@ const SEED_JOBS: Omit<JobOffer, "id" | "createdAt" | "updatedAt">[] = [
   }
 ];
 
+enum OperationType {
+  CREATE = "create",
+  UPDATE = "update",
+  DELETE = "delete",
+  LIST = "list",
+  GET = "get",
+  WRITE = "write",
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+function handleFirestoreError(
+  error: unknown,
+  operationType: OperationType,
+  path: string | null,
+) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map((provider) => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || [],
+    },
+    operationType,
+    path,
+  };
+  console.error("Firestore Error: ", JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 export default function Careers({ user }: CareersProps) {
   const { t } = useLanguage();
   const [jobs, setJobs] = useState<JobOffer[]>([]);
@@ -252,12 +303,25 @@ export default function Careers({ user }: CareersProps) {
         createdAt: new Date().toISOString()
       };
 
-      await addDoc(collection(db, "job_applications"), applicationPayload);
+      try {
+        await addDoc(collection(db, "job_applications"), applicationPayload);
+      } catch (firestoreErr: any) {
+        handleFirestoreError(firestoreErr, OperationType.CREATE, "job_applications");
+      }
+
       toast.success("Congratulations! Your application has been logged securely.", { icon: "🎉" });
       setApplyModalJob(null);
     } catch (err: any) {
       console.error(err);
-      toast.error(`Failed to file application: ${err.message}`);
+      // Extra check: if the error message is a JSON error from handleFirestoreError, parse and display a readable message.
+      let displayError = err.message;
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed && parsed.error) {
+          displayError = parsed.error;
+        }
+      } catch (_) {}
+      toast.error(`Failed to file application: ${displayError}`);
     } finally {
       setIsSubmitting(false);
     }
