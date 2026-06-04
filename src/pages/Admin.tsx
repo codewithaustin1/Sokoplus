@@ -1511,12 +1511,27 @@ export default function Admin({ user }: AdminProps) {
         : monthlyAnalyticsData;
 
   const filteredOrders = orders
-    .filter(
-      (o) =>
-        (o.id.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
-          o.userId.toLowerCase().includes(orderSearchTerm.toLowerCase())) &&
-        (orderStatusFilter === "all" || o.status === orderStatusFilter),
-    )
+    .filter((o) => {
+      const cleanTerm = orderSearchTerm.trim().toLowerCase().replace(/^#/, "");
+      if (!cleanTerm) return orderStatusFilter === "all" || o.status === orderStatusFilter;
+
+      const receiptId = o.id.slice(0, 8).toLowerCase();
+      const fullId = o.id.toLowerCase();
+      const userId = o.userId.toLowerCase();
+      const userEmail = (o.userEmail || "").toLowerCase();
+      const paymentRef = (o.paymentReference || "").toLowerCase();
+
+      const matchesSearch = 
+        receiptId.includes(cleanTerm) ||
+        fullId.includes(cleanTerm) ||
+        userId.includes(cleanTerm) ||
+        userEmail.includes(cleanTerm) ||
+        paymentRef.includes(cleanTerm);
+
+      const matchesStatus = orderStatusFilter === "all" || o.status === orderStatusFilter;
+
+      return matchesSearch && matchesStatus;
+    })
     .sort((a, b) => {
       const timeA = getOrderTimestamp(a);
       const timeB = getOrderTimestamp(b);
@@ -2169,17 +2184,17 @@ export default function Admin({ user }: AdminProps) {
                   <option value="newest">Newest First</option>
                   <option value="oldest">Oldest First</option>
                 </select>
-                <div className="relative group flex-grow max-w-xs">
+                <div className="relative group flex-grow max-w-sm">
                   <Search
                     className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors"
                     size={18}
                   />
                   <input
                     type="text"
-                    placeholder="Search ID or Customer..."
+                    placeholder="Search Receipt ID (#ABC1234F), Email, or M-Pesa Ref..."
                     value={orderSearchTerm}
                     onChange={(e) => setOrderSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm"
+                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm font-medium"
                   />
                 </div>
                 <button
