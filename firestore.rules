@@ -193,47 +193,48 @@ service cloud.firestore {
       allow write: if isAdmin() && isValidSettings(incoming()) && isValidId(settingId);
     }
 
+    // Job Offers
+    match /job_offers/{jobId} {
+      function isValidJobOffer(data) {
+        return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+               data.department is string && data.department.size() > 0 &&
+               data.location is string && data.location.size() > 0 &&
+               data.type is string &&
+               data.description is string && data.description.size() > 0;
+      }
+
+      allow read: if true;
+      allow create: if isAdmin() && isValidJobOffer(incoming()) && isValidId(jobId);
+      allow update: if isAdmin() && isValidJobOffer(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Job Applications
+    match /job_applications/{applicationId} {
+      function isValidApplication(data) {
+        return data.jobId is string && data.jobId.size() > 0 &&
+               data.jobTitle is string && data.jobTitle.size() > 0 &&
+               data.userId == request.auth.uid &&
+               data.applicantName is string && data.applicantName.size() > 0 && data.applicantName.size() <= 200 &&
+               data.applicantEmail is string && data.applicantEmail.size() > 0 && data.applicantEmail.size() <= 200 &&
+               data.applicantPhone is string && data.applicantPhone.size() > 0 && data.applicantPhone.size() <= 50 &&
+               data.resumeDetails is string && data.resumeDetails.size() > 0 && data.resumeDetails.size() <= 1000000 &&
+               data.status in ['pending', 'reviewed', 'shortlisted', 'rejected'];
+      }
+
+      allow create: if isSignedIn() && isValidApplication(incoming()) && isValidId(applicationId);
+      allow read: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+      allow update: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
+                    incoming().status == 'cancelled');
+      allow delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+    }
+
     // Admins
     match /admins/{adminId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.auth.token.email == "upfrontretaile@gmail.com" && request.auth.uid == adminId;
       allow delete, update: if false; 
-    }
-
-    // Affiliates
-    match /affiliates/{userId} {
-      function isValidAffiliate(data) {
-        return data.referralCode is string && data.referralCode.size() == 6 &&
-               data.status in ['pending', 'approved', 'suspended'] &&
-               data.commissionRate is number &&
-               data.totalEarnings is number && data.totalEarnings >= 0 &&
-               data.unpaidEarnings is number && data.unpaidEarnings >= 0 &&
-               data.clicksCount is int && data.clicksCount >= 0 &&
-               data.conversionsCount is int && data.conversionsCount >= 0;
-      }
-
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && isValidAffiliate(incoming()) && incoming().status == 'pending' && incoming().commissionRate == 0.10 && incoming().totalEarnings == 0 && incoming().unpaidEarnings == 0 && incoming().clicksCount == 0 && incoming().conversionsCount == 0;
-      allow update: if isAdmin() || (isOwner(userId) && isValidAffiliate(incoming()) && 
-                    incoming().status == existing().status && 
-                    incoming().commissionRate == existing().commissionRate &&
-                    incoming().totalEarnings == existing().totalEarnings &&
-                    incoming().unpaidEarnings == existing().unpaidEarnings &&
-                    incoming().clicksCount == existing().clicksCount &&
-                    incoming().conversionsCount == existing().conversionsCount &&
-                    incoming().diff(existing()).affectedKeys().hasOnly(['mpesaNumber', 'bankDetails']));
-      allow delete: if isAdmin();
-    }
-
-    // Affiliate Clicks
-    match /affiliate_clicks/{clickId} {
-      allow read, write: if isAdmin();
-    }
-
-    // Affiliate Referrals
-    match /affiliate_referrals/{referralId} {
-      allow read: if isAdmin() || (isSignedIn() && existing().affiliateId == request.auth.uid);
-      allow write: if isAdmin();
     }
   }
 }

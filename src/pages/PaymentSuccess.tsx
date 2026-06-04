@@ -83,13 +83,6 @@ export default function PaymentSuccess() {
             });
 
             await batch.commit();
-
-            // SokoPlus Affiliate Marketing Conversion Integration Hook
-            if (orderData.referralCode) {
-              axios.post("/api/affiliates/credit-commission", { orderId: orderDoc.id })
-                .then(res => console.log("Affiliate commission verified & credited:", res.data))
-                .catch(err => console.warn("Affiliate commission processing skipped:", err.response?.data?.error || err.message));
-            }
           }
           
           clearCart();

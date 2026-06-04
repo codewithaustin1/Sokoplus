@@ -85,4 +85,32 @@ export interface BlogPost {
   seoDescription?: string;
 }
 
+export interface JobOffer {
+  id: string;
+  title: string;
+  department: string;
+  location: string;
+  type: string; // "Full-time" | "Part-time" | "Contract" | "Remote"
+  description: string;
+  requirements: string[];
+  active?: boolean;
+  createdAt: any;
+  updatedAt?: any;
+}
+
+export interface JobApplication {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  userId: string;
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone: string;
+  resumeDetails: string; // Details of qualifications or base64 file string
+  resumeName?: string; // Original name of resume
+  coverLetter?: string;
+  status: "pending" | "reviewed" | "shortlisted" | "rejected";
+  createdAt: any;
+}
+
 

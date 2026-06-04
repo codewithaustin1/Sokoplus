@@ -164,52 +164,41 @@
       },
       "required": ["userId", "items"]
     },
-    "Affiliate": {
-      "title": "Affiliate",
-      "description": "An approved partner earning commissions for referring sales.",
+    "JobOffer": {
+      "title": "JobOffer",
+      "description": "A job opening or career offer at SokoPlus.",
       "type": "object",
       "properties": {
-        "referralCode": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "suspended"] },
-        "commissionRate": { "type": "number" },
-        "mpesaNumber": { "type": "string" },
-        "bankDetails": { "type": "object" },
-        "totalEarnings": { "type": "number" },
-        "unpaidEarnings": { "type": "number" },
-        "clicksCount": { "type": "integer" },
-        "conversionsCount": { "type": "integer" },
+        "title": { "type": "string" },
+        "department": { "type": "string" },
+        "location": { "type": "string" },
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "requirements": { "type": "array" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "department", "location", "type", "description"]
+    },
+    "JobApplication": {
+      "title": "JobApplication",
+      "description": "An applicant's job application form.",
+      "type": "object",
+      "properties": {
+        "jobId": { "type": "string" },
+        "jobTitle": { "type": "string" },
+        "userId": { "type": "string" },
+        "applicantName": { "type": "string" },
+        "applicantEmail": { "type": "string" },
+        "applicantPhone": { "type": "string" },
+        "resumeDetails": { "type": "string", "description": "Text details or Base64 file of resume" },
+        "resumeName": { "type": "string", "description": "Original resume file name" },
+        "coverLetter": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "reviewed", "shortlisted", "rejected"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["referralCode", "status", "commissionRate", "totalEarnings", "unpaidEarnings", "clicksCount", "conversionsCount", "createdAt"]
-    },
-    "AffiliateClick": {
-      "title": "AffiliateClick",
-      "description": "A record of an affiliate referral link click.",
-      "type": "object",
-      "properties": {
-        "affiliateId": { "type": "string" },
-        "referralCode": { "type": "string" },
-        "userAgent": { "type": "string" },
-        "ipHash": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" }
-      },
-      "required": ["affiliateId", "referralCode", "timestamp"]
-    },
-    "AffiliateReferral": {
-      "title": "AffiliateReferral",
-      "description": "A record of a successful product conversion via referral link.",
-      "type": "object",
-      "properties": {
-        "affiliateId": { "type": "string" },
-        "referralCode": { "type": "string" },
-        "orderId": { "type": "string" },
-        "orderTotalAmount": { "type": "number" },
-        "commissionAmount": { "type": "number" },
-        "currency": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "paid", "declined"] },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["affiliateId", "referralCode", "orderId", "orderTotalAmount", "commissionAmount", "currency", "status", "createdAt"]
+      "required": ["jobId", "jobTitle", "userId", "applicantName", "applicantEmail", "applicantPhone", "resumeDetails", "status"]
     }
   },
   "firestore": {
@@ -257,17 +246,13 @@
       "schema": "NewsletterSubscriber",
       "description": "Email addresses subscribed to SokoPlus Chronicles."
     },
-    "/affiliates": {
-      "schema": "Affiliate",
-      "description": "Affiliate accounts mapped by user ID."
+    "/job_offers": {
+      "schema": "JobOffer",
+      "description": "Job offers and career opportunities."
     },
-    "/affiliate_clicks": {
-      "schema": "AffiliateClick",
-      "description": "Traffic clicks received via referral codes."
-    },
-    "/affiliate_referrals": {
-      "schema": "AffiliateReferral",
-      "description": "Purchased orders associated with affiliate referrals."
+    "/job_applications": {
+      "schema": "JobApplication",
+      "description": "Job applications submitted by candidates."
     }
   }
 }

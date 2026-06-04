@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { UserProfile, Product, Order, SupportTicket, BlogPost } from "../types";
+import { UserProfile, Product, Order, SupportTicket, BlogPost, JobOffer, JobApplication } from "../types";
 import { db, auth } from "../lib/firebase";
+import { motion, AnimatePresence } from "motion/react";
 import {
   collection,
   addDoc,
@@ -47,6 +48,7 @@ import {
   ChevronDown,
   UploadCloud,
   Coins,
+  Briefcase,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -517,8 +519,21 @@ export default function Admin({ user }: AdminProps) {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedViewOrder, setSelectedViewOrder] = useState<any | null>(null);
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
+  const [jobOffers, setJobOffers] = useState<JobOffer[]>([]);
+  const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
+  const [showJobAddModal, setShowJobAddModal] = useState(false);
+  const [newJob, setNewJob] = useState({
+    title: "",
+    department: "Engineering",
+    location: "Nairobi (Hybrid)",
+    type: "Full-time",
+    description: "",
+    requirementsString: ""
+  });
+  const [isSavingJob, setIsSavingJob] = useState(false);
+  const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "affiliates"
+    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers"
   >("inventory");
   const [homepageHeroUrl, setHomepageHeroUrl] = useState<string>("");
   const [homepageHeroBadge, setHomepageHeroBadge] = useState<string>("Vetted excellence");
@@ -532,76 +547,6 @@ export default function Admin({ user }: AdminProps) {
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [productSortBy, setProductSortBy] = useState<string>("default");
   const [loading, setLoading] = useState(true);
-
-  // SokoPlus Affiliate Marketing Administrative Workspace States
-  const [affiliatePartners, setAffiliatePartners] = useState<any[]>([]);
-  const [payoutRequests, setPayoutRequests] = useState<any[]>([]);
-  const [adminAffStats, setAdminAffStats] = useState<any>({ affiliatesCount: 0, referralsCount: 0, totalCommissionPaid: 0 });
-  const [loadingAffiliates, setLoadingAffiliates] = useState(false);
-
-  const fetchAffiliateAdminData = async () => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-    try {
-      setLoadingAffiliates(true);
-      const idToken = await currentUser.getIdToken();
-      const response = await axios.get("/api/admin/affiliates", {
-        headers: { Authorization: `Bearer ${idToken}` }
-      });
-      setAffiliatePartners(response.data.affiliates || []);
-      setPayoutRequests(response.data.payouts || []);
-      setAdminAffStats({
-        affiliatesCount: response.data.affiliates?.length || 0,
-        referralsCount: response.data.referralsCount || 0,
-        totalCommissionPaid: response.data.payouts?.filter((p: any) => p.status === 'paid').reduce((acc: number, cur: any) => acc + Number(cur.amount || 0), 0) || 0
-      });
-    } catch (err) {
-      console.error("Failed to load admin affiliate data:", err);
-    } finally {
-      setLoadingAffiliates(false);
-    }
-  };
-
-  const handleUpdateAffiliateStatus = async (userId: string, status: "approved" | "suspended") => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-    try {
-      const idToken = await currentUser.getIdToken();
-      await axios.post("/api/admin/affiliates/update-status", {
-        userId,
-        status
-      }, {
-        headers: { Authorization: `Bearer ${idToken}` }
-      });
-      toast.success(`Affiliate account ${status} successfully!`);
-      fetchAffiliateAdminData();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to update affiliate status.");
-    }
-  };
-
-  const handleApprovePayout = async (payoutId: string) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-    try {
-      const idToken = await currentUser.getIdToken();
-      await axios.post("/api/admin/payouts/approve", {
-        payoutId
-      }, {
-        headers: { Authorization: `Bearer ${idToken}` }
-      });
-      toast.success("Affiliate payout request approved and marked as paid!", { icon: "💸" });
-      fetchAffiliateAdminData();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to approve payout request.");
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === "affiliates") {
-      fetchAffiliateAdminData();
-    }
-  }, [activeTab]);
   const [trendsPeriod, setTrendsPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -761,6 +706,40 @@ export default function Admin({ user }: AdminProps) {
         }
       } catch (settingsError) {
         console.warn("Could not retrieve hero image settings: ", settingsError);
+      }
+
+      try {
+        const jobsSnap = await getDocs(
+          query(collection(db, "job_offers"), orderBy("createdAt", "desc"))
+        );
+        setJobOffers(
+          jobsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as JobOffer)
+        );
+
+        const appsSnap = await getDocs(
+          query(collection(db, "job_applications"), orderBy("createdAt", "desc"))
+        );
+        setJobApplications(
+          appsSnap.docs.map((d) => {
+            const data = d.data();
+            return {
+              id: d.id,
+              jobId: data.jobId || "",
+              jobTitle: data.jobTitle || "",
+              userId: data.userId || "",
+              applicantName: data.applicantName || "",
+              applicantEmail: data.applicantEmail || "",
+              applicantPhone: data.applicantPhone || "",
+              resumeDetails: data.resumeDetails || "",
+              resumeName: data.resumeName || "",
+              coverLetter: data.coverLetter || "",
+              status: (data.status as any) || "pending",
+              createdAt: data.createdAt || ""
+            } as JobApplication;
+          })
+        );
+      } catch (careersError) {
+        console.warn("Could not retrieve careers data: ", careersError);
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, "products/orders");
@@ -1986,10 +1965,10 @@ export default function Admin({ user }: AdminProps) {
           Admin Settings
         </button>
         <button
-          onClick={() => setActiveTab("affiliates")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "affiliates" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          onClick={() => setActiveTab("careers")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "careers" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
         >
-          Affiliates Hub
+          Careers Board
         </button>
       </div>
 
@@ -2810,163 +2789,7 @@ export default function Admin({ user }: AdminProps) {
         </div>
       )}
 
-      {activeTab === "affiliates" && (
-        <div className="space-y-8 animate-fade-in text-gray-950 font-sans">
-          {/* Header holding metrics */}
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl">
-            <h2 className="text-xl font-bold flex items-center text-gray-950 mb-1">
-              <Coins className="mr-2 text-orange-600 animate-pulse" /> SokoPlus Partner & Affiliate Central
-            </h2>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Review and authorize SokoPlus affiliate partner accounts, audit transaction referrals, and disburse commission earnings.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Total Registered Partners</span>
-                <p className="text-3xl font-black font-mono text-gray-900 mt-1">{adminAffStats.affiliatesCount}</p>
-              </div>
-
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Total Referred Sales</span>
-                <p className="text-3xl font-black font-mono text-gray-900 mt-1">{adminAffStats.referralsCount}</p>
-              </div>
-
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Total Commission Paid Out</span>
-                <p className="text-3xl font-black font-mono text-emerald-600 mt-1">KES {adminAffStats.totalCommissionPaid.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* Left Box: Affiliate directory */}
-            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl xl:col-span-2 space-y-6">
-              <div>
-                <h3 className="text-lg font-bold">Affiliate Directory</h3>
-                <p className="text-xs text-gray-400 font-medium">Verify partnership accounts, tracking codes, and status states.</p>
-              </div>
-
-              {loadingAffiliates ? (
-                <div className="py-12 text-center text-gray-400 text-xs">Loading directory...</div>
-              ) : affiliatePartners.length === 0 ? (
-                <div className="py-12 border-2 border-dashed border-gray-100 rounded-2xl text-center text-gray-400 text-xs">No partners registered yet.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-gray-600">
-                    <thead>
-                      <tr className="border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider bg-gray-50">
-                        <th className="py-3 px-4">Referral Code</th>
-                        <th className="py-3 px-4">Clicks / Sales</th>
-                        <th className="py-3 px-4">Unpaid KES</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {affiliatePartners.map((partner: any) => (
-                        <tr key={partner.id} className="hover:bg-gray-50/50">
-                          <td className="py-4 px-4 font-mono font-bold text-gray-900 select-all">
-                            {partner.referralCode}
-                          </td>
-                          <td className="py-4 px-4 font-mono text-gray-500 font-medium">
-                            {partner.clicksCount || 0} / {partner.conversionsCount || 0}
-                          </td>
-                          <td className="py-4 px-4 font-bold text-orange-600">
-                            KES {Number(partner.unpaidEarnings || 0).toLocaleString()}
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className={`inline-block py-1 px-2 rounded-full text-[9px] font-extrabold uppercase tracking-widest ${
-                              partner.status === "approved" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
-                              partner.status === "pending" ? "bg-amber-50 text-amber-600 border border-amber-100" :
-                              "bg-red-50 text-red-600 border border-red-105"
-                            }`}>
-                              {partner.status}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-right space-x-1.5 shrink-0 animate-pulse-slow">
-                            {partner.status !== "approved" && (
-                              <button
-                                onClick={() => handleUpdateAffiliateStatus(partner.id, "approved")}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-3 rounded-lg text-[10px] uppercase cursor-pointer"
-                              >
-                                Approve
-                              </button>
-                            )}
-                            {partner.status !== "suspended" && (
-                              <button
-                                onClick={() => handleUpdateAffiliateStatus(partner.id, "suspended")}
-                                className="bg-red-50 border border-red-100 hover:bg-red-100 text-red-600 font-bold py-1 px-3 rounded-lg text-[10px] uppercase cursor-pointer"
-                              >
-                                Suspend
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Right Box: Payout Requests list */}
-            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
-              <div>
-                <h3 className="text-lg font-bold">Payout Approvals</h3>
-                <p className="text-xs text-gray-400 font-medium font-bold">Clear pending cashout requests securely.</p>
-              </div>
-
-              {payoutRequests.filter(p => p.status === 'pending').length === 0 ? (
-                <div className="py-12 border-2 border-dashed border-gray-100 rounded-2xl text-center text-gray-400 text-xs">
-                  All payout requests are fully cleared!
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {payoutRequests.filter(p => p.status === 'pending').map((req: any) => (
-                    <div key={req.id} className="p-4 bg-gray-50 border border-gray-100 rounded-2xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-gray-400">PENDING PAYOUT</span>
-                        <span className="font-mono text-[10px] font-bold text-gray-900">#{req.id.substring(0, 8).toUpperCase()}</span>
-                      </div>
-
-                      <div className="flex items-baseline justify-between text-gray-950">
-                        <p className="text-sm font-semibold">Requested Sum:</p>
-                        <p className="text-lg font-black font-mono text-emerald-600">KES {Number(req.amount).toLocaleString()}</p>
-                      </div>
-
-                      <div className="p-3 bg-white border border-gray-100 rounded-xl space-y-1 text-[11px] font-sans">
-                        <p className="text-gray-400 tracking-wider text-[9px] uppercase font-bold">Disbursement target:</p>
-                        {req.mpesaNumber ? (
-                          <p className="font-mono font-bold text-gray-800">M-Pesa: {req.mpesaNumber}</p>
-                        ) : req.bankDetails ? (
-                          <div className="font-mono text-gray-800 space-y-0.5">
-                            <p className="font-bold">Bank: {req.bankDetails.bank}</p>
-                            <p>Acc: {req.bankDetails.acc}</p>
-                            <p className="italic">Name: {req.bankDetails.holder}</p>
-                          </div>
-                        ) : (
-                          <p className="text-red-500 font-medium font-mono">No target defined!</p>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={() => handleApprovePayout(req.id)}
-                        className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-xl text-xs uppercase cursor-pointer shadow-sm active:scale-95 transition-all text-center"
-                      >
-                        Disburse Funds & Approve
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 invisible hidden">
-        {/* Old Tables Removed for Tabbed View */}
         {/* Old Tables Removed for Tabbed View */}
       </div>
 
@@ -3698,6 +3521,447 @@ export default function Admin({ user }: AdminProps) {
           </form>
         </div>
       )}
+
+      {activeTab === "careers" && (
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-8 animate-fade-in text-gray-950 font-sans">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-50 pb-6">
+            <div>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+                <Briefcase size={22} className="text-orange-600" />
+                Careers Board
+              </h2>
+              <p className="text-sm text-gray-500 font-medium col-span-12">
+                Create SokoPlus workspace listings, accept applications, evaluate candidate qualifications, and download encrypted resumes.
+              </p>
+            </div>
+            
+            <button
+              onClick={() => {
+                setNewJob({
+                  title: "",
+                  department: "Engineering",
+                  location: "Nairobi (Hybrid)",
+                  type: "Full-time",
+                  description: "",
+                  requirementsString: ""
+                });
+                setShowJobAddModal(true);
+              }}
+              className="px-5 py-3 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs transition-all tracking-wide shadow-md shadow-orange-600/10 flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              + Create Job Offer
+            </button>
+          </div>
+
+          <div className="flex space-x-2 border-b border-gray-100 pb-3">
+            <button
+              onClick={() => setSubTab("openings")}
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                subTab === "openings" 
+                  ? "bg-orange-50 text-orange-700 border border-orange-100" 
+                  : "text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              Active Job Postings ({jobOffers.length})
+            </button>
+            <button
+              onClick={() => setSubTab("applicants")}
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                subTab === "applicants" 
+                  ? "bg-orange-50 text-orange-700 border border-orange-100" 
+                  : "text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              Candidates & Folders ({jobApplications.length})
+            </button>
+          </div>
+
+          {subTab === "openings" ? (
+            <div className="space-y-4">
+              {jobOffers.length === 0 ? (
+                <div className="p-12 text-center rounded-2xl border border-dashed border-gray-200 space-y-3">
+                  <Briefcase size={32} className="text-gray-300 mx-auto" />
+                  <p className="text-sm font-black text-gray-700">No Postings Created Yet</p>
+                  <p className="text-xs text-gray-400 font-medium max-w-xs mx-auto">
+                    Click "Create Job Offer" to make your first job opening visible to job seekers.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-3xl border border-gray-100 shadow-sm">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-gray-50 text-xs text-gray-400 font-black uppercase tracking-wider">
+                      <tr>
+                        <th className="p-4">Role Title</th>
+                        <th className="p-4">Department</th>
+                        <th className="p-4">Location</th>
+                        <th className="p-4">Type</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 font-medium">
+                      {jobOffers.map((j) => (
+                        <tr key={j.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="p-4 font-black text-gray-900">{j.title}</td>
+                          <td className="p-4"><span className="px-2.5 py-0.5 rounded-md bg-gray-100 text-[10px] font-black tracking-wider uppercase text-gray-600">{j.department}</span></td>
+                          <td className="p-4 text-xs font-semibold">{j.location}</td>
+                          <td className="p-4 text-xs font-semibold">{j.type}</td>
+                          <td className="p-4">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  if (!j.id) return;
+                                  const jobRef = doc(db, "job_offers", j.id);
+                                  const nextState = j.active === false ? true : false;
+                                  await updateDoc(jobRef, { active: nextState });
+                                  setJobOffers(jobOffers.map(o => o.id === j.id ? { ...o, active: nextState } : o));
+                                  toast.success(`Job status changed to: ${nextState ? "Active" : "Paused"}`);
+                                } catch (e: any) {
+                                  toast.error(e.message);
+                                }
+                              }}
+                              className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer ${
+                                j.active !== false 
+                                  ? "bg-green-50 text-green-750 hover:bg-green-100" 
+                                  : "bg-red-50 text-red-750 hover:bg-red-100"
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${j.active !== false ? "bg-green-600" : "bg-red-500"}`}></span>
+                              {j.active !== false ? "Recruiting" : "Paused / Draft"}
+                            </button>
+                          </td>
+                          <td className="p-4 text-center font-sans">
+                            <button
+                              onClick={async () => {
+                                if (!window.confirm("Are you sure you want to delete this career opportunity?")) return;
+                                try {
+                                  if (!j.id) return;
+                                  await deleteDoc(doc(db, "job_offers", j.id));
+                                  setJobOffers(jobOffers.filter(o => o.id !== j.id));
+                                  toast.success("Job posting removed successfully!");
+                                } catch (e: any) {
+                                  toast.error(e.message);
+                                }
+                              }}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                              title="Delete Posting"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {jobApplications.length === 0 ? (
+                <div className="p-12 text-center rounded-2xl border border-dashed border-gray-200 space-y-3">
+                  <Users size={32} className="text-gray-300 mx-auto" />
+                  <p className="text-sm font-black text-gray-700">No Candidate Leads Yet</p>
+                  <p className="text-xs text-gray-400 font-medium">
+                    When visitors submit documents for active openings, their records will pop up here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="overflow-x-auto rounded-3xl border border-gray-100 shadow-sm">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                      <thead className="bg-gray-50 text-xs text-gray-400 font-black uppercase tracking-wider">
+                        <tr>
+                          <th className="p-4">Candidate & Contacts</th>
+                          <th className="p-4">Target Role</th>
+                          <th className="p-4">Submission Date</th>
+                          <th className="p-4">Recruitment Status</th>
+                          <th className="p-4 text-center">CV / Document File</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50 font-medium text-xs">
+                        {jobApplications.map((app) => (
+                          <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="p-4">
+                              <div className="space-y-0.5">
+                                <p className="font-black text-gray-900 text-sm">{app.applicantName}</p>
+                                <p className="text-gray-400 font-semibold">{app.applicantEmail}</p>
+                                <p className="text-gray-400 font-semibold">{app.applicantPhone}</p>
+                              </div>
+                            </td>
+                            <td className="p-4 font-black text-gray-800 text-xs">
+                              {app.jobTitle}
+                            </td>
+                            <td className="p-4 text-gray-400 font-semibold">
+                              {app.createdAt ? new Date(app.createdAt).toLocaleDateString() : "Just Now"}
+                            </td>
+                            <td className="p-4">
+                              <select
+                                className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase outline-none focus:ring-1 focus:ring-orange-600 transition-all cursor-pointer ${
+                                  app.status === "shortlisted" 
+                                    ? "bg-green-100 text-green-800" 
+                                    : app.status === "rejected" 
+                                      ? "bg-red-100 text-red-800" 
+                                      : app.status === "reviewed"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-amber-100 text-amber-800"
+                                }`}
+                                value={app.status || "pending"}
+                                onChange={async (e) => {
+                                  try {
+                                    const selectVal = e.target.value;
+                                    const appRef = doc(db, "job_applications", app.id);
+                                    await updateDoc(appRef, { status: selectVal });
+                                    setJobApplications(jobApplications.map(p => p.id === app.id ? { ...p, status: selectVal as any } : p));
+                                    toast.success(`Application updated to: ${selectVal.toUpperCase()}`);
+                                  } catch (err: any) {
+                                    toast.error(err.message);
+                                  }
+                                }}
+                              >
+                                <option value="pending">PENDING</option>
+                                <option value="reviewed">REVIEWED</option>
+                                <option value="shortlisted">SHORTLISTED</option>
+                                <option value="rejected">REJECTED</option>
+                              </select>
+                            </td>
+                            <td className="p-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    // Download candidate details natively
+                                    const handleDownloadCV = (aDetails: JobApplication) => {
+                                      try {
+                                        if (!aDetails.resumeDetails) {
+                                          toast.error("No CV document details found on database storage.");
+                                          return;
+                                        }
+                                        let fileBlob: Blob;
+                                        let filename = aDetails.resumeName || `${aDetails.applicantName.replace(/\s+/g, "_")}_Resume.pdf`;
+                                        
+                                        if (aDetails.resumeDetails.startsWith("data:")) {
+                                          const parts = aDetails.resumeDetails.split(";base64,");
+                                          const contentType = parts[0].split(":")[1];
+                                          const raw = window.atob(parts[1]);
+                                          const rawLength = raw.length;
+                                          const uInt8Array = new Uint8Array(rawLength);
+                                          for (let i = 0; i < rawLength; ++i) {
+                                            uInt8Array[i] = raw.charCodeAt(i);
+                                          }
+                                          fileBlob = new Blob([uInt8Array], { type: contentType });
+                                        } else {
+                                          fileBlob = new Blob([aDetails.resumeDetails], { type: "text/plain" });
+                                          if (!filename.endsWith(".txt")) filename += ".txt";
+                                        }
+                                        const url = URL.createObjectURL(fileBlob);
+                                        const b = document.createElement("a");
+                                        b.href = url;
+                                        b.download = filename;
+                                        document.body.appendChild(b);
+                                        b.click();
+                                        document.body.removeChild(b);
+                                        URL.revokeObjectURL(url);
+                                        toast.success(`CV File downloaded: ${filename}`);
+                                      } catch (err: any) {
+                                        toast.error(err.message);
+                                      }
+                                    };
+                                    handleDownloadCV(app);
+                                  }}
+                                  className="px-3 py-2 rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white transition-all font-black text-[10px] flex items-center gap-1.5 cursor-pointer border border-orange-100/40"
+                                >
+                                  <Download size={12} />
+                                  Download CV
+                                </button>
+                                {app.coverLetter && (
+                                  <button
+                                    onClick={() => toast((t) => (
+                                      <div className="space-y-2 text-xs text-gray-900 font-medium font-sans">
+                                        <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
+                                          <b className="font-bold text-xs">Cover Letter Pitch</b>
+                                          <button className="text-[10px] font-bold text-gray-400 hover:text-gray-900" onClick={() => toast.dismiss(t.id)}>Close</button>
+                                        </div>
+                                        <p className="leading-relaxed bg-gray-50 p-2.5 rounded-xl border border-gray-100 max-h-48 overflow-y-auto max-w-sm whitespace-pre-line">{app.coverLetter}</p>
+                                      </div>
+                                    ), { duration: 15000 })}
+                                    className="px-3 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-700 transition-all font-black text-[10px] cursor-pointer"
+                                  >
+                                    Read Pitch
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SokoPlus Job Creation Modal block */}
+      <AnimatePresence>
+        {showJobAddModal && (
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100] overflow-y-auto">
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-2xl w-full max-w-xl mx-auto my-8 overflow-hidden self-center font-sans text-gray-950">
+              <div className="bg-orange-600 p-6 text-white flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black tracking-widest uppercase text-orange-100">CMS Jobs Operations</span>
+                  <h3 className="text-xl font-black">Publish New Job Offer</h3>
+                </div>
+                <button 
+                  onClick={() => setShowJobAddModal(false)}
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-white cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!newJob.title || !newJob.description) {
+                    toast.error("Please complete all required fields.");
+                    return;
+                  }
+
+                  setIsSavingJob(true);
+                  try {
+                    const requirementsArr = newJob.requirementsString
+                      .split("\n")
+                      .map(r => r.trim())
+                      .filter(r => r.length > 0);
+
+                    const payload = {
+                      title: newJob.title,
+                      department: newJob.department,
+                      location: newJob.location,
+                      type: newJob.type,
+                      description: newJob.description,
+                      requirements: requirementsArr,
+                      active: true,
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString()
+                    };
+
+                    const docRef = await addDoc(collection(db, "job_offers"), payload);
+                    setJobOffers([{ id: docRef.id, ...payload } as JobOffer, ...jobOffers]);
+                    toast.success(`Job Opening "${newJob.title}" has been successfully broadcast!`);
+                    setShowJobAddModal(false);
+                  } catch (err: any) {
+                    toast.error(`Posting failed: ${err.message}`);
+                  } finally {
+                    setIsSavingJob(false);
+                  }
+                }}
+                className="p-6 md:p-8 space-y-5 max-h-[75vh] overflow-y-auto"
+              >
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Job Posting Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Lead Logistics Handler"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-medium shadow-sm"
+                    value={newJob.title}
+                    onChange={(e) => setNewJob({ ...newJob, title: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Department</label>
+                    <select
+                      className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
+                      value={newJob.department}
+                      onChange={(e) => setNewJob({ ...newJob, department: e.target.value })}
+                    >
+                      <option value="Engineering">Engineering</option>
+                      <option value="Marketing">Marketing</option>
+                      <option value="Community & Sourcing">Sourcing</option>
+                      <option value="Operations">Operations</option>
+                      <option value="Customer Experience">Experience</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Location</label>
+                    <select
+                      className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
+                      value={newJob.location}
+                      onChange={(e) => setNewJob({ ...newJob, location: e.target.value })}
+                    >
+                      <option value="Nairobi (Hybrid)">Nairobi (Hybrid)</option>
+                      <option value="Remote (Kenya)">Remote (Kenya)</option>
+                      <option value="Mombasa Workshop">Mombasa Workshop</option>
+                      <option value="Eldoret Site">Eldoret Site</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Engagement</label>
+                    <select
+                      className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
+                      value={newJob.type}
+                      onChange={(e) => setNewJob({ ...newJob, type: e.target.value })}
+                    >
+                      <option value="Full-time">Full-time</option>
+                      <option value="Part-time">Part-time</option>
+                      <option value="Contract">Contract</option>
+                      <option value="Remote">Remote</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Role Overview Description</label>
+                  <textarea
+                    required
+                    rows={4}
+                    placeholder="Provide a compelling overview describing day-to-day work, SokoPlus impact..."
+                    className="w-full p-4 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-medium resize-none shadow-sm"
+                    value={newJob.description}
+                    onChange={(e) => setNewJob({ ...newJob, description: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Candidate Requirements (One per line)</label>
+                  <textarea
+                    rows={4}
+                    placeholder="Enter key requirements...&#10;e.g. 2+ years React experience&#10;Fluent in Swahili & English&#10;Excellent communication"
+                    className="w-full p-4 bg-gray-55 border border-gray-100 rounded-xl text-xs font-mono outline-none focus:ring-1 focus:ring-orange-600 resize-none leading-relaxed shadow-sm"
+                    value={newJob.requirementsString}
+                    onChange={(e) => setNewJob({ ...newJob, requirementsString: e.target.value })}
+                  />
+                  <span className="text-[10px] text-gray-400 font-medium italic">Make sure to split different requirements/bullets using a hard enter key.</span>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowJobAddModal(false)}
+                    className="px-5 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all text-xs"
+                  >
+                    Discard
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingJob}
+                    className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold transition-all text-xs shadow-md shadow-orange-600/10"
+                  >
+                    {isSavingJob ? "Broadcasting..." : "Publish Opportunity"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* View Order Details Modal */}
       {selectedViewOrder && (

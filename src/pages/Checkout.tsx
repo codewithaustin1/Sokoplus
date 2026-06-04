@@ -231,16 +231,7 @@ export default function Checkout({ user }: CheckoutProps) {
         }
       }
 
-      // 2. Read SokoPlus Affiliate Referral Cookie
-      const getCookie = (name: string) => {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop()?.split(";").shift();
-        return null;
-      };
-      const affiliateRefCode = getCookie("sokoplus_ref") || null;
-
-      // 3. Initialize Paystack
+      // 2. Initialize Paystack
       const response = await axios.post("/api/paystack/initialize", {
         email: address.email,
         amount: overallTotal,
@@ -248,14 +239,13 @@ export default function Checkout({ user }: CheckoutProps) {
         metadata: {
           userId: user.uid,
           items: items.map(i => ({ id: i.productId, qty: i.quantity, customs: i.customizations })),
-          preferredPaymentMethod: paymentMethod,
-          referralCode: affiliateRefCode
+          preferredPaymentMethod: paymentMethod
         }
       });
 
       const { authorization_url, reference } = response.data.data;
 
-      // 4. Log Order to Firestore (as pending)
+      // 3. Log Order to Firestore (as pending)
       await addDoc(collection(db, "orders"), {
         userId: user.uid,
         userEmail: address.email,
@@ -266,7 +256,6 @@ export default function Checkout({ user }: CheckoutProps) {
         paymentReference: reference,
         shippingAddress: address,
         preferredPaymentMethod: paymentMethod,
-        referralCode: affiliateRefCode,
         createdAt: serverTimestamp()
       });
 

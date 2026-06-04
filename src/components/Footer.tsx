@@ -60,6 +60,7 @@ export default function Footer() {
                 <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">{t("All Products")}</Link></li>
                 <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">{t("Best Sellers")}</Link></li>
                 <li><Link to="/blog" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">{t("Market Stories")}</Link></li>
+                <li><Link to="/careers" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">{t("Careers")}</Link></li>
               </ul>
             </div>
 
