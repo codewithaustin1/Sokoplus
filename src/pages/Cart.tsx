@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
 import { Trash2, ShoppingBag, Plus, Minus, ArrowRight } from "lucide-react";
 import { useCart } from "../lib/CartContext";
+import { useLanguage } from "../lib/LanguageContext";
 import { motion } from "motion/react";
 import { trackEvent } from "../lib/analytics";
 
 export default function Cart() {
   const { items, removeFromCart, addToCart, total } = useCart();
+  const { t } = useLanguage();
 
   if (items.length === 0) {
     return (
@@ -13,10 +15,10 @@ export default function Cart() {
         <div className="bg-gray-100 p-8 rounded-full mb-4">
           <ShoppingBag size={64} className="text-gray-300" />
         </div>
-        <h2 className="text-3xl font-bold">Your cart is empty</h2>
-        <p className="text-gray-500">Looks like you haven't added anything to your cart yet.</p>
+        <h2 className="text-3xl font-bold">{t("Your cart is empty")}</h2>
+        <p className="text-gray-500">{t("Looks like you haven't added anything to your cart yet.")}</p>
         <Link to="/" className="bg-orange-600 text-white px-8 py-4 rounded-full font-bold hover:bg-orange-700 transition-all">
-          Start Shopping
+          {t("Start Shopping")}
         </Link>
       </div>
     );
@@ -24,7 +26,7 @@ export default function Cart() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-4xl font-black mb-12 tracking-tight">Your Cart</h1>
+      <h1 className="text-4xl font-black mb-12 tracking-tight">{t("Your Cart")}</h1>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         {/* Items List */}
@@ -68,7 +70,7 @@ export default function Cart() {
 
                     {/* Unit Price */}
                     <p className="text-xs sm:text-sm font-semibold text-orange-600 mt-0.5">
-                      KES {item.price.toLocaleString()} each
+                      KES {item.price.toLocaleString()} {t("each")}
                     </p>
 
                     {/* Customization Details (Highly compact on mobile) */}
@@ -79,9 +81,9 @@ export default function Cart() {
                             className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full border border-gray-200 flex-shrink-0" 
                             style={{ backgroundColor: item.customizations.color }}
                           ></span>
-                          <span className="text-gray-500">Color: <strong className="text-gray-800 font-semibold">{item.customizations.colorName}</strong></span>
+                          <span className="text-gray-500">{t("Color:")} <strong className="text-gray-800 font-semibold">{item.customizations.colorName}</strong></span>
                         </div>
-                        <span className="text-gray-500">Material & Hardwood: <strong className="text-gray-800 font-semibold">{item.customizations.material}</strong></span>
+                        <span className="text-gray-500">{t("Material & Hardwood:")} <strong className="text-gray-800 font-semibold">{item.customizations.material}</strong></span>
                         {item.customizations.notes && (
                           <span className="text-orange-700 italic mt-0.5 font-medium line-clamp-1">{item.customizations.notes}</span>
                         )}
@@ -128,18 +130,18 @@ export default function Cart() {
         {/* Order Summary */}
         <div className="space-y-6">
           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6 sticky top-24">
-            <h2 className="text-2xl font-bold">Order Summary</h2>
+            <h2 className="text-2xl font-bold">{t("Order Summary")}</h2>
             <div className="space-y-4 text-sm">
               <div className="flex justify-between text-gray-500">
-                <span>Subtotal</span>
+                <span>{t("Subtotal")}</span>
                 <span>KES {total.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-gray-500">
-                <span>Shipping (Nairobi)</span>
+                <span>{t("Shipping (Nairobi)")}</span>
                 <span>KES 250</span>
               </div>
               <div className="border-t border-gray-100 pt-4 flex justify-between text-xl font-black text-gray-900">
-                <span>Total</span>
+                <span>{t("Total")}</span>
                 <span>KES {(total + 250).toLocaleString()}</span>
               </div>
             </div>
@@ -159,10 +161,10 @@ export default function Cart() {
               }}
               className="w-full block text-center bg-orange-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-orange-700 transition-all shadow-lg shadow-orange-100 flex items-center justify-center"
             >
-              Secure Checkout <ArrowRight size={20} className="ml-2" />
+              {t("Secure Checkout")} <ArrowRight size={20} className="ml-2" />
             </Link>
             <p className="text-[10px] text-gray-400 text-center">
-              Payments secured via Paystack. Trusted across 47 counties.
+              {t("Payments secured via Paystack. Trusted across 47 counties.")}
             </p>
           </div>
         </div>

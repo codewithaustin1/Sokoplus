@@ -9,6 +9,7 @@ import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
 import { downloadReceipt } from "../utils/pdfGenerator";
+import { useLanguage } from "../lib/LanguageContext";
 import toast from "react-hot-toast";
 
 interface ProfileProps {
@@ -20,6 +21,7 @@ export default function Profile({ user }: ProfileProps) {
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [timeFilter, setTimeFilter] = useState<"this-month" | "last-12-months" | "specific-month">("this-month");
+  const { t, language } = useLanguage();
   
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -192,7 +194,7 @@ export default function Profile({ user }: ProfileProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 space-y-12">
-      <SEO title="My Profile" />
+      <SEO title={t("My Profile")} />
       {/* Profile Header */}
       <div className="bg-white rounded-3xl p-8 md:p-12 border border-gray-100 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-50 rounded-full -mr-32 -mt-32 opacity-50" />
@@ -214,14 +216,14 @@ export default function Profile({ user }: ProfileProps) {
             <div className="flex items-center justify-center md:justify-start space-x-4">
               <div className="bg-orange-50 border border-orange-100 px-4 py-2 rounded-xl flex items-center">
                 <Award size={20} className="text-orange-600 mr-2" />
-                <span className="font-bold text-orange-900">{user.loyaltyPoints} Loyalty Points</span>
+                <span className="font-bold text-orange-900">{user.loyaltyPoints} {t("Loyalty Points")}</span>
               </div>
               {user.isAdmin && (
                 <Link 
                   to="/admin" 
                   className="bg-gray-900 text-white px-4 py-2 rounded-xl font-bold hover:bg-orange-600 transition-all text-sm"
                 >
-                  Admin Panel
+                  {t("Admin Panel")}
                 </Link>
               )}
               <button 
@@ -229,7 +231,7 @@ export default function Profile({ user }: ProfileProps) {
                 className="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition-all text-sm flex items-center"
               >
                 <LogOut size={16} className="mr-2" />
-                Sign Out
+                {t("Sign Out")}
               </button>
             </div>
           </div>
@@ -244,30 +246,30 @@ export default function Profile({ user }: ProfileProps) {
             <Bell size={24} />
           </div>
           <div className="space-y-1 max-w-xl">
-            <h3 className="font-black text-lg text-gray-900 tracking-tight">Delivery & Dispatch Alerts</h3>
+            <h3 className="font-black text-lg text-gray-900 tracking-tight">{t("Delivery & Dispatch Alerts")}</h3>
             <p className="text-sm text-gray-500 leading-relaxed font-medium">
-              Enable native browser alerts to automatically receive real-time notifications about dispatch, routing, and delivered status of your SokoPlus order.
+              {t("Enable native browser alerts to automatically receive real-time notifications about dispatch, routing, and delivered status of your SokoPlus order.")}
             </p>
           </div>
         </div>
         
         <div className="shrink-0 flex items-center gap-4 relative">
           <div className="flex flex-col items-end mr-1 hidden sm:flex">
-            <span className="text-xs font-black uppercase tracking-wider text-gray-400">Status</span>
+            <span className="text-xs font-black uppercase tracking-wider text-gray-400">{t("Status")}</span>
             <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 mt-1 rounded-full ${
               notificationPermission === "granted" ? "bg-green-50 text-green-700 border border-green-200" :
               notificationPermission === "denied" ? "bg-red-50 text-red-700 border border-red-200" :
               "bg-amber-50 text-amber-700 border border-amber-200 animate-pulse"
             }`}>
-              {notificationPermission === "granted" ? "Active" :
-               notificationPermission === "denied" ? "Blocked" : "Disabled"}
+              {notificationPermission === "granted" ? t("Active") :
+               notificationPermission === "denied" ? t("Blocked") : t("Disabled")}
             </span>
           </div>
 
           {notificationPermission === "granted" ? (
             <div className="flex items-center gap-2 bg-green-50 text-green-800 border border-green-200 px-5 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider">
               <CheckCircle size={16} />
-              <span>Permission Opt-In</span>
+              <span>{t("Permission Opt-In")}</span>
             </div>
           ) : (
             <button
@@ -275,7 +277,7 @@ export default function Profile({ user }: ProfileProps) {
               className="bg-gray-900 hover:bg-orange-600 hover:scale-[1.01] active:scale-95 text-white font-black uppercase tracking-wider text-xs px-5 py-3.5 rounded-2xl shadow-md transition-all cursor-pointer flex items-center gap-2 animate-fade-in"
             >
               <Bell size={16} />
-              <span>Enable Browser Alerts</span>
+              <span>{t("Enable Browser Alerts")}</span>
             </button>
           )}
         </div>
@@ -286,10 +288,10 @@ export default function Profile({ user }: ProfileProps) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-3xl font-black tracking-tight text-gray-900 flex items-center">
             <Package className="mr-3 text-orange-600" size={32} />
-            Order History
+            {t("Order History")}
           </h2>
           <span className="text-sm font-bold text-gray-500 uppercase tracking-widest bg-gray-50 px-4 py-2 rounded-full self-start sm:self-auto">
-            Showing {filteredOrders.length} of {orders.length}
+            {language === "sw" ? `Inaonyesha ${filteredOrders.length} kati ya ${orders.length}` : `Showing ${filteredOrders.length} of ${orders.length}`}
           </span>
         </div>
 
@@ -298,9 +300,9 @@ export default function Profile({ user }: ProfileProps) {
           <div className="flex flex-wrap gap-2">
             {(["this-month", "last-12-months", "specific-month"] as const).map((filterOpt) => {
               const labelMap = {
-                "this-month": "This Month",
-                "last-12-months": "Last 12 Months",
-                "specific-month": "Specific Month"
+                "this-month": t("This Month"),
+                "last-12-months": t("Last 12 Months"),
+                "specific-month": t("Specific Month")
               };
               return (
                 <button
@@ -321,7 +323,7 @@ export default function Profile({ user }: ProfileProps) {
 
           {timeFilter === "specific-month" && (
             <div className="flex items-center space-x-2 animate-fade-in">
-              <span className="text-xs font-extrabold text-gray-500 uppercase tracking-wider">Select Month:</span>
+              <span className="text-xs font-extrabold text-gray-500 uppercase tracking-wider">{t("Select Month:")}</span>
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
@@ -346,9 +348,9 @@ export default function Profile({ user }: ProfileProps) {
         ) : orders.length === 0 ? (
           <EmptyState 
             icon={Package}
-            title="No orders yet"
-            description="Ready to find something you love? Start exploring our curated collection of Kenyan excellence."
-            actionLabel="Start Shopping"
+            title={t("No orders yet")}
+            description={t("Ready to find something you love? Start exploring our curated collection of Kenyan excellence.")}
+            actionLabel={t("Start Shopping")}
             actionPath="/"
           />
         ) : filteredOrders.length === 0 ? (
@@ -369,61 +371,61 @@ export default function Profile({ user }: ProfileProps) {
                 transition={{ delay: index * 0.1 }}
                 className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-all group"
               >
-                <div className="flex justify-between items-start mb-6">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Order ID</p>
-                    <p className="font-mono text-sm text-gray-900">#{order.id.slice(0, 8)}</p>
-                  </div>
-                  <div className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
-                    order.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                    order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {order.status}
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Tracking Timeline */}
-                  <div className="relative pt-2 pb-4">
-                    <div className="absolute top-[22px] left-0 w-full h-0.5 bg-gray-100" />
-                    <div 
-                      className="absolute top-[22px] left-0 h-0.5 bg-orange-600 transition-all duration-500" 
-                      style={{ 
-                        width: order.status === 'pending' ? '0%' : 
-                               order.status === 'processing' ? '25%' : 
-                               order.status === 'shipped' ? '50%' : 
-                               order.status === 'delivered' ? '100%' : '0%' 
-                      }} 
-                    />
-                    
-                    <div className="relative flex justify-between">
-                      {[
-                        { label: 'Pending', key: 'pending' },
-                        { label: 'Processing', key: 'processing' },
-                        { label: 'Shipped', key: 'shipped' },
-                        { label: 'Delivered', key: 'delivered' }
-                      ].map((step, idx) => {
-                        const statuses = ['pending', 'processing', 'shipped', 'delivered'];
-                        const currentIdx = statuses.indexOf(order.status);
-                        const isCompleted = currentIdx >= idx && order.status !== 'cancelled';
-                        const isCurrent = currentIdx === idx && order.status !== 'cancelled';
-
-                        return (
-                          <div key={step.key} className="flex flex-col items-center">
-                            <div className={`w-3 h-3 rounded-full border-2 bg-white z-10 transition-colors ${
-                              isCompleted ? 'border-orange-600 bg-orange-600' : 'border-gray-200'
-                            } ${isCurrent ? 'ring-4 ring-orange-100' : ''}`} />
-                            <span className={`text-[8px] font-black uppercase tracking-tighter mt-2 ${
-                              isCompleted ? 'text-orange-600' : 'text-gray-300'
-                            }`}>
-                              {step.label}
-                            </span>
-                          </div>
-                        );
-                      })}
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">{t("Order ID")}</p>
+                      <p className="font-mono text-sm text-gray-900">#{order.id.slice(0, 8)}</p>
+                    </div>
+                    <div className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
+                      order.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                      order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {t(order.status)}
                     </div>
                   </div>
+
+                  <div className="space-y-6">
+                    {/* Tracking Timeline */}
+                    <div className="relative pt-2 pb-4">
+                      <div className="absolute top-[22px] left-0 w-full h-0.5 bg-gray-100" />
+                      <div 
+                        className="absolute top-[22px] left-0 h-0.5 bg-orange-600 transition-all duration-500" 
+                        style={{ 
+                          width: order.status === 'pending' ? '0%' : 
+                                 order.status === 'processing' ? '25%' : 
+                                 order.status === 'shipped' ? '50%' : 
+                                 order.status === 'delivered' ? '100%' : '0%' 
+                        }} 
+                      />
+                      
+                      <div className="relative flex justify-between">
+                        {[
+                          { label: t('Pending'), key: 'pending' },
+                          { label: t('Processing'), key: 'processing' },
+                          { label: t('Shipped'), key: 'shipped' },
+                          { label: t('Delivered'), key: 'delivered' }
+                        ].map((step, idx) => {
+                          const statuses = ['pending', 'processing', 'shipped', 'delivered'];
+                          const currentIdx = statuses.indexOf(order.status);
+                          const isCompleted = currentIdx >= idx && order.status !== 'cancelled';
+                          const isCurrent = currentIdx === idx && order.status !== 'cancelled';
+
+                          return (
+                            <div key={step.key} className="flex flex-col items-center">
+                              <div className={`w-3 h-3 rounded-full border-2 bg-white z-10 transition-colors ${
+                                isCompleted ? 'border-orange-600 bg-orange-600' : 'border-gray-200'
+                              } ${isCurrent ? 'ring-4 ring-orange-100' : ''}`} />
+                              <span className={`text-[8px] font-black uppercase tracking-tighter mt-2 ${
+                                isCompleted ? 'text-orange-600' : 'text-gray-300'
+                              }`}>
+                                {step.label}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
 
                   <div className="flex items-center text-gray-500 text-sm">
                     <Clock size={16} className="mr-2" />
@@ -436,7 +438,7 @@ export default function Profile({ user }: ProfileProps) {
                   
                   <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Total Amount</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{t("Total Amount")}</p>
                       <p className="text-xl font-black text-gray-900 leading-tight">
                         KES {order.totalAmount.toLocaleString()}
                       </p>
@@ -448,7 +450,7 @@ export default function Profile({ user }: ProfileProps) {
                       className="inline-flex items-center space-x-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 font-extrabold px-3.5 py-2.5 rounded-2xl text-xs transition-colors cursor-pointer border border-orange-100/50"
                     >
                       <Download size={14} />
-                      <span>Receipt</span>
+                      <span>{t("Receipt")}</span>
                     </button>
                   </div>
                 </div>
@@ -480,8 +482,8 @@ export default function Profile({ user }: ProfileProps) {
                   <LogOut size={32} />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-2xl font-black text-gray-900">Sign Out?</h3>
-                  <p className="text-gray-500 font-medium">Are you sure you want to sign out of your account?</p>
+                  <h3 className="text-2xl font-black text-gray-900">{t("Sign Out?")}</h3>
+                  <p className="text-gray-500 font-medium">{t("Are you sure you want to sign out of your account?")}</p>
                 </div>
               </div>
 
@@ -493,13 +495,13 @@ export default function Profile({ user }: ProfileProps) {
                   }}
                   className="w-full bg-red-500 text-white py-4 rounded-2xl font-bold hover:bg-red-600 transition-all shadow-lg"
                 >
-                  Yes, Sign Out
+                  {t("Yes, Sign Out")}
                 </button>
                 <button
                   onClick={() => setShowLogoutConfirm(false)}
                   className="w-full bg-gray-50 text-gray-900 py-4 rounded-2xl font-bold hover:bg-gray-100 transition-all"
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
               </div>
             </motion.div>

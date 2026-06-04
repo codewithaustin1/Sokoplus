@@ -2,14 +2,16 @@ import { Link } from "react-router-dom";
 import { Facebook, Twitter, Instagram, Linkedin, Send, Mail, MapPin, Phone } from "lucide-react";
 import React, { useState } from "react";
 import toast from "react-hot-toast";
+import { useLanguage } from "../lib/LanguageContext";
 
 export default function Footer() {
   const [email, setEmail] = useState("");
+  const { t } = useLanguage();
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    toast.success("Thanks for subscribing to Sokoplus updates!", { icon: "📧" });
+    toast.success(t("Thanks for subscribing to Sokoplus updates!"), { icon: "📧" });
     setEmail("");
   };
 
@@ -24,17 +26,17 @@ export default function Footer() {
                 Soko<span className="text-orange-600">plus.</span>
               </h2>
               <p className="text-sm text-gray-500 font-medium leading-relaxed max-w-xs">
-                Bridging the gap between Kenya's finest local artisans and global quality standards. Discover the heart of Nairobi.
+                {t("Bridging the gap between Kenya's finest local artisans and global quality standards. Discover the heart of Nairobi.")}
               </p>
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Join our community</h3>
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">{t("Join our community")}</h3>
               <form onSubmit={handleSubscribe} className="relative flex max-w-sm">
                 <input 
                   type="email"
                   required
-                  placeholder="Enter your email"
+                  placeholder={t("Enter your email")}
                   className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium pr-14"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -46,37 +48,37 @@ export default function Footer() {
                   <Send size={18} />
                 </button>
               </form>
-              <p className="text-[10px] text-gray-400 font-medium italic">Receive weekly curated product drops and local stories.</p>
+              <p className="text-[10px] text-gray-400 font-medium italic">{t("Receive weekly curated product drops and local stories.")}</p>
             </div>
           </div>
 
           {/* Links Columns */}
           <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-3 gap-8">
             <div className="space-y-6">
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest border-b border-orange-100 pb-2 w-fit">Marketplace</h3>
+              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest border-b border-orange-100 pb-2 w-fit">{t("Marketplace")}</h3>
               <ul className="space-y-3">
-                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">All Products</Link></li>
-                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Best Sellers</Link></li>
-                <li><Link to="/blog" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Market Stories</Link></li>
+                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">{t("All Products")}</Link></li>
+                <li><Link to="/" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">{t("Best Sellers")}</Link></li>
+                <li><Link to="/blog" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">{t("Market Stories")}</Link></li>
               </ul>
             </div>
 
             <div className="space-y-6">
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest border-b border-orange-100 pb-2 w-fit">Support</h3>
+              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest border-b border-orange-100 pb-2 w-fit">{t("Support")}</h3>
               <ul className="space-y-3">
-                <li><Link to="/profile" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Track Order</Link></li>
-                <li><Link to="/shipping" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Shipping Info</Link></li>
-                <li><Link to="/returns" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">Returns & Exchanges</Link></li>
-                <li><Link to="/faq" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">FAQ</Link></li>
+                <li><Link to="/profile" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">{t("Track Order")}</Link></li>
+                <li><Link to="/shipping" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">{t("Shipping Info")}</Link></li>
+                <li><Link to="/returns" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">{t("Returns & Exchanges")}</Link></li>
+                <li><Link to="/faq" className="text-sm text-gray-500 font-medium hover:text-orange-600 transition-colors">{t("FAQ")}</Link></li>
               </ul>
             </div>
 
             <div className="space-y-6">
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest border-b border-orange-100 pb-2 w-fit">Contact</h3>
+              <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest border-b border-orange-100 pb-2 w-fit">{t("Contact")}</h3>
               <ul className="space-y-4">
                 <li className="flex items-start space-x-3 text-sm text-gray-500">
                   <MapPin size={18} className="text-orange-600 shrink-0" />
-                  <span>Nairobi Business District,<br/>Kenyan Avenue, Kenya</span>
+                  <span>{t("Nairobi Business District,")}<br/>{t("Kenyan Avenue, Kenya")}</span>
                 </li>
                 <li className="flex items-center space-x-3 text-sm text-gray-500">
                   <Mail size={18} className="text-orange-600 shrink-0" />

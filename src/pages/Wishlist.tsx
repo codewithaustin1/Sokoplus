@@ -10,6 +10,7 @@ import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
+import { useLanguage } from "../lib/LanguageContext";
 import { trackEvent } from "../lib/analytics";
 import { FastImage } from "../components/FastImage";
 import { productCache } from "../utils/productCache";
@@ -24,6 +25,7 @@ export default function Wishlist({ user }: WishlistProps) {
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
   const { formatPrice } = useCurrency();
+  const { t } = useLanguage();
 
   const toggleWishlist = async (productId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -100,29 +102,29 @@ export default function Wishlist({ user }: WishlistProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      <SEO title="My Wishlist" />
+      <SEO title={t("My Wishlist")} />
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
         <div className="space-y-4">
           <h1 className="text-4xl font-black tracking-tight text-gray-900 flex items-center">
             <Heart className="mr-3 text-red-500" fill="currentColor" size={32} />
-            My Wishlist
+            {t("My Wishlist")}
           </h1>
-          <p className="text-gray-500 text-lg">Items you've saved for later. Ready to make them yours?</p>
+          <p className="text-gray-500 text-lg">{t("Items you've saved for later. Ready to make them yours?")}</p>
         </div>
 
         {products.length > 0 && (
           <div className="flex items-center space-x-3">
-            <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Sort by</span>
+            <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">{t("Sort by")}</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="bg-white border border-gray-100 px-4 py-2 rounded-xl text-sm font-bold outline-none focus:ring-1 focus:ring-orange-600 transition-all cursor-pointer shadow-sm"
             >
-              <option value="default">Recently Added</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="name-asc">Name: A-Z</option>
-              <option value="name-desc">Name: Z-A</option>
+              <option value="default">{t("Recently Added")}</option>
+              <option value="price-low">{t("Price: Low to High")}</option>
+              <option value="price-high">{t("Price: High to Low")}</option>
+              <option value="name-asc">{t("Name: A-Z")}</option>
+              <option value="name-desc">{t("Name: Z-A")}</option>
             </select>
           </div>
         )}
@@ -131,9 +133,9 @@ export default function Wishlist({ user }: WishlistProps) {
       {products.length === 0 ? (
         <EmptyState 
           icon={Heart}
-          title="Your wishlist is empty"
-          description="Explore our collection and save your favorite items by clicking the heart icon. We'll keep them safe for you."
-          actionLabel="Start Shopping"
+          title={t("Your wishlist is empty")}
+          description={t("Explore our collection and save your favorite items by clicking the heart icon. We'll keep them safe for you.")}
+          actionLabel={t("Start Shopping")}
           actionPath="/"
         />
       ) : (
@@ -173,15 +175,15 @@ export default function Wishlist({ user }: WishlistProps) {
                 <span className="absolute bottom-4 left-4 z-10">
                   {product.stock === 0 ? (
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700 shadow-sm border border-red-200/50">
-                      Out of Stock
+                      {t("Out of Stock")}
                     </span>
                   ) : product.stock <= 5 ? (
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 shadow-sm border border-amber-200/50">
-                      Low Stock ({product.stock})
+                      {t("Low Stock")} ({product.stock})
                     </span>
                   ) : (
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-700 shadow-sm border border-green-200/50">
-                      In Stock
+                      {t("In Stock")}
                     </span>
                   )}
                 </span>
@@ -223,7 +225,7 @@ export default function Wishlist({ user }: WishlistProps) {
                     state={{ product }}
                     className="col-span-2 text-center bg-gray-50 text-gray-700 py-3 rounded-xl font-black text-xs hover:bg-gray-100 hover:text-gray-950 transition-all flex items-center justify-center border border-gray-100"
                   >
-                    Details
+                    {t("Details")}
                   </Link>
                   <motion.button
                     whileHover={product.stock === 0 ? {} : { scale: 1.05, y: -1 }}
@@ -260,7 +262,7 @@ export default function Wishlist({ user }: WishlistProps) {
                     }`}
                   >
                     <ShoppingBag size={14} />
-                    <span>Add to Cart</span>
+                    <span>{t("Add to Cart")}</span>
                   </motion.button>
                 </div>
               </div>

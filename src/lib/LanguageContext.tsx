@@ -155,6 +155,95 @@ const translations: Record<Language, Record<string, string>> = {
   }
 };
 
+const swahiliOverrideMap: Record<string, string> = {
+  // Simple words and phrases
+  "your cart": "Kikapu Chako cha Ununuzi",
+  "your wishlist is empty": "Orodha yako ya vipendavyo iko tupu kwa sasa",
+  "explore our collection and save your favorite items by clicking the heart icon. we'll keep them safe for you.": "Tazama mkusanyiko wetu na uhifadhi bidhaa unazozipenda kwa kubofya alama ya moyo. Tutazilinda salama kwa ajili yako.",
+  "items you've saved for later. ready to make them yours?": "Bidhaa ulizohifadhi kwa ajili ya baadaye. Je, uko tayari kuzifanya ziwe zako?",
+  "my wishlist": "Vipendavyo Moyoni Mwangu",
+  "sort by": "Panga kwa",
+  "recently added": "Zilizoongezwa Hivi Karibuni",
+  "price: low to high": "Bei: Chini hadi Juu",
+  "price: high to low": "Bei: Juu hadi Chini",
+  "name: a-z": "Jina: A-Z",
+  "name: z-a": "Jina: Z-A",
+  "details": "Maelezo Kamili",
+  "add to cart": "Weka Kwenye Kikapu",
+  "out of stock": "Bila Akiba kwa Sasa",
+  "low stock": "Inakaribia Kwisha",
+  "in stock": "Ipo Sokoni (Tayari)",
+  "billing details": "Maelezo ya Malipo na Mteja",
+  "full name": "Majina Kamili",
+  "email address": "Anwani ya Barua Pepe",
+  "phone number": "Nambari ya Simu",
+  "county": "Kaunti",
+  "city": "Mji / Sehemu",
+  "street address": "Mtaa / Maelezo ya Mlangoni",
+  "delivery options": "Njia za Usafirishaji",
+  "free": "Bila Malipo (Bure)",
+  "m-pesa mobile money": "Malipo ya M-Pesa",
+  "credit or debit card": "Kadi ya Benki (Card)",
+  "pay with m-pesa": "Lipa kupitia M-Pesa",
+  "pay with card": "Lipa kwa Kadi ya Benki",
+  "pay now": "Lipa Sasa Hivi",
+  "secure checkout": "Lipia Salama Sasa",
+  "payments secured via paystack. trusted across 47 counties.": "Malipo yanalindwa kupitia Paystack. Tunaaminika katika kaunti zote 47.",
+  "shipping info": "Taarifa za Usafirishaji",
+  "returns & exchanges": "Kurudisha & Kubadilisha Bidhaa",
+  "faq": "Maswali Yanayoulizwa Sana",
+  "contact": "Wasiliana Nasi",
+  "join our community": "Jiunge na Jamii Yetu ya Wasanii",
+  "enter your email": "Ingiza barua pepe yako",
+  "receive weekly curated product drops and local stories.": "Pokea habari za kila wiki kuhusu bidhaa mpya na hadithi zetu za kienyeji.",
+  "marketplace": "Soko Letu Kuu",
+  "all products": "Bidhaa Zote Safi",
+  "best sellers": "Zinazouzwa Sana",
+  "market stories": "Hadithi za Soko",
+  "support": "Msaada & Huduma",
+  "track order": "Fuatilia Mzigo wako",
+  "nairobi business district,": "Eneo la Biashara la Nairobi,",
+  "kenyan avenue, kenya": "Barabara Kuu ya Kenya, Kenya",
+  "all rights reserved. sourced direct from kenyan creators.": "Haki zote zimehifadhiwa © SokoPlus. Kazi za dhati kutoka kwa mafundi shupavu.",
+  "bridging the gap between kenya's finest local artisans and global quality standards. discover the heart of nairobi.": "Kuunganisha warsha na mafundi hodari wa Kenya na mioyo ya wanunuzi kote duniani kwa urahisi kabisa.",
+  "your cart is empty": "Kikapu chako kiko tupu kwa sasa",
+  "looks like you haven't added anything to your cart yet.": "Inaonekana bado hujaweka ununuzi wowote kwenye kikapu chako.",
+  "start shopping": "Anza Kununua Sasa",
+  "order summary": "Muhtasari wa Ununuzi wako",
+  "subtotal": "Jumla Ndogo (Gharama)",
+  "shipping (nairobi)": "Usafirishaji (Nairobi)",
+  "total": "Jumla Kuu",
+  "each": "kila kimoja",
+  "color:": "Rangi:",
+  "material & hardwood:": "Nyenzo na Mbao:",
+  "decrease": "Punguza",
+  "increase": "Ongeza",
+  "remove all": "Ondoa vyote",
+  "remove": "Ondoa",
+  "continue shopping": "Rudi Sokoni / Endelea Kununua",
+  "standard vat/tax included": "Imeshatolewa kodi yote ya VAT ya kawaida",
+  "proceed to checkout": "Lipia sasa kupitia M-Pesa kwa urahisi",
+  "sokoplus loyalty xp reward points": "Alama za Zawadi ya SokoPlus Loyalty zimetumika kwa mafanikio",
+  "loyalty points": "Alama Zako za Uaminifu",
+  "user profile": "Wasifu wa Mwanasoko",
+  "personal statistics": "Takwimu Zako za Ununuzi",
+  "delivery & dispatch alerts": "Arifa za Wakati Real Kuhusu Safari ya Mzigo",
+  "enable browser alerts": "Washa Arifa za Safari ya Mzigo",
+  "permission opt-in": "Ruhusa Zimekubaliwa",
+  "active": "Inafanya Kazi vyema",
+  "blocked": "Imezuiwa",
+  "disabled": "Imezimwa",
+  "status": "Hali",
+  "order history": "Historia ya Maagizo Yako",
+  "this month": "Mwezi Huu",
+  "last 12 months": "Miezi 12 Iliyopita",
+  "specific month": "Mwezi Maalum",
+  "no orders found in this selection.": "Bado hujaagiza katika kundi hili.",
+  "about sokoplus": "Kuhusu SokoPlus Kenya",
+  "quick links": "Viungo vya Haraka",
+  "customer support": "Tuko Hapa Kukusaidia (Msaada)"
+};
+
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
@@ -176,9 +265,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   };
 
   const t = (key: string): string => {
-    // Resolve key safely with fallback to english or raw key
-    const val = translations[language]?.[key] || translations["en"]?.[key] || key;
-    return val;
+    const cleanedKey = key.trim().toLowerCase();
+    const mapVal = swahiliOverrideMap[cleanedKey];
+    if (language === "sw" && mapVal) {
+      return mapVal;
+    }
+    // Fallback to exact dictionary mapping if present, else original string
+    return translations[language]?.[key] || translations["en"]?.[key] || key;
   };
 
   return (
