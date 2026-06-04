@@ -74,6 +74,29 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (product) {
+      try {
+        const historyJson = localStorage.getItem("sokoplus_browsing_history");
+        let historyList: string[] = historyJson ? JSON.parse(historyJson) : [];
+        if (!Array.isArray(historyList)) {
+          historyList = [];
+        }
+        // Filter out any occurrence of current product ID to avoid duplicates and move it to the front
+        historyList = historyList.filter(id => id !== product.id);
+        historyList.unshift(product.id);
+        
+        // Limit history to top 20 items
+        if (historyList.length > 20) {
+          historyList = historyList.slice(0, 20);
+        }
+        localStorage.setItem("sokoplus_browsing_history", JSON.stringify(historyList));
+      } catch (err) {
+        console.error("Error saving browsing history:", err);
+      }
+    }
+  }, [product]);
+
   const handleSetPriceDropAlert = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product) return;

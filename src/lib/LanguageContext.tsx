@@ -157,6 +157,11 @@ const translations: Record<Language, Record<string, string>> = {
 
 const swahiliOverrideMap: Record<string, string> = {
   // Simple words and phrases
+  "recommended for you": "Zilizopendekezwa kwa Ajili Yako",
+  "personalized for you": "Kulingana na Mapendezi Yako",
+  "trending picks": "Bidhaa Zinazovuma Sokoni",
+  "based on your interest": "Kulingana na bidhaa ulizotazama au kupenda",
+  "browse products or save to wishlist for personalized recommendations.": "Tazama bidhaa au weka kwenye Vipendavyo ili kupata mapendekezo yanayokufaa.",
   "your cart": "Kikapu Chako cha Ununuzi",
   "your wishlist is empty": "Orodha yako ya vipendavyo iko tupu kwa sasa",
   "explore our collection and save your favorite items by clicking the heart icon. we'll keep them safe for you.": "Tazama mkusanyiko wetu na uhifadhi bidhaa unazozipenda kwa kubofya alama ya moyo. Tutazilinda salama kwa ajili yako.",

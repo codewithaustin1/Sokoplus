@@ -9,6 +9,7 @@ import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
 import toast from "react-hot-toast";
+import axios from "axios";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
 import { trackEvent } from "../lib/analytics";
@@ -43,6 +44,141 @@ export default function Home({ user }: HomeProps) {
   const [minRating, setMinRating] = useState<number>(0);
   const [onlyInStock, setOnlyInStock] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high" | "rating">("newest");
+
+  // Recommended for You State
+  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
+  const [recLoading, setRecLoading] = useState<boolean>(true);
+  const [hasHistory, setHasHistory] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (products.length === 0) return;
+
+    let isMounted = true;
+
+    async function generateHomeRecommendations() {
+      setRecLoading(true);
+      try {
+        const wishlistIds = user?.wishlist || [];
+        let browsingHistoryIds: string[] = [];
+        try {
+          const historyJson = localStorage.getItem("sokoplus_browsing_history");
+          browsingHistoryIds = historyJson ? JSON.parse(historyJson) : [];
+          if (!Array.isArray(browsingHistoryIds)) {
+            browsingHistoryIds = [];
+          }
+        } catch (err) {
+          console.error("Failed to parse browsing history from localStorage", err);
+        }
+
+        const combinedIds = Array.from(new Set([...wishlistIds, ...browsingHistoryIds]));
+        const hasInteractions = combinedIds.length > 0;
+        if (isMounted) {
+          setHasHistory(hasInteractions);
+        }
+
+        const wishlistProducts = products.filter(p => wishlistIds.includes(p.id));
+        const historyProducts = products.filter(p => browsingHistoryIds.includes(p.id));
+
+        console.log(`Generating home recommendations. Wishlist items: ${wishlistIds.length}, Browsing items: ${browsingHistoryIds.length}`);
+
+        if (!hasInteractions) {
+          // Select default popular products (trending/highly rated)
+          const trending = [...products]
+            .sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5))
+            .slice(0, 4);
+          if (isMounted) {
+            setRecommendedProducts(trending);
+            setRecLoading(false);
+          }
+          return;
+        }
+
+        // Call server-side recommendations endpoint
+        try {
+          const response = await axios.post("/api/recommendations", {
+            history: {
+              wishlist: wishlistProducts.map(p => ({ id: p.id, name: p.name, category: p.category })),
+              browsingHistory: historyProducts.map(p => ({ id: p.id, name: p.name, category: p.category }))
+            },
+            products: products.map(p => ({ id: p.id, name: p.name, category: p.category }))
+          });
+
+          const recIds = response.data?.recommendationIds || [];
+          if (Array.isArray(recIds) && recIds.length > 0) {
+            const recs = recIds
+              .map(id => products.find(p => p.id === id))
+              .filter((p): p is Product => !!p && p.active !== false)
+              .slice(0, 4);
+
+            if (recs.length > 0) {
+              if (isMounted) {
+                setRecommendedProducts(recs);
+                setRecLoading(false);
+              }
+              return;
+            }
+          }
+        } catch (apiErr) {
+          console.warn("Home recommendations API error, using smart client-side heuristic fallback:", apiErr);
+        }
+
+        // Local Heuristic Fallback
+        const preferredCategories = Array.from(
+          new Set(
+            [...wishlistProducts, ...historyProducts].map(p => p.category).filter((c): c is string => !!c)
+          )
+        );
+
+        let fallbacks: Product[] = [];
+        if (preferredCategories.length > 0) {
+          // Find products in preferred categories that are NOT already saved/viewed (to promote discovery)
+          fallbacks = products.filter(
+            p => 
+              preferredCategories.includes(p.category) && 
+              !combinedIds.includes(p.id) && 
+              p.active !== false
+          );
+
+          if (fallbacks.length < 4) {
+            const alreadyInteractedInCat = products.filter(
+              p => 
+                preferredCategories.includes(p.category) && 
+                combinedIds.includes(p.id) && 
+                p.active !== false
+            );
+            fallbacks = [...fallbacks, ...alreadyInteractedInCat];
+          }
+        }
+
+        fallbacks = Array.from(new Set(fallbacks));
+
+        if (fallbacks.length < 4) {
+          const generalPopular = [...products]
+            .filter(p => !fallbacks.some(f => f.id === p.id) && p.active !== false)
+            .sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
+          fallbacks = [...fallbacks, ...generalPopular];
+        }
+
+        const finalRecs = fallbacks.slice(0, 4);
+        if (isMounted) {
+          setRecommendedProducts(finalRecs);
+          setRecLoading(false);
+        }
+
+      } catch (err) {
+        console.error("Critical error generating home recommendations:", err);
+        if (isMounted) {
+          setRecLoading(false);
+        }
+      }
+    }
+
+    generateHomeRecommendations();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [products, user?.wishlist]);
 
   // Dynamic slider range calculation based on inventory
   const sliderMax = Math.ceil(
@@ -381,6 +517,153 @@ export default function Home({ user }: HomeProps) {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* Recommended for You Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-b border-gray-100 bg-orange-50/10 rounded-3xl mt-12 mb-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+          <div>
+            <h2 className="text-3xl font-black tracking-tight text-gray-900">
+              {t("recommended for you")}
+            </h2>
+            <p className="text-gray-500 mt-1 font-medium text-sm">
+              {hasHistory 
+                ? t("based on your interest") 
+                : t("browse products or save to wishlist for personalized recommendations.")}
+            </p>
+          </div>
+        </div>
+
+        {recLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm animate-pulse space-y-4">
+                <div className="aspect-square bg-gray-100 rounded-xl"></div>
+                <div className="h-4 bg-gray-100 rounded w-2/3"></div>
+                <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+              </div>
+            ))}
+          </div>
+        ) : recommendedProducts.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
+            <Heart size={40} className="mx-auto text-gray-300 mb-2" />
+            <p className="text-gray-500 font-medium">{t("No recommendations found")}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {recommendedProducts.map((p) => (
+              <motion.div 
+                whileHover={{ y: -5 }}
+                key={`rec-${p.id}`} 
+                className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
+              >
+                <Link 
+                  to={`/product/${p.id}`} 
+                  state={{ product: p }}
+                  onMouseEnter={() => prefetchProductAssets(p)}
+                  onTouchStart={() => prefetchProductAssets(p)}
+                  className="block aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 relative group"
+                >
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-all text-orange-600"></div>
+                  <FastImage 
+                    src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
+                    alt={p.name} 
+                    fallbackIconSize={48}
+                  />
+                  <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
+                    <div className="bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-gray-600 shadow-sm">
+                      {p.category}
+                    </div>
+                    {p.originalPrice && p.originalPrice > p.price && (
+                      <div className="bg-red-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
+                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
+                      </div>
+                    )}
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.18 }}
+                    whileTap={{ scale: 0.8 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                    onClick={(e) => toggleWishlist(p.id, e)}
+                    className={`absolute top-2 left-2 p-2 rounded-full shadow-sm z-10 transition-colors ${
+                      user?.wishlist?.includes(p.id) 
+                        ? "bg-red-50 text-red-500 hover:bg-red-100" 
+                        : "bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white"
+                    }`}
+                  >
+                    <Heart size={16} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
+                  </motion.button>
+                </Link>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center text-yellow-400">
+                       <Star size={14} fill="currentColor" />
+                       <span className="text-gray-500 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
+                    </div>
+                    <div>
+                      {p.stock === 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                          {t("Out of Stock")}
+                        </span>
+                      ) : p.stock <= 5 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                          {t("Low Stock")} ({p.stock})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
+                          {t("In Stock")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <Link to={`/product/${p.id}`} state={{ product: p }} className="text-lg font-bold hover:text-orange-600 transition-colors line-clamp-1">
+                    {p.name}
+                  </Link>
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex flex-col">
+                      <span className="text-xl font-black text-gray-900 leading-none">{formatPrice(p.price)}</span>
+                      {p.originalPrice && p.originalPrice > p.price && (
+                        <span className="text-xs text-gray-400 line-through mt-1 font-medium select-none">
+                          {formatPrice(p.originalPrice)}
+                        </span>
+                      )}
+                    </div>
+                    <motion.button 
+                      whileHover={p.stock === 0 ? {} : { scale: 1.15, rotate: -3 }}
+                      whileTap={p.stock === 0 ? {} : { scale: 0.85, rotate: 3 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                      disabled={p.stock === 0}
+                      onClick={() => {
+                        if (p.stock === 0) {
+                          toast.error("This product is out of stock!");
+                          return;
+                        }
+                        addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
+                        trackEvent("add_to_cart", {
+                          items: [{
+                            item_id: p.id,
+                            item_name: p.name,
+                            price: p.price,
+                            quantity: 1,
+                            item_category: p.category
+                          }]
+                        });
+                        toast.success(`${p.name} added to cart!`);
+                      }}
+                      className={`p-2.5 rounded-xl transition-all ${
+                        p.stock === 0 
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                          : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10"
+                      }`}
+                    >
+                      <ShoppingBag size={18} />
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Product Grid */}
