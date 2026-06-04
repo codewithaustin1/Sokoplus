@@ -359,7 +359,7 @@ export default function Home({ user }: HomeProps) {
       {/* Product categories */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-2xl font-bold mb-8">
-          {language === "sw" ? "Vitengo Maarufu" : "Popular Categories"}
+          {language === "sw" ? "Vitengo Maarufu Sokoni" : "Popular Categories"}
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {["All", "Fashion", "Electronics", "Local Crafts", "Groceries"].map((cat) => (
@@ -376,7 +376,7 @@ export default function Home({ user }: HomeProps) {
                <span className={`text-sm md:text-lg font-semibold transition-colors uppercase tracking-tight ${
                  selectedCategory === cat ? "text-white" : "group-hover:text-orange-600"
                }`}>
-                 {cat === "All" ? t("allCategories") : cat === "Local Crafts" ? (language === "sw" ? "Sanaa za Kienyeji" : "Local Crafts") : cat === "Fashion" ? (language === "sw" ? "Mitindo" : "Fashion") : cat === "Electronics" ? (language === "sw" ? "Vifaa vya Umeme" : "Electronics") : cat === "Groceries" ? (language === "sw" ? "Vyakula" : "Groceries") : cat}
+                 {cat === "All" ? t("allCategories") : cat === "Local Crafts" ? (language === "sw" ? "Sanaa na Kazi za Mikono" : "Local Crafts") : cat === "Fashion" ? (language === "sw" ? "Mitindo na Mavazi" : "Fashion") : cat === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali" : "Electronics") : cat === "Groceries" ? (language === "sw" ? "Bidhaa Safi na Vyakula" : "Groceries") : cat}
                </span>
             </div>
           ))}
@@ -389,11 +389,11 @@ export default function Home({ user }: HomeProps) {
           <div>
              <h2 className="text-4xl font-black tracking-tight text-gray-900">
                {selectedCategory === "All" 
-                 ? (language === "sw" ? "Mizigo Mipya" : "Latest Arrivals") 
-                 : (selectedCategory === "Local Crafts" ? (language === "sw" ? "Mkusanyiko wa Sanaa" : "Local Crafts Collection") : selectedCategory === "Fashion" ? (language === "sw" ? "Mkusanyiko wa Mitindo" : "Fashion Collection") : selectedCategory === "Electronics" ? (language === "sw" ? "Mkusanyiko wa Vifaa" : "Electronics Collection") : selectedCategory === "Groceries" ? (language === "sw" ? "Mkusanyiko wa Vyakula" : "Groceries Collection") : `${selectedCategory} Collection`)}
+                 ? (language === "sw" ? "Mkusanyiko Mpya wa Bidhaa" : "Latest Arrivals") 
+                 : (selectedCategory === "Local Crafts" ? (language === "sw" ? "Sanaa Maalum za Mikono" : "Local Crafts Collection") : selectedCategory === "Fashion" ? (language === "sw" ? "Mavazi na Mitindo ya Kisasa" : "Fashion Collection") : selectedCategory === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali na Kielektroniki" : "Electronics Collection") : selectedCategory === "Groceries" ? (language === "sw" ? "Vyakula Fresh na Mahitaji ya Jikoni" : "Groceries Collection") : `${selectedCategory} Collection`)}
              </h2>
              <p className="text-gray-500 mt-2 font-medium">
-               {language === "sw" ? "Bidhaa zilizochaguliwa kwa mkono kutoka kaunti zote 47." : "Handpicked premium goods from across the 47 counties."}
+               {language === "sw" ? "Sanaa safi na bidhaa teule zilizosafirishwa moja kwa moja kutoka kaunti zote 47 za Kenya yetu." : "Handpicked premium goods from across the 47 counties."}
              </p>
           </div>
           <button onClick={() => {
