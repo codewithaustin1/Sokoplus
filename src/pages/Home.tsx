@@ -524,7 +524,7 @@ export default function Home({ user }: HomeProps) {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <h2 className="text-3xl font-black tracking-tight text-gray-900">
-              {t("recommended for you")}
+              {t("Recommended for You")}
             </h2>
             <p className="text-gray-500 mt-1 font-medium text-sm">
               {hasHistory 

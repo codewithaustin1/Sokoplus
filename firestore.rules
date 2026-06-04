@@ -199,5 +199,41 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.auth.token.email == "upfrontretaile@gmail.com" && request.auth.uid == adminId;
       allow delete, update: if false; 
     }
+
+    // Affiliates
+    match /affiliates/{userId} {
+      function isValidAffiliate(data) {
+        return data.referralCode is string && data.referralCode.size() == 6 &&
+               data.status in ['pending', 'approved', 'suspended'] &&
+               data.commissionRate is number &&
+               data.totalEarnings is number && data.totalEarnings >= 0 &&
+               data.unpaidEarnings is number && data.unpaidEarnings >= 0 &&
+               data.clicksCount is int && data.clicksCount >= 0 &&
+               data.conversionsCount is int && data.conversionsCount >= 0;
+      }
+
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidAffiliate(incoming()) && incoming().status == 'pending' && incoming().commissionRate == 0.10 && incoming().totalEarnings == 0 && incoming().unpaidEarnings == 0 && incoming().clicksCount == 0 && incoming().conversionsCount == 0;
+      allow update: if isAdmin() || (isOwner(userId) && isValidAffiliate(incoming()) && 
+                    incoming().status == existing().status && 
+                    incoming().commissionRate == existing().commissionRate &&
+                    incoming().totalEarnings == existing().totalEarnings &&
+                    incoming().unpaidEarnings == existing().unpaidEarnings &&
+                    incoming().clicksCount == existing().clicksCount &&
+                    incoming().conversionsCount == existing().conversionsCount &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['mpesaNumber', 'bankDetails']));
+      allow delete: if isAdmin();
+    }
+
+    // Affiliate Clicks
+    match /affiliate_clicks/{clickId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Affiliate Referrals
+    match /affiliate_referrals/{referralId} {
+      allow read: if isAdmin() || (isSignedIn() && existing().affiliateId == request.auth.uid);
+      allow write: if isAdmin();
+    }
   }
 }

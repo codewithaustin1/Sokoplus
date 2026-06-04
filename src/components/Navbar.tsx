@@ -92,6 +92,7 @@ export default function Navbar({ user }: NavbarProps) {
   const navLinks = [
     { label: t("home"), path: "/" },
     { label: t("blog"), path: "/blog" },
+    { label: language === "sw" ? "Washirika" : "Ambassadors", path: "/affiliate-portal" },
     ...(user?.isAdmin ? [{ label: t("admin"), path: "/admin" }] : []),
   ];
 

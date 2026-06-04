@@ -26,6 +26,8 @@ import Cookies from "./pages/Cookies";
 import FAQ from "./pages/FAQ";
 import ReturnPolicy from "./pages/ReturnPolicy";
 import Shipping from "./pages/Shipping";
+import AffiliatePortal from "./pages/AffiliatePortal";
+import axios from "axios";
 import { useEffect, useState, useRef } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -137,6 +139,22 @@ export default function App() {
   const [scrollTopBg, setScrollTopBg] = useState("rgb(234, 88, 12)"); // Dynamic background color
   const isFirstMount = useRef(true);
   const lastScrollYRef = useRef(0);
+
+  // 1. Referral cookie attraction
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get("ref");
+    if (refCode) {
+      const expirationDate = new Date();
+      expirationDate.setDate(expirationDate.getDate() + 30); // 30-day cookie window
+      document.cookie = `sokoplus_ref=${refCode.toUpperCase()}; path=/; expires=${expirationDate.toUTCString()}; SameSite=Lax`;
+      console.log("Attributed affiliate referral code:", refCode.toUpperCase());
+      
+      // Lightweight, non-blocking click logging in backend
+      axios.post("/api/affiliates/track-click", { referralCode: refCode })
+        .catch(err => console.error("Error logging click:", err));
+    }
+  }, []);
 
   // Trigger browser-native acoustic tok sound when back-to-top appears / disappears
   useEffect(() => {
@@ -287,6 +305,7 @@ export default function App() {
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/returns" element={<ReturnPolicy />} />
                 <Route path="/shipping" element={<Shipping />} />
+                <Route path="/affiliate-portal" element={<AffiliatePortal user={user} />} />
               </Routes>
             </main>
             <Footer />

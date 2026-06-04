@@ -73,6 +73,7 @@ const translations: Record<Language, Record<string, string>> = {
     filter12Months: "Last 12 Months",
     filterSpecific: "Specific Month",
     noOrders: "No orders found in this selection.",
+    recommendedForYou: "Recommended for You",
 
     // Footer
     aboutTitle: "About SokoPlus",
@@ -145,6 +146,7 @@ const translations: Record<Language, Record<string, string>> = {
     filter12Months: "Miezi 12 Iliyopita",
     filterSpecific: "Mwezi Maalum",
     noOrders: "Bado hujaagiza katika kundi hili.",
+    recommendedForYou: "Zilizopendekezwa kwa Ajili Yako",
 
     // Footer
     aboutTitle: "Kuhusu SokoPlus Kenya",

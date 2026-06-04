@@ -163,6 +163,53 @@
         "updatedAt": { "type": "string", "format": "date-time", "description": "Last database write activity timestamp" }
       },
       "required": ["userId", "items"]
+    },
+    "Affiliate": {
+      "title": "Affiliate",
+      "description": "An approved partner earning commissions for referring sales.",
+      "type": "object",
+      "properties": {
+        "referralCode": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "suspended"] },
+        "commissionRate": { "type": "number" },
+        "mpesaNumber": { "type": "string" },
+        "bankDetails": { "type": "object" },
+        "totalEarnings": { "type": "number" },
+        "unpaidEarnings": { "type": "number" },
+        "clicksCount": { "type": "integer" },
+        "conversionsCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["referralCode", "status", "commissionRate", "totalEarnings", "unpaidEarnings", "clicksCount", "conversionsCount", "createdAt"]
+    },
+    "AffiliateClick": {
+      "title": "AffiliateClick",
+      "description": "A record of an affiliate referral link click.",
+      "type": "object",
+      "properties": {
+        "affiliateId": { "type": "string" },
+        "referralCode": { "type": "string" },
+        "userAgent": { "type": "string" },
+        "ipHash": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["affiliateId", "referralCode", "timestamp"]
+    },
+    "AffiliateReferral": {
+      "title": "AffiliateReferral",
+      "description": "A record of a successful product conversion via referral link.",
+      "type": "object",
+      "properties": {
+        "affiliateId": { "type": "string" },
+        "referralCode": { "type": "string" },
+        "orderId": { "type": "string" },
+        "orderTotalAmount": { "type": "number" },
+        "commissionAmount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "paid", "declined"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["affiliateId", "referralCode", "orderId", "orderTotalAmount", "commissionAmount", "currency", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -209,6 +256,18 @@
     "/newsletter_subscribers": {
       "schema": "NewsletterSubscriber",
       "description": "Email addresses subscribed to SokoPlus Chronicles."
+    },
+    "/affiliates": {
+      "schema": "Affiliate",
+      "description": "Affiliate accounts mapped by user ID."
+    },
+    "/affiliate_clicks": {
+      "schema": "AffiliateClick",
+      "description": "Traffic clicks received via referral codes."
+    },
+    "/affiliate_referrals": {
+      "schema": "AffiliateReferral",
+      "description": "Purchased orders associated with affiliate referrals."
     }
   }
 }

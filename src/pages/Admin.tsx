@@ -518,7 +518,7 @@ export default function Admin({ user }: AdminProps) {
   const [selectedViewOrder, setSelectedViewOrder] = useState<any | null>(null);
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "inbox" | "blogs" | "settings"
+    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "affiliates"
   >("inventory");
   const [homepageHeroUrl, setHomepageHeroUrl] = useState<string>("");
   const [homepageHeroBadge, setHomepageHeroBadge] = useState<string>("Vetted excellence");
@@ -532,6 +532,76 @@ export default function Admin({ user }: AdminProps) {
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [productSortBy, setProductSortBy] = useState<string>("default");
   const [loading, setLoading] = useState(true);
+
+  // SokoPlus Affiliate Marketing Administrative Workspace States
+  const [affiliatePartners, setAffiliatePartners] = useState<any[]>([]);
+  const [payoutRequests, setPayoutRequests] = useState<any[]>([]);
+  const [adminAffStats, setAdminAffStats] = useState<any>({ affiliatesCount: 0, referralsCount: 0, totalCommissionPaid: 0 });
+  const [loadingAffiliates, setLoadingAffiliates] = useState(false);
+
+  const fetchAffiliateAdminData = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    try {
+      setLoadingAffiliates(true);
+      const idToken = await currentUser.getIdToken();
+      const response = await axios.get("/api/admin/affiliates", {
+        headers: { Authorization: `Bearer ${idToken}` }
+      });
+      setAffiliatePartners(response.data.affiliates || []);
+      setPayoutRequests(response.data.payouts || []);
+      setAdminAffStats({
+        affiliatesCount: response.data.affiliates?.length || 0,
+        referralsCount: response.data.referralsCount || 0,
+        totalCommissionPaid: response.data.payouts?.filter((p: any) => p.status === 'paid').reduce((acc: number, cur: any) => acc + Number(cur.amount || 0), 0) || 0
+      });
+    } catch (err) {
+      console.error("Failed to load admin affiliate data:", err);
+    } finally {
+      setLoadingAffiliates(false);
+    }
+  };
+
+  const handleUpdateAffiliateStatus = async (userId: string, status: "approved" | "suspended") => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    try {
+      const idToken = await currentUser.getIdToken();
+      await axios.post("/api/admin/affiliates/update-status", {
+        userId,
+        status
+      }, {
+        headers: { Authorization: `Bearer ${idToken}` }
+      });
+      toast.success(`Affiliate account ${status} successfully!`);
+      fetchAffiliateAdminData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to update affiliate status.");
+    }
+  };
+
+  const handleApprovePayout = async (payoutId: string) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    try {
+      const idToken = await currentUser.getIdToken();
+      await axios.post("/api/admin/payouts/approve", {
+        payoutId
+      }, {
+        headers: { Authorization: `Bearer ${idToken}` }
+      });
+      toast.success("Affiliate payout request approved and marked as paid!", { icon: "💸" });
+      fetchAffiliateAdminData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to approve payout request.");
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "affiliates") {
+      fetchAffiliateAdminData();
+    }
+  }, [activeTab]);
   const [trendsPeriod, setTrendsPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -1915,6 +1985,12 @@ export default function Admin({ user }: AdminProps) {
         >
           Admin Settings
         </button>
+        <button
+          onClick={() => setActiveTab("affiliates")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "affiliates" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          Affiliates Hub
+        </button>
       </div>
 
       <div>
@@ -2734,7 +2810,163 @@ export default function Admin({ user }: AdminProps) {
         </div>
       )}
 
+      {activeTab === "affiliates" && (
+        <div className="space-y-8 animate-fade-in text-gray-950 font-sans">
+          {/* Header holding metrics */}
+          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl">
+            <h2 className="text-xl font-bold flex items-center text-gray-950 mb-1">
+              <Coins className="mr-2 text-orange-600 animate-pulse" /> SokoPlus Partner & Affiliate Central
+            </h2>
+            <p className="text-sm text-gray-400 mt-0.5">
+              Review and authorize SokoPlus affiliate partner accounts, audit transaction referrals, and disburse commission earnings.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Total Registered Partners</span>
+                <p className="text-3xl font-black font-mono text-gray-900 mt-1">{adminAffStats.affiliatesCount}</p>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Total Referred Sales</span>
+                <p className="text-3xl font-black font-mono text-gray-900 mt-1">{adminAffStats.referralsCount}</p>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Total Commission Paid Out</span>
+                <p className="text-3xl font-black font-mono text-emerald-600 mt-1">KES {adminAffStats.totalCommissionPaid.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            {/* Left Box: Affiliate directory */}
+            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl xl:col-span-2 space-y-6">
+              <div>
+                <h3 className="text-lg font-bold">Affiliate Directory</h3>
+                <p className="text-xs text-gray-400 font-medium">Verify partnership accounts, tracking codes, and status states.</p>
+              </div>
+
+              {loadingAffiliates ? (
+                <div className="py-12 text-center text-gray-400 text-xs">Loading directory...</div>
+              ) : affiliatePartners.length === 0 ? (
+                <div className="py-12 border-2 border-dashed border-gray-100 rounded-2xl text-center text-gray-400 text-xs">No partners registered yet.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-gray-600">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider bg-gray-50">
+                        <th className="py-3 px-4">Referral Code</th>
+                        <th className="py-3 px-4">Clicks / Sales</th>
+                        <th className="py-3 px-4">Unpaid KES</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {affiliatePartners.map((partner: any) => (
+                        <tr key={partner.id} className="hover:bg-gray-50/50">
+                          <td className="py-4 px-4 font-mono font-bold text-gray-900 select-all">
+                            {partner.referralCode}
+                          </td>
+                          <td className="py-4 px-4 font-mono text-gray-500 font-medium">
+                            {partner.clicksCount || 0} / {partner.conversionsCount || 0}
+                          </td>
+                          <td className="py-4 px-4 font-bold text-orange-600">
+                            KES {Number(partner.unpaidEarnings || 0).toLocaleString()}
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`inline-block py-1 px-2 rounded-full text-[9px] font-extrabold uppercase tracking-widest ${
+                              partner.status === "approved" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
+                              partner.status === "pending" ? "bg-amber-50 text-amber-600 border border-amber-100" :
+                              "bg-red-50 text-red-600 border border-red-105"
+                            }`}>
+                              {partner.status}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-right space-x-1.5 shrink-0 animate-pulse-slow">
+                            {partner.status !== "approved" && (
+                              <button
+                                onClick={() => handleUpdateAffiliateStatus(partner.id, "approved")}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-3 rounded-lg text-[10px] uppercase cursor-pointer"
+                              >
+                                Approve
+                              </button>
+                            )}
+                            {partner.status !== "suspended" && (
+                              <button
+                                onClick={() => handleUpdateAffiliateStatus(partner.id, "suspended")}
+                                className="bg-red-50 border border-red-100 hover:bg-red-100 text-red-600 font-bold py-1 px-3 rounded-lg text-[10px] uppercase cursor-pointer"
+                              >
+                                Suspend
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Right Box: Payout Requests list */}
+            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+              <div>
+                <h3 className="text-lg font-bold">Payout Approvals</h3>
+                <p className="text-xs text-gray-400 font-medium font-bold">Clear pending cashout requests securely.</p>
+              </div>
+
+              {payoutRequests.filter(p => p.status === 'pending').length === 0 ? (
+                <div className="py-12 border-2 border-dashed border-gray-100 rounded-2xl text-center text-gray-400 text-xs">
+                  All payout requests are fully cleared!
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {payoutRequests.filter(p => p.status === 'pending').map((req: any) => (
+                    <div key={req.id} className="p-4 bg-gray-50 border border-gray-100 rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-gray-400">PENDING PAYOUT</span>
+                        <span className="font-mono text-[10px] font-bold text-gray-900">#{req.id.substring(0, 8).toUpperCase()}</span>
+                      </div>
+
+                      <div className="flex items-baseline justify-between text-gray-950">
+                        <p className="text-sm font-semibold">Requested Sum:</p>
+                        <p className="text-lg font-black font-mono text-emerald-600">KES {Number(req.amount).toLocaleString()}</p>
+                      </div>
+
+                      <div className="p-3 bg-white border border-gray-100 rounded-xl space-y-1 text-[11px] font-sans">
+                        <p className="text-gray-400 tracking-wider text-[9px] uppercase font-bold">Disbursement target:</p>
+                        {req.mpesaNumber ? (
+                          <p className="font-mono font-bold text-gray-800">M-Pesa: {req.mpesaNumber}</p>
+                        ) : req.bankDetails ? (
+                          <div className="font-mono text-gray-800 space-y-0.5">
+                            <p className="font-bold">Bank: {req.bankDetails.bank}</p>
+                            <p>Acc: {req.bankDetails.acc}</p>
+                            <p className="italic">Name: {req.bankDetails.holder}</p>
+                          </div>
+                        ) : (
+                          <p className="text-red-500 font-medium font-mono">No target defined!</p>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => handleApprovePayout(req.id)}
+                        className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-xl text-xs uppercase cursor-pointer shadow-sm active:scale-95 transition-all text-center"
+                      >
+                        Disburse Funds & Approve
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 invisible hidden">
+        {/* Old Tables Removed for Tabbed View */}
         {/* Old Tables Removed for Tabbed View */}
       </div>
 

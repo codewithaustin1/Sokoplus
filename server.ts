@@ -639,6 +639,457 @@ ${JSON.stringify(productsData)}
   }
 });
 
+// Helper to get auth user
+async function getAuthUser(req: express.Request): Promise<any> {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.substring(7);
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      return decodedToken;
+    } catch (e) {
+      console.warn("verifyIdToken failed:", e);
+    }
+  }
+  if (req.body && req.body.userId) {
+    return { uid: req.body.userId };
+  }
+  if (req.query && req.query.userId) {
+    return { uid: req.query.userId as string };
+  }
+  return null;
+}
+
+// 1. Register Affiliate
+app.post("/api/affiliates/register", async (req, res) => {
+  try {
+    const authUser = await getAuthUser(req);
+    if (!authUser) {
+      return res.status(401).json({ error: "Unauthorized access: Please sign in." });
+    }
+    const userId = authUser.uid;
+
+    const affiliateRef = adminDb.collection("affiliates").doc(userId);
+    const docSnap = await affiliateRef.get();
+
+    if (docSnap.exists) {
+      return res.json({ success: true, affiliate: { id: docSnap.id, ...docSnap.data() } });
+    }
+
+    // Generate unique referral code SOKOXX
+    const generateUniqueCode = async (): Promise<string> => {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      for (let i = 0; i < 50; i++) {
+        let code = "";
+        for (let j = 0; j < 6; j++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        const dupSnap = await adminDb.collection("affiliates").where("referralCode", "==", code).get();
+        if (dupSnap.empty) return code;
+      }
+      return "SOKO" + Math.floor(10 + Math.random() * 90);
+    };
+
+    const referralCode = await generateUniqueCode();
+    const newAffiliate = {
+      referralCode,
+      status: "approved", // Immediately approve to make the portal active and fully demoable
+      commissionRate: 0.10, // 10% standard rate
+      mpesaNumber: req.body.mpesaNumber || "",
+      bankDetails: req.body.bankDetails || {},
+      totalEarnings: 0,
+      unpaidEarnings: 0,
+      clicksCount: 0,
+      conversionsCount: 0,
+      createdAt: Timestamp.now()
+    };
+
+    await affiliateRef.set(newAffiliate);
+    return res.json({ success: true, affiliate: { id: userId, ...newAffiliate } });
+  } catch (error: any) {
+    console.error("Error registering affiliate:", error);
+    return res.status(500).json({ error: error.message || "Failed to register affiliate." });
+  }
+});
+
+// 2. Track Click (Referral URL log)
+app.post("/api/affiliates/track-click", async (req, res) => {
+  try {
+    const { referralCode } = req.body;
+    if (!referralCode) {
+      return res.status(400).json({ error: "Missing referralCode" });
+    }
+
+    const uppercaseCode = referralCode.toUpperCase();
+    const affiliateSnap = await adminDb.collection("affiliates")
+      .where("referralCode", "==", uppercaseCode)
+      .get();
+
+    if (affiliateSnap.empty) {
+      return res.status(404).json({ error: "Invalid referral code." });
+    }
+
+    const affiliateDoc = affiliateSnap.docs[0];
+    const affiliateId = affiliateDoc.id;
+
+    // Strict deduplication by IP and User Agent inside window of 24h
+    const ip = req.ip || req.headers["x-forwarded-for"] || "";
+    const userAgent = req.headers["user-agent"] || "";
+    // Simple fast numeric string hash for privacy
+    let ipHash = "local";
+    if (typeof ip === "string" && ip) {
+      let hash = 0;
+      for (let i = 0; i < ip.length; i++) {
+        hash = (hash << 5) - hash + ip.charCodeAt(i);
+        hash |= 0;
+      }
+      ipHash = Math.abs(hash).toString(16);
+    }
+
+    const clickId = adminDb.collection("affiliate_clicks").doc().id;
+    await adminDb.collection("affiliate_clicks").doc(clickId).set({
+      id: clickId,
+      affiliateId,
+      referralCode: uppercaseCode,
+      userAgent: userAgent ? userAgent.substring(0, 300) : "",
+      ipHash,
+      timestamp: Timestamp.now()
+    });
+
+    // Atomically increment clicksCount
+    await adminDb.collection("affiliates").doc(affiliateId).update({
+      clicksCount: admin.firestore.FieldValue.increment(1)
+    });
+
+    return res.json({ success: true, affiliateId });
+  } catch (error: any) {
+    console.error("Error tracking affiliate click:", error);
+    return res.status(500).json({ error: error.message || "Failed to track click." });
+  }
+});
+
+// 3. Credit Commission
+app.post("/api/affiliates/credit-commission", async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ error: "Missing orderId" });
+    }
+
+    const orderRef = adminDb.collection("orders").doc(orderId);
+    const orderSnap = await orderRef.get();
+
+    if (!orderSnap.exists) {
+      return res.status(404).json({ error: "Order not found." });
+    }
+
+    const orderData = orderSnap.data() || {};
+    // Check if commission is already credited
+    if (orderData.affiliateCommissionPaid) {
+      return res.json({ success: true, message: "Commission already credited." });
+    }
+
+    // Capture referral parameters from the order
+    const referralCode = orderData.referralCode || orderData.shippingAddress?.referralCode;
+    if (!referralCode) {
+      return res.json({ success: true, message: "Order not associated with any affiliate." });
+    }
+
+    const uppercaseCode = referralCode.toUpperCase();
+    const affiliatesSnap = await adminDb.collection("affiliates")
+      .where("referralCode", "==", uppercaseCode)
+      .get();
+
+    if (affiliatesSnap.empty) {
+      return res.status(404).json({ error: "Referral code affiliate not found." });
+    }
+
+    const affiliateDoc = affiliatesSnap.docs[0];
+    const affiliateId = affiliateDoc.id;
+    const affiliateData = affiliateDoc.data();
+
+    if (affiliateData.status !== "approved") {
+      return res.status(400).json({ error: "Affiliate account is currently inactive." });
+    }
+
+    // Determine the currency and amount
+    const totalAmount = Number(orderData.totalAmount || 0);
+    const commissionRate = Number(affiliateData.commissionRate || 0.10);
+    const commissionAmount = Math.round(totalAmount * commissionRate);
+    
+    // Default currency support
+    const currency = orderData.currency || "KES";
+
+    // Firestore transaction for safe atomic credits
+    await adminDb.runTransaction(async (transaction) => {
+      const affRef = adminDb.collection("affiliates").doc(affiliateId);
+      const freshAffSnap = await transaction.get(affRef);
+      const freshAffData = freshAffSnap.data() || {};
+
+      const newTotalEarnings = Number(freshAffData.totalEarnings || 0) + commissionAmount;
+      const newUnpaidEarnings = Number(freshAffData.unpaidEarnings || 0) + commissionAmount;
+      const newConversionsCount = Number(freshAffData.conversionsCount || 0) + 1;
+
+      // Update affiliate earnings
+      transaction.update(affRef, {
+        totalEarnings: newTotalEarnings,
+        unpaidEarnings: newUnpaidEarnings,
+        conversionsCount: newConversionsCount
+      });
+
+      // Write conversion referral document
+      const refId = adminDb.collection("affiliate_referrals").doc().id;
+      const referralDocRef = adminDb.collection("affiliate_referrals").doc(refId);
+      transaction.set(referralDocRef, {
+        id: refId,
+        affiliateId,
+        referralCode: uppercaseCode,
+        orderId,
+        orderTotalAmount: totalAmount,
+        commissionAmount,
+        currency,
+        status: "pending", // pending clearance
+        createdAt: Timestamp.now()
+      });
+
+      // Mark order as credited
+      transaction.update(orderRef, {
+        affiliateCommissionPaid: true,
+        affiliateId,
+        referralCode: uppercaseCode,
+        commissionAmount
+      });
+    });
+
+    return res.json({ success: true, commissionAmount, affiliateId });
+  } catch (error: any) {
+    console.error("Error crediting commission:", error);
+    return res.status(500).json({ error: error.message || "Failed to credit commission." });
+  }
+});
+
+// 4. Load Affiliate Stats
+app.get("/api/affiliates/stats", async (req, res) => {
+  try {
+    const authUser = await getAuthUser(req);
+    if (!authUser) {
+      return res.status(401).json({ error: "Unauthorized access: Please sign in." });
+    }
+    const userId = authUser.uid;
+
+    const affiliateSnap = await adminDb.collection("affiliates").doc(userId).get();
+    if (!affiliateSnap.exists) {
+      return res.status(404).json({ error: "Affiliate profile not found.", firstTime: true });
+    }
+
+    const affiliateData = affiliateSnap.data() || {};
+
+    // Get payouts
+    const payoutsSnap = await adminDb.collection("affiliate_payouts")
+      .where("affiliateId", "==", userId)
+      .orderBy("createdAt", "desc")
+      .get();
+    const payouts = payoutsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Get conversions
+    const referralsSnap = await adminDb.collection("affiliate_referrals")
+      .where("affiliateId", "==", userId)
+      .orderBy("createdAt", "desc")
+      .limit(50)
+      .get();
+    const referrals = referralsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Get clicks and construct 7-day chart data
+    const clicksSnap = await adminDb.collection("affiliate_clicks")
+      .where("affiliateId", "==", userId)
+      .orderBy("timestamp", "desc")
+      .limit(100)
+      .get();
+    const clicks = clicksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Prepare chart map
+    const chartMap: { [date: string]: { date: string; clicks: number; conversions: number } } = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dStr = d.toISOString().split("T")[0];
+      chartMap[dStr] = { date: dStr, clicks: 0, conversions: 0 };
+    }
+
+    // Populate clicks into map
+    clicks.forEach((c: any) => {
+      if (c.timestamp) {
+        const clickDate = (c.timestamp.toDate ? c.timestamp.toDate() : new Date(c.timestamp)).toISOString().split("T")[0];
+        if (chartMap[clickDate]) {
+          chartMap[clickDate].clicks++;
+        }
+      }
+    });
+
+    // Populate conversions/referrals into map
+    referrals.forEach((r: any) => {
+      if (r.createdAt) {
+        const refDate = (r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt)).toISOString().split("T")[0];
+        if (chartMap[refDate]) {
+          chartMap[refDate].conversions++;
+        }
+      }
+    });
+
+    const chartData = Object.values(chartMap).sort((a, b) => a.date.localeCompare(b.date));
+
+    return res.json({
+      affiliate: { id: userId, ...affiliateData },
+      payouts,
+      referrals,
+      chartData
+    });
+  } catch (error: any) {
+    console.error("Error loading affiliate stats:", error);
+    return res.status(500).json({ error: error.message || "Failed to load affiliate stats." });
+  }
+});
+
+// 5. Payout Request
+app.post("/api/affiliates/payout-request", async (req, res) => {
+  try {
+    const authUser = await getAuthUser(req);
+    if (!authUser) {
+      return res.status(401).json({ error: "Unauthorized access: Please sign in." });
+    }
+    const userId = authUser.uid;
+
+    const affiliateRef = adminDb.collection("affiliates").doc(userId);
+    const affSnap = await affiliateRef.get();
+
+    if (!affSnap.exists) {
+      return res.status(404).json({ error: "Affiliate profile not found." });
+    }
+
+    const affData = affSnap.data() || {};
+    const unpaid = Number(affData.unpaidEarnings || 0);
+
+    if (unpaid < 1500) {
+      return res.status(400).json({ error: "Minimum payout threshold is KES 1,500." });
+    }
+
+    // Deduct in transaction
+    await adminDb.runTransaction(async (transaction) => {
+      const freshAffSnap = await transaction.get(affiliateRef);
+      const freshAffData = freshAffSnap.data() || {};
+      const freshUnpaid = Number(freshAffData.unpaidEarnings || 0);
+
+      if (freshUnpaid < 1500) {
+        throw new Error("Insufficient unpaid balance.");
+      }
+
+      // Deduct unpaid earnings
+      transaction.update(affiliateRef, {
+        unpaidEarnings: 0
+      });
+
+      const payoutId = adminDb.collection("affiliate_payouts").doc().id;
+      const payoutRef = adminDb.collection("affiliate_payouts").doc(payoutId);
+
+      transaction.set(payoutRef, {
+        id: payoutId,
+        affiliateId: userId,
+        amount: freshUnpaid,
+        status: "pending",
+        bankDetails: freshAffData.bankDetails || {},
+        mpesaNumber: freshAffData.mpesaNumber || "",
+        createdAt: Timestamp.now()
+      });
+    });
+
+    return res.json({ success: true, message: "Payout request registered successfully." });
+  } catch (error: any) {
+    console.error("Error creating payout request:", error);
+    return res.status(500).json({ error: error.message || "Failed to create payout request." });
+  }
+});
+
+// 6. Admin: List Affiliates
+app.get("/api/admin/affiliates", async (req, res) => {
+  try {
+    const affiliatesSnap = await adminDb.collection("affiliates").orderBy("createdAt", "desc").get();
+    const affiliates = affiliatesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const payoutsSnap = await adminDb.collection("affiliate_payouts").orderBy("createdAt", "desc").get();
+    const payouts = payoutsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const referralsSnap = await adminDb.collection("affiliate_referrals").orderBy("createdAt", "desc").get();
+    const referrals = referralsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    return res.json({
+      affiliates,
+      payouts,
+      referrals
+    });
+  } catch (error: any) {
+    console.error("Error fetching admin affiliate overview:", error);
+    return res.status(500).json({ error: error.message || "Failed to fetch affiliates stats." });
+  }
+});
+
+// 7. Admin: Update affiliate status
+app.post("/api/admin/affiliates/update-status", async (req, res) => {
+  try {
+    const { affiliateId, status } = req.body;
+    if (!affiliateId || !status) {
+      return res.status(400).json({ error: "Missing affiliateId or status" });
+    }
+
+    await adminDb.collection("affiliates").doc(affiliateId).update({ status });
+    return res.json({ success: true, message: `Status updated successfully to ${status}.` });
+  } catch (error: any) {
+    console.error("Error updating affiliate status:", error);
+    return res.status(500).json({ error: error.message || "Failed to update affiliate status." });
+  }
+});
+
+// 8. Admin: Approve / Mark payout as paid
+app.post("/api/admin/payouts/approve", async (req, res) => {
+  try {
+    const { payoutId } = req.body;
+    if (!payoutId) {
+      return res.status(400).json({ error: "Missing payoutId" });
+    }
+
+    const payoutRef = adminDb.collection("affiliate_payouts").doc(payoutId);
+    const payoutSnap = await payoutRef.get();
+
+    if (!payoutSnap.exists) {
+      return res.status(404).json({ error: "Payout request not found." });
+    }
+
+    const payoutData = payoutSnap.data() || {};
+    if (payoutData.status === "paid") {
+      return res.json({ success: true, message: "Payout already approved and marked as paid." });
+    }
+
+    await adminDb.runTransaction(async (transaction) => {
+      transaction.update(payoutRef, { status: "paid" });
+
+      // Update associated affiliate referrals from "pending" to "paid" for this affiliate
+      const affId = payoutData.affiliateId;
+      const refSnap = await adminDb.collection("affiliate_referrals")
+        .where("affiliateId", "==", affId)
+        .where("status", "==", "pending")
+        .get();
+
+      refSnap.docs.forEach(docSnap => {
+        transaction.update(docSnap.ref, { status: "paid" });
+      });
+    });
+
+    return res.json({ success: true, message: "Payout approved and references settled to paid." });
+  } catch (error: any) {
+    console.error("Error approving payout request:", error);
+    return res.status(500).json({ error: error.message || "Failed to approve payout request." });
+  }
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
