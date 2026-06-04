@@ -149,6 +149,20 @@
         "userId": { "type": ["string", "null"], "description": "Authenticated user identifier, if logged in" }
       },
       "required": ["email", "createdAt"]
+    },
+    "Cart": {
+      "title": "Cart",
+      "description": "User's shopping cart synchronized to Firestore for cross-device persistence and abandoned cart emails.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Dynamic owner of the synchronized cart" },
+        "email": { "type": "string", "format": "email", "description": "User's email for automated alerts" },
+        "items": { "type": "array", "description": "Array of products with quantity, price, and selected customizations" },
+        "isAbandonedEmailSent": { "type": "boolean", "description": "Whether an abandoned cart recovery alert was already dispatched" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Cart initialization timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last database write activity timestamp" }
+      },
+      "required": ["userId", "items"]
     }
   },
   "firestore": {
@@ -163,6 +177,10 @@
     "/orders": {
       "schema": "Order",
       "description": "Customer transactions."
+    },
+    "/carts": {
+      "schema": "Cart",
+      "description": "User shopping carts synchronized to Firestore for recovery functions."
     },
     "/users": {
       "schema": "UserProfile",

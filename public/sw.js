@@ -104,3 +104,44 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
+// Listener for receiving explicit local triggers from the React front-end application
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SHOW_NOTIFICATION") {
+    const { title, options } = event.data;
+    
+    // Ensure that self.registration is accessible and Notification permission exists
+    if (self.registration) {
+      event.waitUntil(
+        self.registration.showNotification(title, {
+          icon: "/favicon.ico",
+          badge: "/favicon.ico",
+          vibrate: [100, 50, 100],
+          ...options
+        })
+      );
+    }
+  }
+});
+
+// Listener for when a user clicks the SokoPlus local OS/browser notification
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const deepLinkPath = event.notification.data?.url || "/profile";
+  
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        const clientUrl = new URL(client.url);
+        if (clientUrl.origin === self.location.origin && "focus" in client) {
+          client.navigate(deepLinkPath);
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(deepLinkPath);
+      }
+    })
+  );
+});
+

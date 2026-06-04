@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers } from "lucide-react";
 import { useCart } from "../lib/CartContext";
+import { useLanguage } from "../lib/LanguageContext";
 import { auth, db } from "../lib/firebase";
 import { UserProfile, Product } from "../types";
 import { motion, AnimatePresence } from "motion/react";
@@ -16,6 +17,7 @@ interface NavbarProps {
 
 export default function Navbar({ user }: NavbarProps) {
   const { items } = useCart();
+  const { language, setLanguage, t } = useLanguage();
   const [search, setSearch] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -88,9 +90,9 @@ export default function Navbar({ user }: NavbarProps) {
   };
 
   const navLinks = [
-    { label: "Home", path: "/" },
-    { label: "Blog", path: "/blog" },
-    ...(user?.isAdmin ? [{ label: "Admin", path: "/admin" }] : []),
+    { label: t("home"), path: "/" },
+    { label: t("blog"), path: "/blog" },
+    ...(user?.isAdmin ? [{ label: t("admin"), path: "/admin" }] : []),
   ];
 
   return (
@@ -116,7 +118,7 @@ export default function Navbar({ user }: NavbarProps) {
                   value={search}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onFocus={() => setShowDesktopSuggestions(true)}
-                  placeholder="Search products in Kenya..."
+                  placeholder={t("searchPlaceholder")}
                   className="block w-full pl-10 pr-10 py-2 border border-gray-200 rounded-full leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 sm:text-sm transition-all focus:shadow-sm"
                 />
                 {search && (
@@ -221,6 +223,32 @@ export default function Navbar({ user }: NavbarProps) {
                 </span>
               )}
             </Link>
+
+            {/* Language Toggle */}
+            <div className="hidden md:flex items-center bg-gray-100 rounded-full p-0.5 border border-gray-200 mr-2">
+              <button
+                type="button"
+                onClick={() => setLanguage("en")}
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider transition-all duration-150 cursor-pointer ${
+                  language === "en"
+                    ? "bg-white text-orange-600 shadow-xs"
+                    : "text-gray-500 hover:text-gray-950"
+                }`}
+              >
+                EN
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage("sw")}
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider transition-all duration-150 cursor-pointer ${
+                  language === "sw"
+                    ? "bg-white text-orange-600 shadow-xs"
+                    : "text-gray-500 hover:text-gray-950"
+                }`}
+              >
+                SW
+              </button>
+            </div>
 
             <div className="hidden md:flex items-center space-x-2">
               {user ? (
@@ -435,10 +463,39 @@ export default function Navbar({ user }: NavbarProps) {
                   type="text"
                   value={search}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  placeholder="Express search products..."
+                  placeholder={t("searchPlaceholder")}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-150 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all focus:border-orange-500 focus:bg-white font-medium"
                 />
               </motion.form>
+
+              {/* Mobile Language Selector */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-150/50">
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Lugha / Language</span>
+                <div className="flex bg-white rounded-xl p-0.5 border border-gray-100 shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setLanguage("en")}
+                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all ${
+                      language === "en"
+                        ? "bg-orange-600 text-white shadow-xs"
+                        : "text-gray-500 hover:text-gray-900"
+                    }`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLanguage("sw")}
+                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all ${
+                      language === "sw"
+                        ? "bg-orange-600 text-white shadow-xs"
+                        : "text-gray-500 hover:text-gray-900"
+                    }`}
+                  >
+                    SW
+                  </button>
+                </div>
+              </div>
 
               {/* Staggered Links */}
               <motion.div 
@@ -468,9 +525,9 @@ export default function Navbar({ user }: NavbarProps) {
                   <Link
                     to="/"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
+                    className="text-lg font-black text-gray-900 flex items-center justify-between group py-1"
                   >
-                    <span>Home</span>
+                    <span>{t("home")}</span>
                     <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
                       <ShoppingBag size={20} />
                     </div>
@@ -493,7 +550,7 @@ export default function Navbar({ user }: NavbarProps) {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
                   >
-                    <span>Blog</span>
+                    <span>{t("blog")}</span>
                     <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
                       <Award size={20} />
                     </div>
@@ -515,7 +572,7 @@ export default function Navbar({ user }: NavbarProps) {
                     className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
                   >
                     <div className="flex items-center space-x-2">
-                      <span>Wishlist</span>
+                      <span>{t("wishlist")}</span>
                       {user?.wishlist && user.wishlist.length > 0 && (
                         <span className="bg-red-505 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                           {user.wishlist.length}
@@ -542,7 +599,7 @@ export default function Navbar({ user }: NavbarProps) {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
                   >
-                    <span>Account Profile</span>
+                    <span>{t("profile")}</span>
                     <div className="text-gray-405 group-hover:text-orange-600 transition-colors">
                       <User size={20} />
                     </div>
@@ -564,7 +621,7 @@ export default function Navbar({ user }: NavbarProps) {
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="text-lg font-black text-orange-600 flex items-center justify-between group py-1"
                     >
-                      <span>Admin Control</span>
+                      <span>{t("admin")}</span>
                       <div className="text-orange-605">
                         <Award size={20} />
                       </div>
@@ -605,7 +662,7 @@ export default function Navbar({ user }: NavbarProps) {
                       className="w-full flex items-center justify-center space-x-2 text-gray-500 hover:text-red-500 font-bold p-3 bg-gray-50 rounded-2xl border border-gray-100 text-sm transition-colors cursor-pointer"
                     >
                       <LogOut size={16} />
-                      <span>Sign Out</span>
+                      <span>{t("logout")}</span>
                     </motion.button>
                   </div>
                 ) : (

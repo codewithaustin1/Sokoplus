@@ -83,6 +83,21 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Carts (for Abandoned Cart Cloud Functions support & Cross-device synchronizations)
+    match /carts/{userId} {
+      function isValidCart(data) {
+        return data.userId == request.auth.uid &&
+               data.items is list &&
+               (data.email == null || (data.email is string && data.email.size() <= 256)) &&
+               (data.isAbandonedEmailSent == null || data.isAbandonedEmailSent is bool);
+      }
+
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidCart(incoming());
+      allow update: if isOwner(userId) && isValidCart(incoming());
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
     // Reviews
     match /reviews/{reviewId} {
       function isValidReview(data) {

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
+import { useLanguage } from "../lib/LanguageContext";
 import toast from "react-hot-toast";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
@@ -22,6 +23,7 @@ interface HomeProps {
 }
 
 export default function Home({ user }: HomeProps) {
+  const { language, t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [heroImageUrl, setHeroImageUrl] = useState<string>("");
   const [heroBadgeText, setHeroBadgeText] = useState<string>("Vetted excellence");
@@ -299,24 +301,26 @@ export default function Home({ user }: HomeProps) {
             className="md:w-1/2 space-y-6 z-10"
           >
             <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 leading-tight">
-              Quality Goods, <br/>
-              <span className="text-orange-600 underline decoration-orange-200">Kenyan Soul.</span>
+              {language === "sw" ? "Bidhaa Bora," : "Quality Goods,"} <br/>
+              <span className="text-orange-600 underline decoration-orange-200">
+                {language === "sw" ? "Nafsi ya Kenya." : "Kenyan Soul."}
+              </span>
             </h1>
-            <p className="text-lg text-gray-600 max-w-lg">
-              Discover authentic Kenyan products delivered to your doorstep. Trust, efficiency, and speed.
+            <p className="text-lg text-gray-600 max-w-lg font-medium">
+              {t("heroSubtitle")}
             </p>
             <div className="flex space-x-4">
               <button 
                 onClick={scrollToProducts}
-                className="bg-orange-600 text-white px-8 py-4 rounded-full font-bold hover:bg-orange-700 transition-all flex items-center"
+                className="bg-orange-600 text-white px-8 py-4 rounded-full font-bold hover:bg-orange-700 transition-all flex items-center font-sans cursor-pointer"
               >
-                Shop Now <ArrowRight className="ml-2" size={20} />
+                {language === "sw" ? "Nunua Sasa" : "Shop Now"} <ArrowRight className="ml-2" size={20} />
               </button>
               <button 
                 onClick={() => setShowMission(true)}
-                className="bg-white text-gray-900 border border-gray-200 px-8 py-4 rounded-full font-bold hover:bg-gray-50 transition-all"
+                className="bg-white text-gray-900 border border-gray-200 px-8 py-4 rounded-full font-bold hover:bg-gray-50 transition-all font-sans cursor-pointer"
               >
-                Learn More
+                {language === "sw" ? "Jifunze Zaidi" : "Learn More"}
               </button>
             </div>
           </motion.div>
@@ -354,7 +358,9 @@ export default function Home({ user }: HomeProps) {
 
       {/* Product categories */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl font-bold mb-8">Popular Categories</h2>
+        <h2 className="text-2xl font-bold mb-8">
+          {language === "sw" ? "Vitengo Maarufu" : "Popular Categories"}
+        </h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {["All", "Fashion", "Electronics", "Local Crafts", "Groceries"].map((cat) => (
             <div 
@@ -369,7 +375,9 @@ export default function Home({ user }: HomeProps) {
             >
                <span className={`text-sm md:text-lg font-semibold transition-colors uppercase tracking-tight ${
                  selectedCategory === cat ? "text-white" : "group-hover:text-orange-600"
-               }`}>{cat}</span>
+               }`}>
+                 {cat === "All" ? t("allCategories") : cat === "Local Crafts" ? (language === "sw" ? "Sanaa za Kienyeji" : "Local Crafts") : cat === "Fashion" ? (language === "sw" ? "Mitindo" : "Fashion") : cat === "Electronics" ? (language === "sw" ? "Vifaa vya Umeme" : "Electronics") : cat === "Groceries" ? (language === "sw" ? "Vyakula" : "Groceries") : cat}
+               </span>
             </div>
           ))}
         </div>
@@ -379,8 +387,14 @@ export default function Home({ user }: HomeProps) {
       <section id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
-             <h2 className="text-4xl font-black tracking-tight text-gray-900">{selectedCategory === "All" ? "Latest Arrivals" : `${selectedCategory} Collection`}</h2>
-             <p className="text-gray-500 mt-2 font-medium">Handpicked premium goods from across the 47 counties.</p>
+             <h2 className="text-4xl font-black tracking-tight text-gray-900">
+               {selectedCategory === "All" 
+                 ? (language === "sw" ? "Mizigo Mipya" : "Latest Arrivals") 
+                 : (selectedCategory === "Local Crafts" ? (language === "sw" ? "Mkusanyiko wa Sanaa" : "Local Crafts Collection") : selectedCategory === "Fashion" ? (language === "sw" ? "Mkusanyiko wa Mitindo" : "Fashion Collection") : selectedCategory === "Electronics" ? (language === "sw" ? "Mkusanyiko wa Vifaa" : "Electronics Collection") : selectedCategory === "Groceries" ? (language === "sw" ? "Mkusanyiko wa Vyakula" : "Groceries Collection") : `${selectedCategory} Collection`)}
+             </h2>
+             <p className="text-gray-500 mt-2 font-medium">
+               {language === "sw" ? "Bidhaa zilizochaguliwa kwa mkono kutoka kaunti zote 47." : "Handpicked premium goods from across the 47 counties."}
+             </p>
           </div>
           <button onClick={() => {
             setSelectedCategory("All");

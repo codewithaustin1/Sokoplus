@@ -7,6 +7,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { CartProvider } from "./lib/CartContext";
 import { CurrencyProvider } from "./lib/CurrencyContext";
+import { LanguageProvider } from "./lib/LanguageContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
@@ -37,6 +38,7 @@ import VerificationBanner from "./components/VerificationBanner";
 import AnalyticsTracker from "./components/AnalyticsTracker";
 import CookieConsentBanner from "./components/CookieConsentBanner";
 import { OfflineNotifier } from "./components/OfflineNotifier";
+import { NotificationManager } from "./components/NotificationManager";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
@@ -135,74 +137,77 @@ export default function App() {
   if (loading) return <div className="h-screen flex items-center justify-center font-sans">Loading Soplus...</div>;
 
   return (
-    <CurrencyProvider>
-      <CartProvider>
-        <Router>
-          <AnalyticsTracker />
-        <div className="min-h-screen flex flex-col font-sans bg-gray-50 text-gray-900 selection:bg-orange-100">
-          {user && !user.emailVerified && <VerificationBanner email={user.email} />}
-          <Navbar user={user} />
-          <main className="flex-grow">
-            <Routes>
-              <Route path="/" element={<Home user={user} />} />
-              <Route path="/product/:id" element={<ProductDetails user={user} />} />
-              <Route path="/wishlist" element={<Wishlist user={user} />} />
-              <Route path="/profile" element={<Profile user={user} />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/checkout" element={<Checkout user={user} />} />
-              <Route path="/admin/*" element={<Admin user={user} />} />
-              <Route path="/blog" element={<Blog user={user} />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/payment-success" element={<PaymentSuccess />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<TermsOfService />} />
-              <Route path="/cookies" element={<Cookies />} />
-              <Route path="/faq" element={<FAQ />} />
-              <Route path="/returns" element={<ReturnPolicy />} />
-              <Route path="/shipping" element={<Shipping />} />
-            </Routes>
-          </main>
-          <Footer />
-          <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-4 z-[60]">
-            <AnimatePresence>
-              {showScrollTop && (
-                <motion.button
-                  key="back-to-top"
-                  initial={{ opacity: 0, scale: 0.8, y: 15 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.8, y: 15 }}
-                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                  onClick={scrollToTop}
-                  className="p-4 rounded-full shadow-2xl bg-white border border-gray-100 text-orange-600 hover:text-white hover:bg-orange-600 transition-all cursor-pointer flex items-center justify-center group"
-                  title="Back to Top"
-                  id="back-to-top-btn"
-                >
-                  <ArrowUp size={24} className="group-hover:-translate-y-1 transition-transform" />
-                </motion.button>
-              )}
-            </AnimatePresence>
+    <LanguageProvider>
+      <CurrencyProvider>
+        <CartProvider>
+          <Router>
+            <AnalyticsTracker />
+          <div className="min-h-screen flex flex-col font-sans bg-gray-50 text-gray-900 selection:bg-orange-100">
+            {user && !user.emailVerified && <VerificationBanner email={user.email} />}
+            <Navbar user={user} />
+            <main className="flex-grow">
+              <Routes>
+                <Route path="/" element={<Home user={user} />} />
+                <Route path="/product/:id" element={<ProductDetails user={user} />} />
+                <Route path="/wishlist" element={<Wishlist user={user} />} />
+                <Route path="/profile" element={<Profile user={user} />} />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/checkout" element={<Checkout user={user} />} />
+                <Route path="/admin/*" element={<Admin user={user} />} />
+                <Route path="/blog" element={<Blog user={user} />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/payment-success" element={<PaymentSuccess />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/cookies" element={<Cookies />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/returns" element={<ReturnPolicy />} />
+                <Route path="/shipping" element={<Shipping />} />
+              </Routes>
+            </main>
+            <Footer />
+            <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-4 z-[60]">
+              <AnimatePresence>
+                {showScrollTop && (
+                  <motion.button
+                    key="back-to-top"
+                    initial={{ opacity: 0, scale: 0.8, y: 15 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: 15 }}
+                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    onClick={scrollToTop}
+                    className="p-4 rounded-full shadow-2xl bg-white border border-gray-100 text-orange-600 hover:text-white hover:bg-orange-600 transition-all cursor-pointer flex items-center justify-center group"
+                    title="Back to Top"
+                    id="back-to-top-btn"
+                  >
+                    <ArrowUp size={24} className="group-hover:-translate-y-1 transition-transform" />
+                  </motion.button>
+                )}
+              </AnimatePresence>
 
-            <button 
-              id="unified-support-trigger-btn"
-              className={`p-4 rounded-full shadow-2xl transition-all group flex items-center cursor-pointer ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
-              onClick={() => setIsSupportOpen(!isSupportOpen)}
-            >
-              <MessageCircle size={24} />
-              {!isSupportOpen && (
-                <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
-                  Help & Support
-                </span>
-              )}
-            </button>
+              <button 
+                id="unified-support-trigger-btn"
+                className={`p-4 rounded-full shadow-2xl transition-all group flex items-center cursor-pointer ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
+                onClick={() => setIsSupportOpen(!isSupportOpen)}
+              >
+                <MessageCircle size={24} />
+                {!isSupportOpen && (
+                  <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
+                    Help & Support
+                  </span>
+                )}
+              </button>
+            </div>
+
+            <SupportChat user={user} isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
+            <CookieConsentBanner />
+            <OfflineNotifier />
+            <NotificationManager user={user} />
+            <Toaster position="bottom-right" />
           </div>
-
-          <SupportChat user={user} isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
-          <CookieConsentBanner />
-          <OfflineNotifier />
-          <Toaster position="bottom-right" />
-        </div>
-      </Router>
-    </CartProvider>
-    </CurrencyProvider>
+        </Router>
+      </CartProvider>
+      </CurrencyProvider>
+    </LanguageProvider>
   );
 }

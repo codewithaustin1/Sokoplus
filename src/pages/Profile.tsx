@@ -3,12 +3,13 @@ import { Navigate, Link } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs, doc, deleteDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download } from "lucide-react";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
 import { downloadReceipt } from "../utils/pdfGenerator";
+import toast from "react-hot-toast";
 
 interface ProfileProps {
   user: UserProfile | null;
@@ -19,6 +20,32 @@ export default function Profile({ user }: ProfileProps) {
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [timeFilter, setTimeFilter] = useState<"this-month" | "last-12-months" | "specific-month">("this-month");
+  
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      return Notification.permission;
+    }
+    return "denied";
+  });
+
+  const requestNotifications = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error("Browser notifications are not supported on this device.");
+      return;
+    }
+
+    try {
+      const result = await Notification.requestPermission();
+      setNotificationPermission(result);
+      if (result === "granted") {
+        toast.success("Successfully subscribed to SokoPlus device alerts!", { icon: "🔔" });
+      } else if (result === "denied") {
+        toast.error("Alerts permission is blocked. Modify browser parameters to allow.", { icon: "🔕" });
+      }
+    } catch (e) {
+      console.error("Error setting notification options:", e);
+    }
+  };
   
   // Initialize with current year and month
   const now = new Date();
@@ -206,6 +233,51 @@ export default function Profile({ user }: ProfileProps) {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Device Notifications Setup */}
+      <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-16 -mt-16 opacity-30" />
+        <div className="flex gap-4 items-start relative">
+          <div className="p-3.5 bg-orange-50 text-orange-600 rounded-2xl border border-orange-100">
+            <Bell size={24} />
+          </div>
+          <div className="space-y-1 max-w-xl">
+            <h3 className="font-black text-lg text-gray-900 tracking-tight">Delivery & Dispatch Alerts</h3>
+            <p className="text-sm text-gray-500 leading-relaxed font-medium">
+              Enable native browser alerts to automatically receive real-time notifications about dispatch, routing, and delivered status of your SokoPlus order.
+            </p>
+          </div>
+        </div>
+        
+        <div className="shrink-0 flex items-center gap-4 relative">
+          <div className="flex flex-col items-end mr-1 hidden sm:flex">
+            <span className="text-xs font-black uppercase tracking-wider text-gray-400">Status</span>
+            <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 mt-1 rounded-full ${
+              notificationPermission === "granted" ? "bg-green-50 text-green-700 border border-green-200" :
+              notificationPermission === "denied" ? "bg-red-50 text-red-700 border border-red-200" :
+              "bg-amber-50 text-amber-700 border border-amber-200 animate-pulse"
+            }`}>
+              {notificationPermission === "granted" ? "Active" :
+               notificationPermission === "denied" ? "Blocked" : "Disabled"}
+            </span>
+          </div>
+
+          {notificationPermission === "granted" ? (
+            <div className="flex items-center gap-2 bg-green-50 text-green-800 border border-green-200 px-5 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider">
+              <CheckCircle size={16} />
+              <span>Permission Opt-In</span>
+            </div>
+          ) : (
+            <button
+              onClick={requestNotifications}
+              className="bg-gray-900 hover:bg-orange-600 hover:scale-[1.01] active:scale-95 text-white font-black uppercase tracking-wider text-xs px-5 py-3.5 rounded-2xl shadow-md transition-all cursor-pointer flex items-center gap-2 animate-fade-in"
+            >
+              <Bell size={16} />
+              <span>Enable Browser Alerts</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { CartItem } from "../types";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { db, auth } from "./firebase";
 
 interface CartContextType {
   items: CartItem[];
@@ -16,10 +19,72 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const saved = localStorage.getItem("sokoplus_cart");
     return saved ? JSON.parse(saved) : [];
   });
+  const skipSyncRef = useRef(false);
 
+  // Sync to local storage and update Firestore
   useEffect(() => {
     localStorage.setItem("sokoplus_cart", JSON.stringify(items));
+    
+    if (skipSyncRef.current) {
+      skipSyncRef.current = false;
+      return;
+    }
+    
+    const user = auth.currentUser;
+    if (user) {
+      const cartRef = doc(db, "carts", user.uid);
+      setDoc(cartRef, {
+        userId: user.uid,
+        email: user.email,
+        items: items,
+        isAbandonedEmailSent: false,
+        updatedAt: new Date().toISOString()
+      }, { merge: true }).catch((err) => {
+        console.warn("Firestore cart auto-sync failed:", err);
+      });
+    }
   }, [items]);
+
+  // Fetch Firestore cart on user authentication changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const cartRef = doc(db, "carts", user.uid);
+          const snap = await getDoc(cartRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data && Array.isArray(data.items) && data.items.length > 0) {
+              skipSyncRef.current = true;
+              setItems(data.items);
+            } else if (items.length > 0) {
+              // Upload local items to cloud if cloud is empty
+              await setDoc(cartRef, {
+                userId: user.uid,
+                email: user.email,
+                items: items,
+                isAbandonedEmailSent: false,
+                updatedAt: new Date().toISOString()
+              }, { merge: true });
+            }
+          } else if (items.length > 0) {
+            // Create cloud cart from local items
+            await setDoc(cartRef, {
+              userId: user.uid,
+              email: user.email,
+              items: items,
+              isAbandonedEmailSent: false,
+              updatedAt: new Date().toISOString()
+            });
+          }
+        } catch (err) {
+          console.warn("Could not sync cloud cart on authenticator change:", err);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const addToCart = (newItem: CartItem) => {
     setItems((prev) => {
