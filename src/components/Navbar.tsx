@@ -279,22 +279,9 @@ export default function Navbar({ user }: NavbarProps) {
               )}
             </div>
 
-            {/* Mobile Search Toggle */}
-            <button
-              onClick={() => {
-                setIsMobileSearchOpen(!isMobileSearchOpen);
-                setIsMobileMenuOpen(false);
-              }}
-              className="md:hidden p-2 text-gray-750 hover:bg-gray-100 rounded-xl transition-colors"
-              aria-label="Toggle Search"
-            >
-              {isMobileSearchOpen ? <X size={24} className="text-orange-600 animate-in spin-in duration-200" /> : <Search size={24} />}
-            </button>
-
             <button 
               onClick={() => {
                 setIsMobileMenuOpen(!isMobileMenuOpen);
-                setIsMobileSearchOpen(false);
               }}
               className="md:hidden p-2 text-gray-750 hover:bg-gray-100 rounded-xl transition-colors"
             >
@@ -304,105 +291,69 @@ export default function Navbar({ user }: NavbarProps) {
         </div>
       </div>
 
-      {/* Mobile Search Bar Overlay */}
-      <AnimatePresence>
-        {isMobileSearchOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="md:hidden border-b border-gray-100 bg-white"
-          >
-            <div className="px-4 py-4 space-y-4">
-              <form onSubmit={handleSearch} className="relative w-full">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                  <Search size={18} />
-                </span>
-                <input
-                  type="text"
-                  autoFocus
-                  value={search}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  placeholder="Search products in Kenya..."
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-2xl leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-orange-505 sm:text-sm font-medium transition-all"
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearch("");
-                      setSuggestedProducts([]);
-                    }}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 animate-fade-in"
-                  >
-                    <X size={18} />
-                  </button>
-                )}
-              </form>
+      {/* Modern, Neutral, High-Visibility Mobile Search Bar (Always handy, no micro-icon triggers needed) */}
+      <div className="md:hidden px-4 pb-3 pt-0.5 border-b border-gray-50 bg-white/95 relative">
+        <form onSubmit={handleSearch} className="relative w-full">
+          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-450">
+            <Search size={16} />
+          </span>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder={language === "sw" ? "Tafuta bidhaa bora za Kenya..." : "Search products in Kenya..."}
+            className="block w-full pl-9 pr-9 py-2 border border-gray-200/80 rounded-xl leading-5 bg-gray-50/80 placeholder-gray-400 text-gray-800 text-xs font-medium focus:outline-none focus:bg-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all shadow-inner-sm"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setSuggestedProducts([]);
+              }}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-405 hover:text-gray-600"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </form>
 
-              {/* Instant Search Suggestions for Mobile */}
-              {suggestedProducts.length > 0 && (
-                <div className="space-y-2 animate-in fade-in duration-200">
-                  <div className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Instant Matches</div>
-                  <div className="space-y-1 divide-y divide-gray-100 max-h-64 overflow-y-auto">
-                    {suggestedProducts.map((p) => (
-                      <div
-                        key={p.id}
-                        onClick={() => handleProductSelect(p.id)}
-                        onMouseEnter={() => prefetchProductAssets(p)}
-                        onTouchStart={() => prefetchProductAssets(p)}
-                        className="flex items-center space-x-3 py-3 cursor-pointer hover:bg-gray-55 group transition-all"
-                      >
-                        <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-200/50">
-                          <FastImage 
-                            src={p.images?.[0] || ""} 
-                            alt={p.name} 
-                            fallbackIconSize={18}
-                          />
-                        </div>
-                        <div className="flex-grow min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate group-hover:text-orange-600 transition-colors">{p.name}</p>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase">{p.category}</p>
-                        </div>
-                        <div className="text-sm font-black text-gray-900 whitespace-nowrap">
-                          KES {p.price.toLocaleString()}
-                        </div>
-                      </div>
-                    ))}
+        {/* Suggestion Dropdown floating beautifully over the parent page */}
+        <AnimatePresence>
+          {suggestedProducts.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 5 }}
+              className="absolute left-4 right-4 mt-2 bg-white rounded-2xl border border-gray-100 shadow-2xl max-h-60 overflow-y-auto p-3 space-y-1 z-[100]"
+            >
+              <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider px-2 py-1">Instant Matches</div>
+              {suggestedProducts.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => handleProductSelect(p.id)}
+                  className="flex items-center space-x-3 py-2 cursor-pointer hover:bg-gray-50 px-2 rounded-xl transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-150">
+                    <FastImage 
+                      src={p.images?.[0] || ""} 
+                      alt={p.name} 
+                      fallbackIconSize={14}
+                    />
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <p className="text-xs font-bold text-gray-950 truncate">{p.name}</p>
+                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{p.category}</p>
+                  </div>
+                  <div className="text-xs font-black text-gray-900 whitespace-nowrap">
+                    KES {p.price.toLocaleString()}
                   </div>
                 </div>
-              )}
-
-              {search.trim() && suggestedProducts.length === 0 && (
-                <div className="py-4 text-center text-xs text-gray-450 font-bold uppercase tracking-wider">
-                  No instant matches for "{search}"
-                </div>
-              )}
-
-              {/* Popular quick searches tags */}
-              <div className="space-y-2">
-                <div className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Popular categories</div>
-                <div className="flex flex-wrap gap-2">
-                  {["Fashion", "Electronics", "Local Crafts", "Groceries"].map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => {
-                        navigate(`/?search=${encodeURIComponent(tag)}`);
-                        setIsMobileSearchOpen(false);
-                        setSearch("");
-                      }}
-                      className="px-3 py-1.5 bg-gray-50 hover:bg-orange-50 hover:text-orange-600 rounded-xl text-xs font-bold text-gray-650 border border-gray-150 transition-all uppercase tracking-tight"
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Mobile Menu Overlay */}
       <AnimatePresence>

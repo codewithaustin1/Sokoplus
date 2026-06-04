@@ -4,7 +4,7 @@ import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff } from "lucide-react";
+import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff, Search } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -49,6 +49,24 @@ export default function Home({ user }: HomeProps) {
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
   const [recLoading, setRecLoading] = useState<boolean>(true);
   const [hasHistory, setHasHistory] = useState<boolean>(false);
+
+  const [homeSearch, setHomeSearch] = useState(() => searchParams.get("search") || "");
+
+  useEffect(() => {
+    setHomeSearch(searchParams.get("search") || "");
+  }, [searchParams]);
+
+  const handleHomeHeroSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (homeSearch.trim()) {
+      setSearchParams({ search: homeSearch.trim() });
+      setTimeout(() => {
+        scrollToProducts();
+      }, 100);
+    } else {
+      setSearchParams({});
+    }
+  };
 
   useEffect(() => {
     if (products.length === 0) return;
@@ -445,6 +463,40 @@ export default function Home({ user }: HomeProps) {
             <p className="text-lg text-gray-600 max-w-lg font-medium">
               {t("heroSubtitle")}
             </p>
+
+            {/* Elegant Neutral Search Pill with Instant Feedback */}
+            <form onSubmit={handleHomeHeroSearch} className="w-full max-w-md relative group">
+              <div id="hero-search-container" className="relative flex items-center bg-white border border-gray-200/80 rounded-2xl shadow-sm hover:shadow-md focus-within:shadow-md focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500 transition-all px-4 py-3 bg-white/95 backdrop-blur-md">
+                <Search className="text-gray-400 mr-2.5 flex-shrink-0 group-hover:text-orange-500 transition-colors" size={20} />
+                <input
+                  type="text"
+                  value={homeSearch}
+                  onChange={(e) => setHomeSearch(e.target.value)}
+                  placeholder={language === "sw" ? "Tafuta bidhaa bora za Kenya..." : "Search for authentic Kenyan goods..."}
+                  className="w-full bg-transparent border-none text-gray-900 placeholder-gray-450 focus:outline-none focus:ring-0 text-sm md:text-base font-medium"
+                />
+                {homeSearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHomeSearch("");
+                      setSearchParams({});
+                    }}
+                    className="p-1.5 mr-1.5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="bg-orange-600 text-white font-bold text-xs md:text-sm px-4 md:px-5 py-2 rounded-xl hover:bg-orange-700 transition-all flex items-center shadow-sm cursor-pointer hover:shadow-md active:scale-95"
+                >
+                  <span>{language === "sw" ? "Tafuta" : "Search"}</span>
+                </button>
+              </div>
+            </form>
+
             <div className="flex space-x-4">
               <button 
                 onClick={scrollToProducts}
