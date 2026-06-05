@@ -6,6 +6,8 @@ import { Product, UserProfile, Review } from "../types";
 import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
+import { useLanguage } from "../lib/LanguageContext";
+import { AddToCartButton } from "../components/AddToCartButton";
 import toast from "react-hot-toast";
 import { motion } from "motion/react";
 import axios from "axios";
@@ -62,6 +64,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   };
 
   const { addToCart } = useCart();
+  const { t } = useLanguage();
   const { currency, setCurrency, formatPrice } = useCurrency();
 
   const [alertEmail, setAlertEmail] = useState(user?.email || "");
@@ -573,10 +576,10 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           </div>
 
           <div className="flex space-x-3">
-            <motion.button 
-              whileHover={product.stock > 0 ? { scale: 1.01, y: -1 } : {}}
-              whileTap={product.stock > 0 ? { scale: 0.98, y: 0 } : {}}
-              transition={{ type: "spring", stiffness: 450, damping: 12 }}
+            <AddToCartButton
+              label={product.stock > 0 ? t("addToCart") : t("outOfStock")}
+              successLabel={t("added")}
+              disabled={product.stock <= 0}
               onClick={() => {
                 addToCart({ productId: product.id, name: product.name, price: product.price, quantity: 1, image: product.images?.[0] || "" });
                 trackEvent("add_to_cart", {
@@ -590,11 +593,8 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                 });
                 toast.success("Added to cart!");
               }}
-              disabled={product.stock <= 0}
-              className="flex-grow bg-gray-900 text-white py-5 rounded-2xl font-black text-lg sm:text-xl hover:bg-orange-600 transition-colors shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 cursor-pointer"
-            >
-              {product.stock > 0 ? "Add to Cart" : "Out of Stock"} <ShoppingBag className="ml-3" size={24} />
-            </motion.button>
+              className="flex-grow bg-gray-900 text-white py-5 rounded-2xl font-black text-lg sm:text-xl hover:bg-orange-600 transition-all shadow-lg cursor-pointer"
+            />
             <motion.button 
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.88 }}

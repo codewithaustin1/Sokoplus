@@ -42,6 +42,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Product Card
     addToCart: "Add to Cart",
+    added: "Added!",
     outOfStock: "Out of Stock",
     earnPoints: "Earn points on every purchase across all local categories.",
 
@@ -115,6 +116,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Product Card
     addToCart: "Weka Kwenye Kikapu",
+    added: "Imewekwa!",
     outOfStock: "Mali imeisha kwa sasa",
     earnPoints: "Vuna alama za uaminifu na upate zawadi maalum kwa kila ununuzi kote sokoni.",
 

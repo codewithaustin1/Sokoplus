@@ -4,7 +4,7 @@ import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff, Search } from "lucide-react";
+import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff, Search, Loader2, Check } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -33,6 +33,7 @@ export default function Home({ user }: HomeProps) {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [isOfflineView, setIsOfflineView] = useState<boolean>(false);
+  const [addingMap, setAddingMap] = useState<Record<string, "idle" | "loading" | "added">>({});
   const [searchParams, setSearchParams] = useSearchParams();
   const { addToCart } = useCart();
   const { currency, setCurrency, exchangeRate, formatPrice } = useCurrency();
@@ -464,38 +465,7 @@ export default function Home({ user }: HomeProps) {
               {t("heroSubtitle")}
             </p>
 
-            {/* Elegant Neutral Search Pill with Instant Feedback */}
-            <form onSubmit={handleHomeHeroSearch} className="w-full max-w-md relative group">
-              <div id="hero-search-container" className="relative flex items-center bg-white border border-gray-200/80 rounded-2xl shadow-sm hover:shadow-md focus-within:shadow-md focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500 transition-all px-4 py-3 bg-white/95 backdrop-blur-md">
-                <Search className="text-gray-400 mr-2.5 flex-shrink-0 group-hover:text-orange-500 transition-colors" size={20} />
-                <input
-                  type="text"
-                  value={homeSearch}
-                  onChange={(e) => setHomeSearch(e.target.value)}
-                  placeholder={language === "sw" ? "Tafuta bidhaa bora za Kenya..." : "Search for authentic Kenyan goods..."}
-                  className="w-full bg-transparent border-none text-gray-900 placeholder-gray-450 focus:outline-none focus:ring-0 text-sm md:text-base font-medium"
-                />
-                {homeSearch && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setHomeSearch("");
-                      setSearchParams({});
-                    }}
-                    className="p-1.5 mr-1.5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                    title="Clear search"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  className="bg-orange-600 text-white font-bold text-xs md:text-sm px-4 md:px-5 py-2 rounded-xl hover:bg-orange-700 transition-all flex items-center shadow-sm cursor-pointer hover:shadow-md active:scale-95"
-                >
-                  <span>{language === "sw" ? "Tafuta" : "Search"}</span>
-                </button>
-              </div>
-            </form>
+
 
             <div className="flex space-x-4">
               <button 
@@ -680,36 +650,92 @@ export default function Home({ user }: HomeProps) {
                         </span>
                       )}
                     </div>
-                    <motion.button 
-                      whileHover={p.stock === 0 ? {} : { scale: 1.15, rotate: -3 }}
-                      whileTap={p.stock === 0 ? {} : { scale: 0.85, rotate: 3 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                      disabled={p.stock === 0}
-                      onClick={() => {
-                        if (p.stock === 0) {
-                          toast.error("This product is out of stock!");
-                          return;
-                        }
-                        addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
-                        trackEvent("add_to_cart", {
-                          items: [{
-                            item_id: p.id,
-                            item_name: p.name,
-                            price: p.price,
-                            quantity: 1,
-                            item_category: p.category
-                          }]
-                        });
-                        toast.success(`${p.name} added to cart!`);
-                      }}
-                      className={`p-2.5 rounded-xl transition-all ${
-                        p.stock === 0 
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
-                          : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10"
-                      }`}
-                    >
-                      <ShoppingBag size={18} />
-                    </motion.button>
+                    {(() => {
+                      const status = addingMap[p.id] || "idle";
+                      return (
+                        <motion.button 
+                          whileHover={p.stock === 0 || status === "loading" ? {} : { scale: 1.15, rotate: -3 }}
+                          whileTap={p.stock === 0 || status === "loading" ? {} : { scale: 0.85, rotate: 3 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                          disabled={p.stock === 0 || status === "loading" || status === "added"}
+                          onClick={() => {
+                            if (p.stock === 0) {
+                              toast.error("This product is out of stock!");
+                              return;
+                            }
+                            setAddingMap(prev => ({ ...prev, [p.id]: "loading" }));
+                            addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
+                            trackEvent("add_to_cart", {
+                              items: [{
+                                item_id: p.id,
+                                item_name: p.name,
+                                price: p.price,
+                                quantity: 1,
+                                item_category: p.category
+                              }]
+                            });
+                            
+                            setTimeout(() => {
+                              setAddingMap(prev => ({ ...prev, [p.id]: "added" }));
+                              toast.success(`${p.name} added to cart!`);
+                              setTimeout(() => {
+                                setAddingMap(prev => {
+                                  const updated = { ...prev };
+                                  delete updated[p.id];
+                                  return updated;
+                                });
+                              }, 1500);
+                            }, 850);
+                          }}
+                          className={`p-2.5 rounded-xl transition-all relative overflow-hidden flex items-center justify-center select-none ${
+                            p.stock === 0 
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                              : status === "added"
+                              ? "bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-600/10"
+                              : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10"
+                          }`}
+                          style={{ minWidth: "2.5rem", minHeight: "2.5rem" }}
+                        >
+                          <AnimatePresence mode="wait">
+                            {status === "idle" && (
+                              <motion.div
+                                key="idle"
+                                initial={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.6 }}
+                                transition={{ duration: 0.15 }}
+                                className="flex items-center justify-center"
+                              >
+                                <ShoppingBag size={18} />
+                              </motion.div>
+                            )}
+                            {status === "loading" && (
+                              <motion.div
+                                key="loading"
+                                initial={{ opacity: 0, scale: 0.6 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.6 }}
+                                transition={{ duration: 0.15 }}
+                                className="flex items-center justify-center"
+                              >
+                                <Loader2 className="animate-spin" size={18} />
+                              </motion.div>
+                            )}
+                            {status === "added" && (
+                              <motion.div
+                                key="added"
+                                initial={{ opacity: 0, scale: 0.5 }}
+                                animate={{ opacity: 1, scale: [1, 1.25, 1] }}
+                                exit={{ opacity: 0, scale: 0.5 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                className="flex items-center justify-center"
+                              >
+                                <Check size={18} className="stroke-[3]" />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </motion.button>
+                      );
+                    })()}
                   </div>
                 </div>
               </motion.div>
@@ -1103,36 +1129,92 @@ export default function Home({ user }: HomeProps) {
                         </span>
                       )}
                     </div>
-                    <motion.button 
-                      whileHover={p.stock === 0 ? {} : { scale: 1.15, rotate: -3 }}
-                      whileTap={p.stock === 0 ? {} : { scale: 0.85, rotate: 3 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                      disabled={p.stock === 0}
-                      onClick={() => {
-                        if (p.stock === 0) {
-                          toast.error("This product is out of stock!");
-                          return;
-                        }
-                        addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
-                        trackEvent("add_to_cart", {
-                          items: [{
-                            item_id: p.id,
-                            item_name: p.name,
-                            price: p.price,
-                            quantity: 1,
-                            item_category: p.category
-                          }]
-                        });
-                        toast.success("Added to cart!");
-                      }}
-                      className={`p-2 rounded-lg transition-colors ${
-                        p.stock === 0 
-                          ? "bg-gray-200 text-gray-400 cursor-not-allowed" 
-                          : "bg-gray-900 text-white hover:bg-orange-600 cursor-pointer"
-                      }`}
-                    >
-                      <ShoppingBag size={18} />
-                    </motion.button>
+                    {(() => {
+                      const status = addingMap[p.id] || "idle";
+                      return (
+                        <motion.button 
+                          whileHover={p.stock === 0 || status === "loading" ? {} : { scale: 1.15, rotate: -3 }}
+                          whileTap={p.stock === 0 || status === "loading" ? {} : { scale: 0.85, rotate: 3 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                          disabled={p.stock === 0 || status === "loading" || status === "added"}
+                          onClick={() => {
+                            if (p.stock === 0) {
+                              toast.error("This product is out of stock!");
+                              return;
+                            }
+                            setAddingMap(prev => ({ ...prev, [p.id]: "loading" }));
+                            addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
+                            trackEvent("add_to_cart", {
+                              items: [{
+                                item_id: p.id,
+                                item_name: p.name,
+                                price: p.price,
+                                quantity: 1,
+                                item_category: p.category
+                              }]
+                            });
+                            
+                            setTimeout(() => {
+                              setAddingMap(prev => ({ ...prev, [p.id]: "added" }));
+                              toast.success("Added to cart!");
+                              setTimeout(() => {
+                                setAddingMap(prev => {
+                                  const updated = { ...prev };
+                                  delete updated[p.id];
+                                  return updated;
+                                });
+                              }, 1500);
+                            }, 850);
+                          }}
+                          className={`p-2 rounded-lg transition-colors relative overflow-hidden flex items-center justify-center select-none ${
+                            p.stock === 0 
+                              ? "bg-gray-200 text-gray-400 cursor-not-allowed" 
+                              : status === "added"
+                              ? "bg-green-600 text-white hover:bg-green-700"
+                              : "bg-gray-900 text-white hover:bg-orange-600 cursor-pointer"
+                          }`}
+                          style={{ minWidth: "2.5rem", minHeight: "2.5rem" }}
+                        >
+                          <AnimatePresence mode="wait">
+                            {status === "idle" && (
+                              <motion.div
+                                key="idle"
+                                initial={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.6 }}
+                                transition={{ duration: 0.15 }}
+                                className="flex items-center justify-center"
+                              >
+                                <ShoppingBag size={18} />
+                              </motion.div>
+                            )}
+                            {status === "loading" && (
+                              <motion.div
+                                key="loading"
+                                initial={{ opacity: 0, scale: 0.6 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.6 }}
+                                transition={{ duration: 0.15 }}
+                                className="flex items-center justify-center"
+                              >
+                                <Loader2 className="animate-spin" size={18} />
+                              </motion.div>
+                            )}
+                            {status === "added" && (
+                              <motion.div
+                                key="added"
+                                initial={{ opacity: 0, scale: 0.5 }}
+                                animate={{ opacity: 1, scale: [1, 1.25, 1] }}
+                                exit={{ opacity: 0, scale: 0.5 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                className="flex items-center justify-center"
+                              >
+                                <Check size={18} className="stroke-[3]" />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </motion.button>
+                      );
+                    })()}
                   </div>
                 </div>
               </motion.div>

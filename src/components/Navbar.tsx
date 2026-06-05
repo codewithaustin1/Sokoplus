@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers } from "lucide-react";
 import { useCart } from "../lib/CartContext";
@@ -29,6 +29,17 @@ export default function Navbar({ user }: NavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0);
+  const [isBouncing, setIsBouncing] = useState(false);
+  const prevItemCountRef = useRef(itemCount);
+
+  useEffect(() => {
+    if (itemCount > prevItemCountRef.current) {
+      setIsBouncing(true);
+      const timer = setTimeout(() => setIsBouncing(false), 800);
+      return () => clearTimeout(timer);
+    }
+    prevItemCountRef.current = itemCount;
+  }, [itemCount]);
 
   // Auto-close menu when route changes
   useEffect(() => {
@@ -216,12 +227,28 @@ export default function Navbar({ user }: NavbarProps) {
             </Link>
 
             <Link to="/cart" className="relative group p-2">
-              <ShoppingCart className="text-gray-700 group-hover:text-orange-600 transition-colors" size={24} />
-              {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                  {itemCount}
-                </span>
-              )}
+              <motion.div
+                animate={isBouncing ? { scale: [1, 1.4, 0.85, 1.15, 0.95, 1] } : { scale: 1 }}
+                transition={{ duration: 0.6, ease: "easeInOut" }}
+                className="relative"
+              >
+                <ShoppingCart className="text-gray-700 group-hover:text-orange-600 transition-colors" size={24} />
+                {itemCount > 0 && (
+                  <motion.span
+                    key={itemCount}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 10
+                    }}
+                    className="absolute -top-1.5 -right-1.5 bg-orange-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"
+                  >
+                    {itemCount}
+                  </motion.span>
+                )}
+              </motion.div>
             </Link>
 
             {/* Language Toggle */}

@@ -14,6 +14,7 @@ import { useLanguage } from "../lib/LanguageContext";
 import { trackEvent } from "../lib/analytics";
 import { FastImage } from "../components/FastImage";
 import { productCache } from "../utils/productCache";
+import { AddToCartButton } from "../components/AddToCartButton";
 
 interface WishlistProps {
   user: UserProfile | null;
@@ -227,16 +228,11 @@ export default function Wishlist({ user }: WishlistProps) {
                   >
                     {t("Details")}
                   </Link>
-                  <motion.button
-                    whileHover={product.stock === 0 ? {} : { scale: 1.05, y: -1 }}
-                    whileTap={product.stock === 0 ? {} : { scale: 0.95, y: 0 }}
-                    transition={{ type: "spring", stiffness: 450, damping: 12 }}
+                  <AddToCartButton
+                    label={product.stock > 0 ? t("addToCart") : t("outOfStock")}
+                    successLabel={t("added")}
                     disabled={product.stock === 0}
                     onClick={() => {
-                      if (product.stock === 0) {
-                        toast.error("This product is out of stock!");
-                        return;
-                      }
                       addToCart({
                         productId: product.id,
                         name: product.name,
@@ -255,15 +251,12 @@ export default function Wishlist({ user }: WishlistProps) {
                       });
                       toast.success("Added to cart!");
                     }}
-                    className={`col-span-3 py-3 rounded-xl font-black text-xs transition-colors flex items-center justify-center space-x-1.5 ${
+                    className={`col-span-3 py-3 rounded-xl font-black text-xs transition-colors flex items-center justify-center ${
                       product.stock === 0
                         ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                         : "bg-gray-900 text-white hover:bg-orange-600 hover:shadow-md hover:shadow-orange-100 cursor-pointer"
                     }`}
-                  >
-                    <ShoppingBag size={14} />
-                    <span>{t("Add to Cart")}</span>
-                  </motion.button>
+                  />
                 </div>
               </div>
             </motion.div>
