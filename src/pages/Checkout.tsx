@@ -49,11 +49,22 @@ export default function Checkout({ user }: CheckoutProps) {
   const [address, setAddress] = useState(() => {
     const savedCounty = localStorage.getItem("sokoplus_delivery_county") || "Nairobi City County";
     const savedCity = localStorage.getItem("sokoplus_delivery_city") || "Nairobi CBD";
+    
+    let initialPhone = user?.phoneNumber || "";
+    initialPhone = initialPhone.replace(/\s+/g, "");
+    if (initialPhone.startsWith("+254")) {
+      initialPhone = initialPhone.substring(4);
+    } else if (initialPhone.startsWith("254")) {
+      initialPhone = initialPhone.substring(3);
+    } else if (initialPhone.startsWith("0")) {
+      initialPhone = initialPhone.substring(1);
+    }
+
     return {
       city: savedCity,
       county: savedCounty,
       street: "",
-      phone: user?.phoneNumber || "",
+      phone: initialPhone,
       email: user?.email || ""
     };
   });
@@ -118,8 +129,8 @@ export default function Checkout({ user }: CheckoutProps) {
       errors.phone = "Phone number is required for dispatch notifications.";
     } else {
       const cleaned = address.phone.replace(/\s+/g, "");
-      if (cleaned.length < 9) {
-        errors.phone = "Please enter a valid phone number.";
+      if (cleaned.length !== 9 || !/^[17]\d{8}$/.test(cleaned)) {
+        errors.phone = "Please enter a valid 9-digit phone number (starts with 1 or 7, e.g. 712345678).";
       }
     }
     if (!address.street.trim()) {
@@ -181,6 +192,11 @@ export default function Checkout({ user }: CheckoutProps) {
       const { authorization_url, reference } = response.data.data;
 
       // 3. Log Order to Firestore (as pending)
+      const submittedAddress = {
+        ...address,
+        phone: `+254${address.phone.replace(/\s+/g, "")}`
+      };
+
       await addDoc(collection(db, "orders"), {
         userId: user.uid,
         userEmail: address.email,
@@ -189,7 +205,7 @@ export default function Checkout({ user }: CheckoutProps) {
         status: "pending",
         paymentStatus: "unpaid",
         paymentReference: reference,
-        shippingAddress: address,
+        shippingAddress: submittedAddress,
         preferredPaymentMethod: paymentMethod,
         createdAt: serverTimestamp()
       });
@@ -342,32 +358,50 @@ export default function Checkout({ user }: CheckoutProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Delivery Phone Number</label>
-                <input 
-                  required
-                  type="text" 
-                  value={address.phone}
-                  onChange={(e) => {
-                    setAddress({...address, phone: e.target.value});
-                    if (e.target.value.trim()) {
-                      setValidationErrors(prev => {
-                        const updated = { ...prev };
-                        delete updated.phone;
-                        return updated;
-                      });
-                    }
-                  }}
-                  placeholder="e.g. +254 712 345 678" 
-                  className={`w-full p-4 bg-gray-50 border rounded-2xl outline-none font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all ${
-                    validationErrors.phone ? "border-red-500 focus:ring-red-400" : "border-gray-150"
-                  }`}
-                />
+                <div className={`flex rounded-2xl border overflow-hidden bg-gray-50 focus-within:ring-2 focus-within:ring-orange-500 focus-within:bg-white focus-within:border-transparent transition-all ${
+                  validationErrors.phone ? "border-red-500" : "border-gray-150"
+                }`}>
+                  <div className="flex items-center gap-1 px-4 bg-gray-150/60 border-r border-gray-200 select-none text-gray-600 font-bold text-sm">
+                    <span className="text-base select-none">🇰🇪</span>
+                    <span>+254</span>
+                  </div>
+                  <input 
+                    required
+                    type="tel" 
+                    value={address.phone}
+                    onChange={(e) => {
+                      let val = e.target.value;
+                      // Keep only digits
+                      val = val.replace(/\D/g, "");
+                      // Strip leading '0'
+                      if (val.startsWith("0")) {
+                        val = val.substring(1);
+                      }
+                      // Strip accidental typed/pasted '254'
+                      if (val.startsWith("254")) {
+                        val = val.substring(3);
+                      }
+                      setAddress({...address, phone: val});
+                      if (val.trim()) {
+                        setValidationErrors(prev => {
+                          const updated = { ...prev };
+                          delete updated.phone;
+                          return updated;
+                        });
+                      }
+                    }}
+                    placeholder="712 345678" 
+                    maxLength={9}
+                    className="w-full p-4 bg-transparent outline-none font-bold text-gray-950 placeholder-gray-400"
+                  />
+                </div>
                 {validationErrors.phone ? (
                   <p className="text-red-500 text-[10px] font-bold flex items-center gap-1 mt-1">
                     <AlertTriangle size={12} />
                     <span>{validationErrors.phone}</span>
                   </p>
                 ) : (
-                  <p className="text-[10px] text-gray-400 mt-1 font-semibold ml-1">For driver coordination during delivery dispatch</p>
+                  <p className="text-[10px] text-gray-400 mt-1.5 font-semibold ml-1">For driver coordination during delivery dispatch</p>
                 )}
               </div>
 
