@@ -220,6 +220,8 @@ const swahiliOverrideMap: Record<string, string> = {
   "start shopping": "Anza Kununua Sasa",
   "order summary": "Muhtasari wa Ununuzi wako",
   "subtotal": "Jumla Ndogo (Gharama)",
+  "shipping": "Usafirishaji",
+  "calculated at checkout": "Itahesabiwa unapolipa",
   "shipping (nairobi)": "Usafirishaji (Nairobi)",
   "total": "Jumla Kuu",
   "each": "kila kimoja",

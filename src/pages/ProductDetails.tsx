@@ -8,6 +8,7 @@ import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { AddToCartButton } from "../components/AddToCartButton";
+import { DeliveryCountdown } from "../components/DeliveryCountdown";
 import toast from "react-hot-toast";
 import { motion } from "motion/react";
 import axios from "axios";
@@ -574,6 +575,8 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
               </div>
             )}
           </div>
+
+          <DeliveryCountdown className="mb-6" />
 
           <div className="flex space-x-3">
             <AddToCartButton

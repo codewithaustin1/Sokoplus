@@ -31,6 +31,8 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { counties } from "../data/counties";
 import { FastImage } from "../components/FastImage";
+import { calculateDelivery, calculateShippingFee } from "../utils/delivery";
+import { DeliveryCountdown } from "../components/DeliveryCountdown";
 
 interface CheckoutProps {
   user: UserProfile | null;
@@ -44,12 +46,16 @@ export default function Checkout({ user }: CheckoutProps) {
   const [showMobilSummaryDrawer, setShowMobilSummaryDrawer] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   
-  const [address, setAddress] = useState({
-    city: "Nairobi CBD",
-    county: "Nairobi City County",
-    street: "",
-    phone: user?.phoneNumber || "",
-    email: user?.email || ""
+  const [address, setAddress] = useState(() => {
+    const savedCounty = localStorage.getItem("sokoplus_delivery_county") || "Nairobi City County";
+    const savedCity = localStorage.getItem("sokoplus_delivery_city") || "Nairobi CBD";
+    return {
+      city: savedCity,
+      county: savedCounty,
+      street: "",
+      phone: user?.phoneNumber || "",
+      email: user?.email || ""
+    };
   });
 
   const navigate = useNavigate();
@@ -70,44 +76,14 @@ export default function Checkout({ user }: CheckoutProps) {
       county: countyName,
       city: defaultCity
     });
+    localStorage.setItem("sokoplus_delivery_county", countyName);
+    localStorage.setItem("sokoplus_delivery_city", defaultCity);
   };
 
   const selectedCountyData = counties.find(c => c.name === address.county) || counties.find(c => c.name === "Nairobi City County") || counties[0];
   const currentCities = selectedCountyData ? selectedCountyData.cities : [];
 
-  const getShippingFee = () => {
-    if (total >= 15000) return 0; // Free shipping threshold of KES 15,000 to reward larger orders responsively
-    
-    const county = address.county;
-    const city = address.city;
-
-    if (county === "Nairobi City County") {
-      const centralSpots = [
-        "Nairobi CBD", "Westlands", "Lavington", "Kilimani", "Kileleshwa", 
-        "Hurlingham", "Parklands", "Highridge", "Ngara"
-      ];
-      if (centralSpots.includes(city)) {
-        return 150; // Local delivery within key central areas
-      }
-      return 200; // Local deliveries to Nairobi suburbs
-    }
-
-    const metroCounties = ["Kiambu County", "Kajiado County", "Machakos County"];
-    if (metroCounties.includes(county)) {
-      return 250; // Nairobi Metropolitan area suburbs
-    }
-
-    const upcountryCities = [
-      "Mombasa City (CBD/Island)", "Kisumu City", "Nakuru City", "Eldoret City"
-    ];
-    if (upcountryCities.includes(city)) {
-      return 350; // Major Upcountry City Centres
-    }
-
-    return 450; // Remote/upcountry destinations standard rate
-  };
-
-  const shippingFee = getShippingFee();
+  const shippingFee = calculateShippingFee(address.county, address.city, total);
   const overallTotal = total + shippingFee;
 
   // Free shipping progress variables
@@ -116,48 +92,7 @@ export default function Checkout({ user }: CheckoutProps) {
   const remainingForFreeShipping = FREE_SHIPPING_LIMIT - total;
 
   // Real-time Dynamic Delivery Prediction
-  const getDeliveryExpectation = () => {
-    const county = address.county;
-    const city = address.city;
-
-    // Simulate scheduling based on current Wednesday date provided
-    // Curren hour is 3 AM UTC -> 6 AM East Africa Time (EAT)
-    if (county === "Nairobi City County") {
-      const centralSpots = [
-        "Nairobi CBD", "Westlands", "Lavington", "Kilimani", "Kileleshwa", 
-        "Hurlingham", "Parklands", "Highridge", "Ngara"
-      ];
-      if (centralSpots.includes(city)) {
-        return {
-          tier: "Express Same-Day",
-          time: "Same-Day (Order departs 10:00 AM, arrives by 2:00 PM today)",
-          desc: "Direct courier dispatch for fresh & delicate crafts."
-        };
-      }
-      return {
-        tier: "Standard Nairobi",
-        time: "Same-Day Delivery (Arrives by 5:00 PM today)",
-        desc: "Fast dispatch through our central hub riders."
-      };
-    }
-
-    const metroCounties = ["Kiambu County", "Kajiado County", "Machakos County"];
-    if (metroCounties.includes(county)) {
-      return {
-        tier: "Metro Metropolitan Priority",
-        time: "Next-Day Morning (Arrives Thursday before 12:00 PM)",
-        desc: "Regular regional feeder shuttle service."
-      };
-    }
-
-    return {
-      tier: "Upcountry Premium Parcel",
-      time: "Within 24 - 48 hours (Delivered Friday, June 5)",
-      desc: "Dispatched via secure secure courier with end-to-end telemetry (G4S / Wells Fargo)."
-    };
-  };
-
-  const deliveryPrediction = getDeliveryExpectation();
+  const deliveryPrediction = calculateDelivery(address.county, address.city);
 
   // Change Quantity in Checkout page
   const handleIncreaseQty = (item: CartItem) => {
@@ -357,7 +292,11 @@ export default function Checkout({ user }: CheckoutProps) {
                 <div className="relative">
                   <select 
                     value={address.city}
-                    onChange={(e) => setAddress({...address, city: e.target.value})}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAddress({...address, city: val});
+                      localStorage.setItem("sokoplus_delivery_city", val);
+                    }}
                     className="w-full p-4 bg-gray-50 border border-gray-150 rounded-2xl outline-none text-gray-900 font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all appearance-none cursor-pointer pr-10"
                   >
                     {currentCities.map((city) => (
@@ -461,26 +400,13 @@ export default function Checkout({ user }: CheckoutProps) {
               </div>
             </div>
 
-            {/* Predictive Delivery Time Display Box */}
-            <div className="bg-orange-50/30 p-4 rounded-2xl border border-orange-100 flex items-start gap-3.5 mt-2">
-              <div className="bg-orange-100 text-orange-600 p-2 rounded-xl mt-0.5 shrink-0">
-                <Truck size={18} />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black uppercase text-orange-700 tracking-wider">
-                    {deliveryPrediction.tier} Target
-                  </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                </div>
-                <h4 className="text-sm font-black text-gray-900 leading-snug">
-                  {deliveryPrediction.time}
-                </h4>
-                <p className="text-xs text-gray-500 font-semibold leading-relaxed">
-                  {deliveryPrediction.desc}
-                </p>
-              </div>
-            </div>
+            {/* Predictive Delivery Time Display Box with live Countdown */}
+            <DeliveryCountdown 
+              county={address.county} 
+              city={address.city} 
+              hideSelector={true} 
+              className="mt-4"
+            />
 
           </div>
 

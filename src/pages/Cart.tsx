@@ -1,13 +1,42 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Trash2, ShoppingBag, Plus, Minus, ArrowRight } from "lucide-react";
+import { Trash2, ShoppingBag, Plus, Minus, ArrowRight, MapPin, ChevronDown, Check } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { trackEvent } from "../lib/analytics";
+import { counties } from "../data/counties";
+import { calculateShippingFee } from "../utils/delivery";
 
 export default function Cart() {
   const { items, removeFromCart, addToCart, total } = useCart();
   const { t } = useLanguage();
+
+  const [selectedCounty, setSelectedCounty] = useState<string>(() => {
+    return localStorage.getItem("sokoplus_delivery_county") || "Nairobi City County";
+  });
+  const [selectedCity, setSelectedCity] = useState<string>(() => {
+    return localStorage.getItem("sokoplus_delivery_city") || "Nairobi CBD";
+  });
+  const [isChangingLocation, setIsChangingLocation] = useState(false);
+
+  // Sync to local storage
+  useEffect(() => {
+    localStorage.setItem("sokoplus_delivery_county", selectedCounty);
+    localStorage.setItem("sokoplus_delivery_city", selectedCity);
+  }, [selectedCounty, selectedCity]);
+
+  const selectedCountyData = counties.find((c) => c.name === selectedCounty) || counties[0];
+  const cities = selectedCountyData ? selectedCountyData.cities : [];
+
+  const handleCountyChange = (val: string) => {
+    setSelectedCounty(val);
+    const firstCity = counties.find((c) => c.name === val)?.cities[0] || "";
+    setSelectedCity(firstCity);
+  };
+
+  const shippingFee = calculateShippingFee(selectedCounty, selectedCity, total);
+  const overallTotal = total + shippingFee;
 
   if (items.length === 0) {
     return (
@@ -136,13 +165,79 @@ export default function Cart() {
                 <span>{t("Subtotal")}</span>
                 <span>KES {total.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-gray-500">
-                <span>{t("Shipping (Nairobi)")}</span>
-                <span>KES 250</span>
+              <div className="flex flex-col gap-1 text-gray-500">
+                <div className="flex justify-between">
+                  <span>{t("Shipping")}</span>
+                  <span className="font-bold text-gray-800">
+                    {shippingFee === 0 ? (
+                      <span className="text-emerald-600 font-black uppercase text-[10px] bg-emerald-50 px-2 py-0.5 rounded-full">
+                        Free shipping
+                      </span>
+                    ) : (
+                      `KES ${shippingFee.toLocaleString()}`
+                    )}
+                  </span>
+                </div>
+                {/* Micro selector */}
+                <div className="flex items-center justify-between text-[11px] text-gray-450">
+                  <button
+                    onClick={() => setIsChangingLocation(!isChangingLocation)}
+                    className="flex items-center gap-1 text-orange-600 hover:text-orange-700 font-extrabold focus:outline-none cursor-pointer bg-transparent border-none"
+                  >
+                    <MapPin size={10} />
+                    <span>Deliver to: {selectedCity}</span>
+                    <ChevronDown size={10} className={`transform transition-transform ${isChangingLocation ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
               </div>
+
+              {/* Collapsible Selectors inside the Order Summary sidebar box itself */}
+              <AnimatePresence>
+                {isChangingLocation && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 space-y-2.5 my-1 text-xs">
+                      <div>
+                        <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-wider">County</label>
+                        <select
+                          value={selectedCounty}
+                          onChange={(e) => handleCountyChange(e.target.value)}
+                          className="w-full text-xs font-bold p-2 bg-white border border-gray-150 rounded-lg outline-none focus:ring-1 focus:ring-orange-500 transition-all cursor-pointer"
+                        >
+                          {counties.map((c) => (
+                            <option key={c.name} value={c.name}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-wider">City</label>
+                        <select
+                          value={selectedCity}
+                          onChange={(e) => setSelectedCity(e.target.value)}
+                          className="w-full text-xs font-bold p-2 bg-white border border-gray-150 rounded-lg outline-none focus:ring-1 focus:ring-orange-500 transition-all cursor-pointer"
+                        >
+                          {cities.map((city) => (
+                            <option key={city} value={city}>
+                              {city}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="border-t border-gray-100 pt-4 flex justify-between text-xl font-black text-gray-900">
                 <span>{t("Total")}</span>
-                <span>KES {(total + 250).toLocaleString()}</span>
+                <span>KES {overallTotal.toLocaleString()}</span>
               </div>
             </div>
             <Link 
