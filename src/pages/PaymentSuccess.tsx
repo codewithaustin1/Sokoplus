@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import axios from "axios";
 import { CheckCircle, XCircle, ShoppingBag, ArrowRight } from "lucide-react";
 import { useCart } from "../lib/CartContext";
+import { PwaInstallBanner } from "../components/PwaInstallBanner";
 import { doc, updateDoc, collection, query, where, getDocs, increment, writeBatch } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { motion } from "motion/react";
@@ -188,6 +189,11 @@ export default function PaymentSuccess() {
         <p className="text-xs text-gray-400 leading-relaxed italic">
           A receipt and tracking details have been sent to your email. You can view progress in your profile.
         </p>
+      </div>
+
+      {/* Clean installation prompt */}
+      <div className="w-full px-2 max-w-lg">
+        <PwaInstallBanner />
       </div>
 
       <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6">
