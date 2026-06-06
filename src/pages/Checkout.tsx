@@ -31,7 +31,6 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { counties } from "../data/counties";
 import { FastImage } from "../components/FastImage";
-import { PwaInstallBanner } from "../components/PwaInstallBanner";
 
 interface CheckoutProps {
   user: UserProfile | null;
@@ -311,10 +310,6 @@ export default function Checkout({ user }: CheckoutProps) {
             {items.length} {items.length === 1 ? 'item' : 'items'}
           </span>
         </h1>
-      </div>
-
-      <div className="mb-8">
-        <PwaInstallBanner />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
