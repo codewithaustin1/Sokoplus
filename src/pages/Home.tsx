@@ -4,7 +4,7 @@ import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff, Search, Loader2, Check } from "lucide-react";
+import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff, Search, Loader2, Check, GitCompare } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -18,6 +18,7 @@ import { FastImage } from "../components/FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
 import { saveProductsToCache, getCachedProducts, saveHomepageSettings, getHomepageSettings } from "../utils/offlineDb";
+import { getCompareList, addToCompare, removeFromCompare } from "../utils/compare";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -50,6 +51,29 @@ export default function Home({ user }: HomeProps) {
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
   const [recLoading, setRecLoading] = useState<boolean>(true);
   const [hasHistory, setHasHistory] = useState<boolean>(false);
+
+  // Product Comparison Selector State
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  useEffect(() => {
+    const syncCompare = () => {
+      setCompareIds(getCompareList().map((item) => item.id));
+    };
+    syncCompare();
+    window.addEventListener("sokoplus_compare_changed", syncCompare);
+    return () => {
+      window.removeEventListener("sokoplus_compare_changed", syncCompare);
+    };
+  }, []);
+
+  const handleToggleCompare = (product: Product, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (compareIds.includes(product.id)) {
+      removeFromCompare(product.id);
+    } else {
+      addToCompare(product);
+    }
+  };
 
   const [homeSearch, setHomeSearch] = useState(() => searchParams.get("search") || "");
 
@@ -577,7 +601,7 @@ export default function Home({ user }: HomeProps) {
               <motion.div 
                 whileHover={{ y: -5 }}
                 key={`rec-${p.id}`} 
-                className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
+                className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
               >
                 <Link 
                   to={`/product/${p.id}`} 
@@ -614,6 +638,20 @@ export default function Home({ user }: HomeProps) {
                     }`}
                   >
                     <Heart size={16} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.18 }}
+                    whileTap={{ scale: 0.8 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                    onClick={(e) => handleToggleCompare(p, e)}
+                    className={`absolute top-2 left-12 p-2 rounded-full shadow-sm z-10 transition-colors ${
+                      compareIds.includes(p.id) 
+                        ? "bg-orange-50 text-orange-600 hover:bg-orange-100" 
+                        : "bg-white/80 text-gray-400 hover:text-orange-600 hover:bg-white"
+                    }`}
+                    title="Compare Product Specifications"
+                  >
+                    <GitCompare size={16} />
                   </motion.button>
                 </Link>
                 <div className="space-y-1">
@@ -1056,7 +1094,7 @@ export default function Home({ user }: HomeProps) {
               <motion.div 
                 whileHover={{ y: -5 }}
                 key={p.id} 
-                className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
+                className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
               >
                 <Link 
                   to={`/product/${p.id}`} 
@@ -1093,6 +1131,20 @@ export default function Home({ user }: HomeProps) {
                     }`}
                   >
                     <Heart size={16} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.18 }}
+                    whileTap={{ scale: 0.8 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                    onClick={(e) => handleToggleCompare(p, e)}
+                    className={`absolute top-2 left-12 p-2 rounded-full shadow-sm z-10 transition-colors ${
+                      compareIds.includes(p.id) 
+                        ? "bg-orange-50 text-orange-600 hover:bg-orange-100" 
+                        : "bg-white/80 text-gray-400 hover:text-orange-600 hover:bg-white"
+                    }`}
+                    title="Compare Product Specifications"
+                  >
+                    <GitCompare size={16} />
                   </motion.button>
                 </Link>
                 <div className="space-y-1">

@@ -8,8 +8,10 @@ import { Toaster } from "react-hot-toast";
 import { CartProvider } from "./lib/CartContext";
 import { CurrencyProvider } from "./lib/CurrencyContext";
 import { LanguageProvider } from "./lib/LanguageContext";
+import { ThemeProvider } from "./lib/ThemeContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import { ProductCompareDrawer } from "./components/ProductCompareDrawer";
 import Home from "./pages/Home";
 import ProductDetails from "./pages/ProductDetails";
 import Wishlist from "./pages/Wishlist";
@@ -262,12 +264,13 @@ export default function App() {
   if (loading) return <div className="h-screen flex items-center justify-center font-sans">Loading Soplus...</div>;
 
   return (
-    <LanguageProvider>
-      <CurrencyProvider>
-        <CartProvider>
-          <Router>
-            <AnalyticsTracker />
-          <div className="min-h-screen flex flex-col font-sans bg-gray-50 text-gray-900 selection:bg-orange-100">
+    <ThemeProvider>
+      <LanguageProvider>
+        <CurrencyProvider>
+          <CartProvider>
+            <Router>
+              <AnalyticsTracker />
+            <div className="min-h-screen flex flex-col font-sans bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 selection:bg-orange-100 transition-colors duration-200">
             {user && !user.emailVerified && <VerificationBanner email={user.email} />}
             <Navbar user={user} />
             <main className="flex-grow">
@@ -328,13 +331,15 @@ export default function App() {
 
             <SupportChat user={user} isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
             <CookieConsentBanner />
+            <ProductCompareDrawer />
             <OfflineNotifier />
             <NotificationManager user={user} />
             <Toaster position="bottom-right" />
-          </div>
-        </Router>
-      </CartProvider>
-      </CurrencyProvider>
-    </LanguageProvider>
+            </div>
+          </Router>
+        </CartProvider>
+        </CurrencyProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

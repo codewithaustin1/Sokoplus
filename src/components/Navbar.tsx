@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers } from "lucide-react";
+import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Sun, Moon } from "lucide-react";
+import { useTheme } from "../lib/ThemeContext";
 import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { auth, db } from "../lib/firebase";
@@ -18,6 +19,7 @@ interface NavbarProps {
 export default function Navbar({ user }: NavbarProps) {
   const { items } = useCart();
   const { language, setLanguage, t } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
   const [search, setSearch] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -107,13 +109,13 @@ export default function Navbar({ user }: NavbarProps) {
   ];
 
   return (
-    <nav id="main-nav" className="sticky top-0 z-50 bg-white/95 md:bg-white/90 backdrop-blur-md border-b border-gray-100">
+    <nav id="main-nav" className="sticky top-0 z-50 bg-white/95 md:bg-white/90 dark:bg-gray-950/95 dark:md:bg-gray-950/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-bold tracking-tighter text-orange-600">
-              Sokoplus<span className="text-gray-900">.</span>
+              Sokoplus<span className="text-gray-900 dark:text-white">.</span>
             </Link>
           </div>
 
@@ -130,7 +132,7 @@ export default function Navbar({ user }: NavbarProps) {
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onFocus={() => setShowDesktopSuggestions(true)}
                   placeholder={t("searchPlaceholder")}
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-200 rounded-full leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 sm:text-sm transition-all focus:shadow-sm"
+                  className="block w-full pl-10 pr-10 py-2 border border-gray-200 dark:border-gray-800 rounded-full leading-5 bg-gray-50 dark:bg-gray-900 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 sm:text-sm transition-all focus:shadow-sm"
                 />
                 {search && (
                   <button
@@ -160,21 +162,21 @@ export default function Navbar({ user }: NavbarProps) {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute left-0 right-0 mt-2 bg-white rounded-3xl border border-gray-100 shadow-2xl z-50 p-5 space-y-4 max-h-[80vh] overflow-y-auto"
+                    className="absolute left-0 right-0 mt-2 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-2xl dark:shadow-black/40 z-50 p-5 space-y-4 max-h-[80vh] overflow-y-auto"
                   >
                     {suggestedProducts.length > 0 ? (
                       <div className="space-y-3">
                         <div className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Instant Matches</div>
-                        <div className="divide-y divide-gray-100">
+                        <div className="divide-y divide-gray-100 dark:divide-gray-800">
                           {suggestedProducts.map((p) => (
                             <div
                               key={p.id}
                               onClick={() => handleProductSelect(p.id)}
                               onMouseEnter={() => prefetchProductAssets(p)}
                               onTouchStart={() => prefetchProductAssets(p)}
-                              className="flex items-center space-x-3 py-3 cursor-pointer hover:bg-gray-55 rounded-2xl px-2 group transition-all"
+                              className="flex items-center space-x-3 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-2xl px-2 group transition-all"
                             >
-                              <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-200/50">
+                              <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0 border border-gray-200/50 dark:border-gray-700/50">
                                 <FastImage 
                                   src={p.images?.[0] || ""} 
                                   alt={p.name} 
@@ -182,10 +184,10 @@ export default function Navbar({ user }: NavbarProps) {
                                 />
                               </div>
                               <div className="flex-grow min-w-0">
-                                <p className="text-sm font-bold text-gray-900 truncate group-hover:text-orange-600 transition-colors">{p.name}</p>
+                                <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-orange-600 dark:group-hover:text-orange-500 transition-colors">{p.name}</p>
                                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">{p.category}</p>
                               </div>
-                              <div className="text-sm font-black text-gray-950 whitespace-nowrap">
+                              <div className="text-sm font-black text-gray-950 dark:text-gray-50 whitespace-nowrap">
                                 KES {p.price.toLocaleString()}
                               </div>
                             </div>
@@ -207,14 +209,14 @@ export default function Navbar({ user }: NavbarProps) {
           <div className="flex items-center space-x-4">
             <div className="hidden md:flex items-center space-x-6 mr-4">
               {navLinks.map((link) => (
-                <Link key={link.path} to={link.path} className="text-sm font-medium text-gray-600 hover:text-orange-600">
+                <Link key={link.path} to={link.path} className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-500 transition-colors">
                   {link.label}
                 </Link>
               ))}
             </div>
 
-            <Link to="/wishlist" className="hidden md:inline-flex relative group p-2">
-              <Heart className="text-gray-700 group-hover:text-red-500 transition-colors" size={24} />
+            <Link to="/wishlist" className="hidden md:inline-flex relative group p-2 animate-pulse-subtle">
+              <Heart className="text-gray-700 dark:text-gray-350 group-hover:text-red-500 transition-colors" size={24} />
               {user?.wishlist && user.wishlist.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                   {user.wishlist.length}
@@ -223,7 +225,7 @@ export default function Navbar({ user }: NavbarProps) {
             </Link>
 
             <Link to="/profile" className="hidden md:inline-flex p-2 group">
-              <User className="text-gray-750 group-hover:text-orange-600 transition-colors" size={24} />
+              <User className="text-gray-700 dark:text-gray-350 group-hover:text-orange-600 dark:group-hover:text-orange-500 transition-colors" size={24} />
             </Link>
 
             <Link to="/cart" className="relative group p-2">
@@ -232,7 +234,7 @@ export default function Navbar({ user }: NavbarProps) {
                 transition={{ duration: 0.6, ease: "easeInOut" }}
                 className="relative"
               >
-                <ShoppingCart className="text-gray-700 group-hover:text-orange-600 transition-colors" size={24} />
+                <ShoppingCart className="text-gray-700 dark:text-gray-300 group-hover:text-orange-600 dark:group-hover:text-orange-500 transition-colors" size={24} />
                 {itemCount > 0 && (
                   <motion.span
                     key={itemCount}
@@ -252,14 +254,14 @@ export default function Navbar({ user }: NavbarProps) {
             </Link>
 
             {/* Language Toggle */}
-            <div className="hidden md:flex items-center bg-gray-100 rounded-full p-0.5 border border-gray-200 mr-2">
+            <div className="hidden md:flex items-center bg-gray-100 dark:bg-gray-850 rounded-full p-0.5 border border-gray-200 dark:border-gray-800 mr-2">
               <button
                 type="button"
                 onClick={() => setLanguage("en")}
-                className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider transition-all duration-150 cursor-pointer ${
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider transition-all duration-155 cursor-pointer ${
                   language === "en"
-                    ? "bg-white text-orange-600 shadow-xs"
-                    : "text-gray-500 hover:text-gray-950"
+                    ? "bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-xs"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-950 hover:dark:text-white"
                 }`}
               >
                 EN
@@ -267,15 +269,26 @@ export default function Navbar({ user }: NavbarProps) {
               <button
                 type="button"
                 onClick={() => setLanguage("sw")}
-                className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider transition-all duration-150 cursor-pointer ${
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider transition-all duration-155 cursor-pointer ${
                   language === "sw"
-                    ? "bg-white text-orange-600 shadow-xs"
-                    : "text-gray-500 hover:text-gray-950"
+                    ? "bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-xs"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-950 hover:dark:text-white"
                 }`}
               >
                 SW
               </button>
             </div>
+
+            {/* Desktop Theme Toggle */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={toggleTheme}
+              className="hidden md:flex items-center justify-center p-2 rounded-full cursor-pointer bg-gray-100 hover:bg-gray-200 dark:bg-gray-850 dark:hover:bg-gray-800 text-gray-750 dark:text-gray-300 border border-gray-200 dark:border-gray-800 transition-colors"
+              title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Theme"}
+            >
+              {theme === "light" ? <Moon size={18} /> : <Sun size={18} className="text-yellow-500 animate-pulse-subtle" />}
+            </motion.button>
 
             <div className="hidden md:flex items-center space-x-2">
               {user ? (
@@ -306,11 +319,21 @@ export default function Navbar({ user }: NavbarProps) {
               )}
             </div>
 
+            {/* Mobile Theme Toggle */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={toggleTheme}
+              className="md:hidden flex items-center justify-center p-2 rounded-xl bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-gray-800 transition-colors mr-1 cursor-pointer"
+              title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Theme"}
+            >
+              {theme === "light" ? <Moon size={20} /> : <Sun size={20} className="text-yellow-500" />}
+            </motion.button>
+
             <button 
               onClick={() => {
                 setIsMobileMenuOpen(!isMobileMenuOpen);
               }}
-              className="md:hidden p-2 text-gray-750 hover:bg-gray-100 rounded-xl transition-colors"
+              className="md:hidden p-2 text-gray-750 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-xl transition-colors"
             >
               {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -319,9 +342,9 @@ export default function Navbar({ user }: NavbarProps) {
       </div>
 
       {/* Modern, Neutral, High-Visibility Mobile Search Bar (Always handy, no micro-icon triggers needed) */}
-      <div className="md:hidden px-4 pb-3 pt-0.5 border-b border-gray-50 bg-white/95 relative">
+      <div className="md:hidden px-4 pb-3 pt-0.5 border-b border-gray-50 dark:border-gray-850 bg-white/95 dark:bg-gray-950/95 relative transition-colors duration-200">
         <form onSubmit={handleSearch} className="relative w-full">
-          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-450">
+          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-450 dark:text-gray-400">
             <Search size={16} />
           </span>
           <input
@@ -329,7 +352,7 @@ export default function Navbar({ user }: NavbarProps) {
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={language === "sw" ? "Tafuta bidhaa bora za Kenya..." : "Search products in Kenya..."}
-            className="block w-full pl-9 pr-9 py-2 border border-gray-200/80 rounded-xl leading-5 bg-gray-50/80 placeholder-gray-400 text-gray-800 text-xs font-medium focus:outline-none focus:bg-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all shadow-inner-sm"
+            className="block w-full pl-9 pr-9 py-2 border border-gray-200/80 dark:border-gray-800 rounded-xl leading-5 bg-gray-50/80 dark:bg-gray-900/80 placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all shadow-inner-sm"
           />
           {search && (
             <button
@@ -409,10 +432,10 @@ export default function Navbar({ user }: NavbarProps) {
                   setIsMobileMenuOpen(false);
                 }
               }}
-              className="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 md:hidden p-6 flex flex-col space-y-7 touch-pan-y"
+              className="fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-900 shadow-2xl z-50 md:hidden p-6 flex flex-col space-y-7 touch-pan-y transition-colors duration-200"
             >
               <div className="flex justify-between items-center">
-                <span className="text-xl font-bold tracking-tighter text-gray-900 flex items-center space-x-2">
+                <span className="text-xl font-bold tracking-tighter text-gray-900 dark:text-gray-100 flex items-center space-x-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-orange-600 animate-pulse" />
                   <span>Sokoplus Menu</span>
                 </span>
@@ -420,7 +443,7 @@ export default function Navbar({ user }: NavbarProps) {
                   whileHover={{ scale: 1.15, rotate: 90 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setIsMobileMenuOpen(false)} 
-                  className="p-2 text-gray-400 hover:text-orange-600 transition-colors bg-gray-55 rounded-xl border border-gray-100"
+                  className="p-2 text-gray-400 hover:text-orange-600 transition-colors bg-gray-50 dark:bg-gray-850 rounded-xl border border-gray-100 dark:border-gray-800"
                 >
                   <X size={20} />
                 </motion.button>
@@ -442,14 +465,14 @@ export default function Navbar({ user }: NavbarProps) {
                   value={search}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder={t("searchPlaceholder")}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-150 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all focus:border-orange-500 focus:bg-white font-medium"
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 text-gray-900 dark:text-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all focus:border-orange-500 focus:bg-white focus:dark:bg-gray-900 font-medium"
                 />
               </motion.form>
 
               {/* Mobile Language Selector */}
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-150/50">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Lugha / Language</span>
-                <div className="flex bg-white rounded-xl p-0.5 border border-gray-100 shadow-xs">
+              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-950 rounded-2xl border border-gray-150/50 dark:border-gray-850">
+                <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">Lugha / Language</span>
+                <div className="flex bg-white dark:bg-gray-800 rounded-xl p-0.5 border border-gray-100 dark:border-gray-750 shadow-xs">
                   <button
                     type="button"
                     onClick={() => setLanguage("en")}
@@ -503,7 +526,7 @@ export default function Navbar({ user }: NavbarProps) {
                   <Link
                     to="/"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-lg font-black text-gray-900 flex items-center justify-between group py-1"
+                    className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center justify-between group py-1"
                   >
                     <span>{t("home")}</span>
                     <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
@@ -526,7 +549,7 @@ export default function Navbar({ user }: NavbarProps) {
                   <Link
                     to="/blog"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
+                    className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center justify-between group py-1"
                   >
                     <span>{t("blog")}</span>
                     <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
@@ -547,17 +570,17 @@ export default function Navbar({ user }: NavbarProps) {
                   <Link
                     to="/wishlist"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
+                    className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center justify-between group py-1"
                   >
                     <div className="flex items-center space-x-2">
-                      <span>{t("wishlist")}</span>
+                       <span>{t("wishlist")}</span>
                       {user?.wishlist && user.wishlist.length > 0 && (
-                        <span className="bg-red-505 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                        <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                           {user.wishlist.length}
                         </span>
                       )}
                     </div>
-                    <div className="text-gray-400 group-hover:text-red-505 transition-colors">
+                    <div className="text-gray-400 group-hover:text-red-500 transition-colors">
                       <Heart size={20} />
                     </div>
                   </Link>
@@ -575,10 +598,10 @@ export default function Navbar({ user }: NavbarProps) {
                   <Link
                     to="/profile"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-lg font-black text-gray-905 flex items-center justify-between group py-1"
+                    className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center justify-between group py-1"
                   >
                     <span>{t("profile")}</span>
-                    <div className="text-gray-405 group-hover:text-orange-600 transition-colors">
+                    <div className="text-gray-400 dark:text-gray-450 group-hover:text-orange-600 transition-colors">
                       <User size={20} />
                     </div>
                   </Link>
@@ -613,19 +636,19 @@ export default function Navbar({ user }: NavbarProps) {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.25 }}
-                className="mt-auto pt-6 border-t border-gray-150 flex flex-col space-y-4"
+                className="mt-auto pt-6 border-t border-gray-150 dark:border-gray-800 flex flex-col space-y-4"
               >
                 {user ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3 p-4 bg-orange-50/50 rounded-2xl border border-orange-100/30">
+                   <div className="space-y-4">
+                    <div className="flex items-center space-x-3 p-4 bg-orange-50/50 dark:bg-orange-950/25 rounded-2xl border border-orange-100/30 dark:border-orange-900/35">
                       <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white font-bold shadow-sm">
                         {user.displayName[0]}
                       </div>
                       <div className="flex-grow min-w-0">
-                        <p className="text-sm font-bold text-gray-900 truncate">{user.displayName}</p>
+                        <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{user.displayName}</p>
                         <div className="flex items-center justify-between mt-0.5">
-                          <p className="text-xs text-gray-500 truncate mr-2">{user.email}</p>
-                          <span className="bg-white px-2 py-0.5 rounded-lg text-[9px] font-black text-orange-600 border border-orange-100 flex items-center shadow-xs flex-shrink-0">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate mr-2">{user.email}</p>
+                          <span className="bg-white dark:bg-gray-800 px-2 py-0.5 rounded-lg text-[9px] font-black text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900 flex items-center shadow-xs flex-shrink-0">
                             <Award size={10} className="mr-0.5" /> {user.loyaltyPoints || 0}
                           </span>
                         </div>
@@ -637,7 +660,7 @@ export default function Navbar({ user }: NavbarProps) {
                       onClick={() => {
                         setShowLogoutConfirm(true);
                       }}
-                      className="w-full flex items-center justify-center space-x-2 text-gray-500 hover:text-red-500 font-bold p-3 bg-gray-50 rounded-2xl border border-gray-100 text-sm transition-colors cursor-pointer"
+                      className="w-full flex items-center justify-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-red-500 font-bold p-3 bg-gray-55 dark:bg-gray-850 rounded-2xl border border-gray-100 dark:border-gray-800 text-sm transition-colors cursor-pointer"
                     >
                       <LogOut size={16} />
                       <span>{t("logout")}</span>

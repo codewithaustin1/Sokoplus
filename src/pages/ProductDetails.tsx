@@ -3,7 +3,7 @@ import { useParams, Link, useLocation } from "react-router-dom";
 import { doc, getDoc, collection, query, limit, getDocs, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
-import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell } from "lucide-react";
+import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -18,6 +18,7 @@ import { FastImage } from "../components/FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
 import Markdown from "react-markdown";
+import { getCompareList, addToCompare, removeFromCompare } from "../utils/compare";
 
 interface ProductDetailsProps {
   user: UserProfile | null;
@@ -71,6 +72,29 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   const [alertEmail, setAlertEmail] = useState(user?.email || "");
   const [isSettingAlert, setIsSettingAlert] = useState(false);
   const [alertSetSuccessfully, setAlertSetSuccessfully] = useState(false);
+
+  const [isInCompare, setIsInCompare] = useState(false);
+  useEffect(() => {
+    if (!product) return;
+    const syncCompare = () => {
+      const list = getCompareList();
+      setIsInCompare(list.some(item => item.id === product.id));
+    };
+    syncCompare();
+    window.addEventListener("sokoplus_compare_changed", syncCompare);
+    return () => {
+      window.removeEventListener("sokoplus_compare_changed", syncCompare);
+    };
+  }, [product]);
+
+  const toggleCompare = () => {
+    if (!product) return;
+    if (isInCompare) {
+      removeFromCompare(product.id);
+    } else {
+      addToCompare(product);
+    }
+  };
 
   useEffect(() => {
     if (user?.email) {
@@ -619,6 +643,18 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
               title="Share Product"
             >
               <Share2 size={24} />
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: "spring", stiffness: 450, damping: 12 }}
+              onClick={toggleCompare}
+              className={`p-5 border rounded-2xl transition-colors cursor-pointer flex-shrink-0 ${
+                isInCompare ? "bg-orange-50 border-orange-100 text-orange-600" : "border-gray-100 text-gray-400 hover:bg-orange-50 hover:text-orange-600"
+              }`}
+              title="Compare Product Specifications"
+            >
+              <GitCompare size={24} />
             </motion.button>
           </div>
 
