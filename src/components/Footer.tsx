@@ -1,12 +1,47 @@
 import { Link } from "react-router-dom";
-import { Facebook, Twitter, Instagram, Linkedin, Send, Mail, MapPin, Phone } from "lucide-react";
-import React, { useState } from "react";
+import { Facebook, Twitter, Instagram, Linkedin, Send, Mail, MapPin, Phone, X, ExternalLink } from "lucide-react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../lib/LanguageContext";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../lib/firebase";
+import { motion, AnimatePresence } from "motion/react";
 
 export default function Footer() {
   const [email, setEmail] = useState("");
+  const [googleMapsLink, setGoogleMapsLink] = useState("");
+  const [googleMapsLinks, setGoogleMapsLinks] = useState<{ name: string; url: string }[]>([]);
+  const [showLocationsModal, setShowLocationsModal] = useState(false);
   const { t } = useLanguage();
+
+  useEffect(() => {
+    try {
+      const settingsRef = doc(db, "settings", "homepage");
+      const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.googleMapsLinks && Array.isArray(data.googleMapsLinks)) {
+            setGoogleMapsLinks(data.googleMapsLinks);
+          } else if (data.googleMapsLink) {
+            setGoogleMapsLinks([{ name: "Nairobi Store", url: data.googleMapsLink }]);
+          } else {
+            setGoogleMapsLinks([]);
+          }
+
+          if (data.googleMapsLink) {
+            setGoogleMapsLink(data.googleMapsLink);
+          } else {
+            setGoogleMapsLink("");
+          }
+        }
+      }, (error) => {
+        console.warn("Could not load maps link in footer:", error);
+      });
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn("Error setting up snapshots for footer:", err);
+    }
+  }, []);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,8 +113,33 @@ export default function Footer() {
               <h3 className="text-xs font-black text-gray-900 dark:text-gray-100 uppercase tracking-widest border-b border-orange-100 dark:border-orange-950 pb-2 w-fit">{t("Contact")}</h3>
               <ul className="space-y-4">
                 <li className="flex items-start space-x-3 text-sm text-gray-500 dark:text-gray-450">
-                  <MapPin size={18} className="text-orange-600 shrink-0" />
-                  <span>{t("Nairobi Business District,")}<br/>{t("Kenyan Avenue, Kenya")}</span>
+                  <MapPin size={18} className="text-orange-600 shrink-0 mt-0.5" />
+                  {googleMapsLinks.length === 0 ? (
+                    <span>{t("Nairobi Business District,")}<br/>{t("Kenyan Avenue, Kenya")}</span>
+                  ) : googleMapsLinks.length === 1 ? (
+                    <a 
+                      href={googleMapsLinks[0].url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200 underline decoration-orange-500/30 hover:decoration-orange-500/80 font-semibold cursor-pointer"
+                    >
+                      <span>{t("Nairobi Business District,")}<br/>{t("Kenyan Avenue, Kenya")}</span>
+                      <span className="block mt-1 text-xs text-orange-600 dark:text-orange-400 font-bold hover:underline">
+                        {t("View Shop Location")} &rarr;
+                      </span>
+                    </a>
+                  ) : (
+                    <button 
+                      type="button"
+                      onClick={() => setShowLocationsModal(true)}
+                      className="text-left hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200 underline decoration-orange-500/30 hover:decoration-orange-500/80 font-semibold cursor-pointer outline-none bg-transparent"
+                    >
+                      <span>{t("Nairobi Business District,")}<br/>{t("Kenyan Avenue, Kenya")}</span>
+                      <span className="block mt-1 text-xs text-orange-600 dark:text-orange-400 font-bold hover:underline">
+                        {t("Our Outlets")} ({googleMapsLinks.length} {t("Locations")}) &rarr;
+                      </span>
+                    </button>
+                  )}
                 </li>
                 <li className="flex items-center space-x-3 text-sm text-gray-500 dark:text-gray-450">
                   <Mail size={18} className="text-orange-600 shrink-0" />
@@ -130,6 +190,86 @@ export default function Footer() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showLocationsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLocationsModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+
+            {/* Modal Content */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="relative w-full max-w-md bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl shadow-2xl p-6 overflow-hidden z-10"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
+                <div className="flex items-center space-x-2">
+                  <span className="p-2 bg-orange-100 dark:bg-orange-950/40 text-orange-600 rounded-xl">
+                    <MapPin size={18} className="animate-pulse" />
+                  </span>
+                  <div>
+                    <h3 className="text-base font-black text-gray-900 dark:text-white">
+                      {t("Our Store Locations")}
+                    </h3>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                      {googleMapsLinks.length} {t("outlets found")}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLocationsModal(false)}
+                  className="p-1.5 text-gray-450 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-3 max-h-80 overflow-y-auto pr-1">
+                {googleMapsLinks.map((loc, idx) => (
+                  <a
+                    key={idx}
+                    href={loc.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-4 bg-gray-50 hover:bg-orange-50/20 dark:bg-gray-950 dark:hover:bg-orange-950/10 border border-gray-150/40 dark:border-gray-950/50 hover:border-orange-200/50 dark:hover:border-orange-900/30 rounded-2xl group transition-all"
+                  >
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-gray-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                        {loc.name || `${t("Shop Location")} ${idx + 1}`}
+                      </p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium font-mono line-clamp-1 truncate max-w-[240px]">
+                        {loc.url}
+                      </p>
+                    </div>
+                    <span className="p-1 text-gray-400 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                      <ExternalLink size={14} />
+                    </span>
+                  </a>
+                ))}
+              </div>
+
+              <div className="mt-5 pt-3.5 border-t border-gray-100 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => setShowLocationsModal(false)}
+                  className="w-full py-3 bg-gray-900 dark:bg-gray-800 text-white hover:bg-orange-600 dark:hover:bg-orange-500 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  {t("Close")}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </footer>
   );
 }

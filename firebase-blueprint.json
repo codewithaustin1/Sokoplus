@@ -120,6 +120,18 @@
         "heroImageUrl": { "type": "string" },
         "heroBadgeText": { "type": "string" },
         "heroHeadingText": { "type": "string" },
+        "googleMapsLink": { "type": "string" },
+        "googleMapsLinks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "url": { "type": "string" }
+            },
+            "required": ["name", "url"]
+          }
+        },
         "updatedAt": { "type": "string", "format": "date-time" },
         "updatedBy": { "type": "string" }
       }

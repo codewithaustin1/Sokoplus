@@ -49,6 +49,7 @@ import {
   UploadCloud,
   Coins,
   Briefcase,
+  MapPin,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -538,6 +539,8 @@ export default function Admin({ user }: AdminProps) {
   const [homepageHeroUrl, setHomepageHeroUrl] = useState<string>("");
   const [homepageHeroBadge, setHomepageHeroBadge] = useState<string>("Vetted excellence");
   const [homepageHeroHeading, setHomepageHeroHeading] = useState<string>("Authentic & Trusted Goods");
+  const [googleMapsLink, setGoogleMapsLink] = useState<string>("");
+  const [googleMapsLinks, setGoogleMapsLinks] = useState<{ name: string; url: string }[]>([]);
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
@@ -703,6 +706,14 @@ export default function Admin({ user }: AdminProps) {
           if (settingsData.heroHeadingText) {
             setHomepageHeroHeading(settingsData.heroHeadingText);
           }
+          if (settingsData.googleMapsLink) {
+            setGoogleMapsLink(settingsData.googleMapsLink);
+          }
+          if (settingsData.googleMapsLinks) {
+            setGoogleMapsLinks(settingsData.googleMapsLinks);
+          } else if (settingsData.googleMapsLink) {
+            setGoogleMapsLinks([{ name: "Nairobi Store", url: settingsData.googleMapsLink }]);
+          }
         }
       } catch (settingsError) {
         console.warn("Could not retrieve hero image settings: ", settingsError);
@@ -845,6 +856,8 @@ export default function Admin({ user }: AdminProps) {
         heroImageUrl: homepageHeroUrl,
         heroBadgeText: homepageHeroBadge,
         heroHeadingText: homepageHeroHeading,
+        googleMapsLink: googleMapsLinks.length > 0 ? googleMapsLinks[0].url : "",
+        googleMapsLinks: googleMapsLinks,
         updatedAt: new Date(),
         updatedBy: user?.email || "Admin",
       }, { merge: true });
@@ -870,12 +883,16 @@ export default function Admin({ user }: AdminProps) {
           heroImageUrl: "",
           heroBadgeText: "Vetted excellence",
           heroHeadingText: "Authentic & Trusted Goods",
+          googleMapsLink: "",
+          googleMapsLinks: [],
           updatedAt: new Date(),
           updatedBy: user?.email || "Admin",
         }, { merge: true });
         setHomepageHeroUrl("");
         setHomepageHeroBadge("Vetted excellence");
         setHomepageHeroHeading("Authentic & Trusted Goods");
+        setGoogleMapsLink("");
+        setGoogleMapsLinks([]);
         toast.success("Successfully reset to default hero banner & texts!");
       } catch (error) {
         console.error("Error resetting settings:", error);
@@ -2702,6 +2719,94 @@ export default function Admin({ user }: AdminProps) {
                   <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">
                     Max 40 characters. High-impact text displayed over image template.
                   </p>
+                </div>
+              </div>
+
+              {/* Google Maps Link Configuration */}
+              <div className="p-6 bg-orange-50/20 dark:bg-orange-950/10 rounded-3xl border border-orange-100/50 dark:border-orange-900/30 space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-orange-850 dark:text-orange-400 flex items-center">
+                    <MapPin size={16} className="mr-2 text-orange-600 animate-pulse" /> Google Maps Shop Locations
+                  </h3>
+                  <p className="text-xs text-orange-705 dark:text-orange-300 leading-relaxed font-medium">
+                    Configure names and links for all physical shop locations. These will be beautifully visible as an active dropdown or list directory inside the footer section.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {googleMapsLinks.map((loc, idx) => (
+                    <div key={idx} className="flex flex-col md:flex-row gap-3 p-4 bg-white/70 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 rounded-2xl relative group pb-4">
+                      <div className="flex-1 space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-450 dark:text-gray-400 block">
+                          Location Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Nairobi CBD Main Office"
+                          value={loc.name}
+                          onChange={(e) => {
+                            const updated = [...googleMapsLinks];
+                            updated[idx].name = e.target.value;
+                            setGoogleMapsLinks(updated);
+                          }}
+                          className="w-full p-3 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-900 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs font-sans text-gray-950 dark:text-white"
+                        />
+                      </div>
+                      
+                      <div className="flex-[2] space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-450 dark:text-gray-400 block">
+                          Google Maps Link URL
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="url"
+                            placeholder="e.g. https://maps.app.goo.gl/..."
+                            value={loc.url}
+                            onChange={(e) => {
+                              const updated = [...googleMapsLinks];
+                              updated[idx].url = e.target.value;
+                              setGoogleMapsLinks(updated);
+                            }}
+                            className="flex-1 p-3 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-900 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs font-sans text-gray-950 dark:text-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = googleMapsLinks.filter((_, i) => i !== idx);
+                              setGoogleMapsLinks(updated);
+                            }}
+                            className="p-3 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
+                            title="Remove Location"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {googleMapsLinks.length === 0 && (
+                    <div className="p-6 bg-white/40 dark:bg-gray-900/40 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl text-center space-y-2">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 font-medium font-sans">No physical shop locations configured yet.</p>
+                      <button
+                        type="button"
+                        onClick={() => setGoogleMapsLinks([{ name: "Nairobi Store", url: "" }])}
+                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 mx-auto cursor-pointer border-none"
+                      >
+                        <Plus size={14} /> Add First Location
+                      </button>
+                    </div>
+                  )}
+
+                  {googleMapsLinks.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setGoogleMapsLinks([...googleMapsLinks, { name: "", url: "" }])}
+                      className="w-full py-3 bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 border-dashed text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-850 hover:border-orange-300 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus size={14} className="text-orange-600" /> Add Another Store Location
+                    </button>
+                  )}
                 </div>
               </div>
 
