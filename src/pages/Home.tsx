@@ -540,7 +540,7 @@ export default function Home({ user }: HomeProps) {
 
       {/* Product categories */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl font-bold mb-8">
+        <h2 className="text-2xl font-bold mb-8 text-gray-900 dark:text-white">
           {language === "sw" ? "Vitengo Maarufu Sokoni" : "Popular Categories"}
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -552,11 +552,15 @@ export default function Home({ user }: HomeProps) {
                 scrollToProducts();
               }}
               className={`h-24 md:h-32 border rounded-2xl flex items-center justify-center shadow-sm transition-all cursor-pointer group ${
-                selectedCategory === cat ? "bg-orange-600 border-orange-600 text-white font-bold" : "bg-white border-gray-100 hover:shadow-md"
+                selectedCategory === cat 
+                  ? "bg-orange-600 border-orange-600 text-white font-bold" 
+                  : "bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 hover:shadow-md"
               }`}
             >
                <span className={`text-sm md:text-lg font-semibold transition-colors uppercase tracking-tight ${
-                 selectedCategory === cat ? "text-white" : "group-hover:text-orange-600"
+                 selectedCategory === cat 
+                   ? "text-white" 
+                   : "text-gray-900 dark:text-gray-100 group-hover:text-orange-600 dark:group-hover:text-orange-400"
                }`}>
                  {cat === "All" ? t("allCategories") : cat === "Local Crafts" ? (language === "sw" ? "Sanaa na Kazi za Mikono" : "Local Crafts") : cat === "Fashion" ? (language === "sw" ? "Mitindo na Mavazi" : "Fashion") : cat === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali" : "Electronics") : cat === "Groceries" ? (language === "sw" ? "Bidhaa Safi na Vyakula" : "Groceries") : cat}
                </span>
@@ -566,13 +570,13 @@ export default function Home({ user }: HomeProps) {
       </section>
 
       {/* Recommended for You Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-b border-gray-100 bg-orange-50/10 rounded-3xl mt-12 mb-6">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-b border-gray-100 dark:border-gray-800 bg-orange-50/10 dark:bg-gray-900/10 rounded-3xl mt-12 mb-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
-            <h2 className="text-3xl font-black tracking-tight text-gray-900">
+            <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
               {t("Recommended for You")}
             </h2>
-            <p className="text-gray-500 mt-1 font-medium text-sm">
+            <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium text-sm">
               {hasHistory 
                 ? t("based on your interest") 
                 : t("browse products or save to wishlist for personalized recommendations.")}
@@ -601,23 +605,23 @@ export default function Home({ user }: HomeProps) {
               <motion.div 
                 whileHover={{ y: -5 }}
                 key={`rec-${p.id}`} 
-                className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
+                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
               >
                 <Link 
                   to={`/product/${p.id}`} 
                   state={{ product: p }}
                   onMouseEnter={() => prefetchProductAssets(p)}
                   onTouchStart={() => prefetchProductAssets(p)}
-                  className="block aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 relative group"
+                  className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-4 relative group"
                 >
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-all text-orange-600"></div>
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
                   <FastImage 
                     src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
                     alt={p.name} 
                     fallbackIconSize={48}
                   />
                   <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
-                    <div className="bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-gray-600 shadow-sm">
+                    <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
                       {p.category}
                     </div>
                     {p.originalPrice && p.originalPrice > p.price && (
@@ -633,8 +637,8 @@ export default function Home({ user }: HomeProps) {
                     onClick={(e) => toggleWishlist(p.id, e)}
                     className={`absolute top-2 left-2 p-2 rounded-full shadow-sm z-10 transition-colors ${
                       user?.wishlist?.includes(p.id) 
-                        ? "bg-red-50 text-red-500 hover:bg-red-100" 
-                        : "bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white"
+                        ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40" 
+                        : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800"
                     }`}
                   >
                     <Heart size={16} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
@@ -646,8 +650,8 @@ export default function Home({ user }: HomeProps) {
                     onClick={(e) => handleToggleCompare(p, e)}
                     className={`absolute top-2 left-12 p-2 rounded-full shadow-sm z-10 transition-colors ${
                       compareIds.includes(p.id) 
-                        ? "bg-orange-50 text-orange-600 hover:bg-orange-100" 
-                        : "bg-white/80 text-gray-400 hover:text-orange-600 hover:bg-white"
+                        ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-450 hover:bg-orange-100 dark:hover:bg-orange-900/40" 
+                        : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-orange-600 hover:bg-white dark:hover:bg-gray-800"
                     }`}
                     title="Compare Product Specifications"
                   >
@@ -658,32 +662,32 @@ export default function Home({ user }: HomeProps) {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center text-yellow-400">
                        <Star size={14} fill="currentColor" />
-                       <span className="text-gray-500 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
+                       <span className="text-gray-500 dark:text-gray-400 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
                     </div>
                     <div>
                       {p.stock === 0 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400">
                           {t("Out of Stock")}
                         </span>
                       ) : p.stock <= 5 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
                           {t("Low Stock")} ({p.stock})
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
                           {t("In Stock")}
                         </span>
                       )}
                     </div>
                   </div>
-                  <Link to={`/product/${p.id}`} state={{ product: p }} className="text-lg font-bold hover:text-orange-600 transition-colors line-clamp-1">
+                  <Link to={`/product/${p.id}`} state={{ product: p }} className="text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1">
                     {p.name}
                   </Link>
                   <div className="flex items-center justify-between mt-2">
                     <div className="flex flex-col">
-                      <span className="text-xl font-black text-gray-900 leading-none">{formatPrice(p.price)}</span>
+                      <span className="text-xl font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
                       {p.originalPrice && p.originalPrice > p.price && (
-                        <span className="text-xs text-gray-400 line-through mt-1 font-medium select-none">
+                        <span className="text-xs text-gray-400 dark:text-gray-500 line-through mt-1 font-medium select-none">
                           {formatPrice(p.originalPrice)}
                         </span>
                       )}
@@ -727,10 +731,10 @@ export default function Home({ user }: HomeProps) {
                           }}
                           className={`p-2.5 rounded-xl transition-all relative overflow-hidden flex items-center justify-center select-none ${
                             p.stock === 0 
-                              ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                              ? "bg-gray-100 dark:bg-gray-805 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
                               : status === "added"
                               ? "bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-600/10"
-                              : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10"
+                              : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10 dark:shadow-none"
                           }`}
                           style={{ minWidth: "2.5rem", minHeight: "2.5rem" }}
                         >
@@ -786,12 +790,12 @@ export default function Home({ user }: HomeProps) {
       <section id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
-             <h2 className="text-4xl font-black tracking-tight text-gray-900">
+             <h2 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">
                {selectedCategory === "All" 
                  ? (language === "sw" ? "Mkusanyiko Mpya wa Bidhaa" : "Latest Arrivals") 
                  : (selectedCategory === "Local Crafts" ? (language === "sw" ? "Sanaa Maalum za Mikono" : "Local Crafts Collection") : selectedCategory === "Fashion" ? (language === "sw" ? "Mavazi na Mitindo ya Kisasa" : "Fashion Collection") : selectedCategory === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali na Kielektroniki" : "Electronics Collection") : selectedCategory === "Groceries" ? (language === "sw" ? "Vyakula Fresh na Mahitaji ya Jikoni" : "Groceries Collection") : `${selectedCategory} Collection`)}
              </h2>
-             <p className="text-gray-500 mt-2 font-medium">
+             <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
                {language === "sw" ? "Sanaa safi na bidhaa teule zilizosafirishwa moja kwa moja kutoka kaunti zote 47 za Kenya yetu." : "Handpicked premium goods from across the 47 counties."}
              </p>
           </div>
@@ -805,7 +809,7 @@ export default function Home({ user }: HomeProps) {
               params.delete("search");
               return params;
             });
-          }} className="text-orange-600 font-bold flex items-center hover:underline group">
+          }} className="text-orange-600 dark:text-orange-500 font-bold flex items-center hover:underline group">
             Reset All <X size={16} className="ml-1 group-hover:rotate-90 transition-transform" />
           </button>
         </div>
@@ -841,13 +845,15 @@ export default function Home({ user }: HomeProps) {
               <button 
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center space-x-2 px-5 sm:px-8 py-3.5 sm:py-4 rounded-2xl border transition-all font-bold shadow-sm text-sm sm:text-base ${
-                  showFilters ? "bg-gray-900 text-white border-gray-900 shadow-xl" : "bg-white text-gray-900 border-gray-100 hover:border-orange-600"
+                  showFilters 
+                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-950 border-gray-900 dark:border-white shadow-xl" 
+                    : "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-100 dark:border-gray-800 hover:border-orange-600 dark:hover:border-orange-500"
                 }`}
               >
                 <Filter size={18} />
                 <span>Filters</span>
                 {(minPrice !== "" || maxPrice !== "" || minRating > 0 || onlyInStock) && (
-                   <span className="w-5 h-5 bg-orange-600 text-white rounded-full text-[10px] flex items-center justify-center animate-pulse">
+                   <span className="w-5 h-5 bg-orange-600 dark:bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center animate-pulse">
                      !
                    </span>
                 )}
@@ -857,25 +863,25 @@ export default function Home({ user }: HomeProps) {
                 <select 
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="w-full sm:w-auto appearance-none bg-white border border-gray-100 px-5 sm:px-8 py-3.5 sm:py-4 pr-10 sm:pr-12 rounded-2xl font-bold cursor-pointer hover:border-orange-600 transition-all outline-none shadow-sm text-sm sm:text-base"
+                  className="w-full sm:w-auto appearance-none bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 px-5 sm:px-8 py-3.5 sm:py-4 pr-10 sm:pr-12 rounded-2xl font-bold cursor-pointer hover:border-orange-600 dark:hover:border-orange-500 text-gray-900 dark:text-gray-100 transition-all outline-none shadow-sm text-sm sm:text-base"
                 >
                   <option value="newest">Sort: Newest</option>
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>
                   <option value="rating">Top Rated</option>
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none" size={18} />
               </div>
 
               {/* Currency Switching Pill */}
-              <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-100 items-center space-x-1 shadow-sm h-[50px] sm:h-[58px]">
+              <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl border border-gray-100 dark:border-gray-800 items-center space-x-1 shadow-sm h-[50px] sm:h-[58px]">
                 <button
                   type="button"
                   onClick={() => setCurrency("KES")}
                   className={`px-4 sm:px-5 h-[40px] sm:h-[48px] rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                     currency === "KES"
-                      ? "bg-white text-orange-600 shadow-sm"
-                      : "text-gray-500 hover:text-gray-900"
+                      ? "bg-white dark:bg-gray-950 text-orange-600 dark:text-orange-500 shadow-sm"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                   }`}
                 >
                   KES
@@ -885,8 +891,8 @@ export default function Home({ user }: HomeProps) {
                   onClick={() => setCurrency("USD")}
                   className={`px-4 sm:px-5 h-[40px] sm:h-[48px] rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                     currency === "USD"
-                      ? "bg-white text-orange-600 shadow-sm"
-                      : "text-gray-500 hover:text-gray-900"
+                      ? "bg-white dark:bg-gray-950 text-orange-600 dark:text-orange-500 shadow-sm"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                   }`}
                 >
                   USD
@@ -901,8 +907,8 @@ export default function Home({ user }: HomeProps) {
                   Offline Cache View
                 </span>
               )}
-              <p className="text-gray-500 font-bold bg-gray-50 px-4 py-2 rounded-full border border-gray-100 text-sm sm:text-base whitespace-nowrap">
-                Found <span className="text-orange-600">{filteredProducts.length}</span> authentic products
+              <p className="text-gray-500 dark:text-gray-400 font-bold bg-gray-50 dark:bg-gray-900 px-4 py-2 rounded-full border border-gray-100 dark:border-gray-800 text-sm sm:text-base whitespace-nowrap">
+                Found <span className="text-orange-600 dark:text-orange-500">{filteredProducts.length}</span> authentic products
               </p>
             </div>
           </div>
@@ -915,12 +921,12 @@ export default function Home({ user }: HomeProps) {
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
-                <div className="bg-white border border-gray-100 rounded-[2rem] p-8 md:p-10 grid grid-cols-1 md:grid-cols-4 gap-10 shadow-xl shadow-gray-100/50">
+                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2rem] p-8 md:p-10 grid grid-cols-1 md:grid-cols-4 gap-10 shadow-xl shadow-gray-100/50 dark:shadow-none">
                   {/* Price Range */}
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 block">Price Range ({currency})</label>
-                      <span className="text-xs font-black text-orange-600 bg-orange-50 px-2.5 py-1 rounded-lg">
+                      <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 block">Price Range ({currency})</label>
+                      <span className="text-xs font-black text-orange-600 dark:text-orange-500 bg-orange-50 dark:bg-orange-950/40 px-2.5 py-1 rounded-lg">
                         {currency === "USD" ? "$" : "KES "}
                         {Math.round(tempMin).toLocaleString()} - {currency === "USD" ? "$" : "KES "}
                         {Math.round(tempMax).toLocaleString()}
@@ -929,11 +935,11 @@ export default function Home({ user }: HomeProps) {
 
                     <div className="relative h-6 flex items-center select-none pt-2">
                       {/* Underlay Track */}
-                      <div className="absolute left-0 right-0 h-2 bg-gray-100 rounded-full"></div>
+                      <div className="absolute left-0 right-0 h-2 bg-gray-100 dark:bg-gray-800 rounded-full"></div>
                       
                       {/* Active highlighted range strip */}
                       <div 
-                        className="absolute h-2 bg-orange-600 rounded-full"
+                        className="absolute h-2 bg-orange-600 dark:bg-orange-500 rounded-full"
                         style={{
                           left: `${sliderMax > 0 ? (tempMin / sliderMax) * 100 : 0}%`,
                           right: `${sliderMax > 0 ? 100 - (tempMax / sliderMax) * 100 : 0}%`
@@ -1013,14 +1019,16 @@ export default function Home({ user }: HomeProps) {
 
                   {/* Rating */}
                   <div className="space-y-4">
-                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 block">Minimum Rating</label>
+                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 block">Minimum Rating</label>
                     <div className="flex space-x-2">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
                           key={star}
                           onClick={() => setMinRating(minRating === star ? 0 : star)}
                           className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-                            minRating >= star ? "bg-orange-600 text-white shadow-lg shadow-orange-200" : "bg-gray-50 text-gray-300 hover:text-orange-400 hover:bg-gray-100"
+                            minRating >= star 
+                              ? "bg-orange-600 text-white shadow-lg shadow-orange-200 dark:shadow-none" 
+                              : "bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-650 hover:text-orange-400 dark:hover:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                           }`}
                         >
                           <Star size={18} fill={minRating >= star ? "currentColor" : "none"} />
@@ -1031,15 +1039,19 @@ export default function Home({ user }: HomeProps) {
 
                   {/* Availability */}
                   <div className="space-y-4">
-                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 block">Availability</label>
+                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 block">Availability</label>
                     <button 
                       onClick={() => setOnlyInStock(!onlyInStock)}
                       className={`flex items-center space-x-4 w-full px-5 py-4 rounded-xl border transition-all group ${
-                        onlyInStock ? "bg-orange-50 border-orange-100 text-orange-700 shadow-inner" : "bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100"
+                        onlyInStock 
+                          ? "bg-orange-50 dark:bg-orange-950/20 border-orange-100 dark:border-orange-900/40 text-orange-700 dark:text-orange-400 shadow-inner" 
+                          : "bg-gray-50 dark:bg-gray-800 border-transparent dark:border-transparent text-gray-400 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                       }`}
                     >
                        <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
-                         onlyInStock ? "bg-orange-600 border-orange-600 text-white" : "bg-white border-gray-200 group-hover:border-orange-300"
+                         onlyInStock 
+                           ? "bg-orange-600 border-orange-600 text-white" 
+                           : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 group-hover:border-orange-300 dark:group-hover:border-orange-500"
                        }`}>
                          {onlyInStock && <ArrowRight size={14} className="rotate-0 animate-in fade-in zoom-in" />}
                        </div>
@@ -1057,7 +1069,7 @@ export default function Home({ user }: HomeProps) {
                         setOnlyInStock(false);
                         setSelectedCategory("All");
                       }}
-                      className="flex items-center justify-center space-x-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-6 py-4 rounded-xl font-black transition-all shadow-sm"
+                      className="flex items-center justify-center space-x-2 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white dark:hover:text-white px-6 py-4 rounded-xl font-black transition-all shadow-sm"
                     >
                       <X size={18} />
                       <span className="text-xs uppercase tracking-widest">Reset Filters</span>
@@ -1094,28 +1106,28 @@ export default function Home({ user }: HomeProps) {
               <motion.div 
                 whileHover={{ y: -5 }}
                 key={p.id} 
-                className="bg-white border border-gray-150 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
+                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
               >
                 <Link 
                   to={`/product/${p.id}`} 
                   state={{ product: p }}
                   onMouseEnter={() => prefetchProductAssets(p)}
                   onTouchStart={() => prefetchProductAssets(p)}
-                  className="block aspect-square bg-gray-50 rounded-xl overflow-hidden mb-4 relative group"
+                  className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-4 relative group"
                 >
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-all text-orange-600"></div>
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
                   <FastImage 
                     src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
                     alt={p.name} 
                     fallbackIconSize={48}
                   />
                   <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
-                    <div className="bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-gray-600 shadow-sm">
+                    <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
                       {p.category}
                     </div>
                     {p.originalPrice && p.originalPrice > p.price && (
                       <div className="bg-red-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
-                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
+                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 105)}%
                       </div>
                     )}
                   </div>
@@ -1126,8 +1138,8 @@ export default function Home({ user }: HomeProps) {
                     onClick={(e) => toggleWishlist(p.id, e)}
                     className={`absolute top-2 left-2 p-2 rounded-full shadow-sm z-10 transition-colors ${
                       user?.wishlist?.includes(p.id) 
-                        ? "bg-red-50 text-red-500 hover:bg-red-100" 
-                        : "bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white"
+                        ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40" 
+                        : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800"
                     }`}
                   >
                     <Heart size={16} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
@@ -1139,8 +1151,8 @@ export default function Home({ user }: HomeProps) {
                     onClick={(e) => handleToggleCompare(p, e)}
                     className={`absolute top-2 left-12 p-2 rounded-full shadow-sm z-10 transition-colors ${
                       compareIds.includes(p.id) 
-                        ? "bg-orange-50 text-orange-600 hover:bg-orange-100" 
-                        : "bg-white/80 text-gray-400 hover:text-orange-600 hover:bg-white"
+                        ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-450 hover:bg-orange-100 dark:hover:bg-orange-900/40" 
+                        : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-orange-600 hover:bg-white dark:hover:bg-gray-800"
                     }`}
                     title="Compare Product Specifications"
                   >
@@ -1151,32 +1163,32 @@ export default function Home({ user }: HomeProps) {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center text-yellow-400">
                        <Star size={14} fill="currentColor" />
-                       <span className="text-gray-500 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
+                       <span className="text-gray-500 dark:text-gray-400 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
                     </div>
                     <div>
                       {p.stock === 0 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400">
                           Out of Stock
                         </span>
                       ) : p.stock <= 5 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
                           Low Stock ({p.stock})
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
                           In Stock
                         </span>
                       )}
                     </div>
                   </div>
-                  <Link to={`/product/${p.id}`} state={{ product: p }} className="text-lg font-bold hover:text-orange-600 transition-colors line-clamp-1">
+                  <Link to={`/product/${p.id}`} state={{ product: p }} className="text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1">
                     {p.name}
                   </Link>
                   <div className="flex items-center justify-between mt-2">
                     <div className="flex flex-col">
-                      <span className="text-xl font-black text-gray-900 leading-none">{formatPrice(p.price)}</span>
+                      <span className="text-xl font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
                       {p.originalPrice && p.originalPrice > p.price && (
-                        <span className="text-xs text-gray-400 line-through mt-1 font-medium select-none">
+                        <span className="text-xs text-gray-400 dark:text-gray-500 line-through mt-1 font-medium select-none">
                           {formatPrice(p.originalPrice)}
                         </span>
                       )}
@@ -1220,10 +1232,10 @@ export default function Home({ user }: HomeProps) {
                           }}
                           className={`p-2 rounded-lg transition-colors relative overflow-hidden flex items-center justify-center select-none ${
                             p.stock === 0 
-                              ? "bg-gray-200 text-gray-400 cursor-not-allowed" 
+                              ? "bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
                               : status === "added"
                               ? "bg-green-600 text-white hover:bg-green-700"
-                              : "bg-gray-900 text-white hover:bg-orange-600 cursor-pointer"
+                              : "bg-gray-900 dark:bg-gray-800 text-white hover:bg-orange-600 cursor-pointer"
                           }`}
                           style={{ minWidth: "2.5rem", minHeight: "2.5rem" }}
                         >

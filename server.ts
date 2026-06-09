@@ -68,6 +68,28 @@ function parseFirestoreDocument(doc: any): any {
 }
 
 async function fetchCollectionFromREST(collectionName: string): Promise<any[]> {
+  // 1. Try Firebase Admin SDK first (highly secure & reliable on the server)
+  if (adminDb) {
+    try {
+      console.log(`[Server] Fetching collection "${collectionName}" via Firebase Admin SDK...`);
+      const snapshot = await adminDb.collection(collectionName).get();
+      const docs = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        for (const k of Object.keys(data)) {
+          if (data[k] && typeof data[k].toDate === "function") {
+            data[k] = data[k].toDate();
+          }
+        }
+        return { id: doc.id, ...data };
+      });
+      console.log(`[Server] Loaded ${docs.length} documents from "${collectionName}" via Admin SDK.`);
+      return docs;
+    } catch (adminErr: any) {
+      console.warn(`[Server] Admin SDK fetch for "${collectionName}" failed, falling back to REST:`, adminErr.message || adminErr);
+    }
+  }
+
+  // 2. Fallback to Firestore REST API
   try {
     const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/${firebaseConfig.firestoreDatabaseId || "(default)"}/documents/${collectionName}?key=${firebaseConfig.apiKey}`;
     const response = await axios.get(url);

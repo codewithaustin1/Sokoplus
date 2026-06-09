@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import axios from "axios";
 import dotenv from "dotenv";
+import admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 
 dotenv.config();
 
@@ -47,10 +49,39 @@ function parseFirestoreDocument(doc: any): any {
   return data;
 }
 
-async function fetchCollection(projectId: string, databaseId: string, apiKey: string, collectionName: string): Promise<any[]> {
+async function fetchCollection(
+  projectId: string,
+  databaseId: string,
+  apiKey: string,
+  collectionName: string,
+  adminDb: admin.firestore.Firestore | null
+): Promise<any[]> {
+  // 1. Prefer fetching using Firebase Admin SDK (secure and reliable)
+  if (adminDb) {
+    try {
+      console.log(`[Sitemap Script] Fetching collection "${collectionName}" via Firebase Admin SDK...`);
+      const snapshot = await adminDb.collection(collectionName).get();
+      const docs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // Convert Firestore Timestamps to native Dates if any
+        for (const key of Object.keys(data)) {
+          if (data[key] && typeof data[key].toDate === "function") {
+            data[key] = data[key].toDate();
+          }
+        }
+        return { id: doc.id, ...data };
+      });
+      console.log(`[Sitemap Script] Successfully loaded ${docs.length} documents from "${collectionName}" via Admin SDK.`);
+      return docs;
+    } catch (adminErr: any) {
+      console.warn(`[Sitemap Script] Admin SDK fetch for "${collectionName}" failed, falling back to REST API:`, adminErr.message || adminErr);
+    }
+  }
+
+  // 2. Fallback to Firestore REST API
   try {
     const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/${collectionName}?key=${apiKey}`;
-    console.log(`[Sitemap Script] Fetching collection: "${collectionName}"...`);
+    console.log(`[Sitemap Script] Fetching collection via REST API: "${collectionName}"...`);
     const response = await axios.get(url);
     const documents = response.data.documents || [];
     return documents.map(parseFirestoreDocument);
@@ -77,6 +108,23 @@ async function run() {
 
     if (!projectId || !apiKey) {
       throw new Error("Invalid Firebase applet configuration: missing projectId or apiKey.");
+    }
+
+    // Initialize Firebase Admin for Sitemap Generation (using SDK directly whenever possible)
+    let adminDb: admin.firestore.Firestore | null = null;
+    try {
+      if (admin.apps.length === 0) {
+        const adminApp = admin.initializeApp({
+          projectId: projectId,
+        }, "sitemap-admin");
+        adminDb = getFirestore(adminApp, databaseId);
+      } else {
+        const existingApp = admin.apps.find(app => app?.name === "sitemap-admin") || admin.app();
+        adminDb = getFirestore(existingApp, databaseId);
+      }
+      console.log("[Sitemap Script] Firebase Admin SDK initialized successfully.");
+    } catch (adminInitErr: any) {
+      console.warn("[Sitemap Script] Failed to initialize Firebase Admin SDK, continuing with REST fallback:", adminInitErr.message);
     }
 
     // 2. Setup standard metadata
@@ -120,7 +168,7 @@ async function run() {
     }
 
     // 3. Fetch products from Firestore REST securely
-    const products = await fetchCollection(projectId, databaseId, apiKey, "products");
+    const products = await fetchCollection(projectId, databaseId, apiKey, "products", adminDb);
     const activeProducts = products.filter(p => p.active !== false);
     console.log(`[Sitemap Script] Loaded ${activeProducts.length} active products.`);
 
@@ -146,7 +194,7 @@ async function run() {
     }
 
     // 5. Fetch blogs from Firestore REST securely
-    const blogPosts = await fetchCollection(projectId, databaseId, apiKey, "blog");
+    const blogPosts = await fetchCollection(projectId, databaseId, apiKey, "blog", adminDb);
     console.log(`[Sitemap Script] Loaded ${blogPosts.length} blog posts.`);
 
     blogPosts.forEach((b) => {

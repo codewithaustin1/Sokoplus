@@ -424,7 +424,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         {/* Gallery */}
         <div className="space-y-4">
           <div 
-            className="group relative aspect-square bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm cursor-zoom-in"
+            className="group relative aspect-square bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800 shadow-sm cursor-zoom-in"
             onMouseEnter={() => setIsZoomed(true)}
             onMouseLeave={() => setIsZoomed(false)}
             onMouseMove={handleMouseMove}
@@ -454,7 +454,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
               <div 
                 key={i} 
                 onClick={() => setActiveImage(i)}
-                className={`aspect-square rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${activeImage === i ? "border-orange-600 scale-95 shadow-lg animate-pulse" : "border-transparent bg-gray-50 opacity-70 hover:opacity-100"}`}
+                className={`aspect-square rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${activeImage === i ? "border-orange-600 scale-95 shadow-lg animate-pulse" : "border-transparent bg-gray-50 dark:bg-gray-950 opacity-70 hover:opacity-100"}`}
               >
                 <FastImage 
                   src={img} 
@@ -469,35 +469,35 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         {/* Info */}
         <div className="space-y-8">
           <div className="space-y-4">
-            <div className="inline-block px-3 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-bold uppercase tracking-widest">
+            <div className="inline-block px-3 py-1 bg-orange-100 dark:bg-orange-950 text-orange-650 dark:text-orange-400 rounded-full text-xs font-bold uppercase tracking-widest">
               {product.category}
             </div>
-            <h1 className="text-4xl font-black tracking-tight text-gray-900">{product.name}</h1>
+            <h1 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">{product.name}</h1>
             {product.artisan && (
-              <div className="flex items-center space-x-2 text-xs font-semibold text-gray-655 bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 w-fit">
-                <span className="text-gray-400">By:</span>
-                <span className="font-extrabold text-orange-600">{product.artisan}</span>
+              <div className="flex items-center space-x-2 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-3 py-1.5 w-fit">
+                <span className="text-gray-450 dark:text-gray-500">By:</span>
+                <span className="font-extrabold text-orange-600 dark:text-orange-500">{product.artisan}</span>
               </div>
             )}
             <div className="flex items-center space-x-4">
-              <div className="flex items-center text-yellow-400">
-                <Star fill="currentColor" size={20} />
-                <span className="ml-1 text-gray-900 font-bold">{product.rating || 4.5}</span>
+              <div className="flex items-center text-yellow-400 font-bold text-sm">
+                <Star fill="currentColor" size={20} className="text-yellow-400" />
+                <span className="ml-1 text-gray-900 dark:text-white font-black">{product.rating || 4.5}</span>
               </div>
-              <span className="text-gray-400">•</span>
-              <span className="text-gray-500">{product.reviewCount || 12} Happy Customers</span>
+              <span className="text-gray-300 dark:text-gray-750 font-bold">•</span>
+              <span className="text-gray-500 dark:text-gray-440 font-semibold text-sm">{product.reviewCount || 12} Happy Customers</span>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-gray-100">
+          <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
             <div className="flex items-baseline space-x-3">
-              <p className="text-4xl font-black text-orange-600">{formatPrice(product.price)}</p>
+              <p className="text-4xl font-black text-orange-600 dark:text-orange-550">{formatPrice(product.price)}</p>
               {product.originalPrice && product.originalPrice > product.price && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-lg text-gray-400 line-through font-semibold">
+                  <span className="text-lg text-gray-400 dark:text-gray-500 line-through font-semibold">
                     {formatPrice(product.originalPrice)}
                   </span>
-                  <span className="bg-red-50 text-red-600 text-xs font-extrabold px-2.5 py-1 rounded-xl border border-red-100 uppercase animate-pulse-subtle">
+                  <span className="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-extrabold px-2.5 py-1 rounded-xl border border-red-100 dark:border-red-900/50 uppercase animate-pulse-subtle">
                     Save {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 105 / 1.05)}%
                   </span>
                 </div>
@@ -505,14 +505,14 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </div>
             
             {/* Currency Switching Pill */}
-            <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-200 items-center space-x-1 shadow-sm">
+            <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200 dark:border-gray-800 items-center space-x-1 shadow-sm">
               <button
                 type="button"
                 onClick={() => setCurrency("KES")}
                 className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                   currency === "KES"
-                    ? "bg-white text-orange-600 shadow-sm"
-                    : "text-gray-500 hover:text-gray-950"
+                    ? "bg-white dark:bg-gray-950 text-orange-600 dark:text-orange-500 shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white"
                 }`}
               >
                 KES
@@ -522,8 +522,8 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                 onClick={() => setCurrency("USD")}
                 className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                   currency === "USD"
-                    ? "bg-white text-orange-600 shadow-sm"
-                    : "text-gray-500 hover:text-gray-950"
+                    ? "bg-white dark:bg-gray-950 text-orange-600 dark:text-orange-500 shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white"
                 }`}
               >
                 USD
@@ -533,37 +533,37 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           
           <div className="flex items-center space-x-2">
             <div className={`w-3 h-3 rounded-full ${product.stock > 0 ? "bg-green-500" : "bg-red-500"}`} />
-            <p className={`text-sm font-bold ${product.stock > 0 ? "text-green-600" : "text-red-600"}`}>
+            <p className={`text-sm font-bold ${product.stock > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
               {product.stock > 0 ? `${product.stock} units in stock` : "Out of stock"}
             </p>
           </div>
 
-          <div className="text-gray-650 leading-relaxed text-sm select-text border-t border-b border-gray-100 py-6 my-6 bg-white rounded-2xl p-6 shadow-sm">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Product Description & Details</h3>
+          <div className="text-gray-650 dark:text-gray-300 leading-relaxed text-sm select-text border-t border-b border-gray-100 dark:border-gray-800 py-6 my-6 bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-4">Product Description & Details</h3>
             <Markdown
               components={{
                 h2: ({ ...props }) => (
                   <h2
-                    className="text-lg font-black text-gray-900 mt-5 first:mt-0 mb-3 border-b border-gray-100 pb-1 font-sans"
+                    className="text-lg font-black text-gray-900 dark:text-white mt-5 first:mt-0 mb-3 border-b border-gray-100 dark:border-gray-800 pb-1 font-sans"
                     {...props}
                   />
                 ),
                 h3: ({ ...props }) => (
-                  <h3 className="text-base font-bold text-gray-850 mt-4 mb-2 font-sans" {...props} />
+                  <h3 className="text-base font-bold text-gray-850 dark:text-gray-200 mt-4 mb-2 font-sans" {...props} />
                 ),
                 p: ({ ...props }) => (
-                  <p className="text-sm text-gray-700 leading-relaxed mb-4 font-sans" {...props} />
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-4 font-sans" {...props} />
                 ),
                 ul: ({ ...props }) => (
-                  <ul className="list-disc pl-5 mb-4 space-y-1.5 text-sm text-gray-700 font-sans" {...props} />
+                  <ul className="list-disc pl-5 mb-4 space-y-1.5 text-sm text-gray-700 dark:text-gray-300 font-sans" {...props} />
                 ),
                 ol: ({ ...props }) => (
-                  <ol className="list-decimal pl-5 mb-4 space-y-1.5 text-sm text-gray-700 font-sans" {...props} />
+                  <ol className="list-decimal pl-5 mb-4 space-y-1.5 text-sm text-gray-700 dark:text-gray-300 font-sans" {...props} />
                 ),
-                li: ({ ...props }) => <li className="text-gray-700 font-medium font-sans" {...props} />,
+                li: ({ ...props }) => <li className="text-gray-700 dark:text-gray-300 font-medium font-sans" {...props} />,
                 a: ({ ...props }) => (
                   <a
-                    className="text-orange-600 hover:text-orange-700 underline font-semibold transition-colors"
+                    className="text-orange-600 dark:text-orange-500 hover:text-orange-700 dark:hover:text-orange-400 underline font-semibold transition-colors"
                     target="_blank"
                     rel="noopener noreferrer"
                     {...props}
@@ -571,11 +571,11 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                 ),
                 blockquote: ({ ...props }) => (
                   <blockquote
-                    className="border-l-4 border-orange-500 pl-4 italic text-gray-600 my-4 bg-gray-50 py-1 pr-2 rounded-r-lg"
+                    className="border-l-4 border-orange-500 pl-4 italic text-gray-600 dark:text-gray-400 My-4 bg-gray-50 dark:bg-gray-800 py-1 pr-2 rounded-r-lg"
                     {...props}
                   />
                 ),
-                strong: ({ ...props }) => <strong className="font-extrabold text-gray-950" {...props} />,
+                strong: ({ ...props }) => <strong className="font-extrabold text-gray-950 dark:text-white" {...props} />,
                 em: ({ ...props }) => <em className="italic" {...props} />,
               }}
             >
@@ -583,18 +583,18 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </Markdown>
 
             {product.artisan && (
-              <div className="mt-8 p-6 bg-gradient-to-br from-orange-50/20 via-orange-50/5 to-transparent border border-orange-100 rounded-3xl space-y-4">
+              <div className="mt-8 p-6 bg-gradient-to-br from-orange-50/20 via-orange-50/5 to-transparent dark:from-orange-950/10 dark:via-orange-950/5 dark:to-transparent border border-orange-100 dark:border-orange-900/30 rounded-3xl space-y-4">
                 <div className="flex items-center space-x-3.5">
-                  <div className="w-12 h-12 rounded-full bg-orange-100/60 text-orange-600 border border-orange-200/40 flex items-center justify-center font-black text-lg shadow-sm shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-orange-100/60 dark:bg-orange-950 text-orange-600 dark:text-orange-400 border border-orange-200/40 dark:border-orange-900/30 flex items-center justify-center font-black text-lg shadow-sm shrink-0">
                     {product.artisan.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-widest leading-none mb-1">Meet the Craftsman</h4>
-                    <p className="text-base font-black text-gray-900 leading-tight">{product.artisan}</p>
+                    <h4 className="text-[10px] font-black text-orange-600 dark:text-orange-500 uppercase tracking-widest leading-none mb-1 font-sans">Meet the Craftsman</h4>
+                    <p className="text-base font-black text-gray-900 dark:text-white leading-tight">{product.artisan}</p>
                   </div>
                 </div>
-                <p className="text-xs text-gray-550 leading-relaxed font-semibold">
-                  Every selection in our marketplace empowers independent creators like <strong>{product.artisan}</strong>. Sokoplus works closely with Kenyan artisan guilds, ensuring fair wages, safe workshops, and community growth.
+                <p className="text-xs text-gray-550 dark:text-gray-400 leading-relaxed font-semibold">
+                  Every selection in our marketplace empowers independent creators like <strong className="text-gray-900 dark:text-white">{product.artisan}</strong>. Sokoplus works closely with Kenyan artisan guilds, ensuring fair wages, safe workshops, and community growth.
                 </p>
               </div>
             )}
@@ -659,16 +659,16 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           </div>
 
           {/* Price Drop Alert Section */}
-          <div className="p-5 bg-orange-50/10 border border-orange-100/30 rounded-2xl space-y-3">
-            <div className="flex items-center space-x-3 text-orange-600">
+          <div className="p-5 bg-orange-50/10 dark:bg-orange-950/10 border border-orange-100/30 dark:border-orange-900/30 rounded-2xl space-y-3">
+            <div className="flex items-center space-x-3 text-orange-600 dark:text-orange-550">
               <Bell size={20} className="animate-pulse" />
-              <h4 className="font-bold text-sm text-gray-900">Notify Me of Price Drops</h4>
+              <h4 className="font-bold text-sm text-gray-900 dark:text-white">Notify Me of Price Drops</h4>
             </div>
-            <p className="text-xs text-gray-500 leading-normal">
-              Interested in this item? Enter your email to be automatically notified when the price of <strong>{product.name}</strong> decreases below {formatPrice(product.price)}.
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-normal font-medium">
+              Interested in this item? Enter your email to be automatically notified when the price of <strong className="text-gray-900 dark:text-white">{product.name}</strong> decreases below {formatPrice(product.price)}.
             </p>
             {alertSetSuccessfully ? (
-              <div className="p-3 bg-green-50 border border-green-150 rounded-xl flex items-center justify-center space-x-2 text-green-700 text-xs font-semibold animate-fade-in">
+              <div className="p-3 bg-green-50 dark:bg-green-950/40 border border-green-150 dark:border-green-900/30 rounded-xl flex items-center justify-center space-x-2 text-green-700 dark:text-green-400 text-xs font-semibold animate-fade-in">
                 <span>✓ Price alert set successfully for {alertEmail}!</span>
               </div>
             ) : (
@@ -677,14 +677,14 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                   type="email"
                   required
                   placeholder="name@example.com"
-                  className="flex-grow p-3 text-xs bg-white border border-gray-200 rounded-xl outline-none focus:border-orange-500 font-medium transition-all"
+                  className="flex-grow p-3 text-xs bg-white dark:bg-gray-905 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:border-orange-500 font-medium transition-all placeholder:text-gray-400 dark:placeholder:text-gray-550 focus:ring-1.5 focus:ring-orange-500/20"
                   value={alertEmail}
                   onChange={(e) => setAlertEmail(e.target.value)}
                 />
                 <button
                   type="submit"
                   disabled={isSettingAlert}
-                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white text-xs font-extrabold px-5 py-3 rounded-xl transition-colors shrink-0 cursor-pointer"
+                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 dark:disabled:bg-gray-800 text-white dark:text-gray-100 text-xs font-extrabold px-5 py-3 rounded-xl transition-colors shrink-0 cursor-pointer"
                 >
                   {isSettingAlert ? "Setting..." : "Alert Me"}
                 </button>
@@ -692,18 +692,18 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-gray-100">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-gray-100 dark:border-gray-800">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-green-50 text-green-600 rounded-lg"><Truck size={20} /></div>
-              <p className="text-xs font-bold text-gray-500">Fast Delivery</p>
+              <div className="p-2 bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 rounded-lg"><Truck size={20} /></div>
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Fast Delivery</p>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><ShieldCheck size={20} /></div>
-              <p className="text-xs font-bold text-gray-500">Authentic Goods</p>
+              <div className="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg"><ShieldCheck size={20} /></div>
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Authentic Goods</p>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-red-50 text-red-600 rounded-lg"><RefreshCw size={20} /></div>
-              <p className="text-xs font-bold text-gray-500">Easy Returns</p>
+              <div className="p-2 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg"><RefreshCw size={20} /></div>
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Easy Returns</p>
             </div>
           </div>
         </div>
@@ -711,10 +711,10 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
 
       {/* Related / Smart Recommendations Section */}
       {recommendations.length > 0 && (
-        <section className="mt-24 space-y-8 border-t border-gray-100 pt-16">
+        <section className="mt-24 space-y-8 border-t border-gray-100 dark:border-gray-800 pt-16">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="space-y-2">
-              <h2 className="text-3xl font-black tracking-tight text-gray-900">You Might Also Like</h2>
+              <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">You Might Also Like</h2>
             </div>
           </div>
 
@@ -725,9 +725,9 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                  onTouchStart={() => prefetchProductAssets(p)}
                  whileHover={{ y: -6 }}
                  key={p.id} 
-                 className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-full relative"
+                 className="bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-full relative"
                >
-                 <div className="aspect-square bg-gray-50 overflow-hidden relative">
+                 <div className="aspect-square bg-gray-50 dark:bg-gray-950 overflow-hidden relative">
                     <FastImage 
                       src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
                       alt={p.name} 
@@ -736,15 +736,15 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                    {/* Stock Badge Overlay */}
                    <span className="absolute top-3 left-3 z-10">
                      {p.stock === 0 ? (
-                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 shadow-sm">
+                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200/20 dark:border-red-900/30 shadow-sm">
                          Out of Stock
                        </span>
                      ) : p.stock <= 5 ? (
-                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 shadow-sm">
+                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-450 border border-amber-200/20 dark:border-amber-900/30 shadow-sm">
                          Low Stock
                        </span>
                      ) : (
-                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 shadow-sm">
+                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-405 border border-green-200/20 dark:border-green-900/30 shadow-sm">
                          In Stock
                        </span>
                      )}
@@ -753,24 +753,24 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                 
                 <div className="p-5 flex flex-col flex-grow justify-between space-y-3">
                    <div className="space-y-1">
-                     <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                     <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider">
                        {p.category}
                      </span>
                      <Link 
                        to={`/product/${p.id}`} 
                        state={{ product: p }}
-                       className="block text-sm font-extrabold text-gray-900 hover:text-orange-600 transition-colors line-clamp-1"
+                       className="block text-sm font-extrabold text-gray-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1"
                      >
                        {p.name}
                      </Link>
                    </div>
                    
                    <div className="flex items-center justify-between pt-1">
-                     <span className="text-base font-black text-gray-900">{formatPrice(p.price)}</span>
+                     <span className="text-base font-black text-gray-900 dark:text-white">{formatPrice(p.price)}</span>
                      <Link 
                        to={`/product/${p.id}`}
                        state={{ product: p }}
-                       className="text-xs font-black uppercase tracking-wider text-orange-600 hover:text-orange-700 flex items-center space-x-1"
+                       className="text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-500 hover:text-orange-700 dark:hover:text-orange-400 flex items-center space-x-1"
                      >
                        <span>View Details</span>
                      </Link>
