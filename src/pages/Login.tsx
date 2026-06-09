@@ -204,20 +204,20 @@ export default function Login() {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full bg-white p-8 md:p-12 rounded-[2.5rem] shadow-2xl border border-gray-100 space-y-10 relative overflow-hidden">
+      <div className="max-w-md w-full bg-white dark:bg-gray-900 p-8 md:p-12 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-800 space-y-10 relative overflow-hidden">
         {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-16 -mt-16 opacity-50" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-50 rounded-full -ml-12 -mb-12 opacity-50" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 dark:bg-orange-950/20 rounded-full -mr-16 -mt-16 opacity-50" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-50 dark:bg-orange-950/20 rounded-full -ml-12 -mb-12 opacity-50" />
 
         <div className="text-center space-y-6 relative">
           <div className="flex justify-center">
-            <div className="bg-orange-600 p-5 rounded-3xl shadow-xl shadow-orange-200 rotate-3">
+            <div className="bg-orange-600 p-5 rounded-3xl shadow-xl shadow-orange-200 dark:shadow-none rotate-3">
               <ShoppingBag className="text-white" size={40} />
             </div>
           </div>
           <div className="space-y-2">
-            <h1 className="text-4xl font-black tracking-tight text-gray-900 italic">Sokoplus</h1>
-            <p className="text-gray-500 font-medium">
+            <h1 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white italic">Sokoplus</h1>
+            <p className="text-gray-500 dark:text-gray-450 font-medium">
               {isForgotPassword 
                 ? "Reset your password" 
                 : (isSignUp ? "Create your account" : "Welcome back")}
@@ -228,19 +228,19 @@ export default function Login() {
         <div className="space-y-8 relative">
           {isForgotPassword ? (
             <form onSubmit={handleForgotPasswordSubmit} className="space-y-6">
-              <p className="text-sm text-gray-500 leading-relaxed font-medium">
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
                 Enter your email address below and we'll send a password reset link to your inbox.
               </p>
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Email Address</label>
+                <label className="text-xs font-black uppercase tracking-widest text-gray-450 dark:text-gray-450 ml-1">Email Address</label>
                 <div className="relative">
-                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
                   <input
                     type="email"
                     placeholder="name@example.com"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    className="w-full bg-gray-50 border-2 border-transparent focus:border-orange-600 focus:bg-white rounded-2xl py-4 pl-14 pr-6 font-bold transition-all outline-none"
+                    className="w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border-2 border-transparent focus:border-orange-600 focus:bg-white dark:focus:bg-gray-900 rounded-2xl py-4 pl-14 pr-6 font-bold transition-all outline-none"
                     required
                   />
                 </div>
@@ -249,7 +249,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl hover:shadow-orange-200 disabled:opacity-50 flex items-center justify-center space-x-2 group cursor-pointer"
+                className="w-full bg-gray-900 dark:bg-orange-600 hover:bg-orange-600 dark:hover:bg-orange-700 text-white py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl hover:shadow-orange-200 dark:shadow-none disabled:opacity-50 flex items-center justify-center space-x-2 group cursor-pointer border-none"
               >
                 <span>{loading ? "Sending..." : "Send Reset Link"}</span>
                 {!loading && <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />}
@@ -259,7 +259,7 @@ export default function Login() {
                 <button 
                   type="button"
                   onClick={() => setIsForgotPassword(false)}
-                  className="text-sm font-bold text-gray-500 hover:text-orange-600 transition-colors cursor-pointer"
+                  className="text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer bg-transparent border-none outline-none"
                 >
                   Back to Sign In
                 </button>
@@ -270,15 +270,15 @@ export default function Login() {
               <form onSubmit={handleEmailAuth} className="space-y-4">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Email Address</label>
+                    <label className="text-xs font-black uppercase tracking-widest text-gray-450 dark:text-gray-450 ml-1">Email Address</label>
                     <div className="relative">
-                      <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
                       <input
                         type="email"
                         placeholder="name@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-gray-50 border-2 border-transparent focus:border-orange-600 focus:bg-white rounded-2xl py-4 pl-14 pr-6 font-bold transition-all outline-none"
+                        className="w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border-2 border-transparent focus:border-orange-600 focus:bg-white dark:focus:bg-gray-900 rounded-2xl py-4 pl-14 pr-6 font-bold transition-all outline-none"
                         required
                       />
                     </div>
@@ -286,7 +286,7 @@ export default function Login() {
 
                   <div className="space-y-2">
                     <div className="flex justify-between items-center ml-1">
-                      <label className="text-xs font-black uppercase tracking-widest text-gray-400">Password</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-gray-450 dark:text-gray-450">Password</label>
                       {!isSignUp && (
                         <button 
                           type="button"
@@ -294,26 +294,26 @@ export default function Login() {
                             setResetEmail(email);
                             setIsForgotPassword(true);
                           }}
-                          className="text-[10px] font-bold text-orange-600 hover:underline uppercase tracking-tighter cursor-pointer"
+                          className="text-[10px] font-bold text-orange-600 dark:text-orange-400 hover:underline uppercase tracking-tighter cursor-pointer bg-transparent border-none outline-none"
                         >
                           Forgot Password?
                         </button>
                       )}
                     </div>
                     <div className="relative">
-                      <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
                       <input
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full bg-gray-50 border-2 border-transparent focus:border-orange-600 focus:bg-white rounded-2xl py-4 pl-14 pr-14 font-bold transition-all outline-none"
+                        className="w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border-2 border-transparent focus:border-orange-600 focus:bg-white dark:focus:bg-gray-900 rounded-2xl py-4 pl-14 pr-14 font-bold transition-all outline-none"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                        className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-white focus:outline-none transition-colors"
                       >
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
@@ -324,7 +324,7 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl hover:shadow-orange-200 disabled:opacity-50 flex items-center justify-center space-x-2 group"
+                  className="w-full bg-gray-900 dark:bg-orange-600 hover:bg-orange-600 dark:hover:bg-orange-700 text-white py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl hover:shadow-orange-200 dark:shadow-none disabled:opacity-50 flex items-center justify-center space-x-2 group border-none"
                 >
                   <span>{loading ? "Processing..." : (isSignUp ? "Join Sokoplus" : "Sign In")}</span>
                   {!loading && (isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />)}
@@ -333,17 +333,17 @@ export default function Login() {
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-100"></div>
+                  <div className="w-full border-t border-gray-100 dark:border-gray-800"></div>
                 </div>
                 <div className="relative flex justify-center text-xs uppercase tracking-widest">
-                  <span className="bg-white px-4 text-gray-400 font-bold">Or continue with</span>
+                  <span className="bg-white dark:bg-gray-900 px-4 text-gray-400 dark:text-gray-500 font-bold">Or continue with</span>
                 </div>
               </div>
 
               <button
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                className="w-full flex items-center justify-center space-x-4 bg-white border-2 border-gray-100 py-4 px-6 rounded-2xl font-black hover:bg-gray-50 hover:border-gray-200 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                className="w-full flex items-center justify-center space-x-4 bg-white dark:bg-gray-950 border-2 border-gray-100 dark:border-gray-800 py-4 px-6 rounded-2xl font-black text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
               >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
                 <span>Google Account</span>
@@ -352,7 +352,7 @@ export default function Login() {
               <div className="text-center">
                 <button 
                   onClick={() => setIsSignUp(!isSignUp)}
-                  className="text-sm font-bold text-gray-500 hover:text-orange-600 transition-colors cursor-pointer"
+                  className="text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer bg-transparent border-none outline-none"
                 >
                   {isSignUp ? "Already have an account? Sign In" : "New to Sokoplus? Create an account"}
                 </button>
@@ -361,9 +361,9 @@ export default function Login() {
           )}
         </div>
 
-        <p className="text-[10px] text-gray-400 text-center leading-relaxed font-medium">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center leading-relaxed font-medium">
           By continuing, you agree to Sokoplus's <br />
-          <span className="underline decoration-gray-200 hover:text-gray-900 cursor-pointer transition-colors">Terms of Service</span> and <span className="underline decoration-gray-200 hover:text-gray-900 cursor-pointer transition-colors">Privacy Policy</span>.
+          <span className="underline decoration-gray-250 dark:decoration-gray-800 hover:text-gray-900 dark:hover:text-white cursor-pointer transition-colors">Terms of Service</span> and <span className="underline decoration-gray-250 dark:decoration-gray-800 hover:text-gray-900 dark:hover:text-white cursor-pointer transition-colors">Privacy Policy</span>.
         </p>
       </div>
     </div>

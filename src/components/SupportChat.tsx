@@ -218,10 +218,10 @@ To prevent any delay, feel free to browse our main collections directly on the h
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-end p-4 pointer-events-none">
-      <div className="bg-white w-full max-w-md h-[650px] max-h-[90vh] rounded-3xl shadow-2xl flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-bottom-8 duration-300 border border-gray-100">
+      <div className="bg-white dark:bg-gray-900 w-full max-w-md h-[650px] max-h-[90vh] rounded-3xl shadow-2xl flex flex-col pointer-events-auto overflow-hidden animate-in slide-in-from-bottom-8 duration-300 border border-gray-100 dark:border-gray-800">
         
         {/* Chat Widget Header */}
-        <div className="bg-gray-900 p-6 text-white flex items-center justify-between">
+        <div className="bg-gray-900 dark:bg-gray-950 p-6 text-white flex items-center justify-between border-b dark:border-gray-850">
           <div className="flex items-center space-x-3">
             <div className="bg-orange-600 p-2 rounded-xl">
               <MessageSquare size={20} />
@@ -231,21 +231,21 @@ To prevent any delay, feel free to browse our main collections directly on the h
               <p className="text-xs text-gray-400">Usually replies instantly</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-all cursor-pointer">
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-all cursor-pointer bg-transparent border-none text-white outline-none">
             <X size={20} />
           </button>
         </div>
 
         {/* Support Modes Navigation Pills */}
-        <div className="flex border-b border-gray-100 p-2 bg-gray-50/50 gap-1">
+        <div className="flex border-b border-gray-100 dark:border-gray-800 p-2 bg-gray-50/50 dark:bg-gray-950/50 gap-1">
           <button
             type="button"
             id="support-tab-ai"
             onClick={() => setMode("ai")}
-            className={`flex-1 py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+            className={`flex-1 py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer border-none ${
               mode === "ai"
-                ? "bg-white text-orange-600 shadow-sm border border-gray-100"
-                : "text-gray-500 hover:text-gray-800"
+                ? "bg-white text-orange-600 shadow-sm border border-gray-100 dark:bg-gray-900 dark:text-orange-400 dark:border-gray-800"
+                : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 bg-transparent"
             }`}
           >
             <Sparkles size={12} className={mode === "ai" ? "text-orange-600" : "text-gray-400"} />
@@ -256,10 +256,10 @@ To prevent any delay, feel free to browse our main collections directly on the h
             type="button"
             id="support-tab-whatsapp"
             onClick={() => setMode("whatsapp")}
-            className={`flex-1 py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+            className={`flex-1 py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer border-none ${
               mode === "whatsapp"
-                ? "bg-white text-green-600 shadow-sm border border-gray-100"
-                : "text-gray-500 hover:text-gray-800"
+                ? "bg-white text-green-600 shadow-sm border border-gray-100 dark:bg-gray-900 dark:text-green-400 dark:border-gray-800"
+                : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 bg-transparent"
             }`}
           >
             <MessageCircle size={12} className={mode === "whatsapp" ? "text-green-500" : "text-gray-400"} />
@@ -270,10 +270,10 @@ To prevent any delay, feel free to browse our main collections directly on the h
             type="button"
             id="support-tab-email"
             onClick={() => setMode("email")}
-            className={`flex-1 py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+            className={`flex-1 py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer border-none ${
               mode === "email"
-                ? "bg-white text-orange-600 shadow-sm border border-gray-100"
-                : "text-gray-500 hover:text-gray-800"
+                ? "bg-white text-orange-600 shadow-sm border border-gray-100 dark:bg-gray-900 dark:text-orange-400 dark:border-gray-800"
+                : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 bg-transparent"
             }`}
           >
             <Mail size={12} className={mode === "email" ? "text-orange-600" : "text-gray-400"} />
@@ -283,7 +283,7 @@ To prevent any delay, feel free to browse our main collections directly on the h
 
         {/* Mode Meta/Details Bar */}
         {mode === "ai" && (
-          <div className="flex justify-between items-center text-[10px] text-gray-400 font-bold px-4 py-2 border-b border-gray-100 bg-gray-50/30">
+          <div className="flex justify-between items-center text-[10px] text-gray-400 dark:text-gray-500 font-bold px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-900/30">
             <div className="flex items-center space-x-1.5">
               <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
               <span>SokoSmart Live Assistant</span>
@@ -298,7 +298,7 @@ To prevent any delay, feel free to browse our main collections directly on the h
                   text: "Habari! I am SokoSmart, your friendly customer care representative. Ask me anything about Sokoplus products, pricing, design materials, collections, or stock availability! Karibu."
                 }
               ])}
-              className="hover:text-red-500 flex items-center space-x-1 transition-colors cursor-pointer"
+              className="hover:text-red-500 flex items-center space-x-1 transition-colors cursor-pointer bg-transparent border-none outline-none text-gray-400 dark:text-gray-500"
             >
               <Trash2 size={10} />
               <span>Clear Log</span>
@@ -307,7 +307,7 @@ To prevent any delay, feel free to browse our main collections directly on the h
         )}
 
         {/* Chat Widget Content Areas */}
-        <div className="flex-grow overflow-y-auto min-h-0">
+        <div className="flex-grow overflow-y-auto min-h-0 bg-transparent">
           {mode === "ai" && (
             /* Smart Chat Log Area */
             <div className="p-4 space-y-4 flex flex-col h-full overflow-y-auto">
@@ -318,20 +318,20 @@ To prevent any delay, feel free to browse our main collections directly on the h
                     msg.sender === "user" ? "self-end items-end" : "self-start items-start"
                   }`}
                 >
-                  <p className="text-[9px] font-bold text-gray-400 mb-1 ml-1.5 uppercase tracking-wide">
+                  <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 mb-1 ml-1.5 uppercase tracking-wide">
                     {msg.sender === "user" ? "You" : "SokoSmart"}
                   </p>
                   <div
                     className={`rounded-3xl px-4 py-3 shadow-sm text-sm ${
                       msg.sender === "user"
                         ? "bg-orange-600 text-white rounded-tr-none font-medium"
-                        : "bg-gray-50 border border-gray-100 text-gray-800 rounded-tl-none"
+                        : "bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none"
                     }`}
                   >
                     {msg.sender === "user" ? (
                       msg.text
                     ) : (
-                      <div className="markdown-body space-y-1 prose prose-sm leading-relaxed text-gray-800">
+                      <div className="markdown-body space-y-1 prose prose-sm leading-relaxed text-gray-800 dark:text-gray-200 dark:prose-invert">
                         <ReactMarkdown>{msg.text}</ReactMarkdown>
                       </div>
                     )}
@@ -341,9 +341,9 @@ To prevent any delay, feel free to browse our main collections directly on the h
               
               {aiLoading && (
                 <div className="flex items-start space-x-2.5 self-start max-w-[85%] animate-pulse">
-                  <div className="bg-gray-50 border border-gray-100 rounded-3xl rounded-bl-none p-3.5 shadow-sm text-xs font-bold text-gray-400 italic flex items-center space-x-2">
+                  <div className="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-3xl rounded-bl-none p-3.5 shadow-sm text-xs font-bold text-gray-400 dark:text-gray-500 italic flex items-center space-x-2">
                     <Loader2 size={13} className="animate-spin text-orange-500" />
-                    <span>Searching catalog catalog...</span>
+                    <span>Searching catalog...</span>
                   </div>
                 </div>
               )}
@@ -354,7 +354,7 @@ To prevent any delay, feel free to browse our main collections directly on the h
           {mode === "whatsapp" && (
             /* Premium Dedicated WhatsApp Hub Screen */
             <div className="p-6 space-y-6 animate-in fade-in duration-200">
-              <div className="bg-green-50 border border-green-100 rounded-2xl p-5 flex items-start space-x-3.5">
+              <div className="bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900 rounded-2xl p-5 flex items-start space-x-3.5">
                 <div className="bg-green-500 text-white p-2.5 rounded-xl mt-0.5 relative">
                   <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-white rounded-full">
                     <span className="absolute top-0 left-0 w-2.5 h-2.5 bg-green-350 rounded-full animate-ping"></span>
@@ -362,9 +362,9 @@ To prevent any delay, feel free to browse our main collections directly on the h
                   <MessageCircle size={18} />
                 </div>
                 <div>
-                  <h4 className="font-extrabold text-sm text-green-950">Live Support</h4>
-                  <p className="text-xs text-green-800 font-medium mt-0.5">Average response: &lt; 5 minutes</p>
-                  <div className="flex items-center space-x-1.5 mt-2 bg-green-100/50 text-green-800 py-0.5 px-2 rounded-lg text-[10px] font-black w-max tracking-wider uppercase">
+                  <h4 className="font-extrabold text-sm text-green-950 dark:text-green-300">Live Support</h4>
+                  <p className="text-xs text-green-800 dark:text-green-400 font-medium mt-0.5">Average response: &lt; 5 minutes</p>
+                  <div className="flex items-center space-x-1.5 mt-2 bg-green-100/50 dark:bg-green-900/40 text-green-800 dark:text-green-300 py-0.5 px-2 rounded-lg text-[10px] font-black w-max tracking-wider uppercase">
                     <Activity size={10} className="animate-pulse text-green-600" />
                     <span>Active Now</span>
                   </div>
@@ -372,34 +372,34 @@ To prevent any delay, feel free to browse our main collections directly on the h
               </div>
 
               <div className="space-y-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Ideal WhatsApp Topics</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 ml-1">Ideal WhatsApp Topics</p>
                 <div className="space-y-3">
-                  <div className="bg-gray-50 hover:bg-gray-100 border border-gray-155 rounded-2xl p-4 transition-all">
+                  <div className="bg-gray-50 dark:bg-gray-950 hover:bg-gray-100 dark:hover:bg-gray-900 border border-gray-155 dark:border-gray-800 rounded-2xl p-4 transition-all">
                     <div className="flex items-center space-x-2">
                       <span className="text-sm">🌸</span>
-                      <span className="font-bold text-xs text-gray-800">Customizations</span>
+                      <span className="font-bold text-xs text-gray-800 dark:text-gray-200">Customizations</span>
                     </div>
-                    <p className="text-[11px] text-gray-400 italic font-medium mt-1 pl-6">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 italic font-medium mt-1 pl-6">
                       Request custom fabrics, frame resizing, or custom-made Kenyan furniture.
                     </p>
                   </div>
 
-                  <div className="bg-gray-50 hover:bg-gray-100 border border-gray-155 rounded-2xl p-4 transition-all">
+                  <div className="bg-gray-50 dark:bg-gray-950 hover:bg-gray-100 dark:hover:bg-gray-900 border border-gray-155 dark:border-gray-800 rounded-2xl p-4 transition-all">
                     <div className="flex items-center space-x-2">
                       <span className="text-sm">🚚</span>
-                      <span className="font-bold text-xs text-gray-800">Urgent Order Changes</span>
+                      <span className="font-bold text-xs text-gray-800 dark:text-gray-200">Urgent Order Changes</span>
                     </div>
-                    <p className="text-[11px] text-gray-400 italic font-medium mt-1 pl-6">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 italic font-medium mt-1 pl-6">
                       Modify shipping addresses or expedite dispatch orders quickly before departure.
                     </p>
                   </div>
 
-                  <div className="bg-gray-50 hover:bg-gray-100 border border-gray-155 rounded-2xl p-4 transition-all">
+                  <div className="bg-gray-50 dark:bg-gray-950 hover:bg-gray-100 dark:hover:bg-gray-900 border border-gray-155 dark:border-gray-800 rounded-2xl p-4 transition-all">
                     <div className="flex items-center space-x-2">
                       <span className="text-sm">💳</span>
-                      <span className="font-bold text-xs text-gray-800">M-Pesa Verification</span>
+                      <span className="font-bold text-xs text-gray-800 dark:text-gray-200">M-Pesa Verification</span>
                     </div>
-                    <p className="text-[11px] text-gray-400 italic font-medium mt-1 pl-6">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 italic font-medium mt-1 pl-6">
                       Send transaction statements or offline payment screenshots for verification.
                     </p>
                   </div>
@@ -410,13 +410,13 @@ To prevent any delay, feel free to browse our main collections directly on the h
                 href="https://wa.me/254740463021" 
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center space-x-3 w-full bg-[#25D366] text-white py-4 px-6 rounded-2xl font-black shadow-lg shadow-green-100 text-xs hover:bg-[#128C7E] active:scale-95 transition-all group cursor-pointer"
+                className="flex items-center justify-center space-x-3 w-full bg-[#25D366] text-white py-4 px-6 rounded-2xl font-black shadow-lg shadow-green-150 dark:shadow-none text-xs hover:bg-[#128C7E] active:scale-95 transition-all group cursor-pointer border-none"
               >
                 <MessageSquare size={16} className="group-hover:scale-110 transition-transform" />
                 <span>LAUNCH SECURE WHATSAPP SESSION</span>
               </a>
 
-              <p className="text-[10px] text-center text-gray-400 font-medium leading-relaxed px-2">
+              <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 font-medium leading-relaxed px-2">
                 We will launch a secure dialogue frame within WhatsApp Messenger or web app. Your details are encrypted.
               </p>
             </div>
@@ -425,18 +425,18 @@ To prevent any delay, feel free to browse our main collections directly on the h
           {mode === "email" && (
             /* Traditional Helpdesk Form Area */
             <div className="p-6 space-y-6">
-              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 italic text-xs text-blue-800 leading-relaxed font-medium">
+              <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-900 italic text-xs text-blue-800 dark:text-blue-305 leading-relaxed font-medium animate-in fade-in duration-200">
                 "Habari! Use this official ticketing desk to register formal inquiries requiring catalog/account inspections. Our support technicians review tickets matching database records every 24 hours."
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4 pb-4">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1 underline decoration-orange-500/30">Your Registered Email</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-1 underline decoration-orange-500/30">Your Registered Email</label>
                   <input 
                     type="email" 
                     required 
                     placeholder="email@example.com"
-                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium text-xs"
+                    className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-905 dark:text-white border border-gray-100 dark:border-gray-800 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium text-xs"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     readOnly={!!user?.email}
@@ -444,9 +444,9 @@ To prevent any delay, feel free to browse our main collections directly on the h
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1 underline decoration-orange-500/30">Subject Category</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-1 underline decoration-orange-500/30">Subject Category</label>
                   <select 
-                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium appearance-none text-xs"
+                    className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-905 dark:text-white border border-gray-100 dark:border-gray-800 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium appearance-none text-xs"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value as SupportTicket["subject"])}
                   >
@@ -458,12 +458,12 @@ To prevent any delay, feel free to browse our main collections directly on the h
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1 underline decoration-orange-500/30">Detailed Message</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-1 underline decoration-orange-500/30">Detailed Message</label>
                   <textarea 
                     required
                     rows={4}
                     placeholder="Tell us what's happening..."
-                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium resize-none shadow-inner text-xs"
+                    className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-905 dark:text-white border border-gray-100 dark:border-gray-800 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium resize-none shadow-inner text-xs"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                   ></textarea>
@@ -472,7 +472,7 @@ To prevent any delay, feel free to browse our main collections directly on the h
                 <button 
                   disabled={loading}
                   type="submit" 
-                  className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl hover:bg-orange-700 transition-all flex items-center justify-center space-x-2 shadow-lg shadow-orange-600/20 disabled:opacity-50 cursor-pointer text-xs uppercase"
+                  className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl hover:bg-orange-700 transition-all flex items-center justify-center space-x-2 shadow-lg shadow-orange-600/20 dark:shadow-none disabled:opacity-50 cursor-pointer text-xs uppercase border-none"
                 >
                   {loading ? <Loader2 className="animate-spin" /> : <Send size={15} />}
                   <span>{loading ? "SENDING..." : "REGISTER TICKET"}</span>
@@ -484,13 +484,13 @@ To prevent any delay, feel free to browse our main collections directly on the h
 
         {/* Fixed Input Form for Smart mode at the absolute bottom */}
         {mode === "ai" && (
-          <form onSubmit={handleSendAiMessage} className="p-3 border-t border-gray-100 bg-white flex items-center space-x-2">
+          <form onSubmit={handleSendAiMessage} className="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center space-x-2">
             <input
               type="text"
               id="support-ai-input-field"
               placeholder="Ask SokoSmart about products, prices, etc..."
               required
-              className="flex-grow p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-bold text-xs"
+              className="flex-grow p-4 bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-850 text-gray-900 dark:text-white rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-bold text-xs"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               disabled={aiLoading}
@@ -498,15 +498,15 @@ To prevent any delay, feel free to browse our main collections directly on the h
             <button
               type="submit"
               disabled={aiLoading || !chatInput.trim()}
-              className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white p-4 rounded-2xl transition-all shadow-md active:scale-95 cursor-pointer"
+              className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white p-4 rounded-2xl transition-all shadow-md active:scale-95 cursor-pointer border-none"
             >
               <Send size={15} />
             </button>
           </form>
         )}
 
-        <div className="p-4 text-center border-t border-gray-50 bg-gray-50/50">
-          <p className="text-[10px] text-gray-400 uppercase tracking-tighter">Powered by Sokoplus Support Engine v2.5</p>
+        <div className="p-4 text-center border-t border-gray-50 dark:border-gray-850 bg-gray-50/50 dark:bg-gray-950/50">
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-tighter">Powered by Sokoplus Support Engine v2.5</p>
         </div>
       </div>
     </div>
