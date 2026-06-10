@@ -32,7 +32,7 @@ import Careers from "./pages/Careers";
 import { useEffect, useState, useRef } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { UserProfile } from "./types";
 import { MessageCircle, ArrowUp } from "lucide-react";
 import toast from "react-hot-toast";
@@ -138,8 +138,35 @@ export default function App() {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollTopBg, setScrollTopBg] = useState("rgb(234, 88, 12)"); // Dynamic background color
+  const [unreadSupportCount, setUnreadSupportCount] = useState<number>(0);
   const isFirstMount = useRef(true);
   const lastScrollYRef = useRef(0);
+
+  // Realtime listener for client support unread messages count
+  useEffect(() => {
+    if (!user?.uid) {
+      setUnreadSupportCount(0);
+      return;
+    }
+
+    const q = query(
+      collection(db, "support_tickets"),
+      where("userId", "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      let count = 0;
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        count += data.unreadCountClient || 0;
+      });
+      setUnreadSupportCount(count);
+    }, (error) => {
+      console.warn("Failed to listen to support tickets unread counts:", error);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   // Trigger browser-native acoustic tok sound when back-to-top appears / disappears
   useEffect(() => {
@@ -317,13 +344,18 @@ export default function App() {
 
               <button 
                 id="unified-support-trigger-btn"
-                className={`p-4 rounded-full shadow-2xl transition-all group flex items-center cursor-pointer ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
+                className={`p-4 rounded-full shadow-2xl transition-all group flex items-center cursor-pointer relative ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
                 onClick={() => setIsSupportOpen(!isSupportOpen)}
               >
                 <MessageCircle size={24} />
                 {!isSupportOpen && (
                   <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
                     Help & Support
+                  </span>
+                )}
+                {!isSupportOpen && unreadSupportCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border border-white animate-bounce shadow">
+                    {unreadSupportCount}
                   </span>
                 )}
               </button>

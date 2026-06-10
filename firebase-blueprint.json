@@ -211,9 +211,64 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["jobId", "jobTitle", "userId", "applicantName", "applicantEmail", "applicantPhone", "resumeDetails", "status"]
+    },
+    "Role": {
+      "title": "Role",
+      "description": "User roles and custom permission mappings.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Role display name" },
+        "permissions": { "type": "array", "description": "List of active permission strings" },
+        "description": { "type": "string", "description": "Brief description of role responsibilities" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "permissions"]
+    },
+    "AdminProfile": {
+      "title": "AdminProfile",
+      "description": "Platform administrator access rights and permission profiles.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "description": "Administrator email address" },
+        "roleId": { "type": "string", "description": "Assigned custom role ID" },
+        "roleName": { "type": "string", "description": "Assigned custom role name display" },
+        "permissions": { "type": "array", "description": "Granular permissions list mapped for this admin" },
+        "addedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string", "description": "Email of the super-admin who updated this profile" }
+      },
+      "required": ["email", "permissions"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "System audit logs representing administrative and secure access modifications.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user who performed the action" },
+        "userEmail": { "type": "string", "format": "email", "description": "The email of the user who performed the action" },
+        "action": { "type": "string", "description": "Action designation token e.g. create_role, delete_role, update_admin_privileges, revoke_admin_privileges" },
+        "details": { "type": "string", "description": "Human-friendly details describing the precise operation" },
+        "targetId": { "type": "string", "description": "The UID or key of the affected resource" },
+        "targetName": { "type": "string", "description": "Readable descriptor name of the affected resource" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Serverless precise registration timestamp" }
+      },
+      "required": ["userId", "userEmail", "action", "details", "timestamp"]
     }
   },
   "firestore": {
+    "/audit_logs": {
+      "schema": "AuditLog",
+      "description": "Administrative accountability activities and RBAC authorization changes logs."
+    },
+    "/roles": {
+      "schema": "Role",
+      "description": "Custom user roles with fine-grained granular permissions."
+    },
+    "/admins": {
+      "schema": "AdminProfile",
+      "description": "Platform administrators with assigned access roles and custom overrides."
+    },
     "/products": {
       "schema": "Product",
       "description": "Collection of all available items."

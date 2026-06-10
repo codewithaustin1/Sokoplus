@@ -158,6 +158,239 @@ function getGenAI() {
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
+// Secure requireSuperAdmin Middleware using verified firebase auth token
+async function requireSuperAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized: Missing authorization header token" });
+  }
+  const token = authHeader.split("Bearer ")[1];
+  try {
+    const decodedToken = await adminApp.auth().verifyIdToken(token);
+    if (decodedToken.email === "upfrontretaile@gmail.com" && decodedToken.email_verified) {
+      (req as any).user = decodedToken;
+      return next();
+    } else {
+      console.warn(`[Blocked Access attempt] Non super-admin email: ${decodedToken.email}`);
+      return res.status(403).json({ error: "Forbidden: Super Admin privileges are required" });
+    }
+  } catch (error: any) {
+    console.error("Token verification failed in Super Admin middleware:", error);
+    return res.status(401).json({ error: "Unauthorized: Invalid or expired auth token", details: error.message });
+  }
+}
+
+// Helper to write audit/activity log
+async function logAuditAction(
+  userId: string,
+  userEmail: string,
+  action: string,
+  details: string,
+  targetId?: string,
+  targetName?: string
+) {
+  if (!adminDb) return;
+  try {
+    const logRef = adminDb.collection("audit_logs").doc();
+    await logRef.set({
+      userId,
+      userEmail,
+      action,
+      details,
+      targetId: targetId || "",
+      targetName: targetName || "",
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error("Failed to write to audit_logs:", err);
+  }
+}
+
+// REST Audit Logs Endpoint: GET /api/admin/audit_logs (Super Admin access required)
+app.get("/api/admin/audit_logs", requireSuperAdmin, async (req, res) => {
+  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  try {
+    const snap = await adminDb.collection("audit_logs").orderBy("timestamp", "desc").limit(100).get();
+    const logs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, logs });
+  } catch (err: any) {
+    // Fallback if index is not fully deployed yet - fetch and sort client-side
+    try {
+      const snap = await adminDb.collection("audit_logs").get();
+      const logs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      logs.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      res.json({ success: true, logs: logs.slice(0, 100) });
+    } catch (fallbackErr: any) {
+      res.status(500).json({ error: "Failed to fetch audit logs list", details: fallbackErr.message });
+    }
+  }
+});
+
+// REST Roles Endpoint: GET /api/admin/roles
+app.get("/api/admin/roles", requireSuperAdmin, async (req, res) => {
+  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  try {
+    const snap = await adminDb.collection("roles").get();
+    const roles = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, roles });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch roles list", details: err.message });
+  }
+});
+
+// REST Roles Endpoint: POST /api/admin/roles
+app.post("/api/admin/roles", requireSuperAdmin, async (req, res) => {
+  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  try {
+    const { id, name, permissions, description } = req.body;
+    if (!name || !permissions || !Array.isArray(permissions)) {
+      return res.status(400).json({ error: "Missing required fields: name or permissions array" });
+    }
+    const roleId = id || name.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    const roleRef = adminDb.collection("roles").doc(roleId);
+    
+    const isUpdate = (await roleRef.get()).exists;
+    const actionLabel = isUpdate ? "update_role" : "create_role";
+    const detailsLabel = isUpdate
+      ? `Updated role "${name}": permissions set to [${permissions.join(", ")}]. Description: ${description || "None"}.`
+      : `Created role "${name}" with permissions: [${permissions.join(", ")}]. Description: ${description || "None"}.`;
+
+    await roleRef.set({
+      name,
+      permissions,
+      description: description || "",
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    // Log this secure administrative activity
+    await logAuditAction(
+      (req as any).user.uid,
+      (req as any).user.email,
+      actionLabel,
+      detailsLabel,
+      roleId,
+      name
+    );
+
+    res.json({ success: true, roleId, message: `Role "${name}" successfully added/updated` });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to create/update role", details: err.message });
+  }
+});
+
+// REST Roles Endpoint: DELETE /api/admin/roles/:roleId
+app.delete("/api/admin/roles/:roleId", requireSuperAdmin, async (req, res) => {
+  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  const { roleId } = req.params;
+  try {
+    const roleRef = adminDb.collection("roles").doc(roleId);
+    const roleDoc = await roleRef.get();
+    const roleData = roleDoc.data();
+    const roleName = roleData ? roleData.name : roleId;
+
+    await roleRef.delete();
+
+    // Log this administrative activity
+    await logAuditAction(
+      (req as any).user.uid,
+      (req as any).user.email,
+      "delete_role",
+      `Deleted role "${roleName}" (ID: ${roleId})`,
+      roleId,
+      roleName
+    );
+
+    res.json({ success: true, message: `Role "${roleId}" successfully deleted` });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to delete role", details: err.message });
+  }
+});
+
+// REST Admins Endpoint: GET /api/admin/admins
+app.get("/api/admin/admins", requireSuperAdmin, async (req, res) => {
+  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  try {
+    const snap = await adminDb.collection("admins").get();
+    const admins = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, admins });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch admin list", details: err.message });
+  }
+});
+
+// REST Admins Endpoint: POST /api/admin/admins
+app.post("/api/admin/admins", requireSuperAdmin, async (req, res) => {
+  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  try {
+    const { uid, email, roleId, roleName, permissions } = req.body;
+    if (!uid || !email || !permissions || !Array.isArray(permissions)) {
+      return res.status(400).json({ error: "Missing required fields: uid, email, or permissions array" });
+    }
+    const adminRef = adminDb.collection("admins").doc(uid);
+    const adminExists = (await adminRef.get()).exists;
+
+    const actionLabel = adminExists ? "update_admin_privileges" : "assign_admin_privileges";
+    const detailsLabel = adminExists
+      ? `Updated admin settings for ${email}: assigned role "${roleName || "Custom"}" (${roleId || "custom"}) with permissions [${permissions.join(", ")}]`
+      : `Promoted ${email} to platform administrator: assigned role "${roleName || "Custom"}" (${roleId || "custom"}) with permissions [${permissions.join(", ")}]`;
+
+    await adminRef.set({
+      email,
+      roleId: roleId || "",
+      roleName: roleName || "",
+      permissions,
+      updatedAt: new Date().toISOString(),
+      updatedBy: (req as any).user.email
+    }, { merge: true });
+
+    // Log this administrative activity
+    await logAuditAction(
+      (req as any).user.uid,
+      (req as any).user.email,
+      actionLabel,
+      detailsLabel,
+      uid,
+      email
+    );
+
+    res.json({ success: true, uid, message: `Admin profile for "${email}" successfully mapped` });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to update admin profile", details: err.message });
+  }
+});
+
+// REST Admins Endpoint: DELETE /api/admin/admins/:uid
+app.delete("/api/admin/admins/:uid", requireSuperAdmin, async (req, res) => {
+  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  const { uid } = req.params;
+  try {
+    // Check to prevent self-deletion or locking out the supreme super admin!
+    if (uid === (req as any).user.uid) {
+      return res.status(400).json({ error: "Cannot revoke super admin access rights for yourself!" });
+    }
+    const adminRef = adminDb.collection("admins").doc(uid);
+    const adminDoc = await adminRef.get();
+    const adminData = adminDoc.data();
+    const adminEmail = adminData ? adminData.email : uid;
+
+    await adminRef.delete();
+
+    // Log this administrative activity
+    await logAuditAction(
+      (req as any).user.uid,
+      (req as any).user.email,
+      "revoke_admin_privileges",
+      `Revoked all platform administrator access privileges for ${adminEmail} (UID: ${uid})`,
+      uid,
+      adminEmail
+    );
+
+    res.json({ success: true, message: `Administrator access for "${uid}" successfully revoked` });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to delete administrator record", details: err.message });
+  }
+});
+
 // 1. Paystack Initialize Endpoint (resilient routing)
 app.post(["/api/paystack/initialize", "/paystack/initialize"], async (req, res) => {
   try {

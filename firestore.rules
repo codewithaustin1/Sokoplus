@@ -19,8 +19,24 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == "upfrontretaile@gmail.com" && request.auth.token.email_verified == true;
+    }
+
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isSignedIn() && (
+        isSuperAdmin() || 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function hasPermission(permissionName) {
+      return isSignedIn() && (
+        isSuperAdmin() || (
+          exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+          permissionName in get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.permissions
+        )
+      );
     }
 
     function isValidId(id) {
@@ -48,10 +64,10 @@ service cloud.firestore {
       }
 
       allow read: if true;
-      allow create: if isAdmin() && isValidProduct(incoming()) && isValidId(productId);
-      allow update: if (isAdmin() && isValidProduct(incoming())) ||
+      allow create: if hasPermission("manage_inventory") && isValidProduct(incoming()) && isValidId(productId);
+      allow update: if (hasPermission("manage_inventory") && isValidProduct(incoming())) ||
                     (isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'stock']));
-      allow delete: if isAdmin();
+      allow delete: if hasPermission("manage_inventory");
     }
 
     // Orders
@@ -63,12 +79,12 @@ service cloud.firestore {
                data.status in ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
       }
 
-      allow read: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+      allow read: if hasPermission("manage_orders") || (isSignedIn() && existing().userId == request.auth.uid);
       allow create: if isVerified() && isValidOrder(incoming()) && isValidId(orderId);
-      allow update: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid && 
+      allow update: if hasPermission("manage_orders") || (isSignedIn() && existing().userId == request.auth.uid && 
                     incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
                     incoming().status == 'cancelled' && existing().status == 'pending');
-      allow delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+      allow delete: if hasPermission("manage_orders") || (isSignedIn() && existing().userId == request.auth.uid);
     }
 
     // Users
@@ -80,7 +96,7 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidProfile(incoming());
       allow update: if isOwner(userId) && isValidProfile(incoming());
-      allow delete: if isAdmin();
+      allow delete: if hasPermission("manage_users");
     }
 
     // Carts (for Abandoned Cart Cloud Functions support & Cross-device synchronizations)
@@ -114,7 +130,7 @@ service cloud.firestore {
     // Blog
     match /blog/{postId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if hasPermission("manage_blogs");
     }
 
     // Comments
@@ -151,7 +167,7 @@ service cloud.firestore {
       }
 
       allow create: if isSignedIn() && isValidTicket(incoming());
-      allow read, update, delete: if isAdmin();
+      allow read, update, delete: if hasPermission("manage_inbox");
     }
 
     // Price Drop Alerts
@@ -165,7 +181,7 @@ service cloud.firestore {
       }
 
       allow create: if isValidAlert(incoming()) && isValidId(alertId);
-      allow read, update, delete: if isAdmin();
+      allow read, update, delete: if hasPermission("manage_inventory");
     }
 
     // Newsletter Subscribers
@@ -177,7 +193,7 @@ service cloud.firestore {
       }
 
       allow create: if isValidSubscriber(incoming()) && isValidId(subscriberId);
-      allow read, update, delete: if isAdmin();
+      allow read, update, delete: if hasPermission("manage_inbox");
     }
 
     // Settings
@@ -192,7 +208,7 @@ service cloud.firestore {
       }
 
       allow read: if true;
-      allow write: if isAdmin() && isValidSettings(incoming()) && isValidId(settingId);
+      allow write: if hasPermission("manage_settings") && isValidSettings(incoming()) && isValidId(settingId);
     }
 
     // Job Offers
@@ -206,9 +222,9 @@ service cloud.firestore {
       }
 
       allow read: if true;
-      allow create: if isAdmin() && isValidJobOffer(incoming()) && isValidId(jobId);
-      allow update: if isAdmin() && isValidJobOffer(incoming());
-      allow delete: if isAdmin();
+      allow create: if hasPermission("manage_careers") && isValidJobOffer(incoming()) && isValidId(jobId);
+      allow update: if hasPermission("manage_careers") && isValidJobOffer(incoming());
+      allow delete: if hasPermission("manage_careers");
     }
 
     // Job Applications
@@ -225,18 +241,29 @@ service cloud.firestore {
       }
 
       allow create: if isSignedIn() && isValidApplication(incoming()) && isValidId(applicationId);
-      allow read: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
-      allow update: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid && 
+      allow read: if hasPermission("manage_careers") || (isSignedIn() && existing().userId == request.auth.uid);
+      allow update: if hasPermission("manage_careers") || (isSignedIn() && existing().userId == request.auth.uid && 
                     incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
                     incoming().status == 'cancelled');
-      allow delete: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
+      allow delete: if hasPermission("manage_careers") || (isSignedIn() && existing().userId == request.auth.uid);
+    }
+
+    // Roles
+    match /roles/{roleId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
     }
 
     // Admins
     match /admins/{adminId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.token.email == "upfrontretaile@gmail.com" && request.auth.uid == adminId;
-      allow delete, update: if false; 
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // Audit Logs
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
   }
 }

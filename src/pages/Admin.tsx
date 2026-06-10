@@ -40,6 +40,7 @@ import {
   Star,
   Eye,
   X,
+  Send,
   Settings,
   Upload,
   Image,
@@ -55,6 +56,7 @@ import toast from "react-hot-toast";
 import axios from "axios";
 import RichTextEditor from "../components/RichTextEditor";
 import { downloadReceipt } from "../utils/pdfGenerator";
+import SecurityManager from "../components/SecurityManager";
 import {
   ComposedChart,
   Area,
@@ -518,6 +520,7 @@ export default function Admin({ user }: AdminProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [adminReplyText, setAdminReplyText] = useState<{ [ticketId: string]: string }>({});
   const [selectedViewOrder, setSelectedViewOrder] = useState<any | null>(null);
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [jobOffers, setJobOffers] = useState<JobOffer[]>([]);
@@ -534,7 +537,7 @@ export default function Admin({ user }: AdminProps) {
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers"
+    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers" | "security"
   >("inventory");
   const [homepageHeroUrl, setHomepageHeroUrl] = useState<string>("");
   const [homepageHeroBadge, setHomepageHeroBadge] = useState<string>("Vetted excellence");
@@ -1170,6 +1173,49 @@ export default function Admin({ user }: AdminProps) {
         error,
         OperationType.UPDATE,
         `support_tickets/${ticketId}`,
+      );
+    }
+  };
+
+  const handleSendAdminReply = async (e: React.FormEvent, ticketId: string, currentReplies: any[] = []) => {
+    e.preventDefault();
+    const replyText = adminReplyText[ticketId]?.trim();
+    if (!replyText) return;
+
+    try {
+      const newReply = {
+        sender: "admin",
+        message: replyText,
+        createdAt: new Date().toISOString(),
+        senderName: "Soplus Support",
+      };
+      
+      const updatedReplies = [...(currentReplies || []), newReply];
+
+      await updateDoc(doc(db, "support_tickets", ticketId), {
+        replies: updatedReplies,
+        unreadCountClient: (tickets.find((t) => t.id === ticketId)?.unreadCountClient || 0) + 1,
+        updatedAt: new Date().toISOString(),
+        status: "in-progress"
+      });
+
+      setTickets((prev) =>
+        prev.map((t) => t.id === ticketId ? { 
+          ...t, 
+          replies: updatedReplies, 
+          unreadCountClient: (t.unreadCountClient || 0) + 1,
+          status: "in-progress" 
+        } : t)
+      );
+
+      setAdminReplyText((prev) => ({ ...prev, [ticketId]: "" }));
+      toast.success("Outbound response sent!");
+    } catch (error) {
+      console.error("Error sending admin reply:", error);
+      handleFirestoreError(
+        error,
+        OperationType.UPDATE,
+        `support_tickets/${ticketId}`
       );
     }
   };
@@ -1987,6 +2033,14 @@ export default function Admin({ user }: AdminProps) {
         >
           Careers Board
         </button>
+        {user?.email === "upfrontretaile@gmail.com" && (
+          <button
+            onClick={() => setActiveTab("security")}
+            className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "security" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          >
+            Roles & Admins (RBAC)
+          </button>
+        )}
       </div>
 
       <div>
@@ -2444,6 +2498,64 @@ export default function Admin({ user }: AdminProps) {
                     <div className="bg-gray-50 p-4 rounded-2xl mb-4 text-gray-700 whitespace-pre-wrap text-sm leading-relaxed border border-gray-100">
                       {t.message}
                     </div>
+
+                    {/* Interactive Replies Conversation History */}
+                    {t.replies && t.replies.length > 0 && (
+                      <div className="mb-4 pl-4 border-l-2 border-orange-500 space-y-2">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                          Conversation History
+                        </p>
+                        {t.replies.map((reply, rid) => (
+                          <div
+                            key={rid}
+                            className={`p-3 rounded-2xl text-xs ${
+                              reply.sender === "admin"
+                                ? "bg-orange-50 text-orange-950 border border-orange-100"
+                                : "bg-gray-50 text-gray-800 border border-gray-150"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-extrabold uppercase text-[9px] tracking-wider text-orange-600">
+                                {reply.sender === "admin" ? "Soplus Team" : t.email ? t.email.split("@")[0] : "Customer"}
+                              </span>
+                              <span className="text-[9px] text-gray-400">
+                                {reply.createdAt && typeof reply.createdAt === "string"
+                                  ? new Date(reply.createdAt).toLocaleString()
+                                  : String(reply.createdAt)}
+                              </span>
+                            </div>
+                            <p className="font-medium whitespace-pre-wrap">{reply.message}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Send Outbound Response Box */}
+                    <form
+                      onSubmit={(e) => handleSendAdminReply(e, t.id, t.replies || [])}
+                      className="mb-4 flex gap-2"
+                    >
+                      <input
+                        type="text"
+                        required
+                        placeholder="Type response matching registered email..."
+                        className="flex-grow p-3 text-xs bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-850 rounded-xl outline-none focus:ring-1 focus:ring-orange-550 transition-all font-semibold"
+                        value={adminReplyText[t.id] || ""}
+                        onChange={(e) =>
+                          setAdminReplyText((prev) => ({
+                            ...prev,
+                            [t.id]: e.target.value,
+                          }))
+                        }
+                      />
+                      <button
+                        type="submit"
+                        className="bg-orange-600 hover:bg-orange-700 text-white font-black text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1 cursor-pointer border-none"
+                      >
+                        <Send size={12} />
+                        <span>Reply</span>
+                      </button>
+                    </form>
                     <div className="flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                       <div className="flex items-center">
                         <Clock size={12} className="mr-1" />
@@ -4067,6 +4179,10 @@ export default function Admin({ user }: AdminProps) {
           </div>
         )}
       </AnimatePresence>
+
+      {activeTab === "security" && user?.email === "upfrontretaile@gmail.com" && (
+        <SecurityManager user={user} />
+      )}
 
       {/* View Order Details Modal */}
       {selectedViewOrder && (

@@ -115,7 +115,7 @@ export default function Footer() {
                 <li className="flex items-start space-x-3 text-sm text-gray-500 dark:text-gray-450">
                   <MapPin size={18} className="text-orange-600 shrink-0 mt-0.5" />
                   {googleMapsLinks.length === 0 ? (
-                    <span>{t("Nairobi Business District,")}<br/>{t("Kenyan Avenue, Kenya")}</span>
+                    <span>{t("Revlon Plaza, Biashara Street,")}<br/>{t("Nairobi CBD")}</span>
                   ) : googleMapsLinks.length === 1 ? (
                     <a 
                       href={googleMapsLinks[0].url} 
@@ -123,7 +123,7 @@ export default function Footer() {
                       rel="noopener noreferrer"
                       className="hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200 underline decoration-orange-500/30 hover:decoration-orange-500/80 font-semibold cursor-pointer"
                     >
-                      <span>{t("Nairobi Business District,")}<br/>{t("Kenyan Avenue, Kenya")}</span>
+                      <span>{t("Revlon Plaza, Biashara Street,")}<br/>{t("Nairobi CBD")}</span>
                       <span className="block mt-1 text-xs text-orange-600 dark:text-orange-400 font-bold hover:underline">
                         {t("View Shop Location")} &rarr;
                       </span>
@@ -134,7 +134,7 @@ export default function Footer() {
                       onClick={() => setShowLocationsModal(true)}
                       className="text-left hover:text-orange-600 dark:hover:text-orange-400 transition-colors duration-200 underline decoration-orange-500/30 hover:decoration-orange-500/80 font-semibold cursor-pointer outline-none bg-transparent"
                     >
-                      <span>{t("Nairobi Business District,")}<br/>{t("Kenyan Avenue, Kenya")}</span>
+                      <span>{t("Revlon Plaza, Biashara Street,")}<br/>{t("Nairobi CBD")}</span>
                       <span className="block mt-1 text-xs text-orange-600 dark:text-orange-400 font-bold hover:underline">
                         {t("Our Outlets")} ({googleMapsLinks.length} {t("Locations")}) &rarr;
                       </span>

@@ -70,6 +70,9 @@ export interface SupportTicket {
   status: "open" | "in-progress" | "resolved" | "closed";
   createdAt: any;
   updatedAt?: any;
+  replies?: { sender: "user" | "admin"; message: string; createdAt: any; senderName?: string }[];
+  unreadCountClient?: number;
+  unreadCountAdmin?: number;
 }
 
 export interface BlogPost {

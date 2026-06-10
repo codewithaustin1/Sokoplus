@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { UserProfile, SupportTicket } from "../types";
 import { db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp, getDocs, query, limit } from "firebase/firestore";
-import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity } from "lucide-react";
+import { collection, addDoc, serverTimestamp, getDocs, query, limit, onSnapshot, where, updateDoc, doc } from "firebase/firestore";
+import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity, ArrowLeft, Clock, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
@@ -28,6 +28,87 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
   const [subject, setSubject] = useState<SupportTicket["subject"]>("General Inquiry");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Outbound active ticket response inbox states
+  const [userTickets, setUserTickets] = useState<SupportTicket[]>([]);
+  const [emailSubTab, setEmailSubTab] = useState<"new" | "inbox">("new");
+  const [clientReplyText, setClientReplyText] = useState<{ [ticketId: string]: string }>({});
+  const [activeOpenTicketId, setActiveOpenTicketId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setUserTickets([]);
+      setEmailSubTab("new");
+      return;
+    }
+
+    const q = query(
+      collection(db, "support_tickets"),
+      where("userId", "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as SupportTicket);
+      // Sort: updated descending, fallback to created descending
+      docs.sort((a, b) => {
+        const aTime = a.updatedAt || a.createdAt;
+        const bTime = b.updatedAt || b.createdAt;
+        const aMs = aTime ? (aTime.toDate ? aTime.toDate().getTime() : new Date(aTime).getTime()) : 0;
+        const bMs = bTime ? (bTime.toDate ? bTime.toDate().getTime() : new Date(bTime).getTime()) : 0;
+        return bMs - aMs;
+      });
+      setUserTickets(docs);
+      
+      // If user has existing tickets, default to inbox tab, else new
+      if (docs.length > 0) {
+        setEmailSubTab("inbox");
+      }
+    }, (error) => {
+      console.warn("Error listening to user tickets:", error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleReadTicket = async (ticketId: string) => {
+    try {
+      await updateDoc(doc(db, "support_tickets", ticketId), {
+        unreadCountClient: 0
+      });
+    } catch (e) {
+      console.warn("Failed to reset client unread count:", e);
+    }
+  };
+
+  const handleSendClientReply = async (e: React.FormEvent, ticketId: string, currentReplies: any[] = []) => {
+    e.preventDefault();
+    const replyText = clientReplyText[ticketId]?.trim();
+    if (!replyText) return;
+
+    try {
+      const newReply = {
+        sender: "user",
+        message: replyText,
+        createdAt: new Date().toISOString(),
+        senderName: user?.displayName || "You",
+      };
+
+      const updatedReplies = [...(currentReplies || []), newReply];
+
+      await updateDoc(doc(db, "support_tickets", ticketId), {
+        replies: updatedReplies,
+        unreadCountAdmin: (userTickets.find((t) => t.id === ticketId)?.unreadCountAdmin || 0) + 1,
+        updatedAt: new Date().toISOString(),
+        status: "open" // reopen / keep open
+      });
+
+      setClientReplyText((prev) => ({ ...prev, [ticketId]: "" }));
+      toast.success("Message sent to Soplus Support.");
+    } catch (error) {
+      console.error("Error sending client reply:", error);
+      toast.error("Failed to send message.");
+    }
+  };
 
   // Smart Chat states
   const [chatInput, setChatInput] = useState("");
@@ -270,7 +351,7 @@ To prevent any delay, feel free to browse our main collections directly on the h
             type="button"
             id="support-tab-email"
             onClick={() => setMode("email")}
-            className={`flex-1 py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer border-none ${
+            className={`flex-1 py-2 px-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer border-none relative ${
               mode === "email"
                 ? "bg-white text-orange-600 shadow-sm border border-gray-100 dark:bg-gray-900 dark:text-orange-400 dark:border-gray-800"
                 : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 bg-transparent"
@@ -278,6 +359,11 @@ To prevent any delay, feel free to browse our main collections directly on the h
           >
             <Mail size={12} className={mode === "email" ? "text-orange-600" : "text-gray-400"} />
             <span>Email Ticket</span>
+            {userTickets.reduce((acc, curr) => acc + (curr.unreadCountClient || 0), 0) > 0 && (
+              <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[8px] font-black min-w-4 h-4 px-1 rounded-full flex items-center justify-center animate-pulse">
+                {userTickets.reduce((acc, curr) => acc + (curr.unreadCountClient || 0), 0)}
+              </span>
+            )}
           </button>
         </div>
 
@@ -423,61 +509,272 @@ To prevent any delay, feel free to browse our main collections directly on the h
           )}
 
           {mode === "email" && (
-            /* Traditional Helpdesk Form Area */
-            <div className="p-6 space-y-6">
-              <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-900 italic text-xs text-blue-800 dark:text-blue-305 leading-relaxed font-medium animate-in fade-in duration-200">
-                "Habari! Use this official ticketing desk to register formal inquiries requiring catalog/account inspections. Our support technicians review tickets matching database records every 24 hours."
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-4 pb-4">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-1 underline decoration-orange-500/30">Your Registered Email</label>
-                  <input 
-                    type="email" 
-                    required 
-                    placeholder="email@example.com"
-                    className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-905 dark:text-white border border-gray-100 dark:border-gray-800 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium text-xs"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    readOnly={!!user?.email}
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-1 underline decoration-orange-500/30">Subject Category</label>
-                  <select 
-                    className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-905 dark:text-white border border-gray-100 dark:border-gray-800 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium appearance-none text-xs"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value as SupportTicket["subject"])}
+            /* Traditional Helpdesk & Inbound Message inbox area */
+            <div className="p-4 space-y-4 flex flex-col h-full overflow-y-auto">
+              {/* If user is logged in, show Sub-Tabs: Inbox vs New Ticket */}
+              {user && (
+                <div className="flex border-b border-gray-100 dark:border-gray-800 p-1 bg-gray-50/50 dark:bg-gray-950/50 rounded-xl gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmailSubTab("inbox");
+                      setActiveOpenTicketId(null);
+                    }}
+                    className={`flex-1 py-1.5 px-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer border-none ${
+                      emailSubTab === "inbox"
+                        ? "bg-white text-orange-600 shadow-sm dark:bg-gray-900 dark:text-orange-400"
+                        : "text-gray-500 hover:text-gray-800 dark:text-gray-400 bg-transparent"
+                    }`}
                   >
-                    <option value="Technical Support">Technical Support</option>
-                    <option value="Billing/Invoices">Billing/Invoices</option>
-                    <option value="Order Status">Order Status</option>
-                    <option value="General Inquiry">General Inquiry</option>
-                  </select>
-                </div>
+                    <span>My Inbox ({userTickets.length})</span>
+                    {userTickets.some(t => t.unreadCountClient && t.unreadCountClient > 0) && (
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
+                    )}
+                  </button>
 
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-1 underline decoration-orange-500/30">Detailed Message</label>
-                  <textarea 
-                    required
-                    rows={4}
-                    placeholder="Tell us what's happening..."
-                    className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-905 dark:text-white border border-gray-100 dark:border-gray-800 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium resize-none shadow-inner text-xs"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                  ></textarea>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmailSubTab("new");
+                      setActiveOpenTicketId(null);
+                    }}
+                    className={`flex-1 py-1.5 px-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer border-none ${
+                      emailSubTab === "new"
+                        ? "bg-white text-orange-600 shadow-sm dark:bg-gray-900 dark:text-orange-400"
+                        : "text-gray-500 hover:text-gray-800 dark:text-gray-400 bg-transparent"
+                    }`}
+                  >
+                    <span>File New Ticket</span>
+                  </button>
                 </div>
+              )}
 
-                <button 
-                  disabled={loading}
-                  type="submit" 
-                  className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl hover:bg-orange-700 transition-all flex items-center justify-center space-x-2 shadow-lg shadow-orange-600/20 dark:shadow-none disabled:opacity-50 cursor-pointer text-xs uppercase border-none"
-                >
-                  {loading ? <Loader2 className="animate-spin" /> : <Send size={15} />}
-                  <span>{loading ? "SENDING..." : "REGISTER TICKET"}</span>
-                </button>
-              </form>
+              {/* VIEW A SPECIFIC OPEN TICKET CHAT CONVERSATION */}
+              {emailSubTab === "inbox" && activeOpenTicketId && (
+                (() => {
+                  const activeTicket = userTickets.find(t => t.id === activeOpenTicketId);
+                  if (!activeTicket) return <p className="text-xs text-gray-500">Ticket not found.</p>;
+                  return (
+                    <div className="space-y-4 flex flex-col flex-grow">
+                      {/* Back button header */}
+                      <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-850">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveOpenTicketId(null);
+                          }}
+                          className="flex items-center text-xs text-gray-400 hover:text-gray-700 font-bold bg-transparent border-none cursor-pointer gap-1"
+                        >
+                          <ArrowLeft size={14} />
+                          <span>Back to Inbox</span>
+                        </button>
+                        <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                          activeTicket.status === "resolved" ? "bg-green-100 text-green-700" :
+                          activeTicket.status === "in-progress" ? "bg-blue-150 text-blue-700" :
+                          "bg-orange-100 text-orange-700"
+                        }`}>
+                          {activeTicket.status}
+                        </span>
+                      </div>
+
+                      {/* Chat feed container */}
+                      <div className="flex-grow space-y-3 overflow-y-auto max-h-[350px] pr-1">
+                        {/* Original Ticket Message */}
+                        <div className="flex flex-col max-w-[85%] self-start items-start">
+                          <p className="text-[9px] font-bold text-gray-400 uppercase mb-1 ml-1">
+                            Your Ticket: {activeTicket.subject}
+                          </p>
+                          <div className="bg-orange-50 dark:bg-orange-950/20 text-orange-950 dark:text-orange-200 rounded-3xl rounded-tl-none px-4 py-3 text-xs font-semibold border border-orange-100 dark:border-orange-900/40">
+                            {activeTicket.message}
+                          </div>
+                          <span className="text-[8px] text-gray-400 mt-0.5 ml-2">
+                            {activeTicket.createdAt?.toDate
+                              ? activeTicket.createdAt.toDate().toLocaleString()
+                              : String(activeTicket.createdAt)}
+                          </span>
+                        </div>
+
+                        {/* Conversational replies */}
+                        {activeTicket.replies && activeTicket.replies.map((rep, idx) => (
+                          <div
+                            key={idx}
+                            className={`flex flex-col max-w-[85%] ${
+                              rep.sender === "user" ? "self-end items-end ml-auto" : "self-start items-start mr-auto"
+                            }`}
+                          >
+                            <p className="text-[9px] font-bold text-gray-400 uppercase mb-1 mx-1">
+                              {rep.sender === "admin" ? "Soplus Team" : "You"}
+                            </p>
+                            <div className={`rounded-3xl px-4 py-3 text-xs ${
+                              rep.sender === "user"
+                                ? "bg-orange-600 text-white rounded-tr-none font-medium"
+                                : "bg-gray-100 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none"
+                            }`}>
+                              {rep.message}
+                            </div>
+                            <span className="text-[8px] text-gray-400 mt-0.5 mx-2">
+                              {rep.createdAt && typeof rep.createdAt === "string"
+                                ? new Date(rep.createdAt).toLocaleString()
+                                : String(rep.createdAt)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Form for user to write a message back to the support ticket */}
+                      <form
+                        onSubmit={(e) => handleSendClientReply(e, activeTicket.id, activeTicket.replies || [])}
+                        className="flex items-center gap-2 mt-auto p-1 border-t border-gray-105 dark:border-gray-850 pt-3"
+                      >
+                        <input
+                          type="text"
+                          required
+                          placeholder="Type message to the care team..."
+                          className="flex-grow p-3 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border border-gray-100 dark:border-gray-850 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 font-bold text-xs"
+                          value={clientReplyText[activeTicket.id] || ""}
+                          onChange={(e) =>
+                            setClientReplyText((prev) => ({
+                              ...prev,
+                              [activeTicket.id]: e.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          type="submit"
+                          className="bg-orange-600 hover:bg-orange-700 text-white p-3 rounded-2xl transition-all shadow-md cursor-pointer border-none flex items-center justify-center whitespace-nowrap active:scale-95"
+                        >
+                          <Send size={14} />
+                        </button>
+                      </form>
+                    </div>
+                  );
+                })()
+              )}
+
+              {/* TICKETS LISTING INSIDE CHAT INBOX TAB */}
+              {emailSubTab === "inbox" && !activeOpenTicketId && (
+                <div className="space-y-3">
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-900 italic text-xs text-blue-800 dark:text-blue-305 leading-relaxed font-semibold animate-in fade-in duration-200">
+                    "Habari! Select an active ticket below to view replies directly from your Soplus care coordinators or update your requests instantly."
+                  </div>
+
+                  {userTickets.length > 0 ? (
+                    <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                      {userTickets.map((t) => (
+                        <div
+                          key={t.id}
+                          onClick={() => {
+                            setActiveOpenTicketId(t.id);
+                            handleReadTicket(t.id);
+                          }}
+                          className={`p-4 rounded-2.5xl border text-left cursor-pointer transition-all hover:border-orange-500 relative flex items-center justify-between ${
+                            t.unreadCountClient && t.unreadCountClient > 0
+                              ? "bg-green-50/70 border-green-200 dark:bg-green-950/15 dark:border-green-900"
+                              : "bg-gray-50 dark:bg-gray-950 border-gray-100 dark:border-gray-850"
+                          }`}
+                        >
+                          <div className="space-y-1 pr-4">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-extrabold text-xs text-gray-900 dark:text-white">
+                                {t.subject}
+                              </span>
+                              <span className={`text-[8px] font-bold uppercase py-0.5 px-2 rounded-full ${
+                                t.status === "resolved" ? "bg-green-100 text-green-700" :
+                                t.status === "in-progress" ? "bg-blue-100 text-blue-700" :
+                                "bg-orange-100 text-orange-700"
+                              }`}>
+                                {t.status}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-gray-500 line-clamp-1 italic">
+                              {t.replies && t.replies.length > 0
+                                ? `Care Team: "${t.replies[t.replies.length - 1].message}"`
+                                : `Original: "${t.message}"`}
+                            </p>
+                          </div>
+                          
+                          <div className="flex flex-col items-end shrink-0 gap-1.5">
+                            {t.unreadCountClient && t.unreadCountClient > 0 ? (
+                              <span className="bg-green-600 text-white font-bold text-[8px] px-2 py-0.5 rounded-full uppercase animate-bounce">
+                                {t.unreadCountClient} New
+                              </span>
+                            ) : (
+                              <span className="text-[9px] text-gray-400 font-semibold">
+                                {t.updatedAt || t.createdAt ? (
+                                  new Date((t.updatedAt || t.createdAt).toDate ? (t.updatedAt || t.createdAt).toDate() : (t.updatedAt || t.createdAt)).toLocaleDateString()
+                                ) : ""}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-400 font-bold uppercase tracking-widest text-xs">
+                      No tickets listed. Register below!
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* NEW TICKET FORM PANEL */}
+              {emailSubTab === "new" && (
+                <>
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-900 italic text-xs text-blue-800 dark:text-blue-305 leading-relaxed font-medium animate-in fade-in duration-200">
+                    "Habari! Use this official ticketing desk to register formal inquiries requiring catalog/account inspections. Our support technicians review tickets matching database records every 24 hours."
+                  </div>
+
+                  <form onSubmit={handleSubmit} className="space-y-4 pb-4">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-1 underline decoration-orange-500/30">Your Registered Email</label>
+                      <input 
+                        type="email" 
+                        required 
+                        placeholder="email@example.com"
+                        className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-905 dark:text-white border border-gray-100 dark:border-gray-800 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium text-xs"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        readOnly={!!user?.email}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-1 underline decoration-orange-500/30">Subject Category</label>
+                      <select 
+                        className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-905 dark:text-white border border-gray-100 dark:border-gray-800 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium appearance-none text-xs"
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value as SupportTicket["subject"])}
+                      >
+                        <option value="Technical Support">Technical Support</option>
+                        <option value="Billing/Invoices">Billing/Invoices</option>
+                        <option value="Order Status">Order Status</option>
+                        <option value="General Inquiry">General Inquiry</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-1 underline decoration-orange-500/30">Detailed Message</label>
+                      <textarea 
+                        required
+                        rows={4}
+                        placeholder="Tell us what's happening..."
+                        className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-905 dark:text-white border border-gray-100 dark:border-gray-800 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all font-medium resize-none shadow-inner text-xs"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                      ></textarea>
+                    </div>
+
+                    <button 
+                      disabled={loading}
+                      type="submit" 
+                      className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl hover:bg-orange-700 transition-all flex items-center justify-center space-x-2 shadow-lg shadow-orange-600/20 dark:shadow-none disabled:opacity-50 cursor-pointer text-xs uppercase border-none"
+                    >
+                      {loading ? <Loader2 className="animate-spin" /> : <Send size={15} />}
+                      <span>{loading ? "SENDING..." : "REGISTER TICKET"}</span>
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
           )}
         </div>
