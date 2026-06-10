@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { UserProfile, SupportTicket } from "../types";
 import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp, getDocs, query, limit, onSnapshot, where, updateDoc, doc } from "firebase/firestore";
-import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity, ArrowLeft, Clock, CheckCircle2 } from "lucide-react";
+import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity, ArrowLeft, Clock, CheckCircle2, Check, CheckCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
@@ -79,6 +79,14 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
       console.warn("Failed to reset client unread count:", e);
     }
   };
+
+  useEffect(() => {
+    if (!activeOpenTicketId) return;
+    const currentTicket = userTickets.find((t) => t.id === activeOpenTicketId);
+    if (currentTicket && (currentTicket.unreadCountClient || 0) > 0) {
+      handleReadTicket(activeOpenTicketId);
+    }
+  }, [activeOpenTicketId, userTickets]);
 
   const handleSendClientReply = async (e: React.FormEvent, ticketId: string, currentReplies: any[] = []) => {
     e.preventDefault();
@@ -587,10 +595,23 @@ To prevent any delay, feel free to browse our main collections directly on the h
                           <div className="bg-orange-50 dark:bg-orange-950/20 text-orange-950 dark:text-orange-200 rounded-3xl rounded-tl-none px-4 py-3 text-xs font-semibold border border-orange-100 dark:border-orange-900/40">
                             {activeTicket.message}
                           </div>
-                          <span className="text-[8px] text-gray-400 mt-0.5 ml-2">
-                            {activeTicket.createdAt?.toDate
-                              ? activeTicket.createdAt.toDate().toLocaleString()
-                              : String(activeTicket.createdAt)}
+                          <span className="text-[8px] text-gray-400 mt-0.5 ml-2 flex items-center gap-1.5">
+                            <span>
+                              {activeTicket.createdAt?.toDate
+                                ? activeTicket.createdAt.toDate().toLocaleString()
+                                : String(activeTicket.createdAt)}
+                            </span>
+                            <span className="flex items-center gap-0.5">
+                              {(!activeTicket.unreadCountAdmin || activeTicket.unreadCountAdmin === 0) ? (
+                                <span className="text-green-600 dark:text-green-400 font-extrabold flex items-center gap-0.5">
+                                  <CheckCheck size={10} className="stroke-[3]" /> Read
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 font-semibold flex items-center gap-0.5">
+                                  <Check size={10} className="stroke-[2]" /> Sent
+                                </span>
+                              )}
+                            </span>
                           </span>
                         </div>
 
@@ -612,10 +633,29 @@ To prevent any delay, feel free to browse our main collections directly on the h
                             }`}>
                               {rep.message}
                             </div>
-                            <span className="text-[8px] text-gray-400 mt-0.5 mx-2">
-                              {rep.createdAt && typeof rep.createdAt === "string"
-                                ? new Date(rep.createdAt).toLocaleString()
-                                : String(rep.createdAt)}
+                            <span className="text-[8px] text-gray-400 mt-0.5 mx-2 flex items-center gap-1.5">
+                              <span>
+                                {rep.createdAt && typeof rep.createdAt === "string"
+                                  ? new Date(rep.createdAt).toLocaleString()
+                                  : String(rep.createdAt)}
+                              </span>
+                              <span className="flex items-center gap-0.5">
+                                {rep.sender === "user" ? (
+                                  (!activeTicket.unreadCountAdmin || activeTicket.unreadCountAdmin === 0) ? (
+                                    <span className="text-green-600 dark:text-green-400 font-extrabold flex items-center gap-0.5">
+                                      <CheckCheck size={10} className="stroke-[3]" /> Read
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 font-semibold flex items-center gap-0.5">
+                                      <Check size={10} className="stroke-[2]" /> Sent
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-blue-500 dark:text-blue-400 font-extrabold flex items-center gap-0.5">
+                                    <CheckCheck size={10} className="stroke-[3]" /> Read
+                                  </span>
+                                )}
+                              </span>
                             </span>
                           </div>
                         ))}

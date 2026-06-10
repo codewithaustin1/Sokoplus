@@ -14,6 +14,7 @@ import {
   getDoc,
   setDoc,
   where,
+  onSnapshot,
 } from "firebase/firestore";
 import {
   Plus,
@@ -51,6 +52,8 @@ import {
   Coins,
   Briefcase,
   MapPin,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -767,6 +770,25 @@ export default function Admin({ user }: AdminProps) {
     fetchData();
   }, [user]);
 
+  useEffect(() => {
+    if (!user?.isAdmin) return;
+
+    const q = query(
+      collection(db, "support_tickets"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setTickets(
+        snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as SupportTicket)
+      );
+    }, (error) => {
+      console.warn("Error subscribing to support tickets in Admin panel:", error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1195,6 +1217,7 @@ export default function Admin({ user }: AdminProps) {
       await updateDoc(doc(db, "support_tickets", ticketId), {
         replies: updatedReplies,
         unreadCountClient: (tickets.find((t) => t.id === ticketId)?.unreadCountClient || 0) + 1,
+        unreadCountAdmin: 0,
         updatedAt: new Date().toISOString(),
         status: "in-progress"
       });
@@ -1204,6 +1227,7 @@ export default function Admin({ user }: AdminProps) {
           ...t, 
           replies: updatedReplies, 
           unreadCountClient: (t.unreadCountClient || 0) + 1,
+          unreadCountAdmin: 0,
           status: "in-progress" 
         } : t)
       );
@@ -2564,6 +2588,28 @@ export default function Admin({ user }: AdminProps) {
                           : String(t.createdAt)}
                       </div>
                       <div className="flex items-center space-x-3">
+                        {t.unreadCountAdmin && t.unreadCountAdmin > 0 ? (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await updateDoc(doc(db, "support_tickets", t.id), {
+                                  unreadCountAdmin: 0
+                                });
+                              } catch (e) {
+                                console.warn("Failed to mark ticket read:", e);
+                              }
+                            }}
+                            className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-[9px] px-2.5 py-1 rounded-xl uppercase cursor-pointer border-none flex items-center transition-all"
+                            title="Clear unread notification"
+                          >
+                            <Check size={10} className="mr-1" /> Clear Unread ({t.unreadCountAdmin})
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-green-650 font-bold flex items-center bg-green-50 px-2 py-0.5 rounded-lg border border-green-100">
+                            <CheckCheck size={12} className="mr-1 text-green-600" /> All Read
+                          </span>
+                        )}
+
                         {t.status === "closed" && (
                           <button
                             onClick={() => deleteTicket(t.id)}
