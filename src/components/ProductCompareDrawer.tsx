@@ -143,24 +143,24 @@ export const ProductCompareDrawer: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-gray-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 md:p-8"
+            className="fixed inset-0 bg-gray-950/40 backdrop-blur-sm z-55 flex items-end md:items-center justify-center p-0 md:p-6 lg:p-8"
           >
             <motion.div
-              initial={{ scale: 0.95, y: 15 }}
+              initial={{ scale: 0.95, y: 50 }}
               animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 15 }}
-              transition={{ type: "spring", damping: 25, stiffness: 350 }}
-              className="bg-white w-full max-w-5xl max-h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100"
+              exit={{ scale: 0.95, y: 50 }}
+              transition={{ type: "spring", damping: 28, stiffness: 320 }}
+              className="bg-white w-full md:max-w-5xl h-[90vh] md:h-auto md:max-h-[85vh] rounded-t-[2.25rem] md:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border-t md:border border-gray-150/60 dark:border-gray-800"
             >
               {/* Header */}
-              <div className="px-6 py-4.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div className="px-5 py-4 sm:px-6 sm:py-4.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 bg-orange-100 text-orange-600 rounded-xl">
-                    <GitCompare size={20} />
+                    <GitCompare size={18} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-gray-900">Side-by-Side Product Comparison</h3>
-                    <p className="text-xs text-gray-400 font-bold mt-0.5">Specifications, prices and features compared directly</p>
+                    <h3 className="text-sm sm:text-base md:text-lg font-black text-gray-900">Side-by-Side Product Comparison</h3>
+                    <p className="text-[10px] sm:text-xs text-gray-400 font-bold mt-0.5">Specifications, prices and features compared directly</p>
                   </div>
                 </div>
                 <button
@@ -172,8 +172,21 @@ export const ProductCompareDrawer: React.FC = () => {
               </div>
 
               {/* Grid content Area */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                {/* Mobile scroll indicator / instructions */}
+                {items.length > 1 && (
+                  <div className="flex items-center justify-between md:hidden bg-orange-50/70 py-2.5 px-4 rounded-xl border border-orange-100">
+                    <div className="flex items-center gap-1.5 text-[11px] text-orange-950 font-bold">
+                      <span className="inline-block w-1.5 h-1.5 bg-orange-550 rounded-full animate-ping" />
+                      Swipe left/right to compare
+                    </div>
+                    <span className="text-[10px] text-orange-600 font-extrabold uppercase tracking-widest">
+                      {items.length} Products
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-6 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 snap-x snap-mandatory scrollbar-thin">
                   {/* Column for each product */}
                   {items.map((product, index) => {
                     const status = addingMap[product.id] || "idle";
@@ -181,19 +194,19 @@ export const ProductCompareDrawer: React.FC = () => {
                     return (
                       <div 
                         key={product.id} 
-                        className={`space-y-6 flex flex-col justify-between ${index > 0 ? "pt-6 md:pt-0 md:pl-6" : ""}`}
+                        className={`space-y-4 flex flex-col justify-between shrink-0 w-[280px] sm:w-[320px] md:w-auto snap-center bg-gray-50/50 md:bg-transparent p-4 md:p-0 rounded-2.5xl md:rounded-none border border-gray-150/60 md:border-0 relative ${index > 0 ? "md:pl-6 md:border-l md:border-gray-100" : ""}`}
                       >
                         {/* Box 1: Image, Category, Title & Close Button */}
                         <div className="space-y-4 relative">
                           <button
                             onClick={() => handleRemove(product.id, product.name)}
-                            className="absolute -top-1 right-0 p-1 text-gray-450 hover:text-red-550 transition-colors cursor-pointer"
+                            className="absolute top-0 right-0 p-1.5 bg-white md:bg-transparent rounded-full shadow-sm md:shadow-none text-gray-450 hover:text-red-550 transition-all cursor-pointer z-10 border border-gray-100 md:border-0"
                             title="Remove from comparison"
                           >
-                            <Trash2 size={16} />
+                            <X size={14} />
                           </button>
 
-                          <div className="aspect-square w-full rounded-2xl bg-gray-50 overflow-hidden border border-gray-100 max-h-[200px] select-none flex items-center justify-center">
+                          <div className="aspect-square w-full rounded-2xl bg-white overflow-hidden border border-gray-100 max-h-[140px] sm:max-h-[180px] select-none flex items-center justify-center shadow-inner">
                             <FastImage 
                               src={product.images?.filter((img) => !!img && img.trim() !== "")[0] || ""} 
                               alt={product.name} 
@@ -204,21 +217,21 @@ export const ProductCompareDrawer: React.FC = () => {
                             <span className="text-[10px] font-black uppercase text-orange-600 tracking-wider bg-orange-50 px-2 py-0.5 rounded-md">
                               {product.category}
                             </span>
-                            <h4 className="text-base font-black text-gray-900 line-clamp-1 mt-1">
+                            <h4 className="text-sm md:text-base font-black text-gray-900 line-clamp-1 mt-1">
                               {product.name}
                             </h4>
                           </div>
                         </div>
 
                         {/* Specs Table List */}
-                        <div className="space-y-3.5 flex-1 py-4 border-t border-b border-gray-50">
+                        <div className="space-y-3 flex-1 py-3 border-t border-b border-gray-100/90">
                           {/* Row: Pricing */}
-                          <div className="flex justify-between items-baseline py-1 border-b border-dashed border-gray-50/80">
+                          <div className="flex justify-between items-baseline py-1 border-b border-dashed border-gray-100">
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Price</span>
                             <div className="text-right">
-                              <span className="text-base font-black text-gray-900">{formatPrice(product.price)}</span>
+                              <span className="text-sm md:text-base font-black text-gray-900">{formatPrice(product.price)}</span>
                               {product.originalPrice && product.originalPrice > product.price && (
-                                <span className="block text-xs text-gray-400 line-through">
+                                <span className="block text-[10px] sm:text-xs text-gray-400 line-through">
                                   {formatPrice(product.originalPrice)}
                                 </span>
                               )}
@@ -226,7 +239,7 @@ export const ProductCompareDrawer: React.FC = () => {
                           </div>
 
                           {/* Row: Artisan / Location */}
-                          <div className="flex justify-between items-center py-1 border-b border-dashed border-gray-50/80">
+                          <div className="flex justify-between items-center py-1 border-b border-dashed border-gray-100">
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Artisan</span>
                             <span className="text-xs font-extrabold text-gray-700">
                               {product.artisan || "Verified Partner"}
@@ -234,29 +247,29 @@ export const ProductCompareDrawer: React.FC = () => {
                           </div>
 
                           {/* Row: Rating */}
-                          <div className="flex justify-between items-center py-1 border-b border-dashed border-gray-50/80">
+                          <div className="flex justify-between items-center py-1 border-b border-dashed border-gray-100">
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Rating</span>
                             <div className="flex items-center gap-1">
                               <Star size={13} className="text-yellow-450 fill-yellow-450 shrink-0" />
                               <span className="text-xs font-black text-gray-800">{product.rating || 4.5}</span>
-                              <span className="text-[10px] font-bold text-gray-450">({product.reviewCount || 12} reviews)</span>
+                              <span className="text-[10px] font-bold text-gray-450">({product.reviewCount || 12})</span>
                             </div>
                           </div>
 
                           {/* Row: Stock status */}
-                          <div className="flex justify-between items-center py-1 border-b border-dashed border-gray-50/80">
+                          <div className="flex justify-between items-center py-1 border-b border-dashed border-gray-100">
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Availability</span>
                             <div>
                               {product.stock === 0 ? (
-                                <span className="text-[10px] font-extrabold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
+                                <span className="text-[9px] sm:text-[10px] font-extrabold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
                                   Out of Stock
                                 </span>
                               ) : product.stock <= 5 ? (
-                                <span className="text-[10px] font-extrabold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
-                                  Low Stock ({product.stock})
+                                <span className="text-[9px] sm:text-[10px] font-extrabold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                                  Low ({product.stock})
                                 </span>
                               ) : (
-                                <span className="text-[10px] font-extrabold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                                <span className="text-[9px] sm:text-[10px] font-extrabold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
                                   In Stock
                                 </span>
                               )}
@@ -322,8 +335,8 @@ export const ProductCompareDrawer: React.FC = () => {
               </div>
 
               {/* View detail page redirect info footer */}
-              <div className="bg-gray-50 px-6 py-4.5 border-t border-gray-150/40 text-center">
-                <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wide">
+              <div className="bg-gray-50 px-5 py-4 border-t border-gray-150/40 text-center">
+                <p className="text-[9px] sm:text-[10px] text-gray-400 font-extrabold uppercase tracking-wide">
                   💡 Tip: Comparing items helps review local shipping tiers and pricing to optimize order sizes!
                 </p>
               </div>
