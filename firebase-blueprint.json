@@ -254,9 +254,28 @@
         "timestamp": { "type": "string", "format": "date-time", "description": "Serverless precise registration timestamp" }
       },
       "required": ["userId", "userEmail", "action", "details", "timestamp"]
+    },
+    "AdminInvitation": {
+      "title": "AdminInvitation",
+      "description": "Pre-authorized administrator email invitations.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "roleId": { "type": "string" },
+        "roleName": { "type": "string" },
+        "permissions": { "type": "array" },
+        "invitedAt": { "type": "string", "format": "date-time" },
+        "invitedBy": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted"] }
+      },
+      "required": ["email", "permissions", "status"]
     }
   },
   "firestore": {
+    "/admin_invitations": {
+      "schema": "AdminInvitation",
+      "description": "Preauthorized administrator invitations pending registration."
+    },
     "/audit_logs": {
       "schema": "AuditLog",
       "description": "Administrative accountability activities and RBAC authorization changes logs."

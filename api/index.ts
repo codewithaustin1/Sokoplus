@@ -702,6 +702,175 @@ app.delete("/api/admin/admins/:uid", requireSuperAdmin, async (req, res) => {
   }
 });
 
+// REST Admin Invitations Endpoint: GET /api/admin/invitations
+app.get("/api/admin/invitations", requireSuperAdmin, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.split("Bearer ")[1] : undefined;
+
+  try {
+    const snap = await adminDb.collection("admin_invitations").get();
+    const invitations = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ success: true, invitations });
+  } catch (err: any) {
+    if (err.message && err.message.includes("PERMISSION_DENIED")) {
+      console.log("[Server] Admin SDK invitations fetch bypassed (credentials not configured). Running REST fallback...");
+    } else {
+      console.warn("[Server] Admin SDK invitations fetch failed, falling back to REST API:", err.message);
+    }
+    try {
+      const queryPayload = {
+        structuredQuery: {
+          from: [{ collectionId: "admin_invitations" }]
+        }
+      };
+      const response = await executeFirestoreREST("post", ":runQuery", token, queryPayload);
+      const items = response || [];
+      const invitations = items
+        .filter((item: any) => item && item.document)
+        .map((item: any) => parseFirestoreDocument(item.document));
+      res.json({ success: true, invitations });
+    } catch (restErr: any) {
+      res.status(500).json({ error: "Failed to fetch invitations list via REST fallback", details: restErr.message });
+    }
+  }
+});
+
+// REST Admin Invitations Endpoint: POST /api/admin/invitations
+app.post("/api/admin/invitations", requireSuperAdmin, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.split("Bearer ")[1] : undefined;
+
+  try {
+    const { email, roleId, roleName, permissions } = req.body;
+    if (!email || !permissions || !Array.isArray(permissions)) {
+      return res.status(400).json({ error: "Missing required fields: email or permissions array" });
+    }
+
+    const invitationId = email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    const invitationData = {
+      email: email.toLowerCase(),
+      roleId: roleId || "custom",
+      roleName: roleName || "Custom Profile",
+      permissions,
+      invitedAt: new Date().toISOString(),
+      invitedBy: (req as any).user.email,
+      status: "pending"
+    };
+
+    try {
+      await adminDb.collection("admin_invitations").doc(invitationId).set(invitationData);
+
+      // Log this invitation activity
+      await logAuditAction(
+        (req as any).user.uid,
+        (req as any).user.email,
+        "invite_admin",
+        `Sent admin invitation to ${email.toLowerCase()} with role "${roleName || "Custom"}"`,
+        invitationId,
+        email.toLowerCase(),
+        token
+      );
+
+      res.json({ success: true, id: invitationId, message: `Admin invitation successfully sent to "${email}"` });
+    } catch (adminErr: any) {
+      if (adminErr.message && adminErr.message.includes("PERMISSION_DENIED")) {
+        console.log("[Server] Admin SDK invitation write bypassed (credentials not configured). Running REST fallback...");
+      } else {
+        console.warn("[Server] Admin SDK invitation write failed, falling back to REST API:", adminErr.message);
+      }
+      try {
+        const firestoreDoc = toFirestoreDocument(invitationData);
+        await executeFirestoreREST("patch", `/admin_invitations/${invitationId}`, token, firestoreDoc);
+
+        // Log this invitation activity via REST fallback
+        await logAuditAction(
+          (req as any).user.uid,
+          (req as any).user.email,
+          "invite_admin",
+          `Sent admin invitation to ${email.toLowerCase()} with role "${roleName || "Custom"}"`,
+          invitationId,
+          email.toLowerCase(),
+          token
+        );
+
+        res.json({ success: true, id: invitationId, message: `Admin invitation successfully sent to "${email}" via REST` });
+      } catch (restErr: any) {
+        res.status(500).json({ error: "Failed to issue admin invitation via REST fallback", details: restErr.message });
+      }
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to process invitation request", details: err.message });
+  }
+});
+
+// REST Admin Invitations Endpoint: DELETE /api/admin/invitations/:id
+app.delete("/api/admin/invitations/:id", requireSuperAdmin, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.split("Bearer ")[1] : undefined;
+  const { id } = req.params;
+
+  try {
+    let inviteEmail = id;
+    try {
+      const doc = await adminDb.collection("admin_invitations").doc(id).get();
+      if (doc.exists) {
+        inviteEmail = doc.data()?.email || id;
+      }
+    } catch (err) {
+      try {
+        const fallbackDoc = await executeFirestoreREST("get", `/admin_invitations/${id}`, token);
+        const parsed = parseFirestoreDocument(fallbackDoc);
+        if (parsed) inviteEmail = parsed.email || id;
+      } catch (restErr) {
+        console.warn("[Server] Invitation email fetch failed for delete, using ID.");
+      }
+    }
+
+    try {
+      await adminDb.collection("admin_invitations").doc(id).delete();
+
+      // Log this revocation activity
+      await logAuditAction(
+        (req as any).user.uid,
+        (req as any).user.email,
+        "revoke_admin_invitation",
+        `Revoked pending admin invitation for ${inviteEmail}`,
+        id,
+        inviteEmail,
+        token
+      );
+
+      res.json({ success: true, message: `Admin invitation for "${inviteEmail}" successfully revoked` });
+    } catch (adminErr: any) {
+      if (adminErr.message && adminErr.message.includes("PERMISSION_DENIED")) {
+        console.log("[Server] Admin SDK invitation delete bypassed (credentials not configured). Running REST fallback...");
+      } else {
+        console.warn("[Server] Admin SDK invitation delete failed, falling back to REST API:", adminErr.message);
+      }
+      try {
+        await executeFirestoreREST("delete", `/admin_invitations/${id}`, token);
+
+        // Log this activity via REST fallback
+        await logAuditAction(
+          (req as any).user.uid,
+          (req as any).user.email,
+          "revoke_admin_invitation",
+          `Revoked pending admin invitation for ${inviteEmail}`,
+          id,
+          inviteEmail,
+          token
+        );
+
+        res.json({ success: true, message: `Admin invitation for "${inviteEmail}" successfully revoked via REST` });
+      } catch (restErr: any) {
+        res.status(500).json({ error: "Failed to delete invitation record via REST fallback", details: restErr.message });
+      }
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to revoke invitation", details: err.message });
+  }
+});
+
 // 1. Paystack Initialize Endpoint (resilient routing)
 app.post(["/api/paystack/initialize", "/paystack/initialize"], async (req, res) => {
   try {

@@ -65,16 +65,39 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
 
   // Modals for Admin Creation
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [addAdminMode, setAddAdminMode] = useState<"registered" | "email">("registered");
   const [selectedUser, setSelectedUser] = useState<RegisteredUser | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
   const [adminSelectRole, setAdminSelectRole] = useState<string>("");
   const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Invitations States
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [invitationsLoading, setInvitationsLoading] = useState(false);
 
   // Audit / Activity Log States
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [auditLogsLoading, setAuditLogsLoading] = useState(false);
   const [auditSearchQuery, setAuditSearchQuery] = useState("");
   const [selectedActionFilter, setSelectedActionFilter] = useState("all");
+
+  const fetchInvitations = async () => {
+    setInvitationsLoading(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) return;
+      const headers = { Authorization: `Bearer ${idToken}` };
+      const res = await axios.get("/api/admin/invitations", { headers });
+      if (res.data.success) {
+        setInvitations(res.data.invitations || []);
+      }
+    } catch (err: any) {
+      console.error("Failed to load invitations:", err);
+    } finally {
+      setInvitationsLoading(false);
+    }
+  };
 
   const fetchAuditLogs = async (silent = false) => {
     if (!silent) setAuditLogsLoading(true);
@@ -125,7 +148,10 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
       }).filter(u => u.email !== "upfrontretaile@gmail.com"); // Super-admin resides on supreme level
       setRegisteredUsers(usersList);
 
-      // 4. Fetch platform activity logs
+      // 4. Fetch pending pre-authorized admin invitations
+      await fetchInvitations();
+
+      // 5. Fetch platform activity logs
       await fetchAuditLogs(true);
 
     } catch (err: any) {
@@ -227,38 +253,97 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
 
   const handleSaveAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUser) {
-      return toast.error("Please lookup and select a registered customer to promote");
+    if (addAdminMode === "registered") {
+      if (!selectedUser) {
+        return toast.error("Please lookup and select a registered customer to promote");
+      }
+      if (adminPermissions.length === 0) {
+        return toast.error("Please grant at least one access right permission key");
+      }
+
+      setActionLoading(true);
+      try {
+        const idToken = await auth.currentUser?.getIdToken();
+        const headers = { Authorization: `Bearer ${idToken}` };
+
+        const selectedRoleObject = roles.find(r => r.id === adminSelectRole);
+
+        const res = await axios.post("/api/admin/admins", {
+          uid: selectedUser.id,
+          email: selectedUser.email,
+          roleId: adminSelectRole === "custom" ? "custom" : adminSelectRole,
+          roleName: adminSelectRole === "custom" ? "Custom Profile" : (selectedRoleObject?.name || ""),
+          permissions: adminPermissions,
+        }, { headers });
+
+        if (res.data.success) {
+          toast.success(res.data.message || "Admin permissions modified securely");
+          setShowAdminModal(false);
+          setSelectedUser(null);
+          setAdminSelectRole("");
+          setAdminPermissions([]);
+          fetchSecurityData();
+        }
+      } catch (err: any) {
+        toast.error(err.response?.data?.error || err.message || "Failed to map administrator.");
+      } finally {
+        setActionLoading(false);
+      }
+    } else {
+      // Pre-authorized Invitation path
+      if (!inviteEmail.trim()) {
+        return toast.error("Please input a valid email address to invite");
+      }
+      if (adminPermissions.length === 0) {
+        return toast.error("Please grant at least one access permission for this invited profile");
+      }
+
+      setActionLoading(true);
+      try {
+        const idToken = await auth.currentUser?.getIdToken();
+        const headers = { Authorization: `Bearer ${idToken}` };
+
+        const selectedRoleObject = roles.find(r => r.id === adminSelectRole);
+
+        const res = await axios.post("/api/admin/invitations", {
+          email: inviteEmail.trim(),
+          roleId: adminSelectRole === "custom" ? "custom" : adminSelectRole,
+          roleName: adminSelectRole === "custom" ? "Custom Profile" : (selectedRoleObject?.name || ""),
+          permissions: adminPermissions,
+        }, { headers });
+
+        if (res.data.success) {
+          toast.success(res.data.message || `Invitation successfully sent to ${inviteEmail}`);
+          setShowAdminModal(false);
+          setInviteEmail("");
+          setAdminSelectRole("");
+          setAdminPermissions([]);
+          setAddAdminMode("registered");
+          fetchSecurityData();
+        }
+      } catch (err: any) {
+        toast.error(err.response?.data?.error || err.message || "Failed to create invitation.");
+      } finally {
+        setActionLoading(false);
+      }
     }
-    if (adminPermissions.length === 0) {
-      return toast.error("Please grant at least one access right permission key");
-    }
+  };
+
+  const handleRevokeInvitation = async (id: string, email: string) => {
+    if (!confirm(`Are you sure you want to completely revoke the pending invitation for ${email}?`)) return;
 
     setActionLoading(true);
     try {
       const idToken = await auth.currentUser?.getIdToken();
       const headers = { Authorization: `Bearer ${idToken}` };
 
-      const selectedRoleObject = roles.find(r => r.id === adminSelectRole);
-
-      const res = await axios.post("/api/admin/admins", {
-        uid: selectedUser.id,
-        email: selectedUser.email,
-        roleId: adminSelectRole === "custom" ? "custom" : adminSelectRole,
-        roleName: adminSelectRole === "custom" ? "Custom Profile" : (selectedRoleObject?.name || ""),
-        permissions: adminPermissions,
-      }, { headers });
-
+      const res = await axios.delete(`/api/admin/invitations/${id}`, { headers });
       if (res.data.success) {
-        toast.success(res.data.message || "Admin permissions modified securely");
-        setShowAdminModal(false);
-        setSelectedUser(null);
-        setAdminSelectRole("");
-        setAdminPermissions([]);
+        toast.success(res.data.message || "Admin invitation revoked successfully");
         fetchSecurityData();
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.error || err.message || "Failed to map administrator.");
+      toast.error(err.response?.data?.error || err.message || "Failed to revoke invitation.");
     } finally {
       setActionLoading(false);
     }
@@ -477,6 +562,64 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
                   </div>
                 );
               })
+            )}
+          </div>
+
+          {/* Sub-Section: Pending Invitations */}
+          <div className="pt-6 border-t border-gray-100 space-y-4">
+            <div>
+              <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider">Pending Pre-authorized Email Invitations</h4>
+              <p className="text-[10px] text-gray-450 font-semibold mt-0.5">These invited users will be automatically configured as platform administrators when they register.</p>
+            </div>
+
+            {invitations.filter(i => i.status === "pending").length === 0 ? (
+              <div className="p-4 bg-gray-50/40 border border-dashed border-gray-150 rounded-2xl text-center">
+                <p className="text-[10px] text-gray-400 font-semibold">No pending invitations active.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {invitations.map(invite => {
+                  const isPending = invite.status === "pending";
+                  if (!isPending) return null;
+                  
+                  return (
+                    <div key={invite.id} className="p-4 border border-gray-150 rounded-2xl bg-orange-50/5 hover:bg-orange-50/10 transition-all space-y-2 relative">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-black text-gray-900">{invite.email}</p>
+                          <p className="text-[9px] text-gray-400 font-bold mt-0.5">Invited by: {invite.invitedBy || "Super Admin"}</p>
+                        </div>
+                        {invite.roleName && (
+                          <span className="text-[9px] bg-amber-600/90 text-white font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
+                            {invite.roleName}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-1">
+                        {invite.permissions?.map((p: string) => {
+                          const matched = AVAILABLE_PERMISSIONS.find(ap => ap.value === p);
+                          return (
+                            <span key={p} className="text-[8px] bg-neutral-150/60 text-neutral-600 font-extrabold uppercase px-1.5 py-0.5 rounded">
+                              {matched?.label || p}
+                            </span>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-gray-50/70 pt-2 text-[9px] text-gray-400 font-bold">
+                        <span>Sent: {invite.invitedAt?.split("T")[0] || "Just now"}</span>
+                        <button
+                          onClick={() => handleRevokeInvitation(invite.id, invite.email)}
+                          className="text-red-500 hover:text-red-700 hover:underline uppercase tracking-tight"
+                        >
+                          Revoke Invite
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
@@ -769,66 +912,123 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
             animate={{ scale: 1, opacity: 1 }}
             className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-150 flex flex-col max-h-[90vh]"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 border-b border-gray-50 pb-2">
               <h4 className="text-base font-bold text-gray-900">Map Platform Admin Profile</h4>
-              <button onClick={() => setShowAdminModal(false)} className="text-gray-400 hover:text-gray-600 p-1 bg-gray-50 rounded-lg">
+              <button 
+                onClick={() => {
+                  setShowAdminModal(false);
+                  setAddAdminMode("registered");
+                }} 
+                className="text-gray-400 hover:text-gray-600 p-1 bg-gray-50 rounded-lg"
+              >
                 <X size={18} />
               </button>
             </div>
 
+            {/* Segmented Mode Switch Tab */}
+            <div className="flex border border-gray-150 mb-4 bg-gray-50 p-1 rounded-2xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddAdminMode("registered");
+                  setInviteEmail("");
+                }}
+                className={`flex-1 py-1.5 text-center text-xs font-black rounded-xl transition-all ${
+                  addAdminMode === "registered"
+                    ? "bg-white text-orange-600 shadow-sm border border-gray-100 font-extrabold"
+                    : "text-gray-450 hover:text-gray-900 font-medium"
+                }`}
+              >
+                Promote Customer Profile
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddAdminMode("email");
+                  setSelectedUser(null);
+                }}
+                className={`flex-1 py-1.5 text-center text-xs font-black rounded-xl transition-all ${
+                  addAdminMode === "email"
+                    ? "bg-white text-orange-600 shadow-sm border border-gray-100 font-extrabold"
+                    : "text-gray-450 hover:text-gray-900 font-medium"
+                }`}
+              >
+                Invite by Email (Pre-auth)
+              </button>
+            </div>
+
             <form onSubmit={handleSaveAdmin} className="space-y-4 overflow-y-auto pr-1 flex-grow">
-              {/* Directory User Selector Lookup */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-extrabold uppercase text-gray-400 block">
-                  Select Registered Customer Profile
-                </label>
-                
-                {selectedUser ? (
-                  <div className="flex items-center justify-between p-3 border border-orange-200 bg-orange-50/15 rounded-xl">
-                    <div>
-                      <p className="text-xs font-black text-gray-900">{selectedUser.displayName}</p>
-                      <p className="text-[10px] text-gray-500 font-bold">{selectedUser.email}</p>
+              {/* Directory User Selector Lookup or Predefined Email Field */}
+              {addAdminMode === "registered" ? (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-extrabold uppercase text-gray-400 block">
+                    Select Registered Customer Profile
+                  </label>
+                  
+                  {selectedUser ? (
+                    <div className="flex items-center justify-between p-3 border border-orange-200 bg-orange-50/15 rounded-xl">
+                      <div>
+                        <p className="text-xs font-black text-gray-900">{selectedUser.displayName}</p>
+                        <p className="text-[10px] text-gray-500 font-bold">{selectedUser.email}</p>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedUser(null)}
+                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
                     </div>
-                    <button 
-                      type="button" 
-                      onClick={() => setSelectedUser(null)}
-                      className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Start typing email or customer display name to search..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full px-4 py-2.5 text-xs border border-gray-150 rounded-xl bg-gray-50 outline-none focus:ring-1 focus:ring-orange-600 font-semibold"
-                    />
-                    
-                    <div className="border border-gray-100 rounded-xl max-h-[120px] overflow-y-auto divide-y divide-gray-50">
-                      {filteredUsers.length === 0 ? (
-                        <p className="text-center p-3 text-[10px] text-gray-400 font-bold">No matching registered customers found</p>
-                      ) : (
-                        filteredUsers.slice(0, 5).map(u => (
-                          <div 
-                            key={u.id}
-                            onClick={() => setSelectedUser(u)}
-                            className="p-2 text-left cursor-pointer hover:bg-orange-50/30 transition-colors flex items-center justify-between"
-                          >
-                            <div>
-                              <p className="text-xs font-bold text-gray-900 leading-none mb-1">{u.displayName}</p>
-                              <p className="text-[10px] text-gray-400 font-medium">{u.email}</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Start typing email or customer display name to search..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-4 py-2.5 text-xs border border-gray-150 rounded-xl bg-gray-50 outline-none focus:ring-1 focus:ring-orange-600 font-semibold"
+                      />
+                      
+                      <div className="border border-gray-100 rounded-xl max-h-[120px] overflow-y-auto divide-y divide-gray-50">
+                        {filteredUsers.length === 0 ? (
+                          <p className="text-center p-3 text-[10px] text-gray-400 font-bold">No matching registered customers found</p>
+                        ) : (
+                          filteredUsers.slice(0, 5).map(u => (
+                            <div 
+                              key={u.id}
+                              onClick={() => setSelectedUser(u)}
+                              className="p-2 text-left cursor-pointer hover:bg-orange-50/30 transition-colors flex items-center justify-between"
+                            >
+                              <div>
+                                <p className="text-xs font-bold text-gray-900 leading-none mb-1">{u.displayName}</p>
+                                <p className="text-[10px] text-gray-400 font-medium">{u.email}</p>
+                              </div>
+                              <span className="text-[8px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded uppercase">Select</span>
                             </div>
-                            <span className="text-[8px] bg-gray-100 text-gray-500 font-bold px-1.5 py-0.5 rounded uppercase">Select</span>
-                          </div>
-                        ))
-                      )}
+                          ))
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-extrabold uppercase text-gray-400 block">
+                    Enter Pre-authorized Email Address
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="e.g. prospective-admin@example.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="w-full px-4 py-2.5 text-xs border border-gray-150 rounded-xl bg-gray-50 outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-gray-850"
+                    required
+                  />
+                  <p className="text-[10px] text-gray-400 font-semibold leading-normal">
+                    This email is pre-authorized. When this exact email address registers an account in the future, it is automatically granted admin capabilities matching the custom templates assigned below.
+                  </p>
+                </div>
+              )}
 
               {/* Role template selection */}
               <div className="space-y-1">

@@ -39,6 +39,40 @@ export default function Login() {
       });
     }
 
+    // Automatically check for pre-authorized admin invitations if user has an email
+    if (user.email) {
+      try {
+        const inviteDocId = user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+        const inviteRef = doc(db, "admin_invitations", inviteDocId);
+        const inviteSnap = await getDoc(inviteRef);
+
+        if (inviteSnap.exists()) {
+          const inviteData = inviteSnap.data();
+          if (inviteData && inviteData.status === "pending") {
+            // Found a pending invite! Auto-promote to admin
+            const adminRef = doc(db, "admins", user.uid);
+            await setDoc(adminRef, {
+              email: user.email.toLowerCase(),
+              roleId: inviteData.roleId || "custom",
+              roleName: inviteData.roleName || "Custom Profile",
+              permissions: inviteData.permissions || [],
+              updatedAt: new Date().toISOString(),
+              updatedBy: inviteData.invitedBy || "Pre-authorized Invitation"
+            }, { merge: true });
+
+            // Mark invitation as accepted
+            await setDoc(inviteRef, { status: "accepted" }, { merge: true });
+            
+            toast.success(`Welcome back ${user.displayName || user.email}! Admin access activated successfully per invitation!`, {
+              duration: 6000
+            });
+          }
+        }
+      } catch (invError) {
+        console.warn("Could not check or claim pre-authorized invitation:", invError);
+      }
+    }
+
     // Automatically promote certain email to admin for testing
     if (user.email === "upfrontretaile@gmail.com") {
       try {

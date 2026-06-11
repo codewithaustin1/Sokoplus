@@ -32,7 +32,7 @@ import Careers from "./pages/Careers";
 import { useEffect, useState, useRef } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, onSnapshot, collection, query, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { UserProfile } from "./types";
 import { MessageCircle, ArrowUp } from "lucide-react";
 import toast from "react-hot-toast";
@@ -238,6 +238,32 @@ export default function App() {
         try {
           const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
           isAdmin = adminDoc.exists();
+
+          // Auto-promote if not yet set up as admin but invited
+          if (!isAdmin && fbUser.email) {
+            const inviteDocId = fbUser.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+            const inviteRef = doc(db, "admin_invitations", inviteDocId);
+            const inviteSnap = await getDoc(inviteRef);
+
+            if (inviteSnap.exists()) {
+              const inviteData = inviteSnap.data();
+              if (inviteData && inviteData.status === "pending") {
+                const adminRef = doc(db, "admins", fbUser.uid);
+                await setDoc(adminRef, {
+                  email: fbUser.email.toLowerCase(),
+                  roleId: inviteData.roleId || "custom",
+                  roleName: inviteData.roleName || "Custom Profile",
+                  permissions: inviteData.permissions || [],
+                  updatedAt: new Date().toISOString(),
+                  updatedBy: inviteData.invitedBy || "Pre-authorized Invitation"
+                }, { merge: true });
+
+                await setDoc(inviteRef, { status: "accepted" }, { merge: true });
+                isAdmin = true;
+                console.log(`[App] Auto-promoted preauthorized admin email: ${fbUser.email}`);
+              }
+            }
+          }
         } catch (e) {
           console.warn("Admin check failed:", e);
         }

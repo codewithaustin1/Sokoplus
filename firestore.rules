@@ -254,6 +254,20 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // Admin Invitations
+    match /admin_invitations/{invitationId} {
+      function isValidInvitation(data) {
+        return data.email is string && data.email.size() > 0 && data.email.size() <= 200 &&
+               data.roleId is string && data.roleId.size() <= 100 &&
+               data.roleName is string && data.roleName.size() <= 100 &&
+               data.permissions is list &&
+               data.status in ['pending', 'accepted'];
+      }
+      allow read: if isSignedIn() && (isSuperAdmin() || existing().email.toLowerCase() == request.auth.token.email.toLowerCase());
+      allow create, update: if isSuperAdmin() && isValidInvitation(incoming()) && isValidId(invitationId);
+      allow delete: if isSuperAdmin();
+    }
+
     // Admins
     match /admins/{adminId} {
       allow read: if isSignedIn();
