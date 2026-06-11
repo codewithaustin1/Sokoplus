@@ -166,8 +166,14 @@ service cloud.firestore {
                data.status in ["open", "in-progress", "resolved", "closed"];
       }
 
-      allow create: if isSignedIn() && isValidTicket(incoming());
-      allow read, update, delete: if hasPermission("manage_inbox");
+      allow create: if isSignedIn() && isValidTicket(incoming()) && (incoming().userId == null || incoming().userId == request.auth.uid);
+      allow read: if hasPermission("manage_inbox") || (isSignedIn() && existing().userId == request.auth.uid);
+      allow update: if hasPermission("manage_inbox") || (
+                      isSignedIn() && existing().userId == request.auth.uid &&
+                      incoming().userId == existing().userId &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['replies', 'unreadCountAdmin', 'unreadCountClient', 'updatedAt', 'status'])
+                    );
+      allow delete: if hasPermission("manage_inbox") || (isSignedIn() && existing().userId == request.auth.uid);
     }
 
     // Price Drop Alerts
@@ -263,7 +269,7 @@ service cloud.firestore {
                data.permissions is list &&
                data.status in ['pending', 'accepted'];
       }
-      allow read: if isSignedIn() && (isSuperAdmin() || existing().email.toLowerCase() == request.auth.token.email.toLowerCase());
+      allow read: if isSignedIn() && (isSuperAdmin() || (resource != null && existing().email.toLowerCase() == request.auth.token.email.toLowerCase()));
       allow create, update: if isSuperAdmin() && isValidInvitation(incoming()) && isValidId(invitationId);
       allow delete: if isSuperAdmin();
     }
