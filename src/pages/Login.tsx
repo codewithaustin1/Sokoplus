@@ -15,6 +15,7 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { ShoppingBag, Mail, Lock, ChevronRight, UserPlus, LogIn, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
+import { motion, AnimatePresence } from "motion/react";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -223,7 +224,22 @@ export default function Login() {
       } else if (errorCode === "auth/user-not-found" || errorCode === "auth/wrong-password" || errorCode === "auth/invalid-credential") {
         toast.error(isSignUp ? "Account creation failed. Please ensure your email is correct." : "Email or password incorrect. Please try again or use 'Forgot Password'.");
       } else if (errorCode === "auth/email-already-in-use") {
-        toast.error("This email is already associated with an account.");
+        toast((t) => (
+          <div className="flex flex-col gap-2">
+            <span className="font-medium text-sm text-gray-800">This email is already associated with an account.</span>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                setResetEmail(trimmedEmail);
+                setIsForgotPassword(true);
+                setIsSignUp(false);
+              }}
+              className="text-xs font-black uppercase tracking-wider text-orange-600 hover:text-orange-700 underline text-left border-none bg-transparent cursor-pointer p-0"
+            >
+              Reset your password instead?
+            </button>
+          </div>
+        ), { duration: 8000 });
       } else if (errorCode === "auth/weak-password") {
         toast.error("Password is too weak. Try a stronger one.");
       } else if (errorCode === "auth/operation-not-allowed") {
@@ -259,50 +275,21 @@ export default function Login() {
           </div>
         </div>
 
-        <div className="space-y-8 relative">
-          {isForgotPassword ? (
-            <form onSubmit={handleForgotPasswordSubmit} className="space-y-6">
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                Enter your email address below and we'll send a password reset link to your inbox.
-              </p>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-gray-450 dark:text-gray-450 ml-1">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
-                  <input
-                    type="email"
-                    placeholder="name@example.com"
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border-2 border-transparent focus:border-orange-600 focus:bg-white dark:focus:bg-gray-900 rounded-2xl py-4 pl-14 pr-6 font-bold transition-all outline-none"
-                    required
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gray-900 dark:bg-orange-600 hover:bg-orange-600 dark:hover:bg-orange-700 text-white py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl hover:shadow-orange-200 dark:shadow-none disabled:opacity-50 flex items-center justify-center space-x-2 group cursor-pointer border-none"
+        <div className="space-y-8 relative min-h-[340px]">
+          <AnimatePresence mode="wait">
+            {isForgotPassword ? (
+              <motion.div
+                key="forgot-password"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-6"
               >
-                <span>{loading ? "Sending..." : "Send Reset Link"}</span>
-                {!loading && <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />}
-              </button>
-
-              <div className="text-center">
-                <button 
-                  type="button"
-                  onClick={() => setIsForgotPassword(false)}
-                  className="text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer bg-transparent border-none outline-none"
-                >
-                  Back to Sign In
-                </button>
-              </div>
-            </form>
-          ) : (
-            <>
-              <form onSubmit={handleEmailAuth} className="space-y-4">
-                <div className="space-y-4">
+                <form onSubmit={handleForgotPasswordSubmit} className="space-y-6">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-semibold">
+                    Enter your email address below and we'll send a password reset link to your inbox.
+                  </p>
                   <div className="space-y-2">
                     <label className="text-xs font-black uppercase tracking-widest text-gray-450 dark:text-gray-450 ml-1">Email Address</label>
                     <div className="relative">
@@ -310,89 +297,136 @@ export default function Login() {
                       <input
                         type="email"
                         placeholder="name@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
                         className="w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border-2 border-transparent focus:border-orange-600 focus:bg-white dark:focus:bg-gray-900 rounded-2xl py-4 pl-14 pr-6 font-bold transition-all outline-none"
                         required
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center ml-1">
-                      <label className="text-xs font-black uppercase tracking-widest text-gray-450 dark:text-gray-450">Password</label>
-                      {!isSignUp && (
-                        <button 
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-gray-900 dark:bg-orange-600 hover:bg-orange-600 dark:hover:bg-orange-700 text-white py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl hover:shadow-orange-200 dark:shadow-none disabled:opacity-50 flex items-center justify-center space-x-2 group cursor-pointer border-none"
+                  >
+                    <span>{loading ? "Sending..." : "Send Reset Link"}</span>
+                    {!loading && <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />}
+                  </button>
+
+                  <div className="text-center">
+                    <button 
+                      type="button"
+                      onClick={() => setIsForgotPassword(false)}
+                      className="text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer bg-transparent border-none outline-none"
+                    >
+                      Back to Sign In
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="auth-fields"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-6"
+              >
+                <form onSubmit={handleEmailAuth} className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black uppercase tracking-widest text-gray-450 dark:text-gray-450 ml-1">Email Address</label>
+                      <div className="relative">
+                        <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
+                        <input
+                          type="email"
+                          placeholder="name@example.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border-2 border-transparent focus:border-orange-600 focus:bg-white dark:focus:bg-gray-900 rounded-2xl py-4 pl-14 pr-6 font-bold transition-all outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center ml-1">
+                        <label className="text-xs font-black uppercase tracking-widest text-gray-450 dark:text-gray-450">Password</label>
+                        {!isSignUp && (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setResetEmail(email);
+                              setIsForgotPassword(true);
+                            }}
+                            className="text-[10px] font-black text-orange-600 dark:text-orange-400 hover:underline uppercase tracking-tighter cursor-pointer bg-transparent border-none outline-none"
+                          >
+                            Forgot Password?
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border-2 border-transparent focus:border-orange-600 focus:bg-white dark:focus:bg-gray-900 rounded-2xl py-4 pl-14 pr-14 font-bold transition-all outline-none"
+                          required
+                        />
+                        <button
                           type="button"
-                          onClick={() => {
-                            setResetEmail(email);
-                            setIsForgotPassword(true);
-                          }}
-                          className="text-[10px] font-bold text-orange-600 dark:text-orange-400 hover:underline uppercase tracking-tighter cursor-pointer bg-transparent border-none outline-none"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-white focus:outline-none transition-colors"
                         >
-                          Forgot Password?
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
-                      )}
+                      </div>
                     </div>
-                    <div className="relative">
-                      <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border-2 border-transparent focus:border-orange-600 focus:bg-white dark:focus:bg-gray-900 rounded-2xl py-4 pl-14 pr-14 font-bold transition-all outline-none"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-white focus:outline-none transition-colors"
-                      >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-gray-900 dark:bg-orange-600 hover:bg-orange-600 dark:hover:bg-orange-700 text-white py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl hover:shadow-orange-200 dark:shadow-none disabled:opacity-50 flex items-center justify-center space-x-2 group border-none"
+                  >
+                    <span>{loading ? "Processing..." : (isSignUp ? "Join Sokoplus" : "Sign In")}</span>
+                    {!loading && (isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />)}
+                  </button>
+                </form>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-100 dark:border-gray-800"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase tracking-widest">
+                    <span className="bg-white dark:bg-gray-900 px-4 text-gray-400 dark:text-gray-500 font-bold">Or continue with</span>
                   </div>
                 </div>
 
                 <button
-                  type="submit"
+                  onClick={handleGoogleLogin}
                   disabled={loading}
-                  className="w-full bg-gray-900 dark:bg-orange-600 hover:bg-orange-600 dark:hover:bg-orange-700 text-white py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl hover:shadow-orange-200 dark:shadow-none disabled:opacity-50 flex items-center justify-center space-x-2 group border-none"
+                  className="w-full flex items-center justify-center space-x-4 bg-white dark:bg-gray-950 border-2 border-gray-100 dark:border-gray-800 py-4 px-6 rounded-2xl font-black text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                 >
-                  <span>{loading ? "Processing..." : (isSignUp ? "Join Sokoplus" : "Sign In")}</span>
-                  {!loading && (isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />)}
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
+                  <span>Google Account</span>
                 </button>
-              </form>
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-100 dark:border-gray-800"></div>
+                <div className="text-center">
+                  <button 
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    className="text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer bg-transparent border-none outline-none"
+                  >
+                    {isSignUp ? "Already have an account? Sign In" : "New to Sokoplus? Create an account"}
+                  </button>
                 </div>
-                <div className="relative flex justify-center text-xs uppercase tracking-widest">
-                  <span className="bg-white dark:bg-gray-900 px-4 text-gray-400 dark:text-gray-500 font-bold">Or continue with</span>
-                </div>
-              </div>
-
-              <button
-                onClick={handleGoogleLogin}
-                disabled={loading}
-                className="w-full flex items-center justify-center space-x-4 bg-white dark:bg-gray-950 border-2 border-gray-100 dark:border-gray-800 py-4 px-6 rounded-2xl font-black text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
-              >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
-                <span>Google Account</span>
-              </button>
-
-              <div className="text-center">
-                <button 
-                  onClick={() => setIsSignUp(!isSignUp)}
-                  className="text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer bg-transparent border-none outline-none"
-                >
-                  {isSignUp ? "Already have an account? Sign In" : "New to Sokoplus? Create an account"}
-                </button>
-              </div>
-            </>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center leading-relaxed font-medium">
