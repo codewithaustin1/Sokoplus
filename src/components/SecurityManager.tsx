@@ -10,6 +10,27 @@ import {
 import toast from "react-hot-toast";
 import axios from "axios";
 
+enum OperationType {
+  CREATE = "create",
+  UPDATE = "update",
+  DELETE = "delete",
+  LIST = "list",
+  GET = "get",
+  WRITE = "write",
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+  };
+}
+
 interface SecurityManagerProps {
   user: any;
 }
@@ -37,6 +58,31 @@ interface RegisteredUser {
   email: string;
   displayName: string;
 }
+
+const formatDateString = (val: any, fallback = "N/A"): string => {
+  if (!val) return fallback;
+  try {
+    if (typeof val === "string") {
+      return val.includes("T") ? val.split("T")[0] : val;
+    }
+    if (typeof val?.toDate === "function") {
+      return val.toDate().toISOString().split("T")[0];
+    }
+    if (val instanceof Date) {
+      return val.toISOString().split("T")[0];
+    }
+    if (val?.seconds) {
+      return new Date(val.seconds * 1000).toISOString().split("T")[0];
+    }
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split("T")[0];
+    }
+  } catch (err) {
+    console.warn("formatDateString error:", err);
+  }
+  return String(val);
+};
 
 const AVAILABLE_PERMISSIONS = [
   { value: "manage_inventory", label: "Inventory Management", desc: "Allows adding, editing, and deleting store products" },
@@ -107,13 +153,29 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
       const headers = { Authorization: `Bearer ${idToken}` };
       const res = await axios.get("/api/admin/audit_logs", { headers });
       if (res.data.success) {
-        setAuditLogs(res.data.logs);
+        setAuditLogs(res.data.logs || []);
       }
     } catch (err: any) {
       console.error("Failed to load system audit/activity logs:", err);
     } finally {
       if (!silent) setAuditLogsLoading(false);
     }
+  };
+
+  const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+    const errInfo: FirestoreErrorInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+        isAnonymous: auth.currentUser?.isAnonymous,
+      },
+      operationType,
+      path,
+    };
+    console.error("Firestore SecurityManager Error: ", JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
   };
 
   const fetchSecurityData = async () => {
@@ -127,25 +189,30 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
       // 1. Fetch available Roles from backend REST endpoint
       const rolesRes = await axios.get("/api/admin/roles", { headers });
       if (rolesRes.data.success) {
-        setRoles(rolesRes.data.roles);
+        setRoles(rolesRes.data.roles || []);
       }
 
       // 2. Fetch Administrators list from backend REST endpoint
       const adminsRes = await axios.get("/api/admin/admins", { headers });
       if (adminsRes.data.success) {
-        setAdmins(adminsRes.data.admins);
+        setAdmins(adminsRes.data.admins || []);
       }
 
       // 3. Fetch Registered Users directory to assist with direct lookup mappings
-      const userSnap = await getDocs(collection(db, "users"));
-      const usersList = userSnap.docs.map(doc => {
+      let userSnap;
+      try {
+        userSnap = await getDocs(collection(db, "users"));
+      } catch (firestoreErr: any) {
+        handleFirestoreError(firestoreErr, OperationType.LIST, "users");
+      }
+      const usersList = userSnap ? userSnap.docs.map(doc => {
         const d = doc.data();
         return {
           id: doc.id,
           email: d.email || "",
           displayName: d.displayName || "Valued Customer",
         };
-      }).filter(u => u.email !== "upfrontretaile@gmail.com"); // Super-admin resides on supreme level
+      }).filter(u => u.email !== "upfrontretaile@gmail.com") : []; // Super-admin resides on supreme level
       setRegisteredUsers(usersList);
 
       // 4. Fetch pending pre-authorized admin invitations
@@ -223,7 +290,7 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
     setAdminSelectRole(roleId);
     const matchedRole = roles.find(r => r.id === roleId);
     if (matchedRole) {
-      setAdminPermissions([...matchedRole.permissions]);
+      setAdminPermissions([...(matchedRole.permissions || [])]);
     } else if (roleId === "custom") {
       setAdminPermissions([]);
     }
@@ -375,12 +442,13 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
     return u.email.toLowerCase().includes(q) || u.displayName.toLowerCase().includes(q);
   });
 
-  const filteredAuditLogs = auditLogs.filter(log => {
+  const filteredAuditLogs = (auditLogs || []).filter(log => {
+    if (!log) return false;
     const q = auditSearchQuery.toLowerCase();
-    const actionLabel = log.action || "";
-    const userEmail = log.userEmail || "";
-    const details = log.details || "";
-    const targetName = log.targetName || "";
+    const actionLabel = String(log.action || "");
+    const userEmail = String(log.userEmail || "");
+    const details = String(log.details || "");
+    const targetName = String(log.targetName || "");
     
     const matchesSearch =
       userEmail.toLowerCase().includes(q) ||
@@ -450,40 +518,43 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
                 <p className="text-xs text-gray-500 font-semibold">No custom roles mapped yet.</p>
               </div>
             ) : (
-              roles.map(role => (
-                <div key={role.id} className="p-4 bg-gray-50 hover:bg-gray-50/40 border border-gray-150 rounded-2xl relative transition-all flex flex-col md:flex-row md:items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-xs text-gray-800 uppercase tracking-wide bg-white px-2.5 py-0.5 rounded shadow-sm border border-gray-100">
-                        {role.name}
-                      </span>
-                      <span className="text-[10px] text-gray-400 font-bold">
-                        ID: {role.id}
-                      </span>
+              (roles || []).map(role => {
+                if (!role || !role.id) return null;
+                return (
+                  <div key={role.id} className="p-4 bg-gray-50 hover:bg-gray-50/40 border border-gray-150 rounded-2xl relative transition-all flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-xs text-gray-800 uppercase tracking-wide bg-white px-2.5 py-0.5 rounded shadow-sm border border-gray-100">
+                          {role.name || "Unnamed"}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-bold">
+                          ID: {role.id}
+                        </span>
+                      </div>
+                      {role.description && (
+                        <p className="text-xs text-gray-500 font-medium">{role.description}</p>
+                      )}
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {(role.permissions || []).map(p => {
+                          const matched = AVAILABLE_PERMISSIONS.find(ap => ap.value === p);
+                          return (
+                            <span key={p} className="text-[9px] bg-orange-50 text-orange-700 font-extrabold uppercase px-2 py-0.5 rounded">
+                              {matched?.label || p}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
-                    {role.description && (
-                      <p className="text-xs text-gray-500 font-medium">{role.description}</p>
-                    )}
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {role.permissions.map(p => {
-                        const matched = AVAILABLE_PERMISSIONS.find(ap => ap.value === p);
-                        return (
-                          <span key={p} className="text-[9px] bg-orange-50 text-orange-700 font-extrabold uppercase px-2 py-0.5 rounded">
-                            {matched?.label || p}
-                          </span>
-                        );
-                      })}
-                    </div>
+                    <button
+                      onClick={() => handleDeleteRole(role.id, role.name)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors self-end md:self-start"
+                      title="Delete custom role blueprint"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleDeleteRole(role.id, role.name)}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors self-end md:self-start"
-                    title="Delete custom role blueprint"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -516,13 +587,14 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
                 <p className="text-xs text-gray-500 font-semibold">No platform administrator records mapped yet.</p>
               </div>
             ) : (
-              admins.map(adm => {
+              (admins || []).map(adm => {
+                if (!adm || !adm.id) return null;
                 const isSelf = adm.id === auth.currentUser?.uid;
                 return (
                   <div key={adm.id} className="p-4 border border-gray-150 rounded-2xl bg-white hover:bg-gray-50/20 transition-all space-y-3 relative">
                     <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="text-sm font-extrabold text-gray-950 tracking-tight leading-none mb-1.5">{adm.email}</p>
+                        <p className="text-sm font-extrabold text-gray-950 tracking-tight leading-none mb-1.5">{adm.email || "No Email Defined"}</p>
                         <p className="text-[10px] text-gray-400 font-bold">UID Field Mapping: <code className="bg-gray-50 px-1 rounded text-red-650">{adm.id}</code></p>
                       </div>
 
@@ -534,7 +606,7 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
                     </div>
 
                     <div className="flex flex-wrap gap-1">
-                      {adm.permissions.map(p => {
+                      {(adm.permissions || []).map(p => {
                         const matched = AVAILABLE_PERMISSIONS.find(ap => ap.value === p);
                         return (
                           <span key={p} className="text-[9px] bg-neutral-100 text-neutral-600 font-bold px-2 py-0.5 rounded select-none border border-neutral-150/20">
@@ -545,14 +617,14 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
                     </div>
 
                     <div className="flex items-center justify-between border-t border-gray-50 pt-3 text-[10px] text-gray-400 font-bold">
-                      <span>Updated: {adm.updatedAt?.split("T")[0] || "Implicit Schema"}</span>
+                      <span>Updated: {formatDateString(adm.updatedAt, "Implicit Schema")}</span>
                       {isSelf ? (
                         <span className="text-amber-600 font-black flex items-center gap-0.5 uppercase tracking-tighter">
                           <AlertTriangle size={12} /> Root Super Admin
                         </span>
                       ) : (
                         <button
-                          onClick={() => handleRevokeAdmin(adm.id, adm.email)}
+                          onClick={() => handleRevokeAdmin(adm.id, adm.email || "")}
                           className="text-red-500 hover:text-red-700 hover:underline uppercase tracking-tight"
                         >
                           Revoke Access
@@ -578,7 +650,8 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
               </div>
             ) : (
               <div className="space-y-3">
-                {invitations.map(invite => {
+                {(invitations || []).map(invite => {
+                  if (!invite || !invite.id) return null;
                   const isPending = invite.status === "pending";
                   if (!isPending) return null;
                   
@@ -586,7 +659,7 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
                     <div key={invite.id} className="p-4 border border-gray-150 rounded-2xl bg-orange-50/5 hover:bg-orange-50/10 transition-all space-y-2 relative">
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <p className="text-xs font-black text-gray-900">{invite.email}</p>
+                          <p className="text-xs font-black text-gray-900">{invite.email || "No Email"}</p>
                           <p className="text-[9px] text-gray-400 font-bold mt-0.5">Invited by: {invite.invitedBy || "Super Admin"}</p>
                         </div>
                         {invite.roleName && (
@@ -597,7 +670,7 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
                       </div>
 
                       <div className="flex flex-wrap gap-1">
-                        {invite.permissions?.map((p: string) => {
+                        {(invite.permissions || []).map((p: string) => {
                           const matched = AVAILABLE_PERMISSIONS.find(ap => ap.value === p);
                           return (
                             <span key={p} className="text-[8px] bg-neutral-150/60 text-neutral-600 font-extrabold uppercase px-1.5 py-0.5 rounded">
@@ -608,9 +681,9 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
                       </div>
 
                       <div className="flex items-center justify-between border-t border-gray-50/70 pt-2 text-[9px] text-gray-400 font-bold">
-                        <span>Sent: {invite.invitedAt?.split("T")[0] || "Just now"}</span>
+                        <span>Sent: {formatDateString(invite.invitedAt, "Just now")}</span>
                         <button
-                          onClick={() => handleRevokeInvitation(invite.id, invite.email)}
+                          onClick={() => handleRevokeInvitation(invite.id, invite.email || "")}
                           className="text-red-500 hover:text-red-700 hover:underline uppercase tracking-tight"
                         >
                           Revoke Invite
@@ -791,7 +864,7 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           <div className="flex flex-col">
                             <span className="font-extrabold text-gray-900 leading-tight">{log.userEmail}</span>
-                            <span className="text-[9px] text-gray-400 mt-0.5 font-mono">ID: {log.userId?.slice(0, 8)}...</span>
+                            <span className="text-[9px] text-gray-400 mt-0.5 font-mono">ID: {log.userId ? String(log.userId).slice(0, 8) : "N/A"}...</span>
                           </div>
                         </td>
 
@@ -1040,8 +1113,8 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
                   required
                 >
                   <option value="">-- Click to assign role template --</option>
-                  {roles.map(r => (
-                    <option key={r.id} value={r.id}>{r.name} ({r.permissions.length} permissions)</option>
+                  {(roles || []).map(r => (
+                    <option key={r.id} value={r.id}>{r.name} ({(r.permissions || []).length} permissions)</option>
                   ))}
                   <option value="custom">Custom Permissions Profile Override</option>
                 </select>

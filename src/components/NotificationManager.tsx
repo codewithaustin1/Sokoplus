@@ -57,6 +57,7 @@ export function NotificationManager({ user }: NotificationManagerProps) {
       path,
     };
     console.error("Firestore Notification Listener Error: ", JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
   };
 
   // Determine if we should prompt the user to enable notifications

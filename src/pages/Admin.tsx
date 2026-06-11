@@ -108,6 +108,7 @@ function handleFirestoreError(
   };
   console.error("Firestore Error: ", JSON.stringify(errInfo));
   toast.error(`Error: ${errInfo.error}`);
+  throw new Error(JSON.stringify(errInfo));
 }
 
 const compressImageFile = (file: File): Promise<string> => {
