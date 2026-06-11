@@ -520,12 +520,13 @@ export default function Home({ user }: HomeProps) {
                  className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-700"
                  referrerPolicy="no-referrer"
                />
-               <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-md px-6 py-4 rounded-2xl flex items-center justify-between border border-white/20 shadow-lg">
+               <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" />
+               <div className="absolute bottom-4 left-4 right-4 bg-transparent px-6 py-4 flex items-center justify-between">
                  <div>
-                   <p className="text-[10px] text-orange-600 font-black tracking-wider uppercase">{heroBadgeText}</p>
-                   <p className="text-sm font-black text-gray-900 mt-0.5">{heroHeadingText}</p>
+                   <p className="text-[10px] text-orange-400 font-black tracking-wider uppercase">{heroBadgeText}</p>
+                   <p className="text-sm font-black text-white mt-0.5">{heroHeadingText}</p>
                  </div>
-                 <div className="flex -space-x-2">
+                 <div className="hidden">
                    {[1, 2, 3].map((n) => (
                      <div key={n} className="w-7 h-7 rounded-full bg-orange-100 border border-white flex items-center justify-center text-[10px] font-bold text-orange-650">
                        ✦

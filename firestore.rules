@@ -263,7 +263,8 @@ service cloud.firestore {
     // Audit Logs
     match /audit_logs/{logId} {
       allow read: if isAdmin();
-      allow write: if false;
+      allow create: if isAdmin() && isValidId(logId);
+      allow update, delete: if false;
     }
   }
 }

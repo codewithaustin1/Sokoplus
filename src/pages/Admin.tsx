@@ -54,6 +54,7 @@ import {
   MapPin,
   Check,
   CheckCheck,
+  Sparkles,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -540,8 +541,12 @@ export default function Admin({ user }: AdminProps) {
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers" | "security"
+    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics"
   >("inventory");
+  const [biDateRangeFilter, setBiDateRangeFilter] = useState<"all" | "today" | "7d" | "30d" | "90d" | "ytd">("all");
+  const [biCategoryFilter, setBiCategoryFilter] = useState<string>("all");
+  const [biArtisanSearch, setBiArtisanSearch] = useState<string>("");
+  const [biActiveMetric, setBiActiveMetric] = useState<"revenue" | "profit" | "units">("revenue");
   const [homepageHeroUrl, setHomepageHeroUrl] = useState<string>("");
   const [homepageHeroBadge, setHomepageHeroBadge] = useState<string>("Vetted excellence");
   const [homepageHeroHeading, setHomepageHeroHeading] = useState<string>("Authentic & Trusted Goods");
@@ -1275,6 +1280,22 @@ export default function Admin({ user }: AdminProps) {
     }
   };
 
+  const deleteJobApplication = async (appId: string) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this job application? This action cannot be undone."
+      )
+    )
+      return;
+    try {
+      await deleteDoc(doc(db, "job_applications", appId));
+      setJobApplications(jobApplications.filter((app) => app.id !== appId));
+      toast.success("Job application deleted successfully.");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `job_applications/${appId}`);
+    }
+  };
+
   const applyFormatting = (
     type:
       | "bold"
@@ -1646,6 +1667,293 @@ export default function Admin({ user }: AdminProps) {
         ? weeklyAnalyticsData 
         : monthlyAnalyticsData;
 
+  // --- IN-HOUSE BI INTERACTIVE ANALYTICS SYSTEM ---
+  const biFilteredOrders = orders.filter((o) => {
+    if (o.status === "cancelled" || o.paymentStatus !== "paid") return false;
+    
+    const ts = getOrderTimestamp(o);
+    const now = Date.now();
+    const oneDay = 24 * 60 * 60 * 1000;
+    
+    if (biDateRangeFilter === "today") {
+      const todayStart = new Date().setHours(0,0,0,0);
+      return ts >= todayStart;
+    }
+    if (biDateRangeFilter === "7d") {
+      return ts >= now - 7 * oneDay;
+    }
+    if (biDateRangeFilter === "30d") {
+      return ts >= now - 30 * oneDay;
+    }
+    if (biDateRangeFilter === "90d") {
+      return ts >= now - 90 * oneDay;
+    }
+    if (biDateRangeFilter === "ytd") {
+      const startOfYear = new Date(new Date().getFullYear(), 0, 1).getTime();
+      return ts >= startOfYear;
+    }
+    return true; // "all"
+  });
+
+  const biTotalRevenue = biFilteredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  
+  const biTotalCOGS = biFilteredOrders.reduce((sum, o) => {
+    return sum + o.items.reduce((itemSum, item) => {
+      const prod = products.find((p) => p.id === item.productId);
+      const unitCost = prod && prod.buyingPrice !== undefined ? prod.buyingPrice : (item.price * 0.6);
+      return itemSum + unitCost * item.quantity;
+    }, 0);
+  }, 0);
+
+  const biTotalProfit = Math.max(0, biTotalRevenue - biTotalCOGS);
+  const biAverageMarginPercent = biTotalRevenue > 0 ? (biTotalProfit / biTotalRevenue) * 100 : 0;
+  const biAOV = biFilteredOrders.length > 0 ? biTotalRevenue / biFilteredOrders.length : 0;
+  const biTotalUnitsSold = biFilteredOrders.reduce((sum, o) => {
+    return sum + o.items.reduce((itemSum, item) => itemSum + item.quantity, 0);
+  }, 0);
+
+  // Dynamic grouping by Category based on selected filters
+  const biCategoryAnalytics = (() => {
+    const map: { [key: string]: { name: string; revenue: number; cogs: number; profit: number; units: number } } = {};
+    biFilteredOrders.forEach((o) => {
+      o.items.forEach((item) => {
+        const prod = products.find((p) => p.id === item.productId);
+        const cat = prod?.category || "Uncategorized";
+        const unitCost = prod && prod.buyingPrice !== undefined ? prod.buyingPrice : (item.price * 0.6);
+        const itemRev = item.price * item.quantity;
+        const itemCost = unitCost * item.quantity;
+        const itemProf = itemRev - itemCost;
+
+        if (!map[cat]) {
+          map[cat] = { name: cat, revenue: 0, cogs: 0, profit: 0, units: 0 };
+        }
+        map[cat].revenue += itemRev;
+        map[cat].cogs += itemCost;
+        map[cat].profit += itemProf;
+        map[cat].units += item.quantity;
+      });
+    });
+    return Object.values(map).map((c) => ({
+      ...c,
+      margin: c.revenue > 0 ? (c.profit / c.revenue) * 100 : 0
+    })).sort((a, b) => b.revenue - a.revenue);
+  })();
+
+  // Dynamic Grouping of Sales by Artisan
+  const biArtisanAnalytics = (() => {
+    const map: { [key: string]: { name: string; category: string; unitsSold: number; revenue: number; cogs: number; profit: number; productsCount: number } } = {};
+    
+    biFilteredOrders.forEach((o) => {
+      o.items.forEach((item) => {
+        const prod = products.find((p) => p.id === item.productId);
+        const artisanName = prod?.artisan || "Independent Artisan";
+        const category = prod?.category || "General";
+        const unitCost = prod && prod.buyingPrice !== undefined ? prod.buyingPrice : (item.price * 0.6);
+        const itemRev = item.price * item.quantity;
+        const itemCost = unitCost * item.quantity;
+        const itemProf = itemRev - itemCost;
+
+        if (!map[artisanName]) {
+          map[artisanName] = {
+            name: artisanName,
+            category: category,
+            unitsSold: 0,
+            revenue: 0,
+            cogs: 0,
+            profit: 0,
+            productsCount: 0,
+          };
+        }
+        map[artisanName].unitsSold += item.quantity;
+        map[artisanName].revenue += itemRev;
+        map[artisanName].cogs += itemCost;
+        map[artisanName].profit += itemProf;
+      });
+    });
+
+    products.forEach((p) => {
+      const artName = p.artisan || "Independent Artisan";
+      if (map[artName]) {
+        map[artName].productsCount += 1;
+      } else {
+        map[artName] = {
+          name: artName,
+          category: p.category || "General",
+          unitsSold: 0,
+          revenue: 0,
+          cogs: 0,
+          profit: 0,
+          productsCount: 1,
+        };
+      }
+    });
+
+    return Object.values(map)
+      .map((a) => ({
+        ...a,
+        margin: a.revenue > 0 ? (a.profit / a.revenue) * 100 : 0
+      }))
+      .filter((a) => {
+        const matchesCategory = biCategoryFilter === "all" || a.category === biCategoryFilter;
+        const matchesSearch = !biArtisanSearch || a.name.toLowerCase().includes(biArtisanSearch.toLowerCase());
+        return matchesCategory && matchesSearch;
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+  })();
+
+  // Sales Heatmap (DOW)
+  const biDOWHeatmap = (() => {
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const counts = Array(7).fill(0).map((_, idx) => ({ day: days[idx], orders: 0, sales: 0 }));
+    biFilteredOrders.forEach((o) => {
+      const ts = getOrderTimestamp(o);
+      if (ts > 0) {
+        const dayIdx = new Date(ts).getDay();
+        counts[dayIdx].orders += 1;
+        counts[dayIdx].sales += (o.totalAmount || 0);
+      }
+    });
+    return counts;
+  })();
+
+  // Leaderboard of critical products with velocities
+  const biProductBreakdown = (() => {
+    return products.map((p) => {
+      const unitsSold = biFilteredOrders.reduce((sum, o) => {
+        return sum + o.items.reduce((itemSum, item) => {
+          return itemSum + (item.productId === p.id ? item.quantity : 0);
+        }, 0);
+      }, 0);
+
+      const revenue = unitsSold * p.price;
+      const unitCost = p.buyingPrice !== undefined ? p.buyingPrice : (p.price * 0.6);
+      const cogs = unitsSold * unitCost;
+      const profit = Math.max(0, revenue - cogs);
+      const margin = p.price > 0 ? ((p.price - unitCost) / p.price) * 100 : 0;
+      const velocity = p.stock > 0 ? (unitsSold / p.stock) * 100 : (unitsSold > 0 ? 100 : 0);
+
+      return {
+        id: p.id,
+        name: p.name,
+        category: p.category || "General",
+        artisan: p.artisan || "Independent Artisan",
+        price: p.price,
+        buyingPrice: unitCost,
+        stock: p.stock,
+        unitsSold,
+        revenue,
+        cogs,
+        profit,
+        margin,
+        velocity,
+      };
+    })
+    .filter((p) => biCategoryFilter === "all" || p.category === biCategoryFilter)
+    .sort((a, b) => b.unitsSold - a.unitsSold);
+  })();
+
+  // Recommendation Engine: Heuristic analyzer
+  const biRecommendations = (() => {
+    const list: { id: string; type: "success" | "warning" | "info"; title: string; desc: string; action: string }[] = [];
+
+    // Rule 1: High Margin Sourcing Potential
+    biCategoryAnalytics.forEach((cat) => {
+      if (cat.margin > 45 && cat.units < 15) {
+        list.push({
+          id: `src_${cat.name}`,
+          type: "success",
+          title: `Enhance Sourcing in ${cat.name}`,
+          desc: `${cat.name} products yield a very high profit margin of ${cat.margin.toFixed(0)}%, but have only sold ${cat.units} units in this timeframe. Sourcing deeper unique collections in this category will optimize profitability.`,
+          action: "Contact corresponding artisans to propose wholesale catalog expansions"
+        });
+      }
+    });
+
+    // Rule 2: Stockout hazard on high velocity / high profitability items
+    biProductBreakdown.forEach((prod) => {
+      if (prod.stock < 10 && prod.unitsSold > 0 && prod.margin > 35) {
+        list.push({
+          id: `stock_${prod.id}`,
+          type: "warning",
+          title: `Stockout Warning: ${prod.name}`,
+          desc: `The highly profitable product "${prod.name}" (Yielding ${prod.margin.toFixed(0)}% gross margin) is down to ${prod.stock} units while experiencing stable sales velocity.`,
+          action: `Urgently submit restocking order to ${prod.artisan}`
+        });
+      }
+    });
+
+    // Rule 3: Artisan Spotlight
+    if (biArtisanAnalytics.length > 0) {
+      const topArtisan = biArtisanAnalytics[0];
+      if (topArtisan.unitsSold > 0) {
+        list.push({
+          id: `artisan_spot_${topArtisan.name.replace(/\s+/g, "_")}`,
+          type: "info",
+          title: `Artisan Spotlight: ${topArtisan.name}`,
+          desc: `This artisan is leading Sokoplus sales with ${topArtisan.unitsSold} units sold generating KES ${topArtisan.revenue.toLocaleString()} in sales revenue at ${topArtisan.margin.toFixed(0)}% margin.`,
+          action: "Launch homepage hero banner spotlight or premium artisan storytelling blog"
+        });
+      }
+    }
+
+    if (list.length === 0) {
+      list.push({
+        id: "bi_overview_default",
+        type: "info",
+        title: "Stable Sourcing Equilibrium",
+        desc: "All product categories and artisan relationships are running in balance. No critical out-of-stock or sourcing profit imbalances detected.",
+        action: "Continue monitoring weekly customer cohorts"
+      });
+    }
+
+    return list;
+  })();
+
+  const downloadArtisanCSV = () => {
+    const headers = ["Artisan Name", "Category", "Variants Count", "Units Sold", "Total Revenue (KES)", "COGS (KES)", "Profit Generated (KES)", "Margin (%)"];
+    const rows = biArtisanAnalytics.map((art) => [
+      `"${art.name.replace(/"/g, '""')}"`,
+      `"${art.category.replace(/"/g, '""')}"`,
+      art.productsCount,
+      art.unitsSold,
+      art.revenue,
+      art.cogs,
+      art.profit,
+      art.margin.toFixed(1)
+    ]);
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `sokoplus_artisan_performance_${new Date().toISOString().split("T")[0]}.csv`);
+    link.click();
+    toast.success("Artisan performance data exported to CSV!");
+  };
+
+  const downloadProductVelocityCSV = () => {
+    const headers = ["Product Name", "Category", "Artisan", "Price (KES)", "Buying Price (KES)", "Stock", "Units Sold", "Revenue Generated", "Direct Yield Margin (%)"];
+    const rows = biProductBreakdown.map((item) => [
+      `"${item.name.replace(/"/g, '""')}"`,
+      `"${item.category.replace(/"/g, '""')}"`,
+      `"${item.artisan.replace(/"/g, '""')}"`,
+      item.price,
+      item.buyingPrice,
+      item.stock,
+      item.unitsSold,
+      item.revenue,
+      item.margin.toFixed(1)
+    ]);
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `sokoplus_sourcing_velocity_${new Date().toISOString().split("T")[0]}.csv`);
+    link.click();
+    toast.success("Product sales performance data exported to CSV!");
+  };
+
   const filteredOrders = orders
     .filter((o) => {
       const cleanTerm = orderSearchTerm.trim().toLowerCase().replace(/^#/, "");
@@ -2015,7 +2323,14 @@ export default function Admin({ user }: AdminProps) {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-gray-100 p-1 rounded-2xl w-fit">
+      <div className="flex space-x-1 bg-gray-100 p-1 rounded-2xl w-fit flex-wrap gap-y-2">
+        <button
+          onClick={() => setActiveTab("analytics")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-1.5 ${activeTab === "analytics" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          <TrendingUp size={16} />
+          <span>BI Analytics</span>
+        </button>
         <button
           onClick={() => setActiveTab("inventory")}
           className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "inventory" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
@@ -2068,6 +2383,472 @@ export default function Admin({ user }: AdminProps) {
       </div>
 
       <div>
+        {activeTab === "analytics" && (
+          <div className="space-y-8 animate-fade-in text-gray-950">
+            {/* Header / Intro */}
+            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100/50">
+                    Sokoplus BI Workspace
+                  </span>
+                  <h1 className="text-3xl font-extrabold text-gray-900 mt-2 tracking-tight">In-House Business Intelligence</h1>
+                  <p className="text-xs text-gray-500 font-semibold mt-1">
+                    Advanced dynamic reporting, artisan gross margins, product sales velocity, and automated stock recommendations.
+                  </p>
+                </div>
+
+                {/* Exporters */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={downloadArtisanCSV}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-2xl text-xs font-bold text-gray-700 transition-all cursor-pointer shadow-sm"
+                  >
+                    <Download size={14} className="text-gray-500" />
+                    <span>Export Artisans CSV</span>
+                  </button>
+                  <button
+                    onClick={downloadProductVelocityCSV}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 rounded-2xl text-xs font-extrabold text-white transition-all cursor-pointer shadow-md shadow-orange-600/15"
+                  >
+                    <Download size={14} />
+                    <span>Export Inventory Velocity CSV</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Advanced Interactive Filters Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-gray-50/50 rounded-2xl border border-gray-100/85">
+                {/* Date Timescale selector */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Time Frame Horizon</span>
+                  <select
+                    value={biDateRangeFilter}
+                    onChange={(e: any) => setBiDateRangeFilter(e.target.value)}
+                    className="w-full bg-white border border-gray-100 px-3 py-2.5 rounded-xl text-xs font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer text-gray-800"
+                  >
+                    <option value="all">All-Time Cumulative</option>
+                    <option value="today">Today</option>
+                    <option value="7d">Past 7 Days</option>
+                    <option value="30d">Past 30 Days</option>
+                    <option value="90d">Past 90 Days</option>
+                    <option value="ytd">Year to Date (YTD)</option>
+                  </select>
+                </div>
+
+                {/* Sourcing Category selector */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Sourcing Category</span>
+                  <select
+                    value={biCategoryFilter}
+                    onChange={(e: any) => {
+                      setBiCategoryFilter(e.target.value);
+                    }}
+                    className="w-full bg-white border border-gray-100 px-3 py-2.5 rounded-xl text-xs font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer text-gray-800"
+                  >
+                    <option value="all">All Product Categories</option>
+                    {Array.from(new Set(products.map((p) => p.category || "General"))).map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Artisan Search Filter */}
+                <div className="space-y-1 sm:col-span-2">
+                  <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Artisan Directory Search</span>
+                  <div className="relative">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <input
+                      type="text"
+                      placeholder="e.g. Kiprono Woodcrafts, Mama Jane Rugs..."
+                      value={biArtisanSearch}
+                      onChange={(e) => setBiArtisanSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 shadow-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Dynamic Interactive Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Card 1: Revenue index */}
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-orange-200/50 transition-all">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="p-2.5 rounded-2xl bg-orange-50 text-orange-600">
+                      <TrendingUp size={18} />
+                    </span>
+                    <span className="text-[9px] font-black uppercase text-emerald-600 tracking-tighter bg-emerald-50 px-2 py-0.5 rounded">
+                      Active
+                    </span>
+                  </div>
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">Filtered Revenue</h3>
+                  <p className="text-2xl font-black text-gray-950">
+                    KES {biTotalRevenue.toLocaleString()}
+                  </p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-50 text-[10px] text-gray-400 font-extrabold flex items-center justify-between">
+                  <span>Gross Volume Index</span>
+                  <span className="text-gray-500 uppercase">{biDateRangeFilter} scope</span>
+                </div>
+              </div>
+
+              {/* Card 2: Generated Profit */}
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-emerald-200/50 transition-all">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600">
+                      <Coins size={18} />
+                    </span>
+                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100/50 px-2.5 py-0.5 rounded-full">
+                      {biAverageMarginPercent.toFixed(0)}% Margin
+                    </span>
+                  </div>
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">Filtered SokoPlus Profit</h3>
+                  <p className="text-2xl font-black text-emerald-600">
+                    KES {biTotalProfit.toLocaleString()}
+                  </p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-50 text-[10px] text-gray-400 font-extrabold flex items-center justify-between">
+                  <span>COGS: KES {biTotalCOGS.toLocaleString()}</span>
+                  <span className="text-gray-500 uppercase">Value-add</span>
+                </div>
+              </div>
+
+              {/* Card 3: Average Order Value (AOV) */}
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-indigo-200/50 transition-all">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600">
+                      <ShoppingBag size={18} />
+                    </span>
+                    <span className="text-[9px] font-bold text-indigo-600 uppercase bg-indigo-50 px-1.5 py-0.5 rounded">
+                      Value/Cart
+                    </span>
+                  </div>
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">Average Ticket Size (AOV)</h3>
+                  <p className="text-2xl font-black text-gray-950">
+                    KES {biAOV.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-50 text-[10px] text-gray-400 font-extrabold flex items-center justify-between">
+                  <span>Based on {biFilteredOrders.length} transactions</span>
+                  <span className="text-indigo-600 uppercase">AOV Rating</span>
+                </div>
+              </div>
+
+              {/* Card 4: Total piece volume */}
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-pink-200/50 transition-all">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="p-2.5 rounded-2xl bg-pink-50 text-pink-600">
+                      <Package size={18} />
+                    </span>
+                    <span className="text-[9px] font-bold text-pink-600 uppercase bg-pink-50 px-1.5 py-0.5 rounded">
+                      Pieces Sold
+                    </span>
+                  </div>
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">Total Handcrafted Units Sold</h3>
+                  <p className="text-2xl font-black text-gray-950">
+                    {biTotalUnitsSold.toLocaleString()} pcs
+                  </p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-50 text-[10px] text-gray-400 font-extrabold flex items-center justify-between">
+                  <span>Total product breadth</span>
+                  <span className="text-gray-500 uppercase">{products.length} catalog items</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Smart Dual-Variable Combo Analytics Chart */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-gray-950 flex items-center gap-2">
+                    <TrendingUp className="text-orange-600" size={20} />
+                    <span>Advanced Interactive BI Metric Comparison</span>
+                  </h2>
+                  <p className="text-xs text-gray-400 font-bold mt-1">
+                    Toggle active views to contrast performance horizons and analyze category sales densities.
+                  </p>
+                </div>
+
+                {/* Metric Selector Toggles */}
+                <div className="flex bg-gray-50 p-1 border border-gray-150 rounded-xl space-x-1 shrink-0 self-start sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => setBiActiveMetric("revenue")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${biActiveMetric === "revenue" ? "bg-white text-orange-600 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}
+                  >
+                    Paid Revenue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBiActiveMetric("profit")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${biActiveMetric === "profit" ? "bg-white text-orange-600 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}
+                  >
+                    Enterprise Profit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBiActiveMetric("units")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${biActiveMetric === "units" ? "bg-white text-orange-600 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}
+                  >
+                    Units Sold
+                  </button>
+                </div>
+              </div>
+
+              {/* Dynamic Comparative Visualization Area */}
+              <div className="h-80 w-full">
+                {biCategoryAnalytics.length === 0 ? (
+                  <div className="h-full flex items-center justify-center bg-gray-50 rounded-3xl border border-dashed border-gray-150">
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-wider">No transactional data matches selection</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={biCategoryAnalytics} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700 }} stroke="#9ca3af" />
+                      <YAxis tick={{ fontSize: 10, fontWeight: 700 }} stroke="#9ca3af" />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: "16px", border: "1px solid #f3f3f3", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)" }}
+                        labelClassName="font-black text-xs text-orange-600"
+                        wrapperStyle={{ zIndex: 100 }}
+                      />
+                      <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: "11px", fontWeight: "bold" }} />
+                      
+                      {biActiveMetric === "revenue" && (
+                        <>
+                          <Bar dataKey="Revenue (KES)" fill="#ea580c" radius={[6, 6, 0, 0]} name="Paid Revenue" maxBarSize={45} />
+                          <Line type="monotone" dataKey="Gross Profit (KES)" stroke="#10b981" strokeWidth={3} name="Gross Profit" dot={{ r: 4 }} />
+                        </>
+                      )}
+                      
+                      {biActiveMetric === "profit" && (
+                        <>
+                          <Bar dataKey="Gross Profit (KES)" fill="#10b981" radius={[6, 6, 0, 0]} name="In-house Gross Profit" maxBarSize={45} />
+                          <Line type="monotone" dataKey="margin" stroke="#4f46e5" strokeWidth={3} name="Gross Margin %" dot={{ r: 4 }} />
+                        </>
+                      )}
+
+                      {biActiveMetric === "units" && (
+                        <>
+                          <Bar dataKey="Units Sold" fill="#6366f1" radius={[6, 6, 0, 0]} name="Units Sold (pcs)" maxBarSize={45} />
+                          <Line type="monotone" dataKey="Cost of Goods (KES)" stroke="#f43f5e" strokeWidth={2} name="Sourcing Cost (COGS)" dot={{ r: 3 }} />
+                        </>
+                      )}
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Split Grid: Artisan Contribution Leaderboard vs Smart Recommendation Advisor */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              
+              {/* Left Side: Artisan Contribution Leaderboard (Col Span 7) */}
+              <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-black text-gray-955 flex items-center gap-2">
+                      <Users size={18} className="text-orange-600" />
+                      <span>Artisan Partnership Leaderboard</span>
+                    </h2>
+                    <p className="text-[11px] text-gray-400 font-bold mt-0.5">
+                      Tracks each artisan's unit velocity, raw revenue, item counts, and estimated profit sharing.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  {biArtisanAnalytics.length === 0 ? (
+                    <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-150">
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No matching artisans registered</p>
+                    </div>
+                  ) : (
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                          <th className="pb-3 text-left">Artisan details</th>
+                          <th className="pb-3 text-center">Catalog breadth</th>
+                          <th className="pb-3 text-center">Sold pieces</th>
+                          <th className="pb-3 text-right">Revenue (KES)</th>
+                          <th className="pb-3 text-right">Gross profit (margin)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50 text-xs">
+                        {biArtisanAnalytics.map((art) => (
+                          <tr key={art.name} className="hover:bg-gray-50/50 transition-colors group">
+                            <td className="py-3.5 pr-2 font-bold text-gray-900">
+                              <p className="text-gray-900 font-black group-hover:text-orange-600 transition-colors">{art.name}</p>
+                              <span className="text-[10px] text-gray-400 font-bold uppercase">{art.category}</span>
+                            </td>
+                            <td className="py-3.5 text-center font-bold text-gray-550">
+                              {art.productsCount} variants
+                            </td>
+                            <td className="py-3.5 text-center">
+                              <span className="px-2.5 py-1 rounded-lg bg-gray-50 font-black text-gray-700">
+                                {art.unitsSold} pcs
+                              </span>
+                            </td>
+                            <td className="py-3.5 text-right font-black text-gray-950">
+                              KES {art.revenue.toLocaleString()}
+                            </td>
+                            <td className="py-3.5 text-right">
+                              <p className="font-extrabold text-emerald-600 leading-tight">KES {art.profit.toLocaleString()}</p>
+                              <span className="text-[9px] font-bold text-gray-400 bg-gray-100 px-1 rounded">
+                                {art.margin.toFixed(0)}% Margin
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Side: Smart Recommendation Advisor (Col Span 5) */}
+              <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6 flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-pink-600 bg-pink-50 px-2 py-1 rounded border border-pink-100/50">
+                      Sokoplus Brain Heuristics
+                    </span>
+                    <h2 className="text-lg font-black text-gray-955 flex items-center gap-2 mt-2">
+                      <Sparkles size={18} className="text-orange-500 shrink-0" />
+                      <span>Smart BI Sourcing Advisor</span>
+                    </h2>
+                    <p className="text-[11px] text-gray-400 font-bold mt-0.5">
+                      Sokoplus strategic guidance generated matching current inventory levels & transactional volume.
+                    </p>
+                  </div>
+
+                  {/* Recommendation list */}
+                  <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
+                    {biRecommendations.map((rec) => (
+                      <div 
+                        key={rec.id} 
+                        className={`p-4 border rounded-2xl space-y-2 transition-all shadow-sm ${
+                          rec.type === "success" 
+                            ? "bg-emerald-50/20 border-emerald-100 hover:bg-emerald-50/40" 
+                            : rec.type === "warning"
+                              ? "bg-amber-50/20 border-amber-100 hover:bg-amber-50/40"
+                              : "bg-indigo-50/20 border-indigo-100 hover:bg-indigo-50/40"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-black text-gray-900 flex items-center gap-1.5">
+                            <span className={`w-2.5 h-2.5 rounded-full ${
+                              rec.type === "success" ? "bg-emerald-500" : rec.type === "warning" ? "bg-amber-500" : "bg-indigo-500"
+                            }`} />
+                            {rec.title}
+                          </h4>
+                          <span className={`text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded ${
+                            rec.type === "success" ? "bg-emerald-100 text-emerald-700" : rec.type === "warning" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"
+                          }`}>
+                            {rec.type === "success" ? "Optimal" : rec.type === "warning" ? "Urgent" : "Insight"}
+                          </span>
+                        </div>
+                        <p className="text-xs font-semibold text-gray-650 leading-relaxed font-sans">
+                          {rec.desc}
+                        </p>
+                        <div className="pt-2 border-t border-gray-100 flex items-start gap-1.5 text-[11px] text-gray-500">
+                          <span className="font-black text-gray-800 uppercase shrink-0">Action:</span>
+                          <span className="font-bold italic text-gray-600">{rec.action}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100 text-[10px] text-gray-450 font-extrabold text-center uppercase tracking-tight">
+                  🧠 Live heuristics auto-refresh on checkout payments
+                </div>
+              </div>
+            </div>
+
+            {/* Downside: Product Sourcing Dynamics & Sales Velocity Matrix */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+              <div>
+                <h2 className="text-lg font-black text-gray-955 flex items-center gap-2">
+                  <Package size={18} className="text-orange-600" />
+                  <span>Sourcing Dynamics & Product Sales Velocity Matrix</span>
+                </h2>
+                <p className="text-xs text-gray-400 font-bold mt-1">
+                  Cross-checks sourcing margins against active sales volumes to pinpoint high-yield stock configurations.
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                {biProductBreakdown.length === 0 ? (
+                  <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-150">
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No matching inventory pieces detected</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                        <th className="pb-3 text-left">Product / variant details</th>
+                        <th className="pb-3 text-left">Artisan contact</th>
+                        <th className="pb-3 text-center">Cost (COGS)</th>
+                        <th className="pb-3 text-center">Retail Price</th>
+                        <th className="pb-3 text-center">Net Margin</th>
+                        <th className="pb-3 text-center">Sales Volume</th>
+                        <th className="pb-3 text-center">Stock status</th>
+                        <th className="pb-3 text-right">Sourcing Yield</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 text-xs">
+                      {biProductBreakdown.slice(0, 15).map((item) => (
+                        <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="py-3 pr-2">
+                            <p className="text-gray-900 font-black truncate max-w-xs">{item.name}</p>
+                            <span className="text-[10px] text-gray-450 font-extrabold uppercase leading-none">{item.category}</span>
+                          </td>
+                          <td className="py-3 text-gray-600 font-bold">
+                            {item.artisan}
+                          </td>
+                          <td className="py-3 text-center font-bold text-gray-550">
+                            KES {item.buyingPrice.toLocaleString()}
+                          </td>
+                          <td className="py-3 text-center font-bold text-gray-800">
+                            KES {item.price.toLocaleString()}
+                          </td>
+                          <td className="py-3 text-center">
+                            <span className="px-2 py-0.5 rounded-md bg-orange-50 font-black text-orange-655 text-[11px]">
+                              {item.margin.toFixed(0)}% Margin
+                            </span>
+                          </td>
+                          <td className="py-3 text-center font-black text-gray-900">
+                            {item.unitsSold} pcs
+                          </td>
+                          <td className="py-3 text-center">
+                            {item.stock <= 0 ? (
+                              <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-red-100 text-red-700">Out of Stock</span>
+                            ) : item.stock < 10 ? (
+                              <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-amber-100 text-amber-700">Low Stock ({item.stock})</span>
+                            ) : (
+                              <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-50 text-emerald-700">Good ({item.stock})</span>
+                            )}
+                          </td>
+                          <td className="py-3 text-right font-black text-gray-950">
+                            KES {item.profit.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === "inventory" && (
           /* Products Table */
           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
@@ -2103,6 +2884,8 @@ export default function Admin({ user }: AdminProps) {
                     className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[180px]"
                   >
                     <option value="default">Default</option>
+                    <option value="created-asc">Earliest Added to Last Added</option>
+                    <option value="created-desc">Last Added to Earliest Added</option>
                     <option value="rating-desc">Rating: High to Low</option>
                     <option value="rating-asc">Rating: Low to High</option>
                     <option value="price-desc">Price: High to Low</option>
@@ -2163,6 +2946,16 @@ export default function Admin({ user }: AdminProps) {
                       return true;
                     })
                     .sort((a, b) => {
+                      if (productSortBy === "created-asc") {
+                        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                        return dateA - dateB;
+                      }
+                      if (productSortBy === "created-desc") {
+                        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                        return dateB - dateA;
+                      }
                       if (productSortBy === "rating-desc") {
                         return (b.rating || 0) - (a.rating || 0);
                       }
@@ -2364,7 +3157,8 @@ export default function Admin({ user }: AdminProps) {
                   <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
                     <th className="pb-4 uppercase">Order ID</th>
                     <th className="pb-4 uppercase">Customer</th>
-                    <th className="pb-4 uppercase">Status</th>
+                    <th className="pb-4 uppercase">Date & Timestamp</th>
+                     <th className="pb-4 uppercase">Status</th>
                     <th className="pb-4 uppercase text-right">Total</th>
                     <th className="pb-4 uppercase text-right w-24">Actions</th>
                   </tr>
@@ -2378,12 +3172,16 @@ export default function Admin({ user }: AdminProps) {
                         </td>
                         <td className="py-4 text-gray-700">
                           <div>{o.userEmail || o.userId.slice(0, 8)}</div>
-                          {o.createdAt && (
+                        </td>
+                        <td className="py-4 text-gray-700 font-medium">
+                          {o.createdAt ? (
                             <div className="text-[11px] text-gray-400 font-medium mt-0.5">
                               {o.createdAt.toDate
                                 ? o.createdAt.toDate().toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })
                                 : new Date(o.createdAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })}
                             </div>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic font-medium">No Date</span>
                           )}
                         </td>
                         <td className="py-4">
@@ -4050,6 +4848,15 @@ export default function Admin({ user }: AdminProps) {
                                     className="px-3 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-700 transition-all font-black text-[10px] cursor-pointer"
                                   >
                                     Read Pitch
+                                  </button>
+                                )}
+                                {app.status === "reviewed" && (
+                                  <button
+                                    onClick={() => deleteJobApplication(app.id)}
+                                    className="px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all font-black text-[10px] flex items-center gap-1.5 cursor-pointer border border-red-100/40"
+                                  >
+                                    <Trash2 size={12} />
+                                    Delete
                                   </button>
                                 )}
                               </div>

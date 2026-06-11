@@ -12,6 +12,7 @@ export interface Product {
   active?: boolean;
   artisan?: string;
   buyingPrice?: number;
+  createdAt?: string;
 }
 
 export interface CartItem {

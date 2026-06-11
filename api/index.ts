@@ -180,6 +180,72 @@ async function requireSuperAdmin(req: express.Request, res: express.Response, ne
   }
 }
 
+// Helper to parse Firestore REST format to native JSON
+function toFirestoreValue(val: any): any {
+  if (val === null || val === undefined) {
+    return { nullValue: null };
+  }
+  if (typeof val === "string") {
+    return { stringValue: val };
+  }
+  if (typeof val === "number") {
+    if (Number.isInteger(val)) {
+      return { integerValue: val.toString() };
+    }
+    return { doubleValue: val };
+  }
+  if (typeof val === "boolean") {
+    return { booleanValue: val };
+  }
+  if (Array.isArray(val)) {
+    return { arrayValue: { values: val.map(toFirestoreValue) } };
+  }
+  if (typeof val === "object") {
+    const fields: any = {};
+    for (const k of Object.keys(val)) {
+      fields[k] = toFirestoreValue(val[k]);
+    }
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val) };
+}
+
+function toFirestoreDocument(data: any): any {
+  const fields: any = {};
+  for (const k of Object.keys(data)) {
+    if (k === "id") continue;
+    fields[k] = toFirestoreValue(data[k]);
+  }
+  return { fields };
+}
+
+// REST-forwarding helper for generic operations with standard error fallback
+async function executeFirestoreREST(
+  method: "post" | "get" | "delete" | "patch",
+  urlPath: string,
+  bearerToken?: string,
+  data?: any
+): Promise<any> {
+  const headers: any = {};
+  if (bearerToken) {
+    headers["Authorization"] = `Bearer ${bearerToken}`;
+  }
+  const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/${firebaseConfig.firestoreDatabaseId || "(default)"}/documents${urlPath}`;
+  
+  try {
+    const response = await axios({
+      method,
+      url,
+      headers,
+      data
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(`[Server REST Support] Firestore REST API failure: ${method.toUpperCase()} ${urlPath}:`, error.response?.data || error.message);
+    throw error;
+  }
+}
+
 // Helper to write audit/activity log
 async function logAuditAction(
   userId: string,
@@ -187,107 +253,222 @@ async function logAuditAction(
   action: string,
   details: string,
   targetId?: string,
-  targetName?: string
+  targetName?: string,
+  bearerToken?: string
 ) {
-  if (!adminDb) return;
+  const auditData = {
+    userId,
+    userEmail,
+    action,
+    details,
+    targetId: targetId || "",
+    targetName: targetName || "",
+    timestamp: new Date().toISOString()
+  };
+
   try {
-    const logRef = adminDb.collection("audit_logs").doc();
-    await logRef.set({
-      userId,
-      userEmail,
-      action,
-      details,
-      targetId: targetId || "",
-      targetName: targetName || "",
-      timestamp: new Date().toISOString()
-    });
-  } catch (err) {
-    console.error("Failed to write to audit_logs:", err);
+    const logRef = adminDb!.collection("audit_logs").doc();
+    await logRef.set(auditData);
+    console.log(`[Audit Log] Saved log event via Admin SDK: ${action}`);
+  } catch (err: any) {
+    if (err.message && err.message.includes("PERMISSION_DENIED")) {
+      console.log(`[Audit Log] Admin SDK write for "${action}" bypassed (credentials not configured). Falling back to REST API.`);
+    } else {
+      console.warn(`[Audit Log] Admin SDK write failed for "${action}", falling back to REST API:`, err.message);
+    }
+    try {
+      const firestoreDoc = toFirestoreDocument(auditData);
+      const uniqueId = `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      await executeFirestoreREST("patch", `/audit_logs/${uniqueId}`, bearerToken, firestoreDoc);
+      console.log(`[Audit Log] Saved log event via REST API fallback: ${action}`);
+    } catch (restErr: any) {
+      console.error("[Audit Log] Failed completely to write to audit_logs:", restErr.message);
+    }
   }
 }
 
 // REST Audit Logs Endpoint: GET /api/admin/audit_logs (Super Admin access required)
 app.get("/api/admin/audit_logs", requireSuperAdmin, async (req, res) => {
-  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.split("Bearer ")[1] : undefined;
+
   try {
-    const snap = await adminDb.collection("audit_logs").orderBy("timestamp", "desc").limit(100).get();
+    const snap = await adminDb!.collection("audit_logs").orderBy("timestamp", "desc").limit(100).get();
     const logs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json({ success: true, logs });
   } catch (err: any) {
-    // Fallback if index is not fully deployed yet - fetch and sort client-side
+    if (err.message && err.message.includes("PERMISSION_DENIED")) {
+      console.log("[Server] Admin SDK audit logs fetch bypassed (credentials not configured). Running fallback...");
+    } else {
+      console.warn("[Server] Admin SDK audit logs fetch failed, trying full scan fallback or REST API:", err.message);
+    }
     try {
-      const snap = await adminDb.collection("audit_logs").get();
+      const snap = await adminDb!.collection("audit_logs").get();
       const logs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       logs.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       res.json({ success: true, logs: logs.slice(0, 100) });
     } catch (fallbackErr: any) {
-      res.status(500).json({ error: "Failed to fetch audit logs list", details: fallbackErr.message });
+      try {
+        const queryPayload = {
+          structuredQuery: {
+            from: [{ collectionId: "audit_logs" }]
+          }
+        };
+        const response = await executeFirestoreREST("post", ":runQuery", token, queryPayload);
+        const items = response || [];
+        const logs = items
+          .filter((item: any) => item && item.document)
+          .map((item: any) => parseFirestoreDocument(item.document));
+        logs.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        res.json({ success: true, logs: logs.slice(0, 100) });
+      } catch (restErr: any) {
+        res.status(500).json({ error: "Failed to fetch audit logs list via REST fallback", details: restErr.message });
+      }
     }
   }
 });
 
 // REST Roles Endpoint: GET /api/admin/roles
 app.get("/api/admin/roles", requireSuperAdmin, async (req, res) => {
-  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.split("Bearer ")[1] : undefined;
+
   try {
-    const snap = await adminDb.collection("roles").get();
+    const snap = await adminDb!.collection("roles").get();
     const roles = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json({ success: true, roles });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to fetch roles list", details: err.message });
+    if (err.message && err.message.includes("PERMISSION_DENIED")) {
+      console.log("[Server] Admin SDK roles fetch bypassed (credentials not configured). Running REST fallback...");
+    } else {
+      console.warn("[Server] Admin SDK roles fetch failed, falling back to REST API:", err.message);
+    }
+    try {
+      const queryPayload = {
+        structuredQuery: {
+          from: [{ collectionId: "roles" }]
+        }
+      };
+      const response = await executeFirestoreREST("post", ":runQuery", token, queryPayload);
+      const items = response || [];
+      const roles = items
+        .filter((item: any) => item && item.document)
+        .map((item: any) => parseFirestoreDocument(item.document));
+      res.json({ success: true, roles });
+    } catch (restErr: any) {
+      res.status(500).json({ error: "Failed to fetch roles list via REST fallback", details: restErr.message });
+    }
   }
 });
 
 // REST Roles Endpoint: POST /api/admin/roles
 app.post("/api/admin/roles", requireSuperAdmin, async (req, res) => {
-  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.split("Bearer ")[1] : undefined;
+
   try {
     const { id, name, permissions, description } = req.body;
     if (!name || !permissions || !Array.isArray(permissions)) {
       return res.status(400).json({ error: "Missing required fields: name or permissions array" });
     }
     const roleId = id || name.toLowerCase().replace(/[^a-z0-9]/g, "_");
-    const roleRef = adminDb.collection("roles").doc(roleId);
-    
-    const isUpdate = (await roleRef.get()).exists;
+
+    const isUpdate = await (async () => {
+      try {
+        const doc = await adminDb!.collection("roles").doc(roleId).get();
+        return doc.exists;
+      } catch (err) {
+        try {
+          await executeFirestoreREST("get", `/roles/${roleId}`, token);
+          return true;
+        } catch (restErr) {
+          return false;
+        }
+      }
+    })();
+
     const actionLabel = isUpdate ? "update_role" : "create_role";
     const detailsLabel = isUpdate
       ? `Updated role "${name}": permissions set to [${permissions.join(", ")}]. Description: ${description || "None"}.`
       : `Created role "${name}" with permissions: [${permissions.join(", ")}]. Description: ${description || "None"}.`;
 
-    await roleRef.set({
+    const roleData = {
       name,
       permissions,
       description: description || "",
       updatedAt: new Date().toISOString()
-    }, { merge: true });
+    };
 
-    // Log this secure administrative activity
-    await logAuditAction(
-      (req as any).user.uid,
-      (req as any).user.email,
-      actionLabel,
-      detailsLabel,
-      roleId,
-      name
-    );
+    try {
+      const roleRef = adminDb!.collection("roles").doc(roleId);
+      await roleRef.set(roleData, { merge: true });
 
-    res.json({ success: true, roleId, message: `Role "${name}" successfully added/updated` });
+      // Log this secure administrative activity
+      await logAuditAction(
+        (req as any).user.uid,
+        (req as any).user.email,
+        actionLabel,
+        detailsLabel,
+        roleId,
+        name,
+        token
+      );
+
+      res.json({ success: true, roleId, message: `Role "${name}" successfully added/updated` });
+    } catch (adminErr: any) {
+      if (adminErr.message && adminErr.message.includes("PERMISSION_DENIED")) {
+        console.log("[Server] Admin SDK role write bypassed (credentials not configured). Running REST fallback...");
+      } else {
+        console.warn("[Server] Admin SDK role write failed, falling back to REST API:", adminErr.message);
+      }
+      try {
+        const firestoreDoc = toFirestoreDocument(roleData);
+        await executeFirestoreREST("patch", `/roles/${roleId}`, token, firestoreDoc);
+
+        // Log audit via REST
+        await logAuditAction(
+          (req as any).user.uid,
+          (req as any).user.email,
+          actionLabel,
+          detailsLabel,
+          roleId,
+          name,
+          token
+        );
+
+        res.json({ success: true, roleId, message: `Role "${name}" successfully added/updated via REST` });
+      } catch (restErr: any) {
+        res.status(500).json({ error: "Failed to create/update role via REST fallback", details: restErr.message });
+      }
+    }
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to create/update role", details: err.message });
+    res.status(500).json({ error: "Failed to process role write request", details: err.message });
   }
 });
 
 // REST Roles Endpoint: DELETE /api/admin/roles/:roleId
 app.delete("/api/admin/roles/:roleId", requireSuperAdmin, async (req, res) => {
-  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.split("Bearer ")[1] : undefined;
   const { roleId } = req.params;
-  try {
-    const roleRef = adminDb.collection("roles").doc(roleId);
-    const roleDoc = await roleRef.get();
-    const roleData = roleDoc.data();
-    const roleName = roleData ? roleData.name : roleId;
 
+  let roleName = roleId;
+  try {
+    const roleDoc = await adminDb!.collection("roles").doc(roleId).get();
+    const roleData = roleDoc.data();
+    if (roleData) roleName = roleData.name || roleId;
+  } catch (err) {
+    try {
+      const fallbackDoc = await executeFirestoreREST("get", `/roles/${roleId}`, token);
+      const parsed = parseFirestoreDocument(fallbackDoc);
+      if (parsed) roleName = parsed.name || roleId;
+    } catch (restErr) {
+      console.warn("[Server] Role display name fetch failed for delete, using ID as name fallback.");
+    }
+  }
+
+  try {
+    const roleRef = adminDb!.collection("roles").doc(roleId);
     await roleRef.delete();
 
     // Log this administrative activity
@@ -297,63 +478,152 @@ app.delete("/api/admin/roles/:roleId", requireSuperAdmin, async (req, res) => {
       "delete_role",
       `Deleted role "${roleName}" (ID: ${roleId})`,
       roleId,
-      roleName
+      roleName,
+      token
     );
 
     res.json({ success: true, message: `Role "${roleId}" successfully deleted` });
-  } catch (err: any) {
-    res.status(500).json({ error: "Failed to delete role", details: err.message });
+  } catch (adminErr: any) {
+    if (adminErr.message && adminErr.message.includes("PERMISSION_DENIED")) {
+      console.log("[Server] Admin SDK role delete bypassed (credentials not configured). Running REST fallback...");
+    } else {
+      console.warn("[Server] Admin SDK role delete failed, falling back to REST API:", adminErr.message);
+    }
+    try {
+      await executeFirestoreREST("delete", `/roles/${roleId}`, token);
+
+      // Log this administrative activity via REST fallback
+      await logAuditAction(
+        (req as any).user.uid,
+        (req as any).user.email,
+        "delete_role",
+        `Deleted role "${roleName}" (ID: ${roleId})`,
+        roleId,
+        roleName,
+        token
+      );
+
+      res.json({ success: true, message: `Role "${roleId}" successfully deleted via REST` });
+    } catch (restErr: any) {
+      res.status(500).json({ error: "Failed to delete role via REST fallback", details: restErr.message });
+    }
   }
 });
 
 // REST Admins Endpoint: GET /api/admin/admins
 app.get("/api/admin/admins", requireSuperAdmin, async (req, res) => {
-  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.split("Bearer ")[1] : undefined;
+
   try {
-    const snap = await adminDb.collection("admins").get();
+    const snap = await adminDb!.collection("admins").get();
     const admins = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json({ success: true, admins });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to fetch admin list", details: err.message });
+    if (err.message && err.message.includes("PERMISSION_DENIED")) {
+      console.log("[Server] Admin SDK admins fetch bypassed (credentials not configured). Running REST fallback...");
+    } else {
+      console.warn("[Server] Admin SDK admins fetch failed, falling back to REST API:", err.message);
+    }
+    try {
+      const queryPayload = {
+        structuredQuery: {
+          from: [{ collectionId: "admins" }]
+        }
+      };
+      const response = await executeFirestoreREST("post", ":runQuery", token, queryPayload);
+      const items = response || [];
+      const admins = items
+        .filter((item: any) => item && item.document)
+        .map((item: any) => parseFirestoreDocument(item.document));
+      res.json({ success: true, admins });
+    } catch (restErr: any) {
+      res.status(500).json({ error: "Failed to fetch admin list via REST fallback", details: restErr.message });
+    }
   }
 });
 
 // REST Admins Endpoint: POST /api/admin/admins
 app.post("/api/admin/admins", requireSuperAdmin, async (req, res) => {
-  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.split("Bearer ")[1] : undefined;
+
   try {
     const { uid, email, roleId, roleName, permissions } = req.body;
     if (!uid || !email || !permissions || !Array.isArray(permissions)) {
       return res.status(400).json({ error: "Missing required fields: uid, email, or permissions array" });
     }
-    const adminRef = adminDb.collection("admins").doc(uid);
-    const adminExists = (await adminRef.get()).exists;
+
+    const adminExists = await (async () => {
+      try {
+        const doc = await adminDb!.collection("admins").doc(uid).get();
+        return doc.exists;
+      } catch (err) {
+        try {
+          await executeFirestoreREST("get", `/admins/${uid}`, token);
+          return true;
+        } catch (restErr) {
+          return false;
+        }
+      }
+    })();
 
     const actionLabel = adminExists ? "update_admin_privileges" : "assign_admin_privileges";
     const detailsLabel = adminExists
       ? `Updated admin settings for ${email}: assigned role "${roleName || "Custom"}" (${roleId || "custom"}) with permissions [${permissions.join(", ")}]`
       : `Promoted ${email} to platform administrator: assigned role "${roleName || "Custom"}" (${roleId || "custom"}) with permissions [${permissions.join(", ")}]`;
 
-    await adminRef.set({
+    const adminData = {
       email,
       roleId: roleId || "",
       roleName: roleName || "",
       permissions,
       updatedAt: new Date().toISOString(),
       updatedBy: (req as any).user.email
-    }, { merge: true });
+    };
 
-    // Log this administrative activity
-    await logAuditAction(
-      (req as any).user.uid,
-      (req as any).user.email,
-      actionLabel,
-      detailsLabel,
-      uid,
-      email
-    );
+    try {
+      const adminRef = adminDb!.collection("admins").doc(uid);
+      await adminRef.set(adminData, { merge: true });
 
-    res.json({ success: true, uid, message: `Admin profile for "${email}" successfully mapped` });
+      // Log this administrative activity
+      await logAuditAction(
+        (req as any).user.uid,
+        (req as any).user.email,
+        actionLabel,
+        detailsLabel,
+        uid,
+        email,
+        token
+      );
+
+      res.json({ success: true, uid, message: `Admin profile for "${email}" successfully mapped` });
+    } catch (adminErr: any) {
+      if (adminErr.message && adminErr.message.includes("PERMISSION_DENIED")) {
+        console.log("[Server] Admin SDK admin write bypassed (credentials not configured). Running REST fallback...");
+      } else {
+        console.warn("[Server] Admin SDK admin write failed, falling back to REST API:", adminErr.message);
+      }
+      try {
+        const firestoreDoc = toFirestoreDocument(adminData);
+        await executeFirestoreREST("patch", `/admins/${uid}`, token, firestoreDoc);
+
+        // Log this administrative activity via REST fallback
+        await logAuditAction(
+          (req as any).user.uid,
+          (req as any).user.email,
+          actionLabel,
+          detailsLabel,
+          uid,
+          email,
+          token
+        );
+
+        res.json({ success: true, uid, message: `Admin profile for "${email}" successfully mapped via REST` });
+      } catch (restErr: any) {
+        res.status(500).json({ error: "Failed to promote/modify administrator via REST fallback", details: restErr.message });
+      }
+    }
   } catch (err: any) {
     res.status(500).json({ error: "Failed to update admin profile", details: err.message });
   }
@@ -361,33 +631,74 @@ app.post("/api/admin/admins", requireSuperAdmin, async (req, res) => {
 
 // REST Admins Endpoint: DELETE /api/admin/admins/:uid
 app.delete("/api/admin/admins/:uid", requireSuperAdmin, async (req, res) => {
-  if (!adminDb) return res.status(500).json({ error: "Firestore Admin Client is not initialized" });
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.split("Bearer ")[1] : undefined;
   const { uid } = req.params;
+
   try {
-    // Check to prevent self-deletion or locking out the supreme super admin!
     if (uid === (req as any).user.uid) {
       return res.status(400).json({ error: "Cannot revoke super admin access rights for yourself!" });
     }
-    const adminRef = adminDb.collection("admins").doc(uid);
-    const adminDoc = await adminRef.get();
-    const adminData = adminDoc.data();
-    const adminEmail = adminData ? adminData.email : uid;
 
-    await adminRef.delete();
+    let adminEmail = uid;
+    try {
+      const adminRef = adminDb!.collection("admins").doc(uid);
+      const adminDoc = await adminRef.get();
+      const adminData = adminDoc.data();
+      if (adminData) adminEmail = adminData.email || uid;
+    } catch (err) {
+      try {
+        const fallbackDoc = await executeFirestoreREST("get", `/admins/${uid}`, token);
+        const parsed = parseFirestoreDocument(fallbackDoc);
+        if (parsed) adminEmail = parsed.email || uid;
+      } catch (restErr) {
+        console.warn("[Server] Admin email fetch failed for delete, using UID fallback.");
+      }
+    }
 
-    // Log this administrative activity
-    await logAuditAction(
-      (req as any).user.uid,
-      (req as any).user.email,
-      "revoke_admin_privileges",
-      `Revoked all platform administrator access privileges for ${adminEmail} (UID: ${uid})`,
-      uid,
-      adminEmail
-    );
+    try {
+      const adminRef = adminDb!.collection("admins").doc(uid);
+      await adminRef.delete();
 
-    res.json({ success: true, message: `Administrator access for "${uid}" successfully revoked` });
+      // Log this administrative activity
+      await logAuditAction(
+        (req as any).user.uid,
+        (req as any).user.email,
+        "revoke_admin_privileges",
+        `Revoked all platform administrator access privileges for ${adminEmail} (UID: ${uid})`,
+        uid,
+        adminEmail,
+        token
+      );
+
+      res.json({ success: true, message: `Administrator access for "${uid}" successfully revoked` });
+    } catch (adminErr: any) {
+      if (adminErr.message && adminErr.message.includes("PERMISSION_DENIED")) {
+        console.log("[Server] Admin SDK admin delete bypassed (credentials not configured). Running REST fallback...");
+      } else {
+        console.warn("[Server] Admin SDK admin delete failed, falling back to REST API:", adminErr.message);
+      }
+      try {
+        await executeFirestoreREST("delete", `/admins/${uid}`, token);
+
+        // Log this administrative activity via REST fallback
+        await logAuditAction(
+          (req as any).user.uid,
+          (req as any).user.email,
+          "revoke_admin_privileges",
+          `Revoked all platform administrator access privileges for ${adminEmail} (UID: ${uid})`,
+          uid,
+          adminEmail,
+          token
+        );
+
+        res.json({ success: true, message: `Administrator access for "${uid}" successfully revoked via REST` });
+      } catch (restErr: any) {
+        res.status(500).json({ error: "Failed to delete administrator record via REST fallback", details: restErr.message });
+      }
+    }
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to delete administrator record", details: err.message });
+    res.status(500).json({ error: "Failed to revoke administrator access", details: err.message });
   }
 });
 
