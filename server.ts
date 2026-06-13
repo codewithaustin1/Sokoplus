@@ -1007,7 +1007,7 @@ app.get("/api/paystack/verify/:reference", async (req, res) => {
 // XML Sitemap Endpoint: Queries products & blogs dynamically from Firestore
 app.get("/sitemap.xml", async (req, res) => {
   try {
-    const host = req.get("host") || "sokoplus.com";
+    const host = req.get("host") || "www.sokoplus.co.ke";
     const baseUrl = `https://${host}`;
 
     const staticPaths = [
@@ -1072,7 +1072,7 @@ app.get("/sitemap.xml", async (req, res) => {
 
 // robots.txt Crawler Configuration Directives
 app.get("/robots.txt", (req, res) => {
-  const host = req.get("host") || "sokoplus.com";
+  const host = req.get("host") || "www.sokoplus.co.ke";
   const baseUrl = `https://${host}`;
   
   let content = "User-agent: *\n";

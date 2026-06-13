@@ -435,7 +435,7 @@ export default function Careers({ user }: CareersProps) {
             <p className="text-xs text-gray-400 font-medium">
               Don't see your specific role? 
             </p>
-            <p className="text-xs font-bold text-orange-600 mt-1 cursor-pointer hover:underline" onClick={() => toast.success("Talent pool registered! Send your details to careers@sokoplus.com")}>
+            <p className="text-xs font-bold text-orange-600 mt-1 cursor-pointer hover:underline" onClick={() => toast.success("Talent pool registered! Send your details to careers@sokoplus.co.ke")}>
               Join SokoPlus Talent Pool &rarr;
             </p>
           </div>

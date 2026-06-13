@@ -12,6 +12,7 @@ export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [pointsEarned, setPointsEarned] = useState<number>(0);
+  const [orderReceiptId, setOrderReceiptId] = useState<string>("");
   const { clearCart } = useCart();
   const reference = searchParams.get("reference");
 
@@ -35,6 +36,7 @@ export default function PaymentSuccess() {
             const orderData = orderDoc.data();
             const calculatedPoints = Math.floor((orderData.totalAmount || 0) / 100);
             setPointsEarned(calculatedPoints);
+            setOrderReceiptId(orderDoc.id.slice(0, 8).toUpperCase());
 
             // Prevent double-processing
             if (orderData.paymentStatus === "paid") {
@@ -175,7 +177,7 @@ export default function PaymentSuccess() {
       <div className="space-y-4">
         <h1 className="text-5xl font-black italic tracking-tighter text-gray-900 dark:text-white">Asante Sana!</h1>
         <p className="text-gray-500 dark:text-gray-400 text-xl font-medium max-w-md mx-auto leading-relaxed">
-          Your payment was successful and your order #{(reference || "").slice(-6).toUpperCase()} is now being processed.
+          Your payment was successful and your order #{orderReceiptId || (reference || "").slice(-6).toUpperCase()} is now being processed.
         </p>
       </div>
 

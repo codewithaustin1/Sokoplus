@@ -51,7 +51,7 @@ export default function Cookies() {
 
         <section className="space-y-4 border-t border-gray-100 pt-8">
           <p className="text-sm text-gray-500">
-            For any more information regarding our cookie policy, please reach out to: <span className="text-orange-600 font-bold">support@sokoplus.com</span>
+            For any more information regarding our cookie policy, please reach out to: <span className="text-orange-600 font-bold">support@sokoplus.co.ke</span>
           </p>
         </section>
       </motion.div>

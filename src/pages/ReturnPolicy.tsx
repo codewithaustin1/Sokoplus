@@ -97,7 +97,7 @@ export default function ReturnPolicy() {
             <div className="w-8 h-8 rounded-full bg-orange-600 text-white font-black text-xs flex items-center justify-center">1</div>
             <h4 className="text-base font-bold text-gray-905">Initialize Request</h4>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Drop an email to <a href="mailto:returns@sokoplus.com" className="text-orange-600 hover:underline">returns@sokoplus.com</a> with your order number and simple photos of the product.
+              Drop an email to <a href="mailto:returns@sokoplus.co.ke" className="text-orange-600 hover:underline">returns@sokoplus.co.ke</a> with your order number and simple photos of the product.
             </p>
           </div>
 
@@ -219,11 +219,11 @@ export default function ReturnPolicy() {
         </div>
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-2">
           <a
-            href="mailto:returns@sokoplus.com"
+            href="mailto:returns@sokoplus.co.ke"
             className="flex items-center space-x-2 bg-white text-orange-600 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-orange-50 transition-colors w-full sm:w-auto justify-center"
           >
             <Mail size={16} />
-            <span>Email returns@sokoplus.com</span>
+            <span>Email returns@sokoplus.co.ke</span>
           </a>
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("open-support-chat"))}

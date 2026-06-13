@@ -61,7 +61,7 @@ export default function Shipping() {
     },
     {
       q: "Do you ship internationally?",
-      a: "Currently, our website is optimized for deliveries within Kenya. However, we do facilitate custom international shipping via DHL or FedEx. Please reach out to our team at hello@sokoplus.com or start a live support chat to arrange custom international quotes."
+      a: "Currently, our website is optimized for deliveries within Kenya. However, we do facilitate custom international shipping via DHL or FedEx. Please reach out to our team at hello@sokoplus.co.ke or start a live support chat to arrange custom international quotes."
     },
     {
       q: "What couriers do you work with?",
@@ -223,11 +223,11 @@ export default function Shipping() {
         </div>
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-2">
           <a
-            href="mailto:hello@sokoplus.com"
+            href="mailto:hello@sokoplus.co.ke"
             className="flex items-center space-x-2 bg-white text-orange-600 px-6 py-3 rounded-2xl font-bold text-sm hover:bg-orange-50 transition-colors w-full sm:w-auto justify-center"
           >
             <Mail size={16} />
-            <span>Email hello@sokoplus.com</span>
+            <span>Email hello@sokoplus.co.ke</span>
           </a>
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("open-support-chat"))}

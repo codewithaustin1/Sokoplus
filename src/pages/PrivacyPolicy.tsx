@@ -61,7 +61,7 @@ export default function PrivacyPolicy() {
 
         <section className="space-y-4 border-t border-gray-100 pt-8">
           <p className="text-sm text-gray-500">
-            If you have any questions about this privacy policy or our privacy practices, please contact us at: <span className="text-orange-600 font-bold">privacy@sokoplus.com</span>
+            If you have any questions about this privacy policy or our privacy practices, please contact us at: <span className="text-orange-600 font-bold">privacy@sokoplus.co.ke</span>
           </p>
         </section>
       </motion.div>

@@ -1001,7 +1001,7 @@ app.get(["/api/paystack/verify/:reference", "/paystack/verify/:reference"], asyn
 // 4. Dynamic XML Sitemap
 app.get(["/sitemap.xml", "/api/sitemap.xml"], async (req, res) => {
   try {
-    const host = req.get("host") || "sokoplus.com";
+    const host = req.get("host") || "www.sokoplus.co.ke";
     const baseUrl = `https://${host}`;
 
     const staticPaths = [
@@ -1066,7 +1066,7 @@ app.get(["/sitemap.xml", "/api/sitemap.xml"], async (req, res) => {
 
 // 5. Dynamic robots.txt
 app.get(["/robots.txt", "/api/robots.txt"], (req, res) => {
-  const host = req.get("host") || "sokoplus.com";
+  const host = req.get("host") || "www.sokoplus.co.ke";
   const baseUrl = `https://${host}`;
   
   let content = "User-agent: *\n";

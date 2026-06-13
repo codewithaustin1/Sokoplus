@@ -137,7 +137,7 @@ async function run() {
     }
 
     // 2. Setup standard metadata
-    const baseUrl = "https://sokoplus.com"; // Default canonical domain for SEO index optimization
+    const baseUrl = "https://www.sokoplus.co.ke"; // Default canonical domain for SEO index optimization
     const staticPaths = [
       "",
       "/blog",

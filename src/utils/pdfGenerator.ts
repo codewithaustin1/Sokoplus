@@ -345,7 +345,7 @@ export function downloadReceipt(order: Order, user: UserProfile) {
     doc.setTextColor(mutedColor.r, mutedColor.g, mutedColor.b);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.text("Reach our customer support instantly via live email hello@sokoplus.com or start a Support Ticket directly inside our chat portal.", margin + 8, bannerTop + 14);
+    doc.text("Reach our customer support instantly via live email hello@sokoplus.co.ke or start a Support Ticket directly inside our chat portal.", margin + 8, bannerTop + 14);
 
     // Seal Right (Sokoplus Secure Check)
     doc.setDrawColor(orangeColor.r, orangeColor.g, orangeColor.b, 30);

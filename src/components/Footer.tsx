@@ -143,7 +143,7 @@ export default function Footer() {
                 </li>
                 <li className="flex items-center space-x-3 text-sm text-gray-500 dark:text-gray-450">
                   <Mail size={18} className="text-orange-600 shrink-0" />
-                  <span>hello@sokoplus.com</span>
+                  <span>hello@sokoplus.co.ke</span>
                 </li>
                 <li className="flex items-center space-x-3 text-sm text-gray-500 dark:text-gray-450">
                   <Phone size={18} className="text-orange-600 shrink-0" />

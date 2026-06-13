@@ -54,7 +54,7 @@ export default function TermsOfService() {
 
         <section className="space-y-4 border-t border-gray-100 pt-8">
           <p className="text-sm text-gray-500">
-            Questions about the Terms of Service should be sent to us at: <span className="text-orange-600 font-bold">legal@sokoplus.com</span>
+            Questions about the Terms of Service should be sent to us at: <span className="text-orange-600 font-bold">legal@sokoplus.co.ke</span>
           </p>
         </section>
       </motion.div>

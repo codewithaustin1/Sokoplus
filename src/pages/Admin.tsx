@@ -5184,7 +5184,7 @@ export default function Admin({ user }: AdminProps) {
                     onClick={() => {
                       const dummyUser: UserProfile = {
                         uid: selectedViewOrder.userId,
-                        email: selectedViewOrder.userEmail || "customer@sokoplus.com",
+                        email: selectedViewOrder.userEmail || "customer@sokoplus.co.ke",
                         displayName: selectedViewOrder.shippingAddress?.fullName || selectedViewOrder.userEmail?.split("@")[0] || "Valued Customer",
                         phoneNumber: selectedViewOrder.shippingAddress?.phone || "",
                         isAdmin: false,

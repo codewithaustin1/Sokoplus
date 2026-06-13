@@ -14,7 +14,7 @@ export default function SEO({
   title, 
   description = "Sokoplus - Kenya's premium marketplace for local artisans and global quality standards.", 
   image = "/og-image.jpg", 
-  url = "https://sokoplus.com", 
+  url = "https://www.sokoplus.co.ke", 
   type = "website",
   schema
 }: SEOProps) {

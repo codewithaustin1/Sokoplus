@@ -26,7 +26,7 @@ const transporter = nodemailer.createTransport({
   port: parseInt(process.env.EMAIL_PORT || "587", 10),
   secure: process.env.EMAIL_SECURE === "true", // true for port 465, false for other ports
   auth: {
-    user: process.env.EMAIL_USER || "placeholder-crm@sokoplus.com", // Secret or environment config
+    user: process.env.EMAIL_USER || "placeholder-crm@sokoplus.co.ke", // Secret or environment config
     pass: process.env.EMAIL_PASS || "placeholder-password",
   },
 });
@@ -206,7 +206,7 @@ async function sendRecoveryEmailAndMarkSent(userId, email, cart) {
             
             <!-- Call-to-action Button -->
             <div style="text-align: center; margin-bottom: 30px; margin-top: 30px;">
-              <a href="https://sokoplus.com/cart" style="background-color: #ea580c; color: #ffffff; font-weight: bold; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase; display: inline-block; box-shadow: 0 4px 6px rgba(234, 88, 12, 0.15);">
+              <a href="https://www.sokoplus.co.ke/cart" style="background-color: #ea580c; color: #ffffff; font-weight: bold; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase; display: inline-block; box-shadow: 0 4px 6px rgba(234, 88, 12, 0.15);">
                 Return to My Cart
               </a>
             </div>
@@ -224,7 +224,7 @@ async function sendRecoveryEmailAndMarkSent(userId, email, cart) {
 
     // 1. Send simulated or actual email
     const mailOptions = {
-      from: '"SokoPlus Kenya Recovery" <no-reply@sokoplus.com>',
+      from: '"SokoPlus Kenya Recovery" <no-reply@sokoplus.co.ke>',
       to: email,
       subject: "🛒 SokoPlus: We saved your cart list for you!",
       html: emailHtmlBody,
