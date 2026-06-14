@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import axios from "axios";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
+import MarketingBanner from "../components/MarketingBanner";
 import { trackEvent } from "../lib/analytics";
 import heroImage from "../assets/images/kenyan_market_hero_1779469825593.png";
 import { FastImage } from "../components/FastImage";
@@ -471,6 +472,7 @@ export default function Home({ user }: HomeProps) {
         description="Shop the best authentic Kenyan products. From local artisans to global quality standards, Sokoplus is your home for Kenyan excellence."
         schema={homeSchema}
       />
+      <MarketingBanner />
       {/* Hero Section */}
       <section className="relative bg-orange-50 py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between">

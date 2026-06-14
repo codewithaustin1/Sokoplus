@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { auth } from "../lib/firebase";
 import { sendEmailVerification } from "firebase/auth";
-import { AlertTriangle, Mail, Loader2, CheckCircle, RefreshCcw } from "lucide-react";
+import { AlertTriangle, Mail, Loader2, CheckCircle, RefreshCcw, Clock } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Props {
@@ -12,6 +12,35 @@ export default function VerificationBanner({ email }: Props) {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [sent, setSent] = useState(false);
+  const [timeLeft, setTimeLeft] = useState("02:00:00");
+
+  useEffect(() => {
+    let expiry = localStorage.getItem("sokoplus_verification_bonus_expires");
+    if (!expiry) {
+      const now = new Date();
+      now.setHours(now.getHours() + 2); // 2 hours countdown
+      expiry = now.toISOString();
+      localStorage.setItem("sokoplus_verification_bonus_expires", expiry);
+    }
+
+    const updateTimer = () => {
+      const diff = new Date(expiry!).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft("00:00:00");
+        return;
+      }
+      const hrs = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const mins = Math.floor((diff / (1000 * 60)) % 60);
+      const secs = Math.floor((diff / 1000) % 60);
+      setTimeLeft(
+        `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
+      );
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleResend = async () => {
     if (!auth.currentUser) return;
@@ -54,8 +83,18 @@ export default function VerificationBanner({ email }: Props) {
             <AlertTriangle size={20} />
           </div>
           <div>
-            <p className="text-sm font-bold text-orange-950 uppercase tracking-tight">Email Verification Required</p>
-            <p className="text-xs text-orange-800">Please verify your email ({email}) to unlock all features like ordering and wishlist.</p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="text-sm font-bold text-orange-950 uppercase tracking-tight">Email Verification Required</p>
+              {timeLeft !== "00:00:00" && (
+                <span className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-black animate-pulse border border-red-200">
+                  <Clock size={10} className="text-red-600" />
+                  BONUS EXPIRES: {timeLeft}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-orange-850">
+              Please verify your email ({email}) within the active seasonal slot to claim a 10% welcome cashback and unlock ordering or wishlists.
+            </p>
           </div>
         </div>
         

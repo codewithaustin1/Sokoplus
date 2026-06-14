@@ -55,6 +55,8 @@ import {
   Check,
   CheckCheck,
   Sparkles,
+  Megaphone,
+  Calendar,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -542,7 +544,7 @@ export default function Admin({ user }: AdminProps) {
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics"
+    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing"
   >("inventory");
   const [biDateRangeFilter, setBiDateRangeFilter] = useState<"all" | "today" | "7d" | "30d" | "90d" | "ytd">("all");
   const [biCategoryFilter, setBiCategoryFilter] = useState<string>("all");
@@ -563,6 +565,61 @@ export default function Admin({ user }: AdminProps) {
   const [productSortBy, setProductSortBy] = useState<string>("default");
   const [loading, setLoading] = useState(true);
   const [trendsPeriod, setTrendsPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
+  
+  // Marketing Campaigns & CRM Automation States
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [campaignTitle, setCampaignTitle] = useState("");
+  const [campaignMessage, setCampaignMessage] = useState("");
+  const [campaignChannel, setCampaignChannel] = useState<"email" | "push" | "both">("both");
+  const [campaignTargetType, setCampaignTargetType] = useState<string>("all");
+  const [campaignProductId, setCampaignProductId] = useState("");
+  const [campaignCategory, setCampaignCategory] = useState("");
+  const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
+
+  const [editingCampaign, setEditingCampaign] = useState<any | null>(null);
+  const [showCampaignEditModal, setShowCampaignEditModal] = useState(false);
+  const [editCampaignTitle, setEditCampaignTitle] = useState("");
+  const [editCampaignMessage, setEditCampaignMessage] = useState("");
+  const [editCampaignChannel, setEditCampaignChannel] = useState<"email" | "push" | "both">("both");
+  const [editCampaignTargetType, setEditCampaignTargetType] = useState<string>("all");
+  const [editCampaignProductId, setEditCampaignProductId] = useState("");
+  const [editCampaignCategory, setEditCampaignCategory] = useState("");
+  const [isUpdatingCampaign, setIsUpdatingCampaign] = useState(false);
+
+  // Marketing Banner Management States
+  const [marketingBanners, setMarketingBanners] = useState<any[]>([]);
+  const [bannerText, setBannerText] = useState("");
+  const [bannerBackgroundColor, setBannerBackgroundColor] = useState("sunset");
+  const [bannerTextColor, setBannerTextColor] = useState("text-white");
+  const [bannerStartDate, setBannerStartDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split("T")[0]; // default to today
+  });
+  const [bannerEndDate, setBannerEndDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 7); // default to 7 days from now
+    return tomorrow.toISOString().split("T")[0];
+  });
+  const [bannerActive, setBannerActive] = useState(true);
+  const [bannerActionText, setBannerActionText] = useState("");
+  const [bannerActionUrl, setBannerActionUrl] = useState("");
+  const [bannerClosable, setBannerClosable] = useState(true);
+  const [isCreatingBanner, setIsCreatingBanner] = useState(false);
+
+  // Banner Editing States
+  const [editingBanner, setEditingBanner] = useState<any | null>(null);
+  const [showBannerEditModal, setShowBannerEditModal] = useState(false);
+  const [editBannerText, setEditBannerText] = useState("");
+  const [editBannerBackgroundColor, setEditBannerBackgroundColor] = useState("sunset");
+  const [editBannerTextColor, setEditBannerTextColor] = useState("text-white");
+  const [editBannerStartDate, setEditBannerStartDate] = useState("");
+  const [editBannerEndDate, setEditBannerEndDate] = useState("");
+  const [editBannerActive, setEditBannerActive] = useState(true);
+  const [editBannerActionText, setEditBannerActionText] = useState("");
+  const [editBannerActionUrl, setEditBannerActionUrl] = useState("");
+  const [editBannerClosable, setEditBannerClosable] = useState(true);
+  const [isUpdatingBanner, setIsUpdatingBanner] = useState(false);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -763,6 +820,28 @@ export default function Admin({ user }: AdminProps) {
         );
       } catch (careersError) {
         console.warn("Could not retrieve careers data: ", careersError);
+      }
+
+      try {
+        const mcSnap = await getDocs(
+          query(collection(db, "marketing_campaigns"), orderBy("createdAt", "desc"))
+        );
+        setCampaigns(
+          mcSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        );
+      } catch (mcError) {
+        console.warn("Could not retrieve marketing campaigns: ", mcError);
+      }
+
+      try {
+        const mbSnap = await getDocs(
+          query(collection(db, "marketing_banners"), orderBy("createdAt", "desc"))
+        );
+        setMarketingBanners(
+          mbSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        );
+      } catch (mbError) {
+        console.warn("Could not retrieve marketing banners: ", mbError);
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, "products/orders");
@@ -1202,6 +1281,186 @@ export default function Admin({ user }: AdminProps) {
         OperationType.UPDATE,
         `support_tickets/${ticketId}`,
       );
+    }
+  };
+
+  const handleStartEditCampaign = (camp: any) => {
+    setEditingCampaign(camp);
+    setEditCampaignTitle(camp.title || "");
+    setEditCampaignMessage(camp.message || "");
+    setEditCampaignChannel(camp.channel || "both");
+    setEditCampaignTargetType(camp.targetCriteria?.type || "all");
+    setEditCampaignProductId(camp.targetCriteria?.productId || "");
+    setEditCampaignCategory(camp.targetCriteria?.category || "");
+    setShowCampaignEditModal(true);
+  };
+
+  const handleUpdateCampaign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCampaign) return;
+    if (!editCampaignTitle.trim() || !editCampaignMessage.trim()) {
+      toast.error("Please provide both a campaign title and content body message.");
+      return;
+    }
+
+    setIsUpdatingCampaign(true);
+    try {
+      const campaignRef = doc(db, "marketing_campaigns", editingCampaign.id);
+      await updateDoc(campaignRef, {
+        title: editCampaignTitle,
+        message: editCampaignMessage,
+        channel: editCampaignChannel,
+        targetCriteria: {
+          type: editCampaignTargetType,
+          productId: editCampaignTargetType.endsWith("_product") ? editCampaignProductId : null,
+          category: editCampaignTargetType.endsWith("_category") ? editCampaignCategory : null
+        },
+        updatedAt: new Date().toISOString()
+      });
+
+      toast.success("Campaign updated successfully!");
+      setShowCampaignEditModal(false);
+      setEditingCampaign(null);
+      await fetchData();
+    } catch (err: any) {
+      toast.error(`Error updating campaign: ${err.message || err}`);
+      console.error(err);
+    } finally {
+      setIsUpdatingCampaign(false);
+    }
+  };
+
+  const handleDeleteCampaign = async (campaignId: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this marketing campaign? This action cannot be undone.")) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, "marketing_campaigns", campaignId));
+      toast.success("Campaign deleted successfully!");
+      await fetchData();
+    } catch (err: any) {
+      toast.error(`Error deleting campaign: ${err.message || err}`);
+      console.error(err);
+    }
+  };
+
+  const handleAddBanner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bannerText.trim()) {
+      toast.error("Please enter a valid message for the banner.");
+      return;
+    }
+    if (!bannerStartDate || !bannerEndDate) {
+      toast.error("An active date range is required.");
+      return;
+    }
+    if (new Date(bannerStartDate) > new Date(bannerEndDate)) {
+      toast.error("The start date must fall before the end date.");
+      return;
+    }
+
+    setIsCreatingBanner(true);
+    try {
+      const bannerPayload = {
+        text: bannerText.trim(),
+        backgroundColor: bannerBackgroundColor,
+        textColor: bannerTextColor,
+        startDate: new Date(bannerStartDate).toISOString(),
+        endDate: new Date(bannerEndDate).toISOString(),
+        active: bannerActive,
+        actionText: bannerActionText.trim() || null,
+        actionUrl: bannerActionUrl.trim() || null,
+        closable: bannerClosable,
+        createdAt: new Date().toISOString(),
+        createdBy: user?.email || "Admin"
+      };
+
+      await addDoc(collection(db, "marketing_banners"), bannerPayload);
+      toast.success("Website Promotional Banner created successfully!", { icon: "🎉" });
+      
+      // Reset banner fields
+      setBannerText("");
+      setBannerActionText("");
+      setBannerActionUrl("");
+      
+      await fetchData();
+    } catch (err: any) {
+      toast.error(`Error creating banner: ${err.message || err}`);
+      console.error(err);
+    } finally {
+      setIsCreatingBanner(false);
+    }
+  };
+
+  const handleStartEditBanner = (bnDoc: any) => {
+    setEditingBanner(bnDoc);
+    setEditBannerText(bnDoc.text || "");
+    setEditBannerBackgroundColor(bnDoc.backgroundColor || "sunset");
+    setEditBannerTextColor(bnDoc.textColor || "text-white");
+    setEditBannerStartDate(bnDoc.startDate ? bnDoc.startDate.split("T")[0] : "");
+    setEditBannerEndDate(bnDoc.endDate ? bnDoc.endDate.split("T")[0] : "");
+    setEditBannerActive(bnDoc.active !== false);
+    setEditBannerActionText(bnDoc.actionText || "");
+    setEditBannerActionUrl(bnDoc.actionUrl || "");
+    setEditBannerClosable(bnDoc.closable !== false);
+    setShowBannerEditModal(true);
+  };
+
+  const handleUpdateBanner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBanner) return;
+    if (!editBannerText.trim()) {
+      toast.error("Please enter a valid message for the banner.");
+      return;
+    }
+    if (!editBannerStartDate || !editBannerEndDate) {
+      toast.error("An active date range is required.");
+      return;
+    }
+    if (new Date(editBannerStartDate) > new Date(editBannerEndDate)) {
+      toast.error("The start date must fall before the end date.");
+      return;
+    }
+
+    setIsUpdatingBanner(true);
+    try {
+      const bannerRef = doc(db, "marketing_banners", editingBanner.id);
+      await updateDoc(bannerRef, {
+        text: editBannerText.trim(),
+        backgroundColor: editBannerBackgroundColor,
+        textColor: editBannerTextColor,
+        startDate: new Date(editBannerStartDate).toISOString(),
+        endDate: new Date(editBannerEndDate).toISOString(),
+        active: editBannerActive,
+        actionText: editBannerActionText.trim() || null,
+        actionUrl: editBannerActionUrl.trim() || null,
+        closable: editBannerClosable,
+        updatedAt: new Date().toISOString()
+      });
+
+      toast.success("Promotional banner updated successfully!");
+      setShowBannerEditModal(false);
+      setEditingBanner(null);
+      await fetchData();
+    } catch (err: any) {
+      toast.error(`Error updating banner: ${err.message || err}`);
+      console.error(err);
+    } finally {
+      setIsUpdatingBanner(false);
+    }
+  };
+
+  const handleDeleteBanner = async (bannerId: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this promotional banner? This cannot be undone.")) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, "marketing_banners", bannerId));
+      toast.success("Promotional banner deleted successfully!");
+      await fetchData();
+    } catch (err: any) {
+      toast.error(`Error deleting banner: ${err.message || err}`);
+      console.error(err);
     }
   };
 
@@ -2366,6 +2625,12 @@ export default function Admin({ user }: AdminProps) {
           className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "settings" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
         >
           Admin Settings
+        </button>
+        <button
+          onClick={() => setActiveTab("marketing")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "marketing" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          Marketing & CRM
         </button>
         <button
           onClick={() => setActiveTab("careers")}
@@ -5038,6 +5303,725 @@ export default function Admin({ user }: AdminProps) {
         <SecurityManager user={user} />
       )}
 
+      {activeTab === "marketing" && (
+        <div className="space-y-8 animate-fade-in text-gray-950 font-sans">
+          {/* Header & Stats Banner */}
+          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <span className="text-[10px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100/50">
+                  CRM Marketing Automation
+                </span>
+                <h1 className="text-3xl font-black text-gray-950 tracking-tight mt-3">
+                  Targeted Marketing Campaigns
+                </h1>
+                <p className="text-sm text-gray-500 font-medium mt-1">
+                  Send high-conversion, behavior-triggered push alerts and email newsletters based on cart contents or wishlists.
+                </p>
+              </div>
+            </div>
+
+            {/* Micro Stats Indicators */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
+              <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Campaigns</p>
+                <p className="text-2xl font-black text-gray-900 mt-1">{campaigns.length}</p>
+              </div>
+              <div className="p-5 bg-green-50/50 rounded-2xl border border-green-100/30">
+                <p className="text-xs font-bold text-green-700/70 uppercase tracking-wider">Completed Sends</p>
+                <p className="text-2xl font-black text-green-700 mt-1">
+                  {campaigns.filter((c) => c.status === "completed").length}
+                </p>
+              </div>
+              <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100/30">
+                <p className="text-xs font-bold text-blue-700/70 uppercase tracking-wider">Processing / Pending</p>
+                <p className="text-2xl font-black text-blue-700 mt-1">
+                  {campaigns.filter((c) => c.status === "processing" || c.status === "pending").length}
+                </p>
+              </div>
+              <div className="p-5 bg-orange-50/50 rounded-2xl border border-orange-100/30">
+                <p className="text-xs font-bold text-orange-700/70 uppercase tracking-wider">Recipients Reached</p>
+                <p className="text-2xl font-black text-orange-700 mt-1">
+                  {campaigns.reduce((acc, curr) => acc + (curr.sentCount || 0), 0).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Column: Create Campaign Form */}
+            <div className="lg:col-span-5 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6 h-fit">
+              <div>
+                <h2 className="text-xl font-black text-gray-950 tracking-tight">Create Campaign</h2>
+                <p className="text-xs text-gray-400 mt-1 font-semibold">Define your audience, message details and launch instantly.</p>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!campaignTitle.trim() || !campaignMessage.trim()) {
+                    toast.error("Please provide both a campaign title and content body message.");
+                    return;
+                  }
+
+                  setIsCreatingCampaign(true);
+                  try {
+                    // Create Firestore document
+                    const campaignPayload = {
+                      title: campaignTitle,
+                      message: campaignMessage,
+                      channel: campaignChannel,
+                      status: "pending",
+                      targetCriteria: {
+                        type: campaignTargetType,
+                        productId: campaignProductId || null,
+                        category: campaignCategory || null
+                      },
+                      createdAt: new Date().toISOString(),
+                      createdBy: user?.email || "Admin"
+                    };
+
+                    const docRef = await addDoc(collection(db, "marketing_campaigns"), campaignPayload);
+                    toast.success("Marketing campaign registered. Launching background engine...");
+
+                    // Trigger the express endpoint immediately for instant dev execution & feedback
+                    const response = await fetch("/api/admin/marketing/trigger", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({ campaignId: docRef.id })
+                    });
+
+                    if (response.ok) {
+                      const resData = await response.json();
+                      if (resData.bypassToClient) {
+                        toast("Sandbox developer environment detected. Executing targeting algorithm in secure browser context...", {
+                          icon: "ℹ️"
+                        });
+                        
+                        // Fetch all users & carts client-side with full admin entitlements
+                        const [usersSnap, cartsSnap] = await Promise.all([
+                          getDocs(collection(db, "users")),
+                          getDocs(collection(db, "carts"))
+                        ]);
+                        
+                        const allUsers: any[] = [];
+                        usersSnap.forEach((d) => {
+                          const data = d.data();
+                          allUsers.push({
+                            uid: d.id,
+                            email: data.email || null,
+                            displayName: data.displayName || "Valued Customer",
+                            wishlist: data.wishlist || []
+                          });
+                        });
+                        
+                        const allCarts: any[] = [];
+                        cartsSnap.forEach((d) => {
+                          const data = d.data();
+                          allCarts.push({
+                            userId: d.id,
+                            email: data.email || null,
+                            items: data.items || []
+                          });
+                        });
+                        
+                        const criteriaType = campaignTargetType;
+                        let targetUsers: any[] = [];
+                        
+                        if (criteriaType === "all") {
+                          targetUsers = allUsers.filter((u) => u.email);
+                        } else if (criteriaType === "wishlist_nonempty") {
+                          targetUsers = allUsers.filter((u) => u.email && u.wishlist && u.wishlist.length > 0);
+                        } else if (criteriaType === "wishlist_product") {
+                          targetUsers = allUsers.filter((u) => u.email && u.wishlist && u.wishlist.includes(campaignProductId));
+                        } else if (criteriaType === "wishlist_category") {
+                          const productIdsInCategory = products
+                            .filter((p) => p.category === campaignCategory)
+                            .map((p) => p.id);
+                          targetUsers = allUsers.filter((u) => 
+                            u.email && 
+                            u.wishlist && 
+                            u.wishlist.some((pId: string) => productIdsInCategory.includes(pId))
+                          );
+                        } else if (criteriaType === "cart_nonempty") {
+                          const userIdsWithCartsSet = new Set(allCarts.filter((c) => c.items && c.items.length > 0).map((c) => c.userId));
+                          targetUsers = allUsers.filter((u) => u.email && userIdsWithCartsSet.has(u.uid));
+                        } else if (criteriaType === "cart_product") {
+                          const userIdsWithCartProdSet = new Set(
+                            allCarts.filter((c) => c.items && c.items.some((item: any) => item.productId === campaignProductId)).map((c) => c.userId)
+                          );
+                          targetUsers = allUsers.filter((u) => u.email && userIdsWithCartProdSet.has(u.uid));
+                        } else if (criteriaType === "cart_category") {
+                          const productIdsInCategory = new Set(
+                            products.filter((p) => p.category === campaignCategory).map((p) => p.id)
+                          );
+                          const userIdsWithCartCatSet = new Set(
+                            allCarts.filter((c) => c.items && c.items.some((item: any) => productIdsInCategory.has(item.productId))).map((c) => c.userId)
+                          );
+                          targetUsers = allUsers.filter((u) => u.email && userIdsWithCartCatSet.has(u.uid));
+                        }
+                        
+                        let sendCount = 0;
+                        const deliveryPromises: Promise<any>[] = [];
+                        
+                        for (const targetUser of targetUsers) {
+                          if (campaignChannel === "email" || campaignChannel === "both") {
+                            sendCount++;
+                          }
+                          if (campaignChannel === "push" || campaignChannel === "both") {
+                            const notifPromise = addDoc(collection(db, "users", targetUser.uid, "notifications"), {
+                              title: campaignTitle,
+                              body: campaignMessage,
+                              read: false,
+                              createdAt: new Date().toISOString(),
+                              campaignId: docRef.id,
+                              type: "marketing"
+                            }).then(() => {
+                              if (campaignChannel === "push") {
+                                sendCount++;
+                              }
+                            }).catch((err) => {
+                              console.error("Push notify error inside client fallback", err);
+                            });
+                            deliveryPromises.push(notifPromise);
+                          }
+                        }
+                        
+                        await Promise.all(deliveryPromises);
+                        
+                        // Complete campaign document on client side
+                        await updateDoc(doc(db, "marketing_campaigns", docRef.id), {
+                          status: "completed",
+                          sentCount: sendCount,
+                          completedAt: new Date().toISOString()
+                        });
+                        
+                        toast.success(`Development Sandbox Broadcast Success! Dispatched notifications & simulated emails. Targeted: ${targetUsers.length}.`, {
+                          icon: "🚀",
+                          duration: 6000
+                        });
+                      } else {
+                        toast.success(`Success! Campaign launched. Targeted ${resData.targetedCount} recipients.`, {
+                          icon: "🚀",
+                          duration: 6000
+                        });
+                      }
+                    } else {
+                      console.warn("Express direct engine trigger bypassed or failed, waiting for Cloud Function execution.");
+                    }
+
+                    // Reset form and refresh list
+                    setCampaignTitle("");
+                    setCampaignMessage("");
+                    setCampaignTargetType("all");
+                    setCampaignProductId("");
+                    setCampaignCategory("");
+                    
+                    // Refresh data
+                    await fetchData();
+
+                  } catch (err: any) {
+                    toast.error(`Error launching campaign: ${err.message || err}`);
+                    console.error(err);
+                  } finally {
+                    setIsCreatingCampaign(false);
+                  }
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Campaign Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 20% off all artisan craft sculptures!"
+                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-gray-950"
+                    value={campaignTitle}
+                    onChange={(e) => setCampaignTitle(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Delivery Channel</label>
+                    <select
+                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                      value={campaignChannel}
+                      onChange={(e: any) => setCampaignChannel(e.target.value)}
+                    >
+                      <option value="both">Both (Email & Push)</option>
+                      <option value="email">Email Only</option>
+                      <option value="push">Live Push Alert Only</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Target Audience</label>
+                    <select
+                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                      value={campaignTargetType}
+                      onChange={(e) => setCampaignTargetType(e.target.value)}
+                    >
+                      <option value="all">All Register Users</option>
+                      <option value="wishlist_nonempty">Any Item in Wishlist</option>
+                      <option value="wishlist_product">Specific Item in Wishlist</option>
+                      <option value="wishlist_category">Specific Category in Wishlist</option>
+                      <option value="cart_nonempty">Any Item inside Active Cart</option>
+                      <option value="cart_product">Specific Item in Cart</option>
+                      <option value="cart_category">Specific Category in Cart</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Dynamic selector inputs depending on target selection */}
+                {campaignTargetType.endsWith("_product") && (
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Select Specific Product</label>
+                    <select
+                      required
+                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                      value={campaignProductId}
+                      onChange={(e) => setCampaignProductId(e.target.value)}
+                    >
+                      <option value="">-- Choose target product --</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name} (KES {p.price})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {campaignTargetType.endsWith("_category") && (
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Select Specific Category</label>
+                    <select
+                      required
+                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                      value={campaignCategory}
+                      onChange={(e) => setCampaignCategory(e.target.value)}
+                    >
+                      <option value="">-- Choose target category --</option>
+                      {Array.from(new Set(products.map((p) => p.category))).map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Broadcast Message Content</label>
+                  <textarea
+                    required
+                    rows={6}
+                    placeholder="Write a personalized, high-converting message. Try adding localized details! e.g. 'Habari Gani! We noticed you saved this beautiful handcrafted item in your wishlist. Order today and enjoy same-day delivery across Nairobi!'"
+                    className="w-full p-4 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-medium leading-relaxed resize-none shadow-sm"
+                    value={campaignMessage}
+                    onChange={(e) => setCampaignMessage(e.target.value)}
+                  />
+                  <p className="text-[10px] text-gray-400 font-semibold italic mt-1">Supports plain text with paragraphs. This message is converted dynamically for email templates.</p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isCreatingCampaign}
+                  className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-200 disabled:text-gray-400 active:scale-98 text-white text-xs font-black uppercase tracking-wider py-4 px-4 rounded-xl transition-all shadow-lg shadow-orange-600/10 cursor-pointer"
+                >
+                  {isCreatingCampaign ? "Broadcasting Audience Updates..." : "🚀 Launch Campaign Now"}
+                </button>
+              </form>
+            </div>
+
+            {/* Right Column: Historical Campaigns List */}
+            <div className="lg:col-span-7 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+              <div>
+                <h2 className="text-xl font-black text-gray-950 tracking-tight">Campaign Dispatch Log</h2>
+                <p className="text-xs text-gray-400 mt-1 font-semibold">Track historical CRM performance metrics and campaign delivery statuses.</p>
+              </div>
+
+              <div className="overflow-x-auto border border-gray-100 rounded-2xl">
+                {campaigns.length === 0 ? (
+                  <div className="p-12 text-center text-gray-400 font-medium">
+                    No marketing campaigns dispatched yet. Launch your first targeted newsletter above!
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                        <th className="p-4">Target Criteria</th>
+                        <th className="p-4">Message Body</th>
+                        <th className="p-4">Channel</th>
+                        <th className="p-4 text-center">Recipients</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-xs text-gray-600">
+                      {campaigns.map((camp) => {
+                        const dateFormatted = camp.createdAt 
+                          ? new Date(camp.createdAt).toLocaleDateString("en-KE", { 
+                              day: "numeric", 
+                              month: "short", 
+                              hour: "2-digit", 
+                              minute: "2-digit" 
+                            })
+                          : "Unknown time";
+
+                        return (
+                          <tr key={camp.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="p-4 font-black text-gray-950 space-y-1">
+                              <p className="mb-0.5 tracking-tight font-black text-gray-900">{camp.title}</p>
+                              <div className="flex flex-wrap gap-1">
+                                <span className="inline-block text-[9px] font-extrabold uppercase bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full border border-orange-100/30">
+                                  {camp.targetCriteria?.type || "all"}
+                                </span>
+                                {camp.targetCriteria?.category && (
+                                  <span className="inline-block text-[9px] font-bold bg-gray-50 text-gray-500 px-2 py-0.5 rounded-full">
+                                    {camp.targetCriteria.category}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[9px] text-gray-400 font-semibold">{dateFormatted}</p>
+                            </td>
+                            <td className="p-4 max-w-xs font-medium text-gray-500 line-clamp-2">
+                              {camp.message}
+                            </td>
+                            <td className="p-4 font-extrabold uppercase text-[10px] text-gray-500">
+                              {camp.channel === "both" ? "Email & Push" : camp.channel}
+                            </td>
+                            <td className="p-4 text-center font-black text-sm text-gray-900">
+                              {camp.sentCount || 0}
+                            </td>
+                            <td className="p-4">
+                              <span className={`inline-flex items-center gap-1 text-[10px] tracking-wider uppercase font-extrabold px-2.5 py-1 rounded-full ${
+                                camp.status === "completed"
+                                  ? "bg-green-100 text-green-700"
+                                  : camp.status === "processing"
+                                    ? "bg-blue-100 text-blue-700 animate-pulse"
+                                    : camp.status === "failed"
+                                      ? "bg-red-100 text-red-700"
+                                      : "bg-gray-100 text-gray-600"
+                              }`}>
+                                {camp.status === "processing" && <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" />}
+                                {camp.status || "pending"}
+                              </span>
+                              {camp.error && (
+                                <p className="text-[9px] text-red-500 font-bold mt-1 max-w-[150px] leading-tight break-words">
+                                  Error: {camp.error}
+                                </p>
+                              )}
+                            </td>
+                            <td className="p-4 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleStartEditCampaign(camp)}
+                                  className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Edit Campaign Details"
+                                >
+                                  <Pencil size={15} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCampaign(camp.id)}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Delete Campaign"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-150 my-10" />
+
+          {/* Website Promotional Banners Section */}
+          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+            <div>
+              <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100/50">
+                Home Page Media & Promotions
+              </span>
+              <h2 className="text-2xl font-black text-gray-950 tracking-tight mt-3">
+                Promotional Display Banners
+              </h2>
+              <p className="text-sm text-gray-500 font-medium mt-1">
+                Configure and schedule customizable, top-of-the-page web banners with solid or gradient themes, CTAs, and precise active date ranges.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Column: Create Banner Form */}
+            <div className="lg:col-span-5 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6 h-fit">
+              <div>
+                <h3 className="text-lg font-black text-gray-950 tracking-tight">Configure New Banner</h3>
+                <p className="text-xs text-gray-400 mt-1 font-semibold">Design a new high-visibility display banner.</p>
+              </div>
+
+              <form onSubmit={handleAddBanner} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Banner Message text</label>
+                  <textarea
+                    required
+                    rows={3}
+                    placeholder="e.g. 🎉 20% off all artisan craft sculptures this weekend only! Use code CRAFT20"
+                    className="w-full p-3.5 bg-gray-55 border border-gray-150 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-medium leading-relaxed resize-none shadow-sm text-gray-950"
+                    value={bannerText}
+                    onChange={(e) => setBannerText(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Background Style</label>
+                    <select
+                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                      value={bannerBackgroundColor}
+                      onChange={(e) => setBannerBackgroundColor(e.target.value)}
+                    >
+                      <option value="sunset">Sunset Orange Gradient</option>
+                      <option value="forest">Forest Teal Gradient</option>
+                      <option value="ocean">Ocean Indigo Gradient</option>
+                      <option value="royal">Royal Purple Gradient</option>
+                      <option value="charcoal">Charcoal Dark Gradient</option>
+                      <option value="gold">Amber Gold Gradient</option>
+                      <option value="festive">Festive Red Gradient</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Text Color</label>
+                    <select
+                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                      value={bannerTextColor}
+                      onChange={(e) => setBannerTextColor(e.target.value)}
+                    >
+                      <option value="text-white">White Text</option>
+                      <option value="text-amber-100">Warm Amber Text</option>
+                      <option value="text-orange-100">Orange tint Text</option>
+                      <option value="text-green-100">Mint tint Text</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Active Start Date</label>
+                    <input
+                      type="date"
+                      required
+                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                      value={bannerStartDate}
+                      onChange={(e) => setBannerStartDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Expiry End Date</label>
+                    <input
+                      type="date"
+                      required
+                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                      value={bannerEndDate}
+                      onChange={(e) => setBannerEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Action Button Text</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Shop Now"
+                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-gray-950"
+                      value={bannerActionText}
+                      onChange={(e) => setBannerActionText(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Action Route/URL</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. /checkout or /?search=craft"
+                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-gray-950"
+                      value={bannerActionUrl}
+                      onChange={(e) => setBannerActionUrl(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="bannerActiveCheckbox"
+                      className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 w-4.5 h-4.5 cursor-pointer accent-orange-600"
+                      checked={bannerActive}
+                      onChange={(e) => setBannerActive(e.target.checked)}
+                    />
+                    <label htmlFor="bannerActiveCheckbox" className="text-xs font-black text-gray-600 uppercase tracking-tight cursor-pointer select-none">
+                      Initially Active
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="bannerClosableCheckbox"
+                      className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 w-4.5 h-4.5 cursor-pointer accent-orange-600"
+                      checked={bannerClosable}
+                      onChange={(e) => setBannerClosable(e.target.checked)}
+                    />
+                    <label htmlFor="bannerClosableCheckbox" className="text-xs font-black text-gray-600 uppercase tracking-tight cursor-pointer select-none">
+                      Dismissable (Closable)
+                    </label>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isCreatingBanner}
+                    className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs font-black uppercase tracking-wider py-4 rounded-2xl transition-all shadow-lg shadow-orange-600/10 cursor-pointer active:scale-98"
+                  >
+                    {isCreatingBanner ? "Saving Promotional Banner..." : "Launch Promotional Banner"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Right Column: Displays Active & Scheduled Banners */}
+            <div className="lg:col-span-7 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+              <div>
+                <h3 className="text-lg font-black text-gray-950 tracking-tight">Active & Scheduled Banners</h3>
+                <p className="text-xs text-gray-400 mt-1 font-semibold font-sans">
+                  List of current and scheduled web promotional banners. Users see banners matching the active date window.
+                </p>
+              </div>
+
+              <div className="overflow-x-auto rounded-3xl border border-gray-100">
+                {marketingBanners.length === 0 ? (
+                  <div className="p-12 text-center text-gray-400 font-sans">
+                    <Megaphone className="mx-auto mb-3 text-gray-300" size={32} />
+                    <p className="text-xs font-bold uppercase tracking-wider">No promotional banners exist yet</p>
+                    <p className="text-xs font-medium text-gray-400 mt-1">Configure your first website display banner above.</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse shrink-0 font-sans">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase font-black tracking-wider text-gray-400">
+                        <th className="p-4">Visual Theme / Text</th>
+                        <th className="p-4">Active Date Schedule</th>
+                        <th className="p-4">CTA Route</th>
+                        <th className="p-4 text-center">Status</th>
+                        <th className="p-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-xs text-gray-600">
+                      {marketingBanners.map((bn) => {
+                        const bgPresetLabel = bn.backgroundColor || "sunset";
+                        const startDateStr = bn.startDate ? new Date(bn.startDate).toLocaleDateString("en-KE") : "-";
+                        const endDateStr = bn.endDate ? new Date(bn.endDate).toLocaleDateString("en-KE") : "-";
+                        
+                        const isCurrentlyActiveSchedule = () => {
+                          if (bn.active !== true) return false;
+                          const now = new Date();
+                          return new Date(bn.startDate) <= now && new Date(bn.endDate) >= now;
+                        };
+
+                        const isUpcomingSchedule = () => {
+                          if (bn.active !== true) return false;
+                          const now = new Date();
+                          return new Date(bn.startDate) > now;
+                        };
+
+                        return (
+                          <tr key={bn.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="p-4 space-y-1.5 font-bold">
+                              <p className="text-gray-900 tracking-tight font-black leading-snug">{bn.text}</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                <span className="inline-flex items-center text-[9px] font-extrabold uppercase bg-gray-150 text-gray-700 px-2 py-0.5 rounded-full border border-gray-200">
+                                  Preset: {bgPresetLabel}
+                                </span>
+                                {bn.closable === false && (
+                                  <span className="inline-flex items-center text-[9px] font-extrabold uppercase bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-100">
+                                    Permanent Banner
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4 font-semibold text-gray-500 text-left whitespace-nowrap">
+                              <div className="flex items-center gap-1">
+                                <Calendar size={12} className="text-gray-400" />
+                                <span>{startDateStr} - {endDateStr}</span>
+                              </div>
+                            </td>
+                            <td className="p-4 text-left font-semibold">
+                              {bn.actionText ? (
+                                <div className="space-y-0.5">
+                                  <p className="text-gray-900 font-bold">{bn.actionText}</p>
+                                  <p className="text-[10px] text-gray-400 font-mono italic">{bn.actionUrl || "/"}</p>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 font-medium">None</span>
+                              )}
+                            </td>
+                            <td className="p-4 text-center">
+                              {isCurrentlyActiveSchedule() ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] tracking-wider uppercase font-extrabold bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
+                                  <div className="w-1.5 h-1.5 bg-green-600 rounded-full animate-ping" />
+                                  Live Display
+                                </span>
+                              ) : isUpcomingSchedule() ? (
+                                <span className="inline-flex items-center text-[10px] tracking-wider uppercase font-extrabold bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full border border-blue-100">
+                                  Scheduled
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center text-[10px] tracking-wider uppercase font-extrabold bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">
+                                  Inactive
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-4 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleStartEditBanner(bn)}
+                                  className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Edit Banner Settings"
+                                >
+                                  <Pencil size={15} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteBanner(bn.id)}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Delete Banner"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* View Order Details Modal */}
       {selectedViewOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm animate-fade-in">
@@ -5207,6 +6191,317 @@ export default function Admin({ user }: AdminProps) {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Marketing Campaign Modal */}
+      {showCampaignEditModal && editingCampaign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white w-full max-w-2xl p-8 rounded-3xl shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto relative text-gray-950 font-sans">
+            {/* Close button */}
+            <button
+              onClick={() => {
+                setShowCampaignEditModal(false);
+                setEditingCampaign(null);
+              }}
+              className="absolute top-6 right-6 text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-2 rounded-2xl transition-all cursor-pointer"
+              title="Close"
+            >
+              <X size={18} />
+            </button>
+
+            <div>
+              <span className="text-[10px] font-black uppercase text-orange-600 tracking-wider bg-orange-50 px-2.5 py-1 rounded-md">
+                Campaign Settings
+              </span>
+              <h2 className="text-2xl font-black mt-2">Edit Marketing Campaign</h2>
+              <p className="text-xs text-gray-400 font-semibold mt-1">
+                Refine the campaign details, target audience, and message body.
+              </p>
+            </div>
+
+            <form onSubmit={handleUpdateCampaign} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Campaign Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 20% off all artisan craft sculptures!"
+                  className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-gray-950"
+                  value={editCampaignTitle}
+                  onChange={(e) => setEditCampaignTitle(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Delivery Channel</label>
+                  <select
+                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                    value={editCampaignChannel}
+                    onChange={(e: any) => setEditCampaignChannel(e.target.value)}
+                  >
+                    <option value="both">Both (Email & Push)</option>
+                    <option value="email">Email Only</option>
+                    <option value="push">Live Push Alert Only</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Target Audience</label>
+                  <select
+                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                    value={editCampaignTargetType}
+                    onChange={(e) => setEditCampaignTargetType(e.target.value)}
+                  >
+                    <option value="all">All Register Users</option>
+                    <option value="wishlist_nonempty">Any Item in Wishlist</option>
+                    <option value="wishlist_product">Specific Item in Wishlist</option>
+                    <option value="wishlist_category">Specific Category in Wishlist</option>
+                    <option value="cart_nonempty">Any Item inside Active Cart</option>
+                    <option value="cart_product">Specific Item in Cart</option>
+                    <option value="cart_category">Specific Category in Cart</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Dynamic selector inputs depending on target selection */}
+              {editCampaignTargetType.endsWith("_product") && (
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Select Specific Product</label>
+                  <select
+                    required
+                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                    value={editCampaignProductId}
+                    onChange={(e) => setEditCampaignProductId(e.target.value)}
+                  >
+                    <option value="">-- Choose target product --</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name} (KES {p.price})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {editCampaignTargetType.endsWith("_category") && (
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Select Specific Category</label>
+                  <select
+                    required
+                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                    value={editCampaignCategory}
+                    onChange={(e) => setEditCampaignCategory(e.target.value)}
+                  >
+                    <option value="">-- Choose target category --</option>
+                    {Array.from(new Set(products.map((p) => p.category))).map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Broadcast Message Content</label>
+                <textarea
+                  required
+                  rows={6}
+                  placeholder="Write a personalized, high-converting message..."
+                  className="w-full p-4 bg-gray-55 border border-gray-150 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-medium leading-relaxed resize-none shadow-sm"
+                  value={editCampaignMessage}
+                  onChange={(e) => setEditCampaignMessage(e.target.value)}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCampaignEditModal(false);
+                    setEditingCampaign(null);
+                  }}
+                  className="px-5 py-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingCampaign}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-200 disabled:text-gray-400 active:scale-98 text-white text-xs font-black uppercase tracking-wider py-3 px-6 rounded-2xl transition-all shadow-lg shadow-orange-600/10 cursor-pointer"
+                >
+                  {isUpdatingCampaign ? "Saving Changes..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Marketing Display Banner Modal */}
+      {showBannerEditModal && editingBanner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white w-full max-w-2xl p-8 rounded-3xl shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto relative text-gray-950 font-sans">
+            {/* Close button */}
+            <button
+              onClick={() => {
+                setShowBannerEditModal(false);
+                setEditingBanner(null);
+              }}
+              className="absolute top-6 right-6 text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-2 rounded-2xl transition-all cursor-pointer"
+              title="Close"
+            >
+              <X size={18} />
+            </button>
+
+            <div>
+              <span className="text-[10px] font-black uppercase text-amber-600 tracking-wider bg-amber-50 px-2.5 py-1 rounded-md">
+                Banner Settings
+              </span>
+              <h2 className="text-2xl font-black mt-2">Edit Display Banner</h2>
+              <p className="text-xs text-gray-400 font-semibold mt-1">
+                Refine active seasonal promo parameters, aesthetics and action destinations.
+              </p>
+            </div>
+
+            <form onSubmit={handleUpdateBanner} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Banner Message text</label>
+                <textarea
+                  required
+                  rows={3}
+                  className="w-full p-3.5 bg-gray-55 border border-gray-150 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-medium leading-relaxed resize-none shadow-sm text-gray-950"
+                  value={editBannerText}
+                  onChange={(e) => setEditBannerText(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Background Style</label>
+                  <select
+                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-750"
+                    value={editBannerBackgroundColor}
+                    onChange={(e) => setEditBannerBackgroundColor(e.target.value)}
+                  >
+                    <option value="sunset">Sunset Orange Gradient</option>
+                    <option value="forest">Forest Teal Gradient</option>
+                    <option value="ocean">Ocean Indigo Gradient</option>
+                    <option value="royal">Royal Purple Gradient</option>
+                    <option value="charcoal">Charcoal Dark Gradient</option>
+                    <option value="gold">Amber Gold Gradient</option>
+                    <option value="festive">Festive Red Gradient</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Text Color</label>
+                  <select
+                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-750"
+                    value={editBannerTextColor}
+                    onChange={(e) => setEditBannerTextColor(e.target.value)}
+                  >
+                    <option value="text-white">White Text</option>
+                    <option value="text-amber-100">Warm Amber Text</option>
+                    <option value="text-orange-100">Orange tint Text</option>
+                    <option value="text-green-100">Mint tint Text</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Active Start Date</label>
+                  <input
+                    type="date"
+                    required
+                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                    value={editBannerStartDate}
+                    onChange={(e) => setEditBannerStartDate(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Expiry End Date</label>
+                  <input
+                    type="date"
+                    required
+                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
+                    value={editBannerEndDate}
+                    onChange={(e) => setEditBannerEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Action Button Text</label>
+                  <input
+                    type="text"
+                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-gray-950"
+                    value={editBannerActionText}
+                    onChange={(e) => setEditBannerActionText(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Action Route/URL</label>
+                  <input
+                    type="text"
+                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-gray-950"
+                    value={editBannerActionUrl}
+                    onChange={(e) => setEditBannerActionUrl(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="editBannerActiveCheckbox"
+                    className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 w-4.5 h-4.5 cursor-pointer accent-orange-600"
+                    checked={editBannerActive}
+                    onChange={(e) => setEditBannerActive(e.target.checked)}
+                  />
+                  <label htmlFor="editBannerActiveCheckbox" className="text-xs font-black text-gray-600 uppercase tracking-tight cursor-pointer select-none">
+                    Campaign is Active
+                  </label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="editBannerClosableCheckbox"
+                    className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 w-4.5 h-4.5 cursor-pointer accent-orange-600"
+                    checked={editBannerClosable}
+                    onChange={(e) => setEditBannerClosable(e.target.checked)}
+                  />
+                  <label htmlFor="editBannerClosableCheckbox" className="text-xs font-black text-gray-600 uppercase tracking-tight cursor-pointer select-none">
+                    Dismissable (Closable)
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBannerEditModal(false);
+                    setEditingBanner(null);
+                  }}
+                  className="px-5 py-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingBanner}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-200 disabled:text-gray-400 active:scale-98 text-white text-xs font-black uppercase tracking-wider py-3 px-6 rounded-2xl transition-all shadow-lg shadow-orange-600/10 cursor-pointer"
+                >
+                  {isUpdatingBanner ? "Saving Changes..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

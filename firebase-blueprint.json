@@ -269,9 +269,32 @@
         "status": { "type": "string", "enum": ["pending", "accepted"] }
       },
       "required": ["email", "permissions", "status"]
+    },
+    "MarketingBanner": {
+      "title": "MarketingBanner",
+      "description": "Customizable promotional banners displayed on the Home page with active dates and style preferences.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string", "description": "Banner content message" },
+        "backgroundColor": { "type": "string", "description": "Tailwind color class or gradient setup" },
+        "textColor": { "type": "string", "description": "Text style override color or class" },
+        "startDate": { "type": "string", "format": "date-time", "description": "Launch timestamp" },
+        "endDate": { "type": "string", "format": "date-time", "description": "Stop/expiry timestamp" },
+        "active": { "type": "boolean", "description": "Whether the banner is active" },
+        "actionText": { "type": "string", "description": "Call to action button label" },
+        "actionUrl": { "type": "string", "description": "Target address to route users" },
+        "closable": { "type": "boolean", "description": "Whether guests can dismiss the banner sessionally" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "backgroundColor", "startDate", "endDate", "active"]
     }
   },
   "firestore": {
+    "/marketing_banners": {
+      "schema": "MarketingBanner",
+      "description": "Active global promotional banners displayed on top of the Home page."
+    },
     "/admin_invitations": {
       "schema": "AdminInvitation",
       "description": "Preauthorized administrator invitations pending registration."

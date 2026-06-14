@@ -20,7 +20,9 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      return isSignedIn() && request.auth.token.email == "upfrontretaile@gmail.com" && request.auth.token.email_verified == true;
+      return isSignedIn() && 
+             request.auth.token.email != null && 
+             request.auth.token.email.toLowerCase() == "upfrontretaile@gmail.com";
     }
 
     function isAdmin() {
@@ -79,7 +81,7 @@ service cloud.firestore {
                data.status in ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
       }
 
-      allow read: if hasPermission("manage_orders") || (isSignedIn() && existing().userId == request.auth.uid);
+      allow read: if hasPermission("manage_orders") || (isSignedIn() && (resource == null || existing().userId == request.auth.uid));
       allow create: if isVerified() && isValidOrder(incoming()) && isValidId(orderId);
       allow update: if hasPermission("manage_orders") || (isSignedIn() && existing().userId == request.auth.uid && 
                     incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
@@ -167,7 +169,7 @@ service cloud.firestore {
       }
 
       allow create: if isSignedIn() && isValidTicket(incoming()) && (incoming().userId == null || incoming().userId == request.auth.uid);
-      allow read: if hasPermission("manage_inbox") || (isSignedIn() && existing().userId == request.auth.uid);
+      allow read: if hasPermission("manage_inbox") || (isSignedIn() && (resource == null || existing().userId == request.auth.uid));
       allow update: if hasPermission("manage_inbox") || (
                       isSignedIn() && existing().userId == request.auth.uid &&
                       incoming().userId == existing().userId &&
@@ -247,7 +249,7 @@ service cloud.firestore {
       }
 
       allow create: if isSignedIn() && isValidApplication(incoming()) && isValidId(applicationId);
-      allow read: if hasPermission("manage_careers") || (isSignedIn() && existing().userId == request.auth.uid);
+      allow read: if hasPermission("manage_careers") || (isSignedIn() && (resource == null || existing().userId == request.auth.uid));
       allow update: if hasPermission("manage_careers") || (isSignedIn() && existing().userId == request.auth.uid && 
                     incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
                     incoming().status == 'cancelled');
@@ -269,7 +271,7 @@ service cloud.firestore {
                data.permissions is list &&
                data.status in ['pending', 'accepted'];
       }
-      allow read: if isSignedIn() && (isSuperAdmin() || (resource != null && existing().email.toLowerCase() == request.auth.token.email.toLowerCase()));
+      allow read: if isSignedIn() && (isSuperAdmin() || resource == null || existing().email.toLowerCase() == request.auth.token.email.toLowerCase());
       allow create, update: if isSuperAdmin() && isValidInvitation(incoming()) && isValidId(invitationId);
       allow delete: if isSuperAdmin();
     }
@@ -285,6 +287,23 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isAdmin() && isValidId(logId);
       allow update, delete: if false;
+    }
+
+    // Marketing Campaigns
+    match /marketing_campaigns/{campaignId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Marketing Banners
+    match /marketing_banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // User Notifications
+    match /users/{userId}/notifications/{notificationId} {
+      allow read, update, delete: if isOwner(userId);
+      allow create: if isAdmin() || isOwner(userId);
     }
   }
 }

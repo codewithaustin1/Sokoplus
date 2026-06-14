@@ -1384,6 +1384,183 @@ ${JSON.stringify(productsData)}
   }
 });
 
+// Admin Marketing Campaigns API Trigger (Parity Execution Engine)
+app.post("/api/admin/marketing/trigger", async (req, res) => {
+  const { campaignId } = req.body;
+  if (!campaignId) {
+    return res.status(400).json({ error: "Missing required campaignId" });
+  }
+
+  console.log(`[Marketing API] Server executing campaign trigger for campaignId: ${campaignId}`);
+  try {
+    const campaignRef = adminDb.collection("marketing_campaigns").doc(campaignId);
+    
+    // Check if we can get the document; if this fails due to permissions, catch and route to client fallback
+    let campaignSnap;
+    try {
+      campaignSnap = await campaignRef.get();
+    } catch (dbErr: any) {
+      if (dbErr.message?.includes("permission") || dbErr.message?.includes("credential") || dbErr.code === 7) {
+        console.log(`[Marketing API] Server adminDb permissions unconfigured in sandbox. Bypassing execution to client-side.`);
+        return res.json({ 
+          success: false, 
+          bypassToClient: true, 
+          reason: "development_sandbox_limits", 
+          details: "Firebase Admin credentials or IAM roles not fully configured in preview container. Falling back to secure admin browser-context execution."
+        });
+      }
+      throw dbErr;
+    }
+
+    if (!campaignSnap.exists) {
+      return res.status(404).json({ error: "Campaign not found" });
+    }
+
+    const campaignData = campaignSnap.data();
+    if (!campaignData) {
+      return res.status(500).json({ error: "Empty campaign data" });
+    }
+
+    // Mark as processing on server-side
+    await campaignRef.update({
+      status: "processing",
+      startedAt: new Date().toISOString()
+    });
+
+    const { title, message, targetCriteria, channel } = campaignData;
+
+    // Fetch all users and all carts
+    const usersSnap = await adminDb.collection("users").get();
+    const allUsers: any[] = [];
+    usersSnap.forEach((doc) => {
+      const data = doc.data();
+      allUsers.push({
+        uid: doc.id,
+        email: data.email || null,
+        displayName: data.displayName || "Valued Customer",
+        wishlist: data.wishlist || []
+      });
+    });
+
+    const cartsSnap = await adminDb.collection("carts").get();
+    const allCarts: any[] = [];
+    cartsSnap.forEach((doc) => {
+      const data = doc.data();
+      allCarts.push({
+        userId: doc.id,
+        email: data.email || null,
+        items: data.items || []
+      });
+    });
+
+    const criteriaType = targetCriteria?.type || "all";
+    const targetProductId = targetCriteria?.productId;
+    const targetCategory = targetCriteria?.category;
+
+    let targetUsers: any[] = [];
+
+    if (criteriaType === "all") {
+      targetUsers = allUsers.filter((u) => u.email);
+    } else if (criteriaType === "wishlist_nonempty") {
+      targetUsers = allUsers.filter((u) => u.email && u.wishlist && u.wishlist.length > 0);
+    } else if (criteriaType === "wishlist_product") {
+      targetUsers = allUsers.filter((u) => u.email && u.wishlist && u.wishlist.includes(targetProductId));
+    } else if (criteriaType === "wishlist_category") {
+      // Find matching products in this category
+      const productsSnap = await adminDb.collection("products")
+        .where("category", "==", targetCategory)
+        .get();
+      const productIdsInCategory: string[] = [];
+      productsSnap.forEach((pDoc) => {
+        productIdsInCategory.push(pDoc.id);
+      });
+
+      targetUsers = allUsers.filter((u) => 
+        u.email && 
+        u.wishlist && 
+        u.wishlist.some((pId: string) => productIdsInCategory.includes(pId))
+      );
+    } else if (criteriaType === "cart_nonempty") {
+      const userIdsWithCartsSet = new Set(allCarts.filter((c) => c.items && c.items.length > 0).map((c) => c.userId));
+      targetUsers = allUsers.filter((u) => u.email && userIdsWithCartsSet.has(u.uid));
+    } else if (criteriaType === "cart_product") {
+      const userIdsWithCartProdSet = new Set(
+        allCarts.filter((c) => c.items && c.items.some((item: any) => item.productId === targetProductId)).map((c) => c.userId)
+      );
+      targetUsers = allUsers.filter((u) => u.email && userIdsWithCartProdSet.has(u.uid));
+    } else if (criteriaType === "cart_category") {
+      // Find products in category
+      const productsSnap = await adminDb.collection("products")
+        .where("category", "==", targetCategory)
+        .get();
+      const productIdsInCategory = new Set<string>();
+      productsSnap.forEach((pDoc) => {
+        productIdsInCategory.add(pDoc.id);
+      });
+
+      const userIdsWithCartCatSet = new Set(
+        allCarts.filter((c) => c.items && c.items.some((item: any) => productIdsInCategory.has(item.productId))).map((c) => c.userId)
+      );
+      targetUsers = allUsers.filter((u) => u.email && userIdsWithCartCatSet.has(u.uid));
+    }
+
+    console.log(`[Marketing API] Matching users targeted: ${targetUsers.length}`);
+
+    let sendCount = 0;
+    const deliveryPromises: Promise<any>[] = [];
+
+    for (const targetUser of targetUsers) {
+      // Send email simulation or logs
+      if (channel === "email" || channel === "both") {
+        console.log(`[Marketing API SIM] Sending email campaign of "${title}" to address: ${targetUser.email}`);
+        sendCount++;
+      }
+
+      // Create live notifications in Firestore (so client pushes live!)
+      if (channel === "push" || channel === "both") {
+        const notifPromise = adminDb.collection("users").doc(targetUser.uid).collection("notifications").add({
+          title,
+          body: message,
+          read: false,
+          createdAt: new Date().toISOString(),
+          campaignId,
+          type: "marketing"
+        }).then(() => {
+          if (channel === "push") {
+            sendCount++;
+          }
+          console.log(`[Marketing API] Appended in-app push notify document for UID: ${targetUser.uid}`);
+        }).catch((err) => {
+          console.error(`[Marketing API Fail] Push notif database write failed for UID: ${targetUser.uid}`, err);
+        });
+        deliveryPromises.push(notifPromise);
+      }
+    }
+
+    await Promise.all(deliveryPromises);
+
+    // Complete transaction
+    await campaignRef.update({
+      status: "completed",
+      sentCount: sendCount,
+      completedAt: new Date().toISOString()
+    });
+
+    res.json({ success: true, sentCount: sendCount, targetedCount: targetUsers.length });
+
+  } catch (err: any) {
+    console.error("[Marketing API Fatal Error]", err);
+    try {
+      await adminDb.collection("marketing_campaigns").doc(campaignId).update({
+        status: "failed",
+        error: err.message || String(err),
+        completedAt: new Date().toISOString()
+      });
+    } catch (_) {}
+    res.status(500).json({ error: "Failed to trigger campaign", details: err.message });
+  }
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

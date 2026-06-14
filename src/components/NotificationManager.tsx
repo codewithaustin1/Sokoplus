@@ -220,6 +220,54 @@ export function NotificationManager({ user }: NotificationManagerProps) {
     };
   }, [user]);
 
+  // Real-time Firestore subscription to marketing/targeted notifications
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const q = query(
+      collection(db, "users", user.uid, "notifications"),
+      where("read", "==", false)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added") {
+            const data = change.doc.data();
+            // Trigger local OS push notification
+            triggerLocalNotification(
+              data.title || "New Offer from SokoPlus",
+              data.body || "Check your SokoPlus marketplace notifications!"
+            );
+
+            // Trigger visual in-app toast
+            toast(data.title || "Offer Update", {
+              icon: "📢",
+              duration: 6000,
+              style: {
+                background: "#0f172a",
+                color: "#ffffff",
+                borderRadius: "1rem",
+                border: "1px solid rgba(234, 88, 12, 0.2)",
+                fontWeight: "bold",
+              },
+            });
+          }
+        });
+      },
+      (error) => {
+        console.warn("Notifications subscription bypassed or pending rules:", error);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user]);
+
   // Expose configuration event listener to check browser level manual toggles
   useEffect(() => {
     const handleFocus = () => {

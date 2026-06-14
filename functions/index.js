@@ -7,7 +7,7 @@
  */
 
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onDocumentUpdated, onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { logger } = require("firebase-functions");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
@@ -244,4 +244,221 @@ async function sendRecoveryEmailAndMarkSent(userId, email, cart) {
   } catch (error) {
     logger.error(`[Scheduled CRM Alerts Error] Failed for user ID: ${userId} (${email})`, error);
   }
+}
+
+/**
+ * APPROACH C: Database-Triggered Targeted Marketing Campaigns
+ * ---------------------------------------------------------
+ * Trigger: Runs on document creation in `/marketing_campaigns/{campaignId}`.
+ * Action: Validates and queries target user lists using custom rules matching wishlist or cart statuses.
+ *         Iterates over recipients and sends emails and/or schedules live in-app push notifications.
+ */
+exports.onMarketingCampaignCreated = onDocumentCreated({
+  document: "marketing_campaigns/{campaignId}",
+  memory: "256MiB",
+}, async (event) => {
+  const campaignData = event.data.data();
+  if (!campaignData) return;
+
+  // Only process if status is "pending"
+  if (campaignData.status !== "pending") {
+    logger.info(`[Marketing Campaign] Skipping campaign ${event.params.campaignId} with status ${campaignData.status}`);
+    return;
+  }
+
+  const { title, message, targetCriteria, channel } = campaignData;
+  const campaignId = event.params.campaignId;
+
+  logger.info(`[Marketing Campaign] Starting campaign ${campaignId} validation and target selection...`);
+
+  try {
+    // 1. Mark campaign as "processing"
+    await event.data.ref.update({
+      status: "processing",
+      startedAt: new Date().toISOString()
+    });
+
+    // 2. Resolve users to target
+    let targetUsers = []; // Array of { uid: string, email: string, displayName: string }
+
+    // Fetch all users
+    const usersSnapshot = await db.collection("users").get();
+    const allUsers = [];
+    usersSnapshot.forEach(doc => {
+      const data = doc.data();
+      allUsers.push({
+        uid: doc.id,
+        email: data.email || null,
+        displayName: data.displayName || "Valued Customer",
+        wishlist: data.wishlist || []
+      });
+    });
+
+    // Fetch all carts
+    const cartsSnapshot = await db.collection("carts").get();
+    const allCarts = [];
+    cartsSnapshot.forEach(doc => {
+      const data = doc.data();
+      allCarts.push({
+        userId: doc.id,
+        email: data.email || null,
+        items: data.items || []
+      });
+    });
+
+    const criteriaType = targetCriteria?.type || "all";
+    const targetProductId = targetCriteria?.productId;
+    const targetCategory = targetCriteria?.category;
+
+    if (criteriaType === "all") {
+      targetUsers = allUsers.filter(u => u.email);
+    } else if (criteriaType === "wishlist_nonempty") {
+      targetUsers = allUsers.filter(u => u.email && u.wishlist && u.wishlist.length > 0);
+    } else if (criteriaType === "wishlist_product") {
+      targetUsers = allUsers.filter(u => u.email && u.wishlist && u.wishlist.includes(targetProductId));
+    } else if (criteriaType === "wishlist_category") {
+      // Find matching products in this category
+      const productsSnap = await db.collection("products")
+        .where("category", "==", targetCategory)
+        .get();
+      const productIdsInCategory = [];
+      productsSnap.forEach(pDoc => {
+        productIdsInCategory.push(pDoc.id);
+      });
+
+      targetUsers = allUsers.filter(u => 
+        u.email && 
+        u.wishlist && 
+        u.wishlist.some(pId => productIdsInCategory.includes(pId))
+      );
+    } else if (criteriaType === "cart_nonempty") {
+      const userIdsWithCartsSet = new Set(allCarts.filter(c => c.items.length > 0).map(c => c.userId));
+      targetUsers = allUsers.filter(u => u.email && userIdsWithCartsSet.has(u.uid));
+    } else if (criteriaType === "cart_product") {
+      const userIdsWithCartProdSet = new Set(
+        allCarts.filter(c => c.items.some(item => item.productId === targetProductId)).map(c => c.userId)
+      );
+      targetUsers = allUsers.filter(u => u.email && userIdsWithCartProdSet.has(u.uid));
+    } else if (criteriaType === "cart_category") {
+      // Find matching products in this category
+      const productsSnap = await db.collection("products")
+        .where("category", "==", targetCategory)
+        .get();
+      const productIdsInCategory = new Set();
+      productsSnap.forEach(pDoc => {
+        productIdsInCategory.add(pDoc.id);
+      });
+
+      const userIdsWithCartCatSet = new Set(
+        allCarts.filter(c => c.items.some(item => productIdsInCategory.has(item.productId))).map(c => c.userId)
+      );
+      targetUsers = allUsers.filter(u => u.email && userIdsWithCartCatSet.has(u.uid));
+    }
+
+    logger.info(`[Marketing Campaign] Target list computed. Users matching criteria: ${targetUsers.length}`);
+
+    // 3. Dispatch notifications / emails
+    let sendCount = 0;
+    const deliveryPromises = [];
+
+    for (const targetUser of targetUsers) {
+      // Send standard email
+      if (channel === "email" || channel === "both") {
+        const mailPromise = sendCampaignEmail(targetUser.email, targetUser.displayName, title, message)
+          .then(() => {
+            sendCount++;
+          })
+          .catch(err => {
+            logger.error(`[Campaign Email Fail] User: ${targetUser.email}`, err);
+          });
+        deliveryPromises.push(mailPromise);
+      }
+
+      // Create live database push notifications under subcollection
+      if (channel === "push" || channel === "both") {
+        const notifPromise = db.collection("users").doc(targetUser.uid).collection("notifications").add({
+          title: title,
+          body: message,
+          read: false,
+          createdAt: new Date().toISOString(),
+          campaignId: campaignId,
+          type: "marketing"
+        }).then(() => {
+          if (channel === "push") {
+            sendCount++;
+          }
+        }).catch(err => {
+          logger.error(`[Campaign Push Fail] User ID: ${targetUser.uid}`, err);
+        });
+        deliveryPromises.push(notifPromise);
+      }
+    }
+
+    // Wait for all messages/writes
+    await Promise.all(deliveryPromises);
+
+    // 4. Update campaign status to completed
+    await event.data.ref.update({
+      status: "completed",
+      sentCount: sendCount,
+      completedAt: new Date().toISOString()
+    });
+
+    logger.info(`[Marketing Campaign] Campaign ${campaignId} completed successfully! Dispatched to ${sendCount} recipients.`);
+
+  } catch (error) {
+    logger.error(`[Marketing Campaign Fatal Error] Campaign ID ${campaignId} failed:`, error);
+    await event.data.ref.update({
+      status: "failed",
+      error: error.message || String(error),
+      completedAt: new Date().toISOString()
+    });
+  }
+});
+
+async function sendCampaignEmail(email, displayName, title, message) {
+  const emailHtml = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; padding: 40px 20px; color: #334155; line-height: 1.6;">
+      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05); overflow: hidden; border: 1px solid #f1f1f1;">
+        
+        <!-- Header -->
+        <div style="background-color: #0f172a; padding: 30px 40px; text-align: center;">
+          <span style="font-size: 26px; font-weight: 900; color: #f97316; letter-spacing: -1px; text-transform: uppercase;">Soko<span style="color: #ffffff;">Plus</span></span>
+          <div style="color: #94a3b8; font-size: 11px; font-weight: bold; letter-spacing: 2px; margin-top: 4px; text-transform: uppercase;">Artisanal Excellence, Directly Curated</div>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 40px;">
+          <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0; margin-bottom: 16px;">Habari ${displayName}! 🌸</h2>
+          <h3 style="font-size: 16px; font-weight: bold; color: #ea580c; margin-top: 0; margin-bottom: 20px;">${title}</h3>
+          
+          <div style="color: #475569; font-size: 14px; white-space: pre-line; margin-bottom: 30px;">
+            ${message}
+          </div>
+          
+          <div style="text-align: center; margin-bottom: 30px;">
+            <a href="https://www.sokoplus.co.ke" style="background-color: #ea580c; color: #ffffff; font-weight: bold; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase; display: inline-block; box-shadow: 0 4px 6px rgba(234, 88, 12, 0.15);">
+              Explore Sokoplus Marketplace
+            </a>
+          </div>
+          
+          <hr style="border: 0; border-top: 1px solid #f1f1f1; margin-bottom: 24px;" />
+          
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 0;">
+            This email was sent to ${email} as part of a personalized SokoPlus Kenya update. If you no longer wish to receive these, please manage alert options inside your account.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const mailOptions = {
+    from: '"SokoPlus Premium Market" <no-reply@sokoplus.co.ke>',
+    to: email,
+    subject: `🌟 SokoPlus: ${title}`,
+    text: message,
+    html: emailHtml,
+  };
+
+  await transporter.sendMail(mailOptions);
 }

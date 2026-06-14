@@ -236,8 +236,12 @@ export default function App() {
         // Perform the admin check once on authentication change, rather than inside every snapshot update trigger
         let isAdmin = false;
         try {
-          const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
-          isAdmin = adminDoc.exists();
+          if (fbUser.email && fbUser.email.toLowerCase() === "upfrontretaile@gmail.com") {
+            isAdmin = true;
+          } else {
+            const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
+            isAdmin = adminDoc.exists();
+          }
 
           // Auto-promote if not yet set up as admin but invited
           if (!isAdmin && fbUser.email) {
