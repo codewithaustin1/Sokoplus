@@ -381,24 +381,24 @@ export default function Blog({ user }: { user: UserProfile | null }) {
       
       {/* Editorial Header Section */}
       <div className="text-center space-y-4 max-w-xl mx-auto">
-        <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 bg-orange-50 px-3 py-1.5 rounded-full">
+        <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400 px-3 py-1.5 rounded-full">
           SokoPlus Chronicles
         </span>
-        <h1 className="text-4xl md:text-5xl font-black tracking-tight text-gray-900">Market Stories</h1>
-        <p className="text-gray-500 font-medium text-sm md:text-base">
+        <h1 className="text-4xl md:text-5xl font-black tracking-tight text-gray-900 dark:text-white">Market Stories</h1>
+        <p className="text-gray-500 dark:text-gray-400 font-medium text-sm md:text-base">
           Insights, craft techniques, and direct narratives from the hardworking makers and artisans across Kenya.
         </p>
       </div>
 
       {/* Navigation Tools: Search & Tag list */}
-      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-6">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
             <input 
               type="text"
               placeholder="Search stories, topics, makers..."
-              className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 py-3 text-xs outline-none focus:ring-1 focus:ring-orange-500 transition-all font-semibold"
+              className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-2xl pl-11 pr-4 py-3 text-xs outline-none focus:ring-1 focus:ring-orange-500 transition-all font-semibold text-gray-900 dark:text-gray-100"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -411,8 +411,8 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                 onClick={() => setActiveTag(tag)}
                 className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border ${
                   activeTag === tag 
-                    ? "bg-gray-900 text-white border-gray-900" 
-                    : "bg-gray-50 text-gray-500 border-gray-100 hover:bg-orange-55 hover:text-orange-650"
+                    ? "bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100" 
+                    : "bg-gray-50 text-gray-500 border-gray-100 hover:bg-orange-55 hover:text-orange-650 dark:bg-gray-950 dark:text-gray-400 dark:border-gray-800 dark:hover:bg-gray-900 dark:hover:border-gray-700"
                 }`}
               >
                 {tag}
@@ -427,14 +427,14 @@ export default function Blog({ user }: { user: UserProfile | null }) {
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all grid grid-cols-1 lg:grid-cols-12 gap-0 cursor-pointer relative"
+          className="bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl transition-all grid grid-cols-1 lg:grid-cols-12 gap-0 cursor-pointer relative"
           onClick={() => handleOpenPost(featuredPost)}
         >
-          <div className="lg:col-span-7 aspect-[16/10] lg:aspect-auto min-h-[300px] bg-gray-100 relative">
+          <div className="lg:col-span-7 aspect-[16/10] lg:aspect-auto min-h-[300px] bg-gray-100 dark:bg-gray-950 relative">
             {featuredPost.image ? (
               <img src={featuredPost.image} alt={featuredPost.title} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-300">
+              <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-700">
                 <ShoppingBag size={64} />
               </div>
             )}
@@ -443,36 +443,36 @@ export default function Blog({ user }: { user: UserProfile | null }) {
             </span>
             <button
               onClick={(e) => handleShare(e, featuredPost)}
-              className="absolute top-4 right-4 p-2.5 bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600 rounded-full shadow-md z-10 transition-all border border-gray-100/50 cursor-pointer flex items-center justify-center"
+              className="absolute top-4 right-4 p-2.5 bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600 dark:bg-gray-800/95 dark:hover:bg-gray-800 dark:text-gray-300 dark:hover:text-orange-400 rounded-full shadow-md z-10 transition-all border border-gray-100/50 dark:border-gray-700/50 cursor-pointer flex items-center justify-center"
               title="Share Story"
             >
               <Share2 size={13} />
             </button>
           </div>
           <div className="lg:col-span-5 p-8 md:p-12 flex flex-col justify-center space-y-6">
-            <div className="flex items-center space-x-4 text-xs font-semibold text-gray-400">
+            <div className="flex items-center space-x-4 text-xs font-semibold text-gray-400 dark:text-gray-500">
               <span className="flex items-center"><User size={14} className="mr-1" /> {featuredPost.author}</span>
               <span className="flex items-center"><Clock size={14} className="mr-1" /> {featuredPost.readTime}</span>
             </div>
             
             <div className="space-y-3">
-              <h2 className="text-2xl md:text-3xl font-black text-gray-900 hover:text-orange-600 transition-colors leading-tight">
+              <h2 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-500 transition-colors leading-tight">
                 {featuredPost.title}
               </h2>
-              <p className="text-gray-550 text-sm leading-relaxed line-clamp-4">
+              <p className="text-gray-650 dark:text-gray-300 text-sm leading-relaxed line-clamp-4">
                 {featuredPost.content}
               </p>
             </div>
 
             <div className="flex space-x-2">
               {featuredPost.tags?.map(t => (
-                <span key={t} className="text-[9px] font-black tracking-widest uppercase bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full">
+                <span key={t} className="text-[9px] font-black tracking-widest uppercase bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 px-2.5 py-1 rounded-full">
                   {t}
                 </span>
               ))}
             </div>
 
-            <div className="pt-4 flex items-center text-sm font-black text-gray-900 group">
+            <div className="pt-4 flex items-center text-sm font-black text-gray-900 dark:text-gray-100 group">
               <span>Read Story</span>
               <ArrowRight className="ml-2 group-hover:translate-x-2 transition-transform text-orange-600" size={16} />
             </div>
@@ -487,24 +487,24 @@ export default function Blog({ user }: { user: UserProfile | null }) {
             <motion.article 
               whileHover={{ y: -6 }}
               key={post.id} 
-              className="news-card bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col sm:flex-row h-full relative"
+              className="news-card bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col sm:flex-row h-full relative"
               onClick={() => handleOpenPost(post)}
             >
-              <div className="w-full sm:w-2/5 aspect-[16/10] sm:aspect-auto sm:min-h-full bg-gray-50 overflow-hidden relative flex-shrink-0">
+              <div className="w-full sm:w-2/5 aspect-[16/10] sm:aspect-auto sm:min-h-full bg-gray-50 dark:bg-gray-950 overflow-hidden relative flex-shrink-0">
                  {post.image ? (
                    <img src={post.image} alt={post.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
                  ) : (
-                   <div className="w-full h-full flex items-center justify-center text-gray-300">
-                      <ShoppingBag size={48} />
+                   <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-700">
+                       <ShoppingBag size={48} />
                    </div>
                  )}
                  <div className="absolute top-4 right-4 flex items-center space-x-2 z-10">
                    <button
                      onClick={(e) => toggleBookmark(e, post.id)}
-                     className={`p-2.5 rounded-full shadow-md transition-all border border-gray-100/50 cursor-pointer flex items-center justify-center ${
+                     className={`p-2.5 rounded-full shadow-md transition-all border border-gray-100/50 dark:border-gray-700/50 cursor-pointer flex items-center justify-center ${
                        bookmarkedIds.includes(post.id)
                          ? "bg-orange-600 hover:bg-orange-700 text-white border-orange-600"
-                         : "bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600"
+                         : "bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600 dark:bg-gray-800/95 dark:hover:bg-gray-800 dark:text-gray-300 dark:hover:text-orange-400"
                      }`}
                      title={bookmarkedIds.includes(post.id) ? "Remove Bookmark" : "Bookmark Story"}
                    >
@@ -512,7 +512,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                    </button>
                    <button
                      onClick={(e) => handleShare(e, post)}
-                     className="p-2.5 bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600 rounded-full shadow-md transition-all border border-gray-100/50 cursor-pointer flex items-center justify-center"
+                     className="p-2.5 bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600 dark:bg-gray-800/95 dark:hover:bg-gray-800 dark:text-gray-300 dark:hover:text-orange-400 rounded-full shadow-md transition-all border border-gray-100/50 dark:border-gray-700/50 cursor-pointer flex items-center justify-center animate-none"
                      title="Share Story"
                    >
                      <Share2 size={13} />
@@ -523,16 +523,16 @@ export default function Blog({ user }: { user: UserProfile | null }) {
               <div className="p-6 md:p-8 flex flex-col flex-grow justify-between space-y-4 sm:w-3/5">
                 <div className="space-y-2">
                    {/* Meta information tags */}
-                   <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                   <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">
                      <span className="flex items-center"><Calendar size={12} className="mr-1" /> {formatDate(post.publishedAt)}</span>
                      <span className="flex items-center"><Clock size={12} className="mr-1" /> {post.readTime}</span>
                    </div>
 
-                   <h2 className="text-lg font-black text-gray-900 line-clamp-2 hover:text-orange-600 transition-colors">
+                   <h2 className="text-lg font-black text-gray-900 dark:text-white line-clamp-2 hover:text-orange-600 dark:hover:text-orange-500 transition-colors">
                      {post.title}
                    </h2>
                    
-                   <p className="text-gray-550 line-clamp-3 text-xs leading-relaxed">
+                   <p className="text-gray-600 dark:text-gray-300 line-clamp-3 text-xs leading-relaxed">
                      {post.content}
                    </p>
                 </div>
@@ -540,13 +540,13 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-1.5 pt-2">
                     {post.tags?.map((tag: string) => (
-                      <span key={tag} className="text-[8px] font-black uppercase tracking-widest text-orange-600 bg-orange-50 px-2 py-1 rounded-md">
+                      <span key={tag} className="text-[8px] font-black uppercase tracking-widest text-orange-600 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400 px-2 py-1 rounded-md">
                         {tag}
                       </span>
                     ))}
                   </div>
 
-                  <div className="pt-2 flex items-center text-xs font-black text-gray-900 group">
+                  <div className="pt-2 flex items-center text-xs font-black text-gray-900 dark:text-gray-100 group">
                     <span>Read Story</span>
                     <ArrowRight className="ml-1.5 text-orange-600" size={12} />
                   </div>
@@ -555,9 +555,9 @@ export default function Blog({ user }: { user: UserProfile | null }) {
             </motion.article>
           ))
         ) : (
-          <div className="col-span-full py-16 bg-white rounded-3xl border border-dashed border-gray-200 text-center space-y-4 max-w-lg mx-auto w-full">
-             <div className="text-gray-300 flex justify-center"><ShoppingBag size={48} /></div>
-             <p className="text-gray-500 font-medium text-sm italic">Our writers are busy spinning new stories. Check back soon!</p>
+          <div className="col-span-full py-16 bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 text-center space-y-4 max-w-lg mx-auto w-full">
+             <div className="text-gray-300 dark:text-gray-700 flex justify-center"><ShoppingBag size={48} /></div>
+             <p className="text-gray-550 dark:text-gray-400 font-medium text-sm italic">Our writers are busy spinning new stories. Check back soon!</p>
           </div>
         )}
       </div>
@@ -584,14 +584,14 @@ export default function Blog({ user }: { user: UserProfile | null }) {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 220 }}
-              className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl z-[110] flex flex-col md:my-4 md:right-4 md:rounded-3xl overflow-hidden border border-gray-100"
+              className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white dark:bg-gray-900 shadow-2xl z-[110] flex flex-col md:my-4 md:right-4 md:rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800"
             >
               {/* Floating control bar on top */}
-              <div className="sticky top-0 bg-white/95 backdrop-blur-md px-6 py-4 border-b border-gray-100 flex items-center justify-between z-10">
+              <div className="sticky top-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between z-10">
                 <button 
                   type="button"
                   onClick={handleClosePost}
-                  className="flex items-center space-x-2 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-gray-900 transition-colors"
+                  className="flex items-center space-x-2 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-150 transition-colors"
                 >
                   <ArrowLeft size={16} />
                   <span>Back to Stories</span>
@@ -600,7 +600,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                   <button 
                     type="button"
                     onClick={(e) => handleShare(e, selectedPost)}
-                    className="p-2 text-gray-500 hover:text-orange-600 rounded-full transition-all cursor-pointer flex items-center justify-center"
+                    className="p-2 text-gray-500 hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-400 rounded-full transition-all cursor-pointer flex items-center justify-center"
                     title="Share Story"
                   >
                     <Share2 size={18} />
@@ -608,7 +608,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                   <button 
                     type="button"
                     onClick={handleClosePost}
-                    className="p-2 hover:bg-gray-100 text-gray-400 hover:text-gray-900 rounded-full transition-all flex items-center justify-center"
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-100 rounded-full transition-all flex items-center justify-center"
                   >
                     <X size={20} />
                   </button>
@@ -618,16 +618,16 @@ export default function Blog({ user }: { user: UserProfile | null }) {
               {/* Scrollable Story content */}
               <div className="flex-grow overflow-y-auto">
                 {/* Hero Header image inside detail popup */}
-                <div className="aspect-[16/9] bg-gray-50 relative">
+                <div className="aspect-[16/9] bg-gray-50 dark:bg-gray-950 relative">
                   {selectedPost.image ? (
                     <img src={selectedPost.image} alt={selectedPost.title} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-700">
                       <ShoppingBag size={64} />
                     </div>
                   )}
                   {selectedPost.tags?.map(t => (
-                    <span key={t} className="absolute bottom-4 left-4 bg-gray-900 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg shadow-md">
+                    <span key={t} className="absolute bottom-4 left-4 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg shadow-md">
                       {t}
                     </span>
                   ))}
@@ -635,47 +635,47 @@ export default function Blog({ user }: { user: UserProfile | null }) {
 
                 <div className="p-8 space-y-8">
                   {/* Meta tags and timing */}
-                  <div className="flex flex-wrap gap-y-2 items-center text-xs font-semibold text-gray-400 space-x-6 border-b border-gray-50 pb-6">
+                  <div className="flex flex-wrap gap-y-2 items-center text-xs font-semibold text-gray-400 dark:text-gray-500 space-x-6 border-b border-gray-50 dark:border-gray-800 pb-6">
                     <span className="flex items-center"><User size={14} className="mr-1.5 text-orange-600" /> By {selectedPost.author}</span>
                     <span className="flex items-center"><Calendar size={14} className="mr-1.5 text-gray-400" /> Published {formatDate(selectedPost.publishedAt)}</span>
                     <span className="flex items-center"><Clock size={14} className="mr-1.5 text-gray-400" /> {selectedPost.readTime}</span>
                   </div>
 
                   {/* High Quality Typography Heading */}
-                  <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight">
+                  <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-tight">
                     {selectedPost.title}
                   </h1>
 
                   {/* High Quality Rich Text / Markdown Story Rendering */}
-                  <div className="text-gray-700 text-sm md:text-base leading-relaxed space-y-4 font-medium tracking-wide prose prose-orange max-w-none">
+                  <div className="text-gray-750 dark:text-gray-300 text-sm md:text-base leading-relaxed space-y-4 font-medium tracking-wide prose prose-orange dark:prose-invert max-w-none">
                     <Markdown
                       components={{
                         h2: ({ ...props }) => (
-                          <h2 className="text-xl md:text-2xl font-black text-gray-900 mt-8 mb-4 border-b border-gray-100 pb-2" {...props} />
+                          <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white mt-8 mb-4 border-b border-gray-100 dark:border-gray-800 pb-2" {...props} />
                         ),
                         h3: ({ ...props }) => (
-                          <h3 className="text-lg font-bold text-gray-850 mt-6 mb-3" {...props} />
+                          <h3 className="text-lg font-bold text-gray-850 dark:text-gray-200 mt-6 mb-3" {...props} />
                         ),
                         p: ({ ...props }) => (
-                          <p className="text-gray-700 leading-relaxed mb-4 text-sm md:text-base" {...props} />
+                          <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4 text-sm md:text-base" {...props} />
                         ),
                         ul: ({ ...props }) => (
-                          <ul className="list-disc pl-5 mb-4 space-y-2 text-sm md:text-base text-gray-700" {...props} />
+                          <ul className="list-disc pl-5 mb-4 space-y-2 text-sm md:text-base text-gray-700 dark:text-gray-300" {...props} />
                         ),
                         ol: ({ ...props }) => (
-                          <ol className="list-decimal pl-5 mb-4 space-y-2 text-sm md:text-base text-gray-700" {...props} />
+                          <ol className="list-decimal pl-5 mb-4 space-y-2 text-sm md:text-base text-gray-700 dark:text-gray-300" {...props} />
                         ),
                         li: ({ ...props }) => (
-                          <li className="text-gray-750" {...props} />
+                          <li className="text-gray-750 dark:text-gray-300" {...props} />
                         ),
                         a: ({ ...props }) => (
-                          <a className="text-orange-600 hover:text-orange-700 underline font-semibold transition-colors" target="_blank" rel="noopener noreferrer" {...props} />
+                          <a className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-500 underline font-semibold transition-colors" target="_blank" rel="noopener noreferrer" {...props} />
                         ),
                         blockquote: ({ ...props }) => (
-                          <blockquote className="border-l-4 border-orange-500 pl-4 italic text-gray-600 my-6 bg-orange-50/20 py-2 pr-3 rounded-r-xl" {...props} />
+                          <blockquote className="border-l-4 border-orange-500 pl-4 italic text-gray-600 dark:text-gray-400 my-6 bg-orange-50/20 dark:bg-orange-950/10 py-2 pr-3 rounded-r-xl" {...props} />
                         ),
                         strong: ({ ...props }) => (
-                          <strong className="font-extrabold text-gray-900" {...props} />
+                          <strong className="font-extrabold text-gray-900 dark:text-white" {...props} />
                         ),
                         em: ({ ...props }) => (
                           <em className="italic" {...props} />
@@ -687,32 +687,32 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                   </div>
 
                   {/* Support dialogue */}
-                  <div className="bg-orange-50/50 rounded-2xl p-6 border border-orange-100/60 mt-8 space-y-4">
-                    <h3 className="font-bold text-gray-900 text-sm">Do you love this craft story?</h3>
-                    <p className="text-xs text-gray-500 font-medium">SokoPlus guarantees real prosperity. Supporting our marketplace directly fosters sustainable income streams for these artisans.</p>
+                  <div className="bg-orange-50/50 dark:bg-orange-950/10 rounded-2xl p-6 border border-orange-100/60 dark:border-orange-900/20 mt-8 space-y-4">
+                    <h3 className="font-bold text-gray-900 dark:text-white text-sm">Do you love this craft story?</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">SokoPlus guarantees real prosperity. Supporting our marketplace directly fosters sustainable income streams for these artisans.</p>
                     <button 
                       type="button"
                       onClick={() => {
                         handleClosePost();
                         window.scrollTo({ top: 300, behavior: "smooth" });
                       }}
-                      className="bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl hover:bg-orange-600 transition-all shadow-md shadow-gray-900/10"
+                      className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl hover:bg-orange-600 dark:hover:bg-orange-500 transition-all shadow-md shadow-gray-900/10 dark:shadow-none"
                     >
                       Explore Artisan Creations
                     </button>
                   </div>
 
-                  <hr className="border-gray-100 my-8" />
+                  <hr className="border-gray-100 dark:border-gray-800 my-8" />
 
                   {/* Comments System Thread */}
                   <div className="space-y-6">
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-                      <h3 className="text-lg font-black text-gray-900 flex items-center space-x-2">
+                    <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+                      <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center space-x-2">
                         <MessageSquare size={18} className="text-orange-600" />
                         <span>Comments ({comments.length})</span>
                       </h3>
                       {loadingComments && (
-                        <div className="text-xs text-gray-400 animate-pulse">Syncing...</div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500 animate-pulse">Syncing...</div>
                       )}
                     </div>
 
@@ -722,16 +722,16 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                         comments.map((comment) => (
                           <div key={comment.id} className="space-y-4">
                             {/* Parent Comment Card */}
-                            <div className="bg-gray-50/50 rounded-2xl p-5 border border-gray-100 space-y-3 relative group">
+                            <div className="bg-gray-50/50 dark:bg-gray-900/40 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 space-y-3 relative group">
                               <div className="flex items-start justify-between">
                                 <div className="flex items-center space-x-3">
                                   {/* Initials Avatar */}
-                                  <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-xs font-black uppercase select-none">
+                                  <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400 flex items-center justify-center text-xs font-black uppercase select-none">
                                     {comment.userName.substring(0, 2)}
                                   </div>
                                   <div>
-                                    <h4 className="font-extrabold text-xs text-gray-800">{comment.userName}</h4>
-                                    <span className="text-[10px] text-gray-400 font-medium">
+                                    <h4 className="font-extrabold text-xs text-gray-800 dark:text-gray-200">{comment.userName}</h4>
+                                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">
                                       {new Date(comment.createdAt).toLocaleDateString("en-US", {
                                         month: "short",
                                         day: "numeric",
@@ -748,7 +748,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                                   <button
                                     onClick={() => handleDeleteComment(comment.id)}
                                     type="button"
-                                    className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors duration-200 cursor-pointer"
+                                    className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded transition-colors duration-200 cursor-pointer"
                                     title="Delete Comment"
                                   >
                                     <Trash2 size={14} />
@@ -756,7 +756,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                                 )}
                               </div>
 
-                              <p className="text-gray-700 text-xs md:text-sm whitespace-pre-wrap leading-relaxed font-semibold">
+                              <p className="text-gray-700 dark:text-gray-300 text-xs md:text-sm whitespace-pre-wrap leading-relaxed font-semibold">
                                 {comment.content}
                               </p>
 
@@ -770,13 +770,13 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                                     );
                                     setNewReplyText("");
                                   }}
-                                  className="text-[10px] font-black uppercase tracking-wider text-orange-600 hover:text-orange-700 flex items-center space-x-1 cursor-pointer"
+                                  className="text-[10px] font-black uppercase tracking-wider text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 flex items-center space-x-1 cursor-pointer"
                                 >
                                   <CornerDownRight size={12} />
                                   <span>{replyingToCommentId === comment.id ? "Cancel Reply" : "Reply"}</span>
                                 </button>
                                 {comment.replies && comment.replies.length > 0 && (
-                                  <span className="text-[10px] uppercase font-bold text-gray-400">
+                                  <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500">
                                     {comment.replies.length} {comment.replies.length === 1 ? "response" : "responses"}
                                   </span>
                                 )}
@@ -785,20 +785,20 @@ export default function Blog({ user }: { user: UserProfile | null }) {
 
                             {/* Replies List */}
                             {comment.replies && comment.replies.length > 0 && (
-                              <div className="pl-6 md:pl-10 space-y-3 border-l-2 border-gray-100">
+                              <div className="pl-6 md:pl-10 space-y-3 border-l-2 border-gray-100 dark:border-gray-800">
                                 {comment.replies.map((reply) => (
                                   <div
                                     key={reply.id}
-                                    className="bg-orange-50/20 rounded-xl p-4 border border-orange-100/50 space-y-2 relative"
+                                    className="bg-orange-50/20 dark:bg-orange-950/5 rounded-xl p-4 border border-orange-100/50 dark:border-orange-900/20 space-y-2 relative"
                                   >
                                     <div className="flex items-start justify-between">
                                       <div className="flex items-center space-x-2">
-                                        <div className="w-6 h-6 rounded-full bg-orange-50 text-orange-700 flex items-center justify-center text-[10px] font-black uppercase select-none">
+                                        <div className="w-6 h-6 rounded-full bg-orange-50 dark:bg-orange-950/45 text-orange-700 dark:text-orange-400 flex items-center justify-center text-[10px] font-black uppercase select-none">
                                           {reply.userName.substring(0, 2)}
                                         </div>
                                         <div>
-                                          <h5 className="font-extrabold text-[11px] text-gray-800">{reply.userName}</h5>
-                                          <span className="text-[9px] text-gray-450 font-medium">
+                                          <h5 className="font-extrabold text-[11px] text-gray-800 dark:text-gray-200">{reply.userName}</h5>
+                                          <span className="text-[9px] text-gray-450 dark:text-gray-550 font-medium">
                                             {new Date(reply.createdAt).toLocaleDateString("en-US", {
                                               month: "short",
                                               day: "numeric",
@@ -823,7 +823,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                                       )}
                                     </div>
 
-                                    <p className="text-gray-700 text-xs leading-relaxed font-semibold">
+                                    <p className="text-gray-700 dark:text-gray-300 text-xs leading-relaxed font-semibold">
                                       {reply.content}
                                     </p>
                                   </div>
@@ -834,8 +834,8 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                             {/* Inline Reply Form */}
                             {replyingToCommentId === comment.id && (
                               <div className="pl-6 md:pl-10">
-                                <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
-                                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400">
+                                <div className="bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-200 dark:border-gray-800 space-y-3">
+                                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">
                                     Replying to {comment.userName}
                                   </label>
                                   <textarea
@@ -843,13 +843,13 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                                     value={newReplyText}
                                     onChange={(e) => setNewReplyText(e.target.value)}
                                     placeholder="Write your response..."
-                                    className="w-full text-xs bg-gray-50 border border-gray-150 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-orange-500 font-semibold"
+                                    className="w-full text-xs text-gray-850 dark:text-gray-100 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-orange-500 font-semibold"
                                   />
                                   <div className="flex justify-end space-x-2">
                                     <button
                                       type="button"
                                       onClick={() => setReplyingToCommentId(null)}
-                                      className="px-3 py-1.5 text-[9px] font-black uppercase text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                                      className="px-3 py-1.5 text-[9px] font-black uppercase text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
                                     >
                                       Cancel
                                     </button>
@@ -869,8 +869,8 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                           </div>
                         ))
                       ) : (
-                        <div className="py-8 text-center space-y-2 border border-dashed border-gray-150 rounded-2xl bg-gray-50/30">
-                          <p className="text-xs text-gray-400 font-semibold italic">
+                        <div className="py-8 text-center space-y-2 border border-dashed border-gray-150 dark:border-gray-800 rounded-2xl bg-gray-50/30 dark:bg-gray-900/30">
+                          <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold italic">
                             No comments yet. Be the first to share your thoughts!
                           </p>
                         </div>
@@ -878,10 +878,10 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                     </div>
 
                     {/* Write Parent Comment Input */}
-                    <div className="border-t border-gray-150 pt-6">
+                    <div className="border-t border-gray-150 dark:border-gray-800 pt-6">
                       {user ? (
                         <form onSubmit={handleAddComment} className="space-y-3">
-                          <label className="block text-xs font-black uppercase tracking-wider text-gray-750">
+                          <label className="block text-xs font-black uppercase tracking-wider text-gray-750 dark:text-gray-300">
                             Join the conversation
                           </label>
                           <textarea
@@ -889,13 +889,13 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                             value={newCommentText}
                             onChange={(e) => setNewCommentText(e.target.value)}
                             placeholder="Write an insightful comment..."
-                            className="w-full text-xs text-gray-800 bg-gray-50 border border-gray-150 rounded-xl p-3 outline-none focus:ring-1 focus:ring-orange-500 font-semibold"
+                            className="w-full text-xs text-gray-800 dark:text-gray-100 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-xl p-3 outline-none focus:ring-1 focus:ring-orange-500 font-semibold"
                           />
                           <div className="flex justify-end">
                             <button
                               type="submit"
                               disabled={submittingComment || !newCommentText.trim()}
-                              className="bg-gray-950 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl hover:bg-orange-600 transition shadow-md flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                              className="bg-gray-950 dark:bg-gray-100 text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl hover:bg-orange-600 dark:hover:bg-orange-500 transition shadow-md flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
                             >
                               <span>{submittingComment ? "Posting..." : "Add Comment"}</span>
                               <Send size={12} />
@@ -903,13 +903,13 @@ export default function Blog({ user }: { user: UserProfile | null }) {
                           </div>
                         </form>
                       ) : (
-                        <div className="bg-orange-50/40 rounded-2xl p-5 border border-orange-100/60 text-center space-y-3">
-                          <p className="text-xs text-gray-650 font-medium">
+                        <div className="bg-orange-50/40 dark:bg-orange-950/10 rounded-2xl p-5 border border-orange-100/60 dark:border-orange-900/20 text-center space-y-3">
+                          <p className="text-xs text-gray-650 dark:text-gray-400 font-medium">
                             Join the dialogue. Reading is open, but sharing comments and responses requires an active account.
                           </p>
                           <Link
                             to="/login"
-                            className="inline-block bg-gray-950 text-white text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-lg hover:bg-orange-600 transition-all shadow-md"
+                            className="inline-block bg-gray-950 dark:bg-gray-100 text-white dark:text-gray-900 text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-lg hover:bg-orange-600 dark:hover:bg-orange-500 transition-all shadow-md"
                           >
                             Sign In to Comment
                           </Link>

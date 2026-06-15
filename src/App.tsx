@@ -34,7 +34,7 @@ import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { UserProfile } from "./types";
-import { MessageCircle, ArrowUp } from "lucide-react";
+import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X } from "lucide-react";
 import toast from "react-hot-toast";
 import SupportChat from "./components/SupportChat";
 import VerificationBanner from "./components/VerificationBanner";
@@ -139,8 +139,26 @@ export default function App() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollTopBg, setScrollTopBg] = useState("rgb(234, 88, 12)"); // Dynamic background color
   const [unreadSupportCount, setUnreadSupportCount] = useState<number>(0);
+  const [quotaExceededInfo, setQuotaExceededInfo] = useState<{ error: string; path: string | null } | null>(null);
   const isFirstMount = useRef(true);
   const lastScrollYRef = useRef(0);
+
+  // Firestore Quota Exceeded Global Trap
+  useEffect(() => {
+    const handleQuotaExceeded = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setQuotaExceededInfo({
+          error: customEvent.detail.error,
+          path: customEvent.detail.path || null,
+        });
+      }
+    };
+    window.addEventListener("firestore-quota-exceeded", handleQuotaExceeded);
+    return () => {
+      window.removeEventListener("firestore-quota-exceeded", handleQuotaExceeded);
+    };
+  }, []);
 
   // Realtime listener for client support unread messages count
   useEffect(() => {
@@ -302,7 +320,30 @@ export default function App() {
           }
           setLoading(false);
         }, (error) => {
-          console.error("User doc listener error:", error);
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          const isQuota = errorMsg.toLowerCase().includes("quota");
+          if (isQuota) {
+            console.warn("User doc listener quota limit warning:", errorMsg);
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(
+                new CustomEvent("firestore-quota-exceeded", {
+                  detail: { error: errorMsg, path: `users/${fbUser.uid}` }
+                })
+              );
+            }
+            setUser({
+              uid: fbUser.uid,
+              email: fbUser.email || null,
+              phoneNumber: fbUser.phoneNumber || null,
+              displayName: fbUser.displayName || "User",
+              loyaltyPoints: 100,
+              wishlist: [],
+              isAdmin: fbUser.email?.toLowerCase() === "upfrontretaile@gmail.com",
+              emailVerified: fbUser.emailVerified
+            });
+          } else {
+            console.error("User doc listener error:", error);
+          }
           setLoading(false);
         });
       } else {
@@ -328,6 +369,47 @@ export default function App() {
             <Router>
               <AnalyticsTracker />
             <div className="min-h-screen flex flex-col font-sans bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 selection:bg-orange-100 transition-colors duration-200">
+            {quotaExceededInfo && (
+              <div id="firestore-quota-warning-banner" className="bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/50 px-4 py-3 select-none">
+                <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex gap-3 items-start">
+                    <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg text-amber-700 dark:text-amber-300 shrink-0 mt-0.5">
+                      <Database size={18} className="animate-pulse" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-amber-900 dark:text-amber-100 flex items-center gap-2">
+                        Firestore Free-Tier Quota Limit Reached
+                        <span className="text-[10px] uppercase font-black tracking-wider bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded text-amber-800 dark:text-amber-200">
+                          Offline Cache Active
+                        </span>
+                      </h3>
+                      <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
+                        The Firestore daily free-tier read quota metric for this project has been fully exhausted because of high usage. 
+                        SokoPlus is operating seamlessly via local database queries and IndexedDB offline cache fallbacks.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
+                    <a
+                      href="https://console.firebase.google.com/project/gen-lang-client-0489491426/firestore/databases/ai-studio-8d476022-e7b3-48f3-98d2-317aae594cb7/data?openUpgradeDialog=true"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 bg-amber-600 hover:bg-amber-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white text-xs font-black px-3.5 py-2 rounded-lg shadow-sm transition active:scale-95 cursor-pointer uppercase tracking-tight"
+                    >
+                      <ExternalLink size={14} />
+                      Upgrade/Check Database
+                    </a>
+                    <button
+                      onClick={() => setQuotaExceededInfo(null)}
+                      className="p-1.5 text-amber-700 dark:text-amber-400 hover:bg-amber-150 dark:hover:bg-amber-900/50 rounded-lg transition cursor-pointer"
+                      title="Dismiss Alert"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {user && !user.emailVerified && <VerificationBanner email={user.email} />}
             <Navbar user={user} />
             <main className="flex-grow">

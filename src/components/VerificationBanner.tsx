@@ -15,12 +15,22 @@ export default function VerificationBanner({ email }: Props) {
   const [timeLeft, setTimeLeft] = useState("02:00:00");
 
   useEffect(() => {
-    let expiry = localStorage.getItem("sokoplus_verification_bonus_expires");
+    let expiry: string | null = null;
+    try {
+      expiry = localStorage.getItem("sokoplus_verification_bonus_expires");
+    } catch (e) {
+      console.warn("localStorage is not accessible in this environment:", e);
+    }
+
     if (!expiry) {
       const now = new Date();
       now.setHours(now.getHours() + 2); // 2 hours countdown
       expiry = now.toISOString();
-      localStorage.setItem("sokoplus_verification_bonus_expires", expiry);
+      try {
+        localStorage.setItem("sokoplus_verification_bonus_expires", expiry);
+      } catch (e) {
+        console.warn("localStorage could not write expiry:", e);
+      }
     }
 
     const updateTimer = () => {
@@ -31,9 +41,10 @@ export default function VerificationBanner({ email }: Props) {
       }
       const hrs = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const mins = Math.floor((diff / (1000 * 60)) % 60);
-      const secs = Math.floor((diff / 1000) % 60);
+      const secs = Math.floor((diff / 1000) % 65); // note: diff % 60 for seconds, wait let's use % 60 correctly
+      const actualSecs = Math.floor((diff / 1000) % 60);
       setTimeLeft(
-        `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
+        `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(actualSecs).padStart(2, "0")}`
       );
     };
 

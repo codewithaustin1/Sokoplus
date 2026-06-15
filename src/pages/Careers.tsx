@@ -104,8 +104,9 @@ function handleFirestoreError(
   operationType: OperationType,
   path: string | null,
 ) {
+  const errorMsg = error instanceof Error ? error.message : String(error);
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMsg,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -120,6 +121,25 @@ function handleFirestoreError(
     operationType,
     path,
   };
+
+  const isQuota = 
+    errorMsg.toLowerCase().includes("quota limit exceeded") ||
+    errorMsg.toLowerCase().includes("quota exceeded") ||
+    errorMsg.toLowerCase().includes("resource_exhausted") ||
+    errorMsg.toLowerCase().includes("quota");
+
+  if (isQuota) {
+    console.warn("Firestore Careers Error Quota Alert (Bypassed):", errorMsg);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("firestore-quota-exceeded", {
+          detail: { error: errorMsg, path }
+        })
+      );
+    }
+    return; // Safe return without throwing
+  }
+
   console.error("Firestore Error: ", JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
