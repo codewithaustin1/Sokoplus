@@ -57,9 +57,9 @@ export default function ReturnPolicy() {
           <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center shrink-0">
             <Calendar size={20} />
           </div>
-          <h3 className="text-base font-extrabold text-gray-900">14-Day Return Window</h3>
+          <h3 className="text-base font-extrabold text-gray-900">7-Day Return Window</h3>
           <p className="text-gray-500 text-sm leading-relaxed">
-            Return ready-made items within <strong>14 calendar days</strong> of receiving delivery. Items must be unworn, unwashed, and in original packaging.
+            Return standard, non-custom items within <strong>7 calendar days</strong> of receiving delivery. Items must be unworn, unwashed, and in original packaging.
           </p>
         </div>
 

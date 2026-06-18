@@ -703,7 +703,10 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </div>
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg"><RefreshCw size={20} /></div>
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Easy Returns</p>
+              <div>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Easy Returns</p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium whitespace-nowrap">7-day standard window</p>
+              </div>
             </div>
           </div>
         </div>

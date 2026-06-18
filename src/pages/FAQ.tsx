@@ -53,7 +53,7 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     category: "Artisans & Support",
     question: "What is your refund policy?",
-    answer: "We offer hassle-free returns or exchanges if a product arrives damaged or significantly deviates from the description. Contact customer support within 48 hours of delivery to initiate a claim."
+    answer: "We offer a relaxed, user-friendly 7-day return policy for standard, non-custom orders from the date of delivery. Items must be in their original condition. For custom or bespoke artisan pieces, returns are generally not accepted unless they arrive damaged or defective. Feel free to contact customer support to initiate a claim or exchange."
   }
 ];
 

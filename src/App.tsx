@@ -32,6 +32,7 @@ import Careers from "./pages/Careers";
 import { useEffect, useState, useRef } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { UserProfile } from "./types";
 import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X } from "lucide-react";
@@ -142,6 +143,9 @@ export default function App() {
   const [quotaExceededInfo, setQuotaExceededInfo] = useState<{ error: string; path: string | null } | null>(null);
   const isFirstMount = useRef(true);
   const lastScrollYRef = useRef(0);
+
+  // Monitor inactive user sessions globally to securely log them out after a period of idle status
+  useInactivityLogout(user);
 
   // Firestore Quota Exceeded Global Trap
   useEffect(() => {
