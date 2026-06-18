@@ -1138,6 +1138,24 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                       ))}
                     </div>
                   )}
+
+                  {/* Admin Reply rendering */}
+                  {review.adminReply && (
+                    <div className="mt-4 p-4 rounded-xl bg-orange-50/40 dark:bg-orange-950/20 border border-orange-100/50 dark:border-orange-900/30 text-gray-850 dark:text-gray-200">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                          Sokoplus Official Reply
+                        </span>
+                        {review.repliedAt && (
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                            {review.repliedAt?.toDate ? review.repliedAt.toDate().toLocaleDateString() : new Date(review.repliedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs leading-relaxed italic pr-2">{review.adminReply}</p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

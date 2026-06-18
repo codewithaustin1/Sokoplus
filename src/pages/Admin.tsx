@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { UserProfile, Product, Order, SupportTicket, BlogPost, JobOffer, JobApplication } from "../types";
+import { UserProfile, Product, Order, SupportTicket, BlogPost, JobOffer, JobApplication, Review } from "../types";
 import { db, auth } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -63,6 +63,7 @@ import axios from "axios";
 import RichTextEditor from "../components/RichTextEditor";
 import { downloadReceipt } from "../utils/pdfGenerator";
 import SecurityManager from "../components/SecurityManager";
+import AdminReviewsManager from "../components/AdminReviewsManager";
 import {
   ComposedChart,
   Area,
@@ -565,7 +566,7 @@ export default function Admin({ user }: AdminProps) {
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing"
+    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews"
   >("inventory");
   const [biDateRangeFilter, setBiDateRangeFilter] = useState<"all" | "today" | "7d" | "30d" | "90d" | "ytd">("all");
   const [biCategoryFilter, setBiCategoryFilter] = useState<string>("all");
@@ -2658,6 +2659,12 @@ export default function Admin({ user }: AdminProps) {
           className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "careers" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
         >
           Careers Board
+        </button>
+        <button
+          onClick={() => setActiveTab("reviews")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "reviews" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          Product Reviews
         </button>
         {user?.email === "upfrontretaile@gmail.com" && (
           <button
@@ -5322,6 +5329,10 @@ export default function Admin({ user }: AdminProps) {
 
       {activeTab === "security" && user?.email === "upfrontretaile@gmail.com" && (
         <SecurityManager user={user} />
+      )}
+
+      {activeTab === "reviews" && (
+        <AdminReviewsManager />
       )}
 
       {activeTab === "marketing" && (
