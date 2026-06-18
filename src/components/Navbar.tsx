@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Sun, Moon } from "lucide-react";
+import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Sun, Moon, Mic, MicOff } from "lucide-react";
+import toast from "react-hot-toast";
 import { useTheme } from "../lib/ThemeContext";
 import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -27,6 +28,100 @@ export default function Navbar({ user }: NavbarProps) {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [suggestedProducts, setSuggestedProducts] = useState<Product[]>([]);
   const [showDesktopSuggestions, setShowDesktopSuggestions] = useState(false);
+
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = language === "sw" ? "sw-KE" : "en-US";
+
+      rec.onstart = () => {
+        setIsListening(true);
+      };
+
+      rec.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          const cleanedTranscript = transcript.replace(/[.?!]/g, "").trim();
+          handleSearchChange(cleanedTranscript);
+          toast.success(`${language === "sw" ? "Imepatikana" : "Found"}: "${cleanedTranscript}"`, {
+            id: "voice-search-result",
+            icon: "🎙️",
+            duration: 3000
+          });
+        }
+      };
+
+      rec.onerror = (event: any) => {
+        if (event.error !== "no-speech" && event.error !== "aborted" && event.error !== "network") {
+          console.error("Speech recognition error:", event.error);
+        } else {
+          console.log("Speech recognition info:", event.error);
+        }
+        setIsListening(false);
+        if (event.error === "not-allowed") {
+          toast.error(language === "sw" ? "Ruhusa ya maikrofoni imekataliwa." : "Microphone access is blocked or not allowed.", { id: "voice-search-error" });
+        } else if (event.error === "network") {
+          toast.error(
+            language === "sw" 
+              ? "Kuna shida ya mtandao. Utambuzi sauti unahitaji intaneti." 
+              : "Network error. Speech recognition requires an active internet connection.",
+            { id: "voice-search-error" }
+          );
+        } else if (event.error === "no-speech" || event.error === "aborted") {
+          // Ignore general quiet moments or intentional abort requests during unmount / toggle stop
+        } else {
+          toast.error(`${language === "sw" ? "Hitilafu" : "Error"}: ${event.error}`, { id: "voice-search-error" });
+        }
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = rec;
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, [allProducts, language]);
+
+  const toggleVoiceSearch = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error(language === "sw" ? "Utambuzi wa sauti hautegemezwi kwenye kivinjari hiki." : "Voice search is not supported in this browser.", { id: "voice-search-unsupported" });
+      return;
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    } else {
+      try {
+        if (recognitionRef.current) {
+          // Update language setting dynamically before start
+          recognitionRef.current.lang = language === "sw" ? "sw-KE" : "en-US";
+          recognitionRef.current.start();
+          toast.success(language === "sw" ? "Sikiliza... Ongea sasa!" : "Listening... Speak now!", {
+            id: "voice-search-listening",
+            icon: "🎙️",
+            duration: 4000
+          });
+        }
+      } catch (err) {
+        console.error("Failed to start speech recognition:", err);
+      }
+    }
+  };
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -132,20 +227,35 @@ export default function Navbar({ user }: NavbarProps) {
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onFocus={() => setShowDesktopSuggestions(true)}
                   placeholder={t("searchPlaceholder")}
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-200 dark:border-gray-800 rounded-full leading-5 bg-gray-50 dark:bg-gray-900 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 sm:text-sm transition-all focus:shadow-sm"
+                  className="block w-full pl-10 pr-20 py-2 border border-gray-200 dark:border-gray-800 rounded-full leading-5 bg-gray-50 dark:bg-gray-900 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 sm:text-sm transition-all focus:shadow-sm"
                 />
-                {search && (
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center space-x-1">
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch("");
+                        setSuggestedProducts([]);
+                      }}
+                      className="p-1 text-gray-450 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
+                      title={language === "sw" ? "Futa" : "Clear"}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => {
-                      setSearch("");
-                      setSuggestedProducts([]);
-                    }}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-450 hover:text-gray-600 transition-colors"
+                    onClick={toggleVoiceSearch}
+                    className={`p-1.5 rounded-full transition-all duration-200 flex items-center justify-center cursor-pointer ${
+                      isListening
+                        ? "text-red-600 bg-red-50 dark:bg-red-950/40 animate-pulse scale-110"
+                        : "text-gray-480 hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-800/40"
+                    }`}
+                    title={language === "sw" ? "Tafuta kwa sauti" : "Search by voice"}
                   >
-                    <X size={16} />
+                    {isListening ? <MicOff size={16} /> : <Mic size={16} />}
                   </button>
-                )}
+                </div>
               </div>
             </form>
 
@@ -352,20 +462,35 @@ export default function Navbar({ user }: NavbarProps) {
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={language === "sw" ? "Tafuta bidhaa bora za Kenya..." : "Search products in Kenya..."}
-            className="block w-full pl-9 pr-9 py-2 border border-gray-200/80 dark:border-gray-800 rounded-xl leading-5 bg-gray-50/80 dark:bg-gray-900/80 placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all shadow-inner-sm"
+            className="block w-full pl-9 pr-16 py-2 border border-gray-200/80 dark:border-gray-800 rounded-xl leading-5 bg-gray-50/80 dark:bg-gray-900/80 placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all shadow-inner-sm"
           />
-          {search && (
+          <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center space-x-1">
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setSuggestedProducts([]);
+                }}
+                className="p-1 text-gray-450 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
+                title={language === "sw" ? "Futa" : "Clear"}
+              >
+                <X size={14} />
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => {
-                setSearch("");
-                setSuggestedProducts([]);
-              }}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-405 hover:text-gray-600"
+              onClick={toggleVoiceSearch}
+              className={`p-1 rounded-full transition-all duration-200 flex items-center justify-center cursor-pointer ${
+                isListening
+                  ? "text-red-600 bg-red-50 dark:bg-red-950/45 animate-pulse scale-110"
+                  : "text-gray-400 hover:text-orange-600 dark:text-gray-500 dark:hover:text-orange-400"
+              }`}
+              title={language === "sw" ? "Tafuta kwa sauti" : "Search by voice"}
             >
-              <X size={14} />
+              {isListening ? <MicOff size={14} /> : <Mic size={14} />}
             </button>
-          )}
+          </div>
         </form>
 
         {/* Suggestion Dropdown floating beautifully over the parent page */}
@@ -465,8 +590,35 @@ export default function Navbar({ user }: NavbarProps) {
                   value={search}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder={t("searchPlaceholder")}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 text-gray-900 dark:text-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all focus:border-orange-500 focus:bg-white focus:dark:bg-gray-900 font-medium"
+                  className="w-full pl-10 pr-16 py-3 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 text-gray-900 dark:text-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all focus:border-orange-500 focus:bg-white focus:dark:bg-gray-900 font-medium"
                 />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center space-x-1">
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch("");
+                        setSuggestedProducts([]);
+                      }}
+                      className="p-1 text-gray-450 hover:text-gray-750 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
+                      title={language === "sw" ? "Futa" : "Clear"}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={toggleVoiceSearch}
+                    className={`p-1.5 rounded-full transition-all duration-200 flex items-center justify-center cursor-pointer ${
+                      isListening
+                        ? "text-red-600 bg-red-50 dark:bg-red-950/45 animate-pulse scale-110"
+                        : "text-gray-420 hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-400"
+                    }`}
+                    title={language === "sw" ? "Tafuta kwa sauti" : "Search by voice"}
+                  >
+                    {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                  </button>
+                </div>
               </motion.form>
 
               {/* Mobile Language Selector */}
