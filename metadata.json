@@ -1,7 +1,7 @@
 {
   "name": "Sokoplus",
   "description": "A Kenya-focused e-commerce platform with admin dashboard, personalized recommendations, and Paystack integration.",
-  "requestFramePermissions": ["microphone"],
+  "requestFramePermissions": ["microphone", "camera"],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]

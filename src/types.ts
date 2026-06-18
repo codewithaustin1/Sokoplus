@@ -60,6 +60,7 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: any;
+  images?: string[];
 }
 
 export interface SupportTicket {

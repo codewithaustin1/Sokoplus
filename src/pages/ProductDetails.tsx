@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { doc, getDoc, collection, query, limit, getDocs, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
-import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare } from "lucide-react";
+import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare, Camera, Trash2, Image, Video, VideoOff } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -55,6 +55,156 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [activeImage, setActiveImage] = useState(0);
+
+  // Advanced Photo Capture & Review Attachment state
+  const [attachedImages, setAttachedImages] = useState<string[]>([]);
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Stop camera stream safely
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    setShowCamera(false);
+  };
+
+  // Start camera stream safely
+  const startCamera = async () => {
+    setCameraLoading(true);
+    try {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" }, // Default to outward facing for item snapshotting
+        audio: false
+      });
+      setCameraStream(stream);
+      setShowCamera(true);
+      // Wait a frame for videoRef element to mount
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error("Error accessing camera:", err);
+      toast.error("Could not access your device camera. Please check browser permissions.");
+    } finally {
+      setCameraLoading(false);
+    }
+  };
+
+  // Re-bind srcObject if stream updates & video element shifts
+  useEffect(() => {
+    if (showCamera && cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [showCamera, cameraStream]);
+
+  // Cleanup stream on component unmount
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    try {
+      const video = videoRef.current;
+      const canvas = document.createElement("canvas");
+      
+      // Scaling down image sizes to keep Firestore document size super compact and efficient
+      const maxDim = 500;
+      let w = video.videoWidth || 640;
+      let h = video.videoHeight || 480;
+      
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+        if (attachedImages.length >= 3) {
+          toast.error("Maximum 3 product photos are supported.");
+          return;
+        }
+        setAttachedImages((prev) => [...prev, dataUrl]);
+        toast.success("Photo captured!");
+        stopCamera();
+      }
+    } catch (err) {
+      console.error("Capture snapshot mistake:", err);
+      toast.error("Failed to snapshot photo.");
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith("image/")) {
+        toast.error("Unsupported file format.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxDim = 500;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, w, h);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+            setAttachedImages((prev) => {
+              if (prev.length >= 3) {
+                toast.error("Maximum 3 product photos are supported.");
+                return prev;
+              }
+              return [...prev, dataUrl];
+            });
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeAttachedImage = (index: number) => {
+    setAttachedImages((prev) => prev.filter((_, i) => i !== index));
+  };
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
   const [isZoomed, setIsZoomed] = useState(false);
 
@@ -270,7 +420,8 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         userName: user.displayName,
         rating: newReview.rating,
         comment: newReview.comment,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        images: attachedImages
       };
 
       await addDoc(collection(db, "reviews"), reviewData);
@@ -288,6 +439,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
 
       toast.success("Review submitted!");
       setNewReview({ rating: 5, comment: "" });
+      setAttachedImages([]);
       fetchReviews();
     } catch (error) {
       console.error("Review error:", error);
@@ -825,6 +977,106 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                 className="w-full bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800 text-gray-905 dark:text-white rounded-xl p-4 min-h-[120px] outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm placeholder-gray-400 dark:placeholder-gray-600 leading-relaxed resize-none"
                 required
               />
+
+              {/* Photo Attachments & Capture HUD */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                    Product Photos ({attachedImages.length}/3)
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={showCamera ? stopCamera : startCamera}
+                      disabled={cameraLoading}
+                      className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold transition-all border-none cursor-pointer ${
+                        showCamera
+                          ? "bg-red-50 text-red-650 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400"
+                          : "bg-orange-50 text-orange-600 hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-400"
+                      }`}
+                    >
+                      <Camera size={13} className="mr-1" />
+                      {showCamera ? "Stop Camera" : cameraLoading ? "Starting..." : "Use Camera"}
+                    </button>
+                    
+                    <label className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700/60 cursor-pointer transition-all">
+                      <Image size={13} className="mr-1" />
+                      Upload
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Live viewfinder HUD */}
+                {showCamera && (
+                  <div className="border border-orange-500/20 bg-orange-50/25 dark:bg-orange-950/5 rounded-2xl p-3.5 space-y-3 relative overflow-hidden">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] uppercase font-bold text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        Live Device Lens View
+                      </span>
+                    </div>
+                    
+                    <div className="aspect-video bg-black rounded-xl overflow-hidden relative border border-gray-200 dark:border-gray-800">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={capturePhoto}
+                        className="flex-1 bg-orange-600 text-white py-2 px-4 rounded-xl font-bold text-xs tracking-wide hover:bg-orange-750 transition-colors flex items-center justify-center gap-1.5 cursor-pointer border-none"
+                      >
+                        <Camera size={14} />
+                        Snap Photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={stopCamera}
+                        className="px-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-bold hover:bg-gray-200 dark:hover:bg-gray-750 border-none cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Micro Thumbnail gallery */}
+                {attachedImages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 p-2 bg-white dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-850">
+                    {attachedImages.map((img, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 group">
+                        <img
+                          src={img}
+                          alt="Captured Item Thumbnail"
+                          referrerPolicy="no-referrer"
+                          className="object-cover w-full h-full"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeAttachedImage(idx)}
+                          className="absolute top-1.5 right-1.5 p-1 bg-red-650 hover:bg-red-700 text-white rounded-full transition-all duration-150 cursor-pointer shadow-sm border-none z-10"
+                          title="Delete image"
+                        >
+                          <Trash2 size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <button
                 type="submit"
                 disabled={submittingReview}
@@ -861,6 +1113,31 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                     </span>
                   </div>
                   <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">{review.comment}</p>
+                  
+                  {/* Attached Review Images rendering */}
+                  {review.images && review.images.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3.5">
+                      {review.images.map((img, idx) => (
+                        <div key={idx} className="relative overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 w-20 h-20 group">
+                          <img 
+                            src={img} 
+                            alt={`Review image documentation ${idx + 1}`} 
+                            referrerPolicy="no-referrer"
+                            className="object-cover w-full h-full hover:scale-105 transition-transform duration-350 cursor-pointer"
+                            onClick={() => {
+                              // Enable image display in micro-lightbox
+                              toast((t) => (
+                                <div className="flex flex-col items-center p-1 bg-white dark:bg-gray-900">
+                                  <img src={img} alt="Enlarged aspect" className="max-w-[280px] max-h-[280px] rounded-lg object-contain shadow-lg" referrerPolicy="no-referrer" />
+                                  <button onClick={() => toast.dismiss(t.id)} className="mt-2 text-[10px] font-bold text-orange-600 uppercase border-none bg-transparent cursor-pointer">Close</button>
+                                </div>
+                              ), { duration: 10000 });
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
