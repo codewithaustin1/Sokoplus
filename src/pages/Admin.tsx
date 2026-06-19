@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { UserProfile, Product, Order, SupportTicket, BlogPost, JobOffer, JobApplication, Review } from "../types";
 import { db, auth } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
@@ -566,8 +567,16 @@ export default function Admin({ user }: AdminProps) {
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews"
+    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue"
   >("inventory");
+  const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
+  const [confirmingApprovePendingId, setConfirmingApprovePendingId] = useState<string | null>(null);
+  const [selectedPendingForRejection, setSelectedPendingForRejection] = useState<Product | null>(null);
+  const [pendingRejectionReasonInput, setPendingRejectionReasonInput] = useState<string>("");
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [confirmingApproveSellerId, setConfirmingApproveSellerId] = useState<string | null>(null);
+  const [selectedSellerForRejection, setSelectedSellerForRejection] = useState<any | null>(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState("");
   const [biDateRangeFilter, setBiDateRangeFilter] = useState<"all" | "today" | "7d" | "30d" | "90d" | "ytd">("all");
   const [biCategoryFilter, setBiCategoryFilter] = useState<string>("all");
   const [biArtisanSearch, setBiArtisanSearch] = useState<string>("");
@@ -585,6 +594,10 @@ export default function Admin({ user }: AdminProps) {
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [productSortBy, setProductSortBy] = useState<string>("default");
+  const [productApprovalFilter, setProductApprovalFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [selectedProductForRejection, setSelectedProductForRejection] = useState<Product | null>(null);
+  const [productRejectionReasonInput, setProductRejectionReasonInput] = useState("");
+  const [confirmingApproveProductId, setConfirmingApproveProductId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [trendsPeriod, setTrendsPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   
@@ -864,6 +877,24 @@ export default function Admin({ user }: AdminProps) {
         );
       } catch (mbError) {
         console.warn("Could not retrieve marketing banners: ", mbError);
+      }
+
+      try {
+        const sSnap = await getDocs(collection(db, "sellers"));
+        setSellers(
+          sSnap.docs.map((d) => ({ uid: d.id, ...d.data() }))
+        );
+      } catch (sellersError) {
+        console.warn("Could not load SokoPlus sellers Applications: ", sellersError);
+      }
+
+      try {
+        const pendingSnap = await getDocs(collection(db, "pending_products"));
+        setPendingProducts(
+          pendingSnap.docs.map((d) => ({ id: d.id, ...d.data(), isPending: true }) as Product)
+        );
+      } catch (pendingError) {
+        console.warn("Could not load SokoPlus pending products: ", pendingError);
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, "products/orders");
@@ -2666,6 +2697,28 @@ export default function Admin({ user }: AdminProps) {
         >
           Product Reviews
         </button>
+        <button
+          onClick={() => setActiveTab("sellers")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "sellers" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          Marketplace Sellers
+          {sellers.filter((s) => s.status === "pending").length > 0 && (
+            <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
+              {sellers.filter((s) => s.status === "pending").length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("approval_queue")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "approval_queue" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          Approval Queue
+          {pendingProducts.filter((p) => p.approvalStatus === "pending").length > 0 && (
+            <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
+              {pendingProducts.filter((p) => p.approvalStatus === "pending").length}
+            </span>
+          )}
+        </button>
         {user?.email === "upfrontretaile@gmail.com" && (
           <button
             onClick={() => setActiveTab("security")}
@@ -3188,6 +3241,21 @@ export default function Admin({ user }: AdminProps) {
                     <option value="stock-desc">Stock: High to Low</option>
                   </select>
                 </div>
+
+                {/* Clearance approval status selector */}
+                <div className="flex flex-col space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Clearance Status</span>
+                  <select
+                    value={productApprovalFilter}
+                    onChange={(e) => setProductApprovalFilter(e.target.value as any)}
+                    className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[180px]"
+                  >
+                    <option value="all">All listings</option>
+                    <option value="pending">Pending Clearance ({products.filter(p => p.approvalStatus === "pending").length})</option>
+                    <option value="approved">Approved & Live</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
               </div>
 
               {/* Product search input */}
@@ -3228,6 +3296,9 @@ export default function Admin({ user }: AdminProps) {
                       const rating = p.rating || 0;
                       if (rating < minRatingFilter) return false;
                       
+                      const approval = p.approvalStatus || "approved";
+                      if (productApprovalFilter !== "all" && approval !== productApprovalFilter) return false;
+
                       if (
                         productSearchTerm.trim() !== "" &&
                         !p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
@@ -3273,10 +3344,27 @@ export default function Admin({ user }: AdminProps) {
                     .map((p) => (
                       <tr key={p.id} className={`text-sm hover:bg-gray-50/50 transition-all ${p.active === false ? "opacity-60 bg-gray-50/20" : ""}`}>
                         <td className="py-4">
-                          <div className="font-bold">{p.name}</div>
-                          {p.artisan && (
-                            <div className="text-[11px] font-semibold text-orange-600">by {p.artisan}</div>
-                          )}
+                          <div className="flex flex-col space-y-1">
+                            <div className="font-bold flex items-center gap-2 flex-wrap">
+                              <span>{p.name}</span>
+                              {(!p.approvalStatus || p.approvalStatus === "approved") ? (
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-100">
+                                  Approved
+                                </span>
+                              ) : p.approvalStatus === "pending" ? (
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 animate-pulse">
+                                  Pending Clearance
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100">
+                                  Rejected
+                                </span>
+                              )}
+                            </div>
+                            {p.artisan && (
+                              <div className="text-[11px] font-semibold text-orange-600">by {p.artisan}</div>
+                            )}
+                          </div>
                         </td>
                         <td className="py-4 text-gray-500">{p.category}</td>
                         <td className="py-4 text-center">
@@ -3289,48 +3377,151 @@ export default function Admin({ user }: AdminProps) {
                           </div>
                         </td>
                         <td className="py-4 text-center">
-                          <div className="flex items-center justify-center space-x-2">
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                const newStatus = p.active === false;
-                                try {
-                                  await updateDoc(doc(db, "products", p.id), {
-                                    active: newStatus,
-                                  });
-                                  setProducts((prev) =>
-                                    prev.map((prod) =>
-                                      prod.id === p.id
-                                        ? { ...prod, active: newStatus }
-                                        : prod,
-                                    ),
-                                  );
-                                  toast.success(
-                                    `"${p.name}" is now ${newStatus ? "Active" : "Inactive"}`
-                                  );
-                                } catch (error) {
-                                  handleFirestoreError(
-                                    error,
-                                    OperationType.UPDATE,
-                                    `products/${p.id}`,
-                                  );
-                                }
-                              }}
-                              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                p.active !== false ? "bg-orange-600" : "bg-gray-200"
-                              }`}
-                              title={p.active !== false ? "Switch to Inactive" : "Switch to Active"}
-                            >
-                              <span
-                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                                  p.active !== false ? "translate-x-4" : "translate-x-0"
+                          {p.approvalStatus === "pending" ? (
+                            <div className="flex flex-col items-center space-y-1.5 bg-amber-50/45 p-2 rounded-2xl border border-amber-105">
+                              <span className="text-[10px] b-fit uppercase font-black tracking-wider text-amber-700 flex items-center justify-center gap-1">
+                                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>
+                                Pending Review
+                              </span>
+                              <div className="flex items-center gap-1 pt-0.5">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (confirmingApproveProductId !== p.id) {
+                                      setConfirmingApproveProductId(p.id);
+                                      return;
+                                    }
+                                    try {
+                                      await updateDoc(doc(db, "products", p.id), {
+                                        approvalStatus: "approved",
+                                        active: true,
+                                        rejectionReason: ""
+                                      });
+                                      setProducts((prev) =>
+                                        prev.map((prod) =>
+                                          prod.id === p.id
+                                            ? { ...prod, approvalStatus: "approved", active: true, rejectionReason: "" }
+                                            : prod,
+                                        ),
+                                      );
+                                      toast.success(`"${p.name}" cleared and live on catalog!`);
+                                      setConfirmingApproveProductId(null);
+                                    } catch (error) {
+                                      console.error(error);
+                                      toast.error("Failed to approve product listing");
+                                    }
+                                  }}
+                                  className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border-none cursor-pointer ${
+                                    confirmingApproveProductId === p.id
+                                      ? "bg-amber-600 hover:bg-amber-700 text-white animate-pulse"
+                                      : "bg-green-600 hover:bg-green-700 text-white shadow-xs"
+                                  }`}
+                                >
+                                  {confirmingApproveProductId === p.id ? "Confirm?" : "Approve"}
+                                </button>
+                                {confirmingApproveProductId === p.id && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmingApproveProductId(null)}
+                                    className="px-2 py-1 bg-gray-150 hover:bg-gray-200 text-gray-700 rounded-lg text-[9px] font-black uppercase border-none cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedProductForRejection(p);
+                                    setProductRejectionReasonInput("");
+                                    setConfirmingApproveProductId(null);
+                                  }}
+                                  className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase transition-all border-none cursor-pointer"
+                                >
+                                  Decline
+                                </button>
+                              </div>
+                            </div>
+                          ) : p.approvalStatus === "rejected" ? (
+                            <div className="flex flex-col items-center space-y-1 bg-red-50/40 p-2 rounded-2xl border border-red-100">
+                              <span className="text-[10px] uppercase font-black tracking-wider text-red-700">
+                                Rejected
+                              </span>
+                              {p.rejectionReason && (
+                                <p className="text-[9px] text-gray-400 italic max-w-[150px] line-clamp-2 text-center" title={p.rejectionReason}>
+                                  "{p.rejectionReason}"
+                                </p>
+                              )}
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    await updateDoc(doc(db, "products", p.id), {
+                                      approvalStatus: "approved",
+                                      active: true,
+                                      rejectionReason: ""
+                                    });
+                                    setProducts((prev) =>
+                                      prev.map((prod) =>
+                                        prod.id === p.id
+                                          ? { ...prod, approvalStatus: "approved", active: true, rejectionReason: "" }
+                                          : prod,
+                                      ),
+                                    );
+                                    toast.success(`"${p.name}" cleared from rejection to Approved & Live!`);
+                                  } catch (error) {
+                                    console.error(error);
+                                    toast.error("Failed to approve product");
+                                  }
+                                }}
+                                className="px-2 py-1 mt-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg text-[9px] font-black uppercase transition-all border-none cursor-pointer"
+                              >
+                                Clear Listing
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const newStatus = p.active === false;
+                                  try {
+                                    await updateDoc(doc(db, "products", p.id), {
+                                      active: newStatus,
+                                    });
+                                    setProducts((prev) =>
+                                      prev.map((prod) =>
+                                        prod.id === p.id
+                                          ? { ...prod, active: newStatus }
+                                          : prod,
+                                      ),
+                                    );
+                                    toast.success(
+                                      `"${p.name}" is now ${newStatus ? "Active" : "Inactive"}`
+                                    );
+                                  } catch (error) {
+                                    handleFirestoreError(
+                                      error,
+                                      OperationType.UPDATE,
+                                      `products/${p.id}`,
+                                    );
+                                  }
+                                }}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                  p.active !== false ? "bg-orange-600" : "bg-gray-200"
                                 }`}
-                              />
-                            </button>
-                            <span className={`text-[10px] uppercase tracking-wider font-extrabold select-none ${p.active !== false ? "text-green-600" : "text-gray-400"}`}>
-                              {p.active !== false ? "Active" : "Inactive"}
-                            </span>
-                          </div>
+                                title={p.active !== false ? "Switch to Inactive" : "Switch to Active"}
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                    p.active !== false ? "translate-x-4" : "translate-x-0"
+                                  }`}
+                                />
+                              </button>
+                              <span className={`text-[10px] uppercase tracking-wider font-extrabold select-none ${p.active !== false ? "text-green-600" : "text-gray-400"}`}>
+                                {p.active !== false ? "Active" : "Inactive"}
+                              </span>
+                            </div>
+                          )}
                         </td>
                         <td className="py-4 text-center">
                         <div className="flex items-center justify-center space-x-2">
@@ -5333,6 +5524,540 @@ export default function Admin({ user }: AdminProps) {
 
       {activeTab === "reviews" && (
         <AdminReviewsManager />
+      )}
+
+      {activeTab === "sellers" && (
+        <div className="space-y-8 animate-fade-in text-gray-950 font-sans">
+          {/* Header Card */}
+          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-4">
+            <h1 className="text-3xl font-black text-gray-950 tracking-tight">Marketplace Governance</h1>
+            <p className="text-sm text-gray-500 font-medium">
+              Review third-party merchant seller proposals, audit shop configurations, process approvals or rejections, and oversee platform commissions.
+            </p>
+          </div>
+
+          {/* Stats Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+              <span className="text-xs text-gray-400 font-bold uppercase block">Pending Audits</span>
+              <p className="text-3xl font-black text-orange-600 mt-1">
+                {sellers.filter(s => s.status === "pending").length} proposals
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+              <span className="text-xs text-gray-400 font-bold uppercase block">Approved Partners</span>
+              <p className="text-3xl font-black text-green-600 mt-1">
+                {sellers.filter(s => s.status === "approved").length} merchants
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+              <span className="text-xs text-gray-400 font-bold uppercase block">Marketplace Commission Fee</span>
+              <p className="text-3xl font-black text-gray-900 mt-1">5.0% flat</p>
+            </div>
+          </div>
+
+          {/* List of Proposals */}
+          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+              <h3 className="text-lg font-black text-gray-900">Active Proposals & Merchants</h3>
+              <p className="text-xs text-gray-400">Total registered profiles loaded: {sellers.length}</p>
+            </div>
+
+            {sellers.length === 0 ? (
+              <div className="p-12 text-center text-gray-400 italic bg-gray-50 rounded-2xl border border-gray-100">
+                No seller profiles or applications have been recorded in the system.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {sellers.map((seller) => (
+                  <div
+                    key={seller.uid}
+                    className="p-6 rounded-2xl border border-gray-150 bg-white shadow-xs space-y-4 hover:border-orange-200 transition-all text-left"
+                  >
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div>
+                        <h4 className="text-lg font-black text-gray-900">{seller.shopName}</h4>
+                        <p className="text-xs text-gray-400 font-semibold mt-0.5">
+                          Location: <span className="text-gray-700">{seller.location}</span> | Contact: <span className="text-gray-700">{seller.phone}</span>
+                        </p>
+                      </div>
+                      <span className={`text-[10px] uppercase font-black px-3 py-1 rounded-full ${
+                        seller.status === "approved" ? "bg-green-50 text-green-700 border border-green-200" :
+                        seller.status === "rejected" ? "bg-red-50 text-red-700 border border-red-200" :
+                        "bg-amber-50 text-amber-700 border border-amber-200 animate-pulse"
+                      }`}>
+                        {seller.status}
+                      </span>
+                    </div>
+
+                    <div className="p-4 bg-gray-50 rounded-xl space-y-1">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Shop Pitch</span>
+                      <p className="text-xs text-gray-650 leading-relaxed font-medium">
+                        {seller.description || "_No pitch or description was supplied._"}
+                      </p>
+                      {seller.status === "rejected" && seller.rejectedReason && (
+                        <div className="mt-2 pt-2 border-t border-gray-200/50 text-[10px] text-red-650 font-medium">
+                          <strong>Rejection Note:</strong> "{seller.rejectedReason}"
+                        </div>
+                      )}
+                    </div>
+
+                    {seller.status === "pending" && (
+                      <div className="flex items-center gap-2 justify-end pt-2">
+                        {confirmingApproveSellerId === seller.uid && (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingApproveSellerId(null)}
+                            className="px-3 py-1.5 rounded-xl bg-gray-150 hover:bg-gray-200 text-gray-700 font-extrabold text-xs transition-all border-none cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSellerForRejection(seller);
+                            setRejectionReasonInput("");
+                            setConfirmingApproveSellerId(null);
+                          }}
+                          className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-650 font-extrabold text-xs transition-all border-none cursor-pointer"
+                        >
+                          Reject Application
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (confirmingApproveSellerId !== seller.uid) {
+                              setConfirmingApproveSellerId(seller.uid);
+                              return;
+                            }
+                            try {
+                              await updateDoc(doc(db, "sellers", seller.uid), { status: "approved" });
+                              setSellers(prev => prev.map(s => s.uid === seller.uid ? { ...s, status: "approved" } : s));
+                              toast.success(`Merchant "${seller.shopName}" has been successfully approved!`);
+                              setConfirmingApproveSellerId(null);
+                            } catch (error) {
+                              console.error("[Admin] Failed to approve merchant:", error);
+                              toast.error(`Could not update merchant status: ${error instanceof Error ? error.message : String(error)}`);
+                            }
+                          }}
+                          className={`px-4 py-2 rounded-xl font-extrabold text-xs transition-all border-none cursor-pointer flex items-center gap-1 ${
+                            confirmingApproveSellerId === seller.uid
+                              ? "bg-amber-600 hover:bg-amber-750 text-white animate-pulse"
+                              : "bg-green-600 hover:bg-green-750 text-white"
+                          }`}
+                        >
+                          {confirmingApproveSellerId === seller.uid ? "Confirm Approval?" : "Approve Partner"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Interactive Rejection Overlay Dialog */}
+          {selectedSellerForRejection && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+              <div className="bg-white p-8 rounded-3xl max-w-md w-full border border-gray-150 shadow-2xl space-y-5 animate-fade-in text-left">
+                <h3 className="text-lg font-black text-gray-900">Provide Rejection Reason</h3>
+                <p className="text-xs text-gray-400">
+                  Are you sure you want to decline the proposal from <span className="font-extrabold text-gray-800">"{selectedSellerForRejection.shopName}"</span>? Explain the reason below:
+                </p>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="e.g., Authentic local sourcing validation failed, or contact credentials appear incorrect."
+                  value={rejectionReasonInput}
+                  onChange={(e) => setRejectionReasonInput(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs resize-none text-gray-950"
+                />
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSellerForRejection(null)}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-650 font-extrabold rounded-lg text-xs cursor-pointer border-none"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!rejectionReasonInput.trim()) {
+                        toast.error("Typing a rejection reason is mandatory.");
+                        return;
+                      }
+                      try {
+                        const note = rejectionReasonInput.trim();
+                        await updateDoc(doc(db, "sellers", selectedSellerForRejection.uid), {
+                          status: "rejected",
+                          rejectedReason: note
+                        });
+                        setSellers(prev => prev.map(s => s.uid === selectedSellerForRejection.uid ? { ...s, status: "rejected", rejectedReason: note } : s));
+                        toast.success(`Merchant proposal declined.`);
+                        setSelectedSellerForRejection(null);
+                      } catch (error) {
+                        console.error("[Admin] Failed to decline seller:", error);
+                        toast.error(`Failed to commit status: ${error instanceof Error ? error.message : String(error)}`);
+                      }
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-800 text-white font-extrabold rounded-lg text-xs cursor-pointer border-none"
+                  >
+                    Confirm Rejection
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Interactive Product Rejection Overlay Dialog */}
+          {selectedProductForRejection && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+              <div className="bg-white p-8 rounded-3xl max-w-md w-full border border-gray-150 shadow-2xl space-y-5 animate-fade-in text-left">
+                <h3 className="text-lg font-black text-gray-900">Decline Product Listing</h3>
+                <p className="text-xs text-gray-400">
+                  Are you sure you want to decline the listing for <span className="font-extrabold text-gray-800">"{selectedProductForRejection.name}"</span>? Please specify what needs to be changed:
+                </p>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="e.g., Description is missing dimensions, price seems excessively high, or images must show product details more clearly."
+                  value={productRejectionReasonInput}
+                  onChange={(e) => setProductRejectionReasonInput(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs resize-none text-gray-950"
+                />
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProductForRejection(null)}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-650 font-extrabold rounded-lg text-xs cursor-pointer border-none"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!productRejectionReasonInput.trim()) {
+                        toast.error("Specifying a feedback reason is required.");
+                        return;
+                      }
+                      try {
+                        const note = productRejectionReasonInput.trim();
+                        await updateDoc(doc(db, "products", selectedProductForRejection.id), {
+                          approvalStatus: "rejected",
+                          active: false,
+                          rejectionReason: note
+                        });
+                        setProducts(prev => prev.map(p => p.id === selectedProductForRejection.id ? { ...p, approvalStatus: "rejected", active: false, rejectionReason: note } : p));
+                        toast.success(`Product listing declined with feedback.`);
+                        setSelectedProductForRejection(null);
+                      } catch (error) {
+                        console.error("[Admin] Failed to decline product:", error);
+                        toast.error(`Failed to record feedback: ${error instanceof Error ? error.message : String(error)}`);
+                      }
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-800 text-white font-extrabold rounded-lg text-xs cursor-pointer border-none"
+                  >
+                    Decline Listing
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "approval_queue" && (
+        <div className="space-y-8 animate-fade-in text-gray-950 font-sans">
+          {/* Header Card */}
+          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-4">
+            <h1 className="text-3xl font-black text-gray-950 tracking-tight">Product Clearance Control</h1>
+            <p className="text-sm text-gray-500 font-medium">
+              Oversee artisan submissions. Review descriptions, catalog categories, price consistency, and stock levels before making their listings active in the main shopping index.
+            </p>
+          </div>
+
+          {/* Stats Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+              <span className="text-xs text-gray-400 font-bold uppercase block">Total Submission Slots</span>
+              <p className="text-3xl font-black text-orange-600 mt-1">
+                {pendingProducts.length} listings
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+              <span className="text-xs text-gray-400 font-bold uppercase block">Pending Clearance</span>
+              <p className="text-3xl font-black text-amber-500 mt-1">
+                {pendingProducts.filter(p => !p.approvalStatus || p.approvalStatus === "pending").length} items
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+              <span className="text-xs text-gray-400 font-bold uppercase block">Corrective Adjustments</span>
+              <p className="text-3xl font-black text-red-500 mt-1">
+                {pendingProducts.filter(p => p.approvalStatus === "rejected").length} items
+              </p>
+            </div>
+          </div>
+
+          {/* Queue View */}
+          <div className="bg-white p-8 rounded-3xl border border-gray-150 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-50">
+              <h2 className="font-black text-lg text-gray-950">Pending Review Pipeline</h2>
+              <div className="text-xs text-gray-400">
+                Authorized administrator handles only
+              </div>
+            </div>
+
+            {pendingProducts.length === 0 ? (
+              <div className="p-16 text-center rounded-2xl bg-slate-50/60 border border-slate-100/80 flex flex-col items-center justify-center space-y-3">
+                <ShoppingBag size={42} className="text-slate-300" />
+                <h4 className="font-bold text-gray-700">Clearance queue is empty</h4>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                  All sellers creations and adjustments are approved! No items require review currently.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {pendingProducts.map((pendingItem) => (
+                  <div
+                    key={pendingItem.id}
+                    className="p-6 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-md hover:border-gray-200 transition-all space-y-4"
+                  >
+                    <div className="flex flex-col md:flex-row gap-6">
+                      {/* Image Preview & Category */}
+                      <div className="w-full md:w-48 h-32 bg-gray-100 rounded-xl overflow-hidden border border-gray-150 shrink-0 relative">
+                        {pendingItem.images && pendingItem.images[0] ? (
+                          <img
+                            src={pendingItem.images[0]}
+                            alt={pendingItem.name}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-bold">
+                            No Image
+                          </div>
+                        )}
+                        <span className="absolute top-2 right-2 text-[8px] font-black uppercase bg-gray-900/80 text-white px-2 py-0.5 rounded">
+                          {pendingItem.category}
+                        </span>
+                      </div>
+
+                      {/* Info Panel */}
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-black text-base text-gray-950">{pendingItem.name}</h3>
+                          {pendingItem.originalProductId ? (
+                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
+                              Revision / Edit
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-100">
+                              New Submission
+                            </span>
+                          )}
+
+                          {(!pendingItem.approvalStatus || pendingItem.approvalStatus === "pending") ? (
+                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100">
+                              Pending Review
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100 text-left">
+                              <strong>Declined Action:</strong> "{pendingItem.rejectionReason}"
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Seller Metadata */}
+                        <div className="flex items-center gap-4 text-xs text-gray-400 font-bold">
+                          {pendingItem.sellerName && (
+                            <span className="flex items-center gap-1">
+                              Store: <span className="text-gray-700 font-black">{pendingItem.sellerName}</span>
+                            </span>
+                          )}
+                          <span>Stock: <span className="text-gray-700 font-black">{pendingItem.stock}</span></span>
+                          <span>Price: <span className="text-orange-600 font-black">KES {pendingItem.price.toLocaleString()}</span></span>
+                        </div>
+
+                        {/* Description */}
+                        <div className="text-xs text-gray-650 italic bg-white p-3 rounded-xl border border-gray-100 max-h-24 overflow-y-auto">
+                          <ReactMarkdown>{pendingItem.description || "_"}</ReactMarkdown>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Operational Action Row */}
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-gray-100/60">
+                      {/* Decline Trigger */}
+                      {(!pendingItem.approvalStatus || pendingItem.approvalStatus === "pending") && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPendingForRejection(pendingItem);
+                            setPendingRejectionReasonInput("");
+                          }}
+                          className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-extrabold rounded-lg text-xs border-none cursor-pointer flex items-center gap-1.5"
+                        >
+                          Decline Submission
+                        </button>
+                      )}
+
+                      {/* Discard Delete Trigger */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!confirm(`Discard this submission draft totally from database records? This is irreversible.`)) return;
+                          try {
+                            await deleteDoc(doc(db, "pending_products", pendingItem.id));
+                            setPendingProducts(prev => prev.filter(p => p.id !== pendingItem.id));
+                            toast.success("Submission draft discarded successfully.");
+                          } catch (err) {
+                            console.error("[Admin] error discarding submission:", err);
+                            toast.error("Failed to discard submission.");
+                          }
+                        }}
+                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-650 font-extrabold rounded-lg text-xs border-none cursor-pointer flex items-center gap-1.5"
+                      >
+                        Discard
+                      </button>
+
+                      {/* Confirmation & Approval */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (confirmingApprovePendingId !== pendingItem.id) {
+                            setConfirmingApprovePendingId(pendingItem.id);
+                            return;
+                          }
+                          try {
+                            const payload = {
+                              name: pendingItem.name,
+                              price: pendingItem.price,
+                              stock: pendingItem.stock,
+                              category: pendingItem.category,
+                              description: pendingItem.description,
+                              images: pendingItem.images,
+                              sellerId: pendingItem.sellerId,
+                              sellerName: pendingItem.sellerName,
+                              artisan: pendingItem.artisan || pendingItem.sellerName || "Artisan Merchant",
+                              active: true,
+                              approvalStatus: "approved",
+                              rejectionReason: "",
+                              createdAt: pendingItem.createdAt || new Date().toISOString()
+                            };
+
+                            if (pendingItem.originalProductId) {
+                              // Live item amendment
+                              await setDoc(doc(db, "products", pendingItem.originalProductId), payload, { merge: true });
+                              toast.success(`Approved revision: "${pendingItem.name}" live updates applied!`);
+                            } else {
+                              // New product publication
+                              await addDoc(collection(db, "products"), payload);
+                              toast.success(`Published: "${pendingItem.name}" catalogue record published active!`);
+                            }
+
+                            // delete from pending queue
+                            await deleteDoc(doc(db, "pending_products", pendingItem.id));
+
+                            // update dashboard states
+                            setPendingProducts(prev => prev.filter(p => p.id !== pendingItem.id));
+                            setConfirmingApprovePendingId(null);
+                            
+                            // Re-fetch regular products to update admin inventory
+                            fetchData();
+                          } catch (error) {
+                            console.error("[Admin] error approving product:", error);
+                            toast.error("Failed to publish or update item settings.");
+                          }
+                        }}
+                        className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all cursor-pointer border-none shadow-xs ${
+                          confirmingApprovePendingId === pendingItem.id
+                            ? "bg-amber-600 text-white animate-pulse"
+                            : "bg-green-600 text-white hover:bg-green-700"
+                        }`}
+                      >
+                        {confirmingApprovePendingId === pendingItem.id ? "Confirm?" : "Approve Listing"}
+                      </button>
+
+                      {confirmingApprovePendingId === pendingItem.id && (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingApprovePendingId(null)}
+                          className="px-3 py-2 bg-gray-250 text-gray-700 font-extrabold rounded-lg text-xs border-none cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Interactive Rejection Feedback overlay */}
+          {selectedPendingForRejection && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+              <div className="bg-white p-8 rounded-3xl max-w-md w-full border border-gray-150 shadow-2xl space-y-5 animate-fade-in text-left">
+                <h3 className="text-lg font-black text-gray-900">Decline Listing Submission</h3>
+                <p className="text-xs text-gray-400">
+                  Specify details to guide <span className="font-extrabold text-gray-800">"{selectedPendingForRejection.name}"</span>'s seller on what needs to be changed:
+                </p>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="e.g., Please provide a higher-resolution photograph displaying dimensions. Ensure description lists material specs."
+                  value={pendingRejectionReasonInput}
+                  onChange={(e) => setPendingRejectionReasonInput(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs resize-none text-gray-950"
+                />
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPendingForRejection(null)}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-650 font-extrabold rounded-lg text-xs cursor-pointer border-none"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!pendingRejectionReasonInput.trim()) {
+                        toast.error("Feedback explanation is required.");
+                        return;
+                      }
+                      try {
+                        const feedback = pendingRejectionReasonInput.trim();
+                        await updateDoc(doc(db, "pending_products", selectedPendingForRejection.id), {
+                          approvalStatus: "rejected",
+                          rejectionReason: feedback
+                        });
+                        
+                        setPendingProducts(prev =>
+                          prev.map(p =>
+                            p.id === selectedPendingForRejection.id
+                              ? { ...p, approvalStatus: "rejected", rejectionReason: feedback }
+                              : p
+                          )
+                        );
+                        
+                        toast.success("Listing submission declined. Seller notified.");
+                        setSelectedPendingForRejection(null);
+                      } catch (err) {
+                        console.error("[Admin] Failed to decline pending product:", err);
+                        toast.error("Failed to update status.");
+                      }
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-800 text-white font-extrabold rounded-lg text-xs cursor-pointer border-none"
+                  >
+                    Send Decline Notice
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {activeTab === "marketing" && (

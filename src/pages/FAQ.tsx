@@ -17,6 +17,11 @@ const FAQ_ITEMS: FAQItem[] = [
   },
   {
     category: "General",
+    question: "How do I become a seller on Sokoplus?",
+    answer: "Signed-up users can apply to become a seller directly from their Profile Dashboard. Simply log in, navigate to 'Become a Seller' or 'Seller Studio', and submit your application with details about your craft or workshop. Once the SokoPlus admin team reviews and approves your seller profile, you will gain access to your Seller Studio to publish creations, set custom categories and prices, and input custom product descriptions with support for formatted Markdown. A nominal flat platform fee of 5% applies exclusively to third-party vendor sales, and Sokoplus takes care of the storage and physical logistics of your items!"
+  },
+  {
+    category: "General",
     question: "Do you have a physical shop?",
     answer: "Currently, we operate as an online marketplace to keep overhead costs low and pass maximum earnings directly to our artisans. However, you can view high-quality images, read artisan stories, and buy from our secure digital storefront."
   },

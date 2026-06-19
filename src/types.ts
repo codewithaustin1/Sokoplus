@@ -13,6 +13,12 @@ export interface Product {
   artisan?: string;
   buyingPrice?: number;
   createdAt?: string;
+  sellerId?: string;
+  sellerName?: string;
+  approvalStatus?: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
+  originalProductId?: string;
+  isPending?: boolean;
 }
 
 export interface CartItem {
@@ -27,6 +33,8 @@ export interface CartItem {
     colorName?: string;
     notes?: string;
   };
+  sellerId?: string;
+  sellerName?: string;
 }
 
 export interface UserProfile {
@@ -119,6 +127,17 @@ export interface JobApplication {
   coverLetter?: string;
   status: "pending" | "reviewed" | "shortlisted" | "rejected";
   createdAt: any;
+}
+
+export interface SellerProfile {
+  uid: string;
+  shopName: string;
+  description: string;
+  location: string;
+  phone: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: any;
+  rejectedReason?: string;
 }
 
 

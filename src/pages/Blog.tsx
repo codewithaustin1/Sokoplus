@@ -381,9 +381,6 @@ export default function Blog({ user }: { user: UserProfile | null }) {
       
       {/* Editorial Header Section */}
       <div className="text-center space-y-4 max-w-xl mx-auto">
-        <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400 px-3 py-1.5 rounded-full">
-          SokoPlus Chronicles
-        </span>
         <h1 className="text-4xl md:text-5xl font-black tracking-tight text-gray-900 dark:text-white">Market Stories</h1>
         <p className="text-gray-500 dark:text-gray-400 font-medium text-sm md:text-base">
           Insights, craft techniques, and direct narratives from the hardworking makers and artisans across Kenya.

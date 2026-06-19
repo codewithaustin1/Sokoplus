@@ -461,7 +461,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
           const p = { id: snap.id, ...snap.data() } as Product;
-          if (p.active === false && !user?.isAdmin) {
+          if (p.active === false && !user?.isAdmin && p.sellerId !== user?.uid) {
             setProduct(null);
             setLoading(false);
             return;
@@ -495,7 +495,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           const allProductsSnap = await getDocs(query(collection(db, "products"), limit(20)));
           const allProducts = allProductsSnap.docs
             .map(d => ({ id: d.id, ...d.data() } as Product))
-            .filter(ap => ap.active !== false);
+            .filter(ap => ap.active !== false && (!ap.approvalStatus || ap.approvalStatus === "approved"));
           
           try {
             const recResponse = await axios.post("/api/recommendations", {
@@ -760,7 +760,15 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
               successLabel={t("added")}
               disabled={product.stock <= 0}
               onClick={() => {
-                addToCart({ productId: product.id, name: product.name, price: product.price, quantity: 1, image: product.images?.[0] || "" });
+                addToCart({ 
+                  productId: product.id, 
+                  name: product.name, 
+                  price: product.price, 
+                  quantity: 1, 
+                  image: product.images?.[0] || "", 
+                  sellerId: product.sellerId, 
+                  sellerName: product.sellerName 
+                });
                 trackEvent("add_to_cart", {
                   items: [{
                     item_id: product.id,

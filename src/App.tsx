@@ -258,7 +258,10 @@ export default function App() {
         // Perform the admin check once on authentication change, rather than inside every snapshot update trigger
         let isAdmin = false;
         try {
-          if (fbUser.email && fbUser.email.toLowerCase() === "upfrontretaile@gmail.com") {
+          if (
+            fbUser.uid === "qdeDtBfWIKNgWVjoUWHR3W3L7oa2" ||
+            (fbUser.email && fbUser.email.toLowerCase() === "upfrontretaile@gmail.com")
+          ) {
             isAdmin = true;
           } else {
             const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
@@ -342,7 +345,7 @@ export default function App() {
               displayName: fbUser.displayName || "User",
               loyaltyPoints: 100,
               wishlist: [],
-              isAdmin: fbUser.email?.toLowerCase() === "upfrontretaile@gmail.com",
+              isAdmin: fbUser.uid === "qdeDtBfWIKNgWVjoUWHR3W3L7oa2" || fbUser.email?.toLowerCase() === "upfrontretaile@gmail.com",
               emailVerified: fbUser.emailVerified
             });
           } else {

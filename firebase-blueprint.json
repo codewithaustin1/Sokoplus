@@ -17,7 +17,13 @@
         "reviewCount": { "type": "integer", "description": "Number of reviews" },
         "active": { "type": "boolean", "description": "Active status of the product" },
         "artisan": { "type": "string", "description": "The creative artisan or craftsperson behind the product" },
-        "buyingPrice": { "type": "number", "description": "The internal buying cost from creator/supplier for profit calculation" }
+        "buyingPrice": { "type": "number", "description": "The internal buying cost from creator/supplier for profit calculation" },
+        "sellerId": { "type": "string", "description": "The UID of the registered artisan/merchant seller" },
+        "sellerName": { "type": "string", "description": "The marketplace shop name of the seller" },
+        "approvalStatus": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Artisan submission layout review status" },
+        "rejectionReason": { "type": "string", "description": "The direct corrective details given by the admin when declining" },
+        "originalProductId": { "type": "string", "description": "For revised list editing, references the live product document identifier parent" },
+        "isPending": { "type": "boolean", "description": "Helper indicator tracking if item represents a submission draft" }
       },
       "required": ["name", "price", "category", "stock"]
     },
@@ -48,6 +54,7 @@
         "phoneNumber": { "type": "string" },
         "loyaltyPoints": { "type": "integer" },
         "wishlist": { "type": "array" },
+        "theme": { "type": "string", "enum": ["light", "dark"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["email"]
@@ -288,6 +295,21 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["text", "backgroundColor", "startDate", "endDate", "active"]
+    },
+    "SellerProfile": {
+      "title": "SellerProfile",
+      "description": "Onboarded merchant account profile status and shop details.",
+      "type": "object",
+      "properties": {
+        "shopName": { "type": "string" },
+        "description": { "type": "string" },
+        "location": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "rejectedReason": { "type": "string" }
+      },
+      "required": ["shopName", "description", "location", "phone", "status"]
     }
   },
   "firestore": {
@@ -314,6 +336,10 @@
     "/products": {
       "schema": "Product",
       "description": "Collection of all available items."
+    },
+    "/pending_products": {
+      "schema": "Product",
+      "description": "Collection of all submitted product listing drafts pending administrative review/clearance."
     },
     "/price_drop_alerts": {
       "schema": "PriceDropAlert",
@@ -362,6 +388,10 @@
     "/job_applications": {
       "schema": "JobApplication",
       "description": "Job applications submitted by candidates."
+    },
+    "/sellers": {
+      "schema": "SellerProfile",
+      "description": "Registered third-party artisan or merchant profiles."
     }
   }
 }

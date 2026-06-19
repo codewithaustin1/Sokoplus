@@ -364,10 +364,6 @@ export default function Careers({ user }: CareersProps) {
     <div className="bg-[#FAF9F6] min-h-screen py-16" id="careers-page-container">
       {/* Decorative Hero Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16 text-center">
-        <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-orange-100 text-orange-950 shadow-sm mb-4">
-          <Sparkles size={14} className="text-orange-600 animate-pulse" />
-          ✦ JOIN SOKOPLUS TEAM
-        </div>
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-gray-900 leading-tight">
           Empower Local Artisans, <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-600">

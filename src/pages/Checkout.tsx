@@ -197,10 +197,13 @@ export default function Checkout({ user }: CheckoutProps) {
         phone: `+254${address.phone.replace(/\s+/g, "")}`
       };
 
+      const sellerIdsList = Array.from(new Set(items.map(i => i.sellerId).filter((id): id is string => !!id)));
+
       await addDoc(collection(db, "orders"), {
         userId: user.uid,
         userEmail: address.email,
         items,
+        sellerIds: sellerIdsList,
         totalAmount: overallTotal,
         status: "pending",
         paymentStatus: "unpaid",

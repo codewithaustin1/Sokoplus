@@ -3,7 +3,7 @@ import { Navigate, Link } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs, doc, deleteDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle } from "lucide-react";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
@@ -11,6 +11,7 @@ import EmptyState from "../components/EmptyState";
 import { downloadReceipt } from "../utils/pdfGenerator";
 import { useLanguage } from "../lib/LanguageContext";
 import toast from "react-hot-toast";
+import SellerStudio from "../components/SellerStudio";
 
 interface ProfileProps {
   user: UserProfile | null;
@@ -21,6 +22,7 @@ export default function Profile({ user }: ProfileProps) {
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [timeFilter, setTimeFilter] = useState<"this-month" | "last-12-months" | "specific-month">("this-month");
+  const [profileTab, setProfileTab] = useState<"orders" | "seller">("orders");
   const { t, language } = useLanguage();
   
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
@@ -238,7 +240,35 @@ export default function Profile({ user }: ProfileProps) {
         </div>
       </div>
 
-      {/* Device Notifications Setup */}
+      {/* Sub Profile Navigation Tabs */}
+      <div className="flex border-b border-gray-150 gap-4">
+        <button
+          onClick={() => setProfileTab("orders")}
+          className={`flex items-center gap-2 px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer ${
+            profileTab === "orders"
+              ? "border-orange-600 text-orange-600"
+              : "border-transparent text-gray-400 hover:text-gray-900"
+          }`}
+        >
+          <Package size={16} />
+          {t("Order History")}
+        </button>
+        <button
+          onClick={() => setProfileTab("seller")}
+          className={`flex items-center gap-2 px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer ${
+            profileTab === "seller"
+              ? "border-orange-600 text-orange-600"
+              : "border-transparent text-gray-400 hover:text-gray-900"
+          }`}
+        >
+          <Store size={16} />
+          {t("Seller Studio")}
+        </button>
+      </div>
+
+      {profileTab === "orders" ? (
+        <>
+          {/* Device Notifications Setup */}
       <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-full -mr-16 -mt-16 opacity-30" />
         <div className="flex gap-4 items-start relative">
@@ -459,6 +489,10 @@ export default function Profile({ user }: ProfileProps) {
           </div>
         )}
       </div>
+        </>
+      ) : (
+        <SellerStudio user={user} />
+      )}
 
       {/* Logout Confirmation Modal */}
       <AnimatePresence>

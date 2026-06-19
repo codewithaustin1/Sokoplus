@@ -302,7 +302,7 @@ export default function Home({ user }: HomeProps) {
         const snapshot = await getDocs(q);
         const fetched = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Product))
-          .filter(p => p.active !== false);
+          .filter(p => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved"));
         setProducts(fetched);
         setFilteredProducts(fetched);
         setIsOfflineView(false);

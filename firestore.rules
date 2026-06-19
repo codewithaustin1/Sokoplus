@@ -20,9 +20,10 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      return isSignedIn() && 
-             request.auth.token.email != null && 
-             request.auth.token.email.toLowerCase() == "upfrontretaile@gmail.com";
+      return isSignedIn() && (
+             request.auth.uid == "qdeDtBfWIKNgWVjoUWHR3W3L7oa2" ||
+             ("email" in request.auth.token && request.auth.token.email.toLowerCase() == "upfrontretaile@gmail.com")
+      );
     }
 
     function isAdmin() {
@@ -41,6 +42,12 @@ service cloud.firestore {
       );
     }
 
+    function isApprovedSeller() {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/sellers/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/sellers/$(request.auth.uid)).data.status == "approved";
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -56,20 +63,36 @@ service cloud.firestore {
     // Products
     match /products/{productId} {
       function isValidProduct(data) {
-        return data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+        return data.name is string && data.name.size() > 0 &&
                data.price is number && data.price >= 0 &&
                data.category is string &&
-               data.stock is int && data.stock >= 0 &&
-               (!data.keys().hasAll(['active']) || data.active is bool) &&
-               (!data.keys().hasAll(['artisan']) || (data.artisan is string && data.artisan.size() <= 100)) &&
-               (!data.keys().hasAll(['buyingPrice']) || data.buyingPrice is number);
+               data.stock is number && data.stock >= 0;
       }
 
       allow read: if true;
-      allow create: if hasPermission("manage_inventory") && isValidProduct(incoming()) && isValidId(productId);
+      allow create: if (hasPermission("manage_inventory") || (isApprovedSeller() && incoming().sellerId == request.auth.uid)) && isValidProduct(incoming()) && isValidId(productId);
       allow update: if (hasPermission("manage_inventory") && isValidProduct(incoming())) ||
+                    (isApprovedSeller() && existing().sellerId == request.auth.uid && incoming().sellerId == request.auth.uid && isValidProduct(incoming())) ||
                     (isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'stock']));
-      allow delete: if hasPermission("manage_inventory");
+      allow delete: if hasPermission("manage_inventory") || (isApprovedSeller() && existing().sellerId == request.auth.uid);
+    }
+
+    // Pending Products
+    match /pending_products/{pendingId} {
+      function isValidPendingProduct(data) {
+        return data.name is string && data.name.size() > 0 &&
+               data.price is number && data.price >= 0 &&
+               data.category is string &&
+               data.stock is number && data.stock >= 0 &&
+               data.sellerId is string &&
+               data.approvalStatus in ['pending', 'approved', 'rejected'];
+      }
+
+      allow read: if isAdmin() || (isSignedIn() && (resource == null || resource.data.sellerId == request.auth.uid));
+      allow create: if (isAdmin() || (isSignedIn() && incoming().sellerId == request.auth.uid)) && isValidPendingProduct(incoming()) && isValidId(pendingId);
+      allow update: if (isAdmin() && isValidPendingProduct(incoming())) ||
+                    (isSignedIn() && existing().sellerId == request.auth.uid && incoming().sellerId == request.auth.uid && isValidPendingProduct(incoming()));
+      allow delete: if isAdmin() || (isSignedIn() && existing().sellerId == request.auth.uid);
     }
 
     // Orders
@@ -81,7 +104,7 @@ service cloud.firestore {
                data.status in ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
       }
 
-      allow read: if hasPermission("manage_orders") || (isSignedIn() && (resource == null || existing().userId == request.auth.uid));
+      allow read: if hasPermission("manage_orders") || (isSignedIn() && (existing().userId == request.auth.uid || request.auth.uid in existing().sellerIds));
       allow create: if isVerified() && isValidOrder(incoming()) && isValidId(orderId);
       allow update: if hasPermission("manage_orders") || (isSignedIn() && existing().userId == request.auth.uid && 
                     incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
@@ -271,7 +294,7 @@ service cloud.firestore {
                data.permissions is list &&
                data.status in ['pending', 'accepted'];
       }
-      allow read: if isSignedIn() && (isSuperAdmin() || resource == null || existing().email.toLowerCase() == request.auth.token.email.toLowerCase());
+      allow read: if isSignedIn() && (isSuperAdmin() || resource == null || ("email" in request.auth.token && existing().email.toLowerCase() == request.auth.token.email.toLowerCase()));
       allow create, update: if isSuperAdmin() && isValidInvitation(incoming()) && isValidId(invitationId);
       allow delete: if isSuperAdmin();
     }
@@ -304,6 +327,21 @@ service cloud.firestore {
     match /users/{userId}/notifications/{notificationId} {
       allow read, update, delete: if isOwner(userId);
       allow create: if isAdmin() || isOwner(userId);
+    }
+
+    // Marketplace Sellers
+    match /sellers/{sellerId} {
+      function isValidSeller(data) {
+        return data.shopName is string && data.shopName.size() > 0 && data.shopName.size() <= 200 &&
+               data.phone is string && data.phone.size() > 0 &&
+               data.location is string && data.location.size() > 0 &&
+               data.status in ['pending', 'approved', 'rejected'];
+      }
+
+      allow read: if true;
+      allow create: if isOwner(sellerId) && isValidSeller(incoming());
+      allow update: if (isOwner(sellerId) && isValidSeller(incoming())) || isAdmin();
+      allow delete: if isAdmin();
     }
   }
 }
