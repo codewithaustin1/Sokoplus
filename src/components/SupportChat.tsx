@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { UserProfile, SupportTicket } from "../types";
 import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp, getDocs, query, limit, onSnapshot, where, updateDoc, doc } from "firebase/firestore";
-import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity, ArrowLeft, Clock, CheckCircle2, Check, CheckCheck } from "lucide-react";
+import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity, ArrowLeft, Clock, CheckCircle2, Check, CheckCheck, MapPin, ExternalLink } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
@@ -17,6 +17,7 @@ interface Message {
   id: string;
   sender: "user" | "bot";
   text: string;
+  mapsLinks?: any[];
 }
 
 export default function Support({ user, isOpen, onClose }: SupportProps) {
@@ -122,6 +123,26 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
   const [chatInput, setChatInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  // Auto-detect user geolocation for real-time Maps Grounding
+  useEffect(() => {
+    if (isOpen && typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.log("SupportChat geolocation permission or device location bypassed:", error.message);
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
+      );
+    }
+  }, [isOpen]);
+
   const [aiMessages, setAiMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -218,15 +239,19 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
           text: m.text,
         })),
         products: products,
+        latitude: userLocation?.latitude,
+        longitude: userLocation?.longitude,
       });
 
       const replyText = response.data?.text || "Pardon me, please check your connection and try asking that again.";
+      const mapsLinks = response.data?.mapsLinks || [];
       setAiMessages((prev) => [
         ...prev,
         {
           id: `m-bot-${Date.now()}`,
           sender: "bot",
           text: replyText,
+          mapsLinks: mapsLinks,
         },
       ]);
     } catch (err: any) {
@@ -247,6 +272,7 @@ Your objectives:
 4. Keep answers nicely styled with clean markdown bullets, but concise and reader-friendly. Avoid overly long walls of text.
 5. If a user asks about their specific order status or needs technical support, guide them to use our standard ticket form (available in the "Email Us" mode of the support window) or write a ticket, and our team will get in touch.
 6. Return responses in standard Markdown. Do not include any private JSON data formats in the text.
+7. Use Google Maps tool to ground location-based queries accurately inside Kenya.
 
 Here is the current active Sokoplus product catalog:
 ${JSON.stringify(products.map(p => ({
@@ -270,16 +296,44 @@ ${JSON.stringify(products.map(p => ({
             contents: contents,
             config: {
               systemInstruction,
+              tools: [{ googleMaps: {} }],
+              toolConfig: userLocation ? {
+                retrievalConfig: {
+                  latLng: {
+                    latitude: userLocation.latitude,
+                    longitude: userLocation.longitude,
+                  }
+                }
+              } : undefined
             },
           });
 
           const replyText = fallbackResponse.text || "Pardon me, please check your connection and try asking that again.";
+          const groundingChunks = fallbackResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+          const mapsLinks: any[] = [];
+          groundingChunks.forEach((chunk: any) => {
+            if (chunk.maps) {
+              mapsLinks.push({
+                title: chunk.maps.title,
+                uri: chunk.maps.uri,
+                address: chunk.maps.address || ""
+              });
+            } else if (chunk.web && chunk.web.uri && chunk.web.uri.includes("google.com/maps")) {
+              mapsLinks.push({
+                title: chunk.web.title,
+                uri: chunk.web.uri,
+                address: ""
+              });
+            }
+          });
+
           setAiMessages((prev) => [
             ...prev,
             {
               id: `m-bot-${Date.now()}`,
               sender: "bot",
               text: replyText,
+              mapsLinks: mapsLinks,
             },
           ]);
           return;
@@ -296,6 +350,7 @@ ${JSON.stringify(products.map(p => ({
           text: `Habari! SokoSmart is currently experiencing extremely high traffic volume. 
 
 To prevent any delay, feel free to browse our main collections directly on the home page, or tap the **WhatsApp** or **Email Ticket** tabs above to reach us directly! Asante sana for your patience.`,
+          mapsLinks: [],
         },
       ]);
     } finally {
@@ -430,6 +485,43 @@ To prevent any delay, feel free to browse our main collections directly on the h
                       </div>
                     )}
                   </div>
+
+                  {msg.sender !== "user" && msg.mapsLinks && msg.mapsLinks.length > 0 && (
+                    <div className="mt-2.5 w-full space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <p className="text-[9px] font-black text-orange-600 dark:text-orange-500 flex items-center gap-1 uppercase tracking-wider ml-1">
+                        <MapPin size={9} /> Grounded Maps Locations
+                      </p>
+                      <div className="flex flex-col gap-1.5 w-full">
+                        {msg.mapsLinks.map((loc: any, idx: number) => (
+                          <a
+                            key={idx}
+                            href={loc.uri}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-start p-3 bg-gray-50 dark:bg-gray-955 hover:bg-orange-50/40 dark:hover:bg-orange-950/10 border border-gray-150 dark:border-gray-800 rounded-2xl transition-all group cursor-pointer no-underline text-left"
+                          >
+                            <div className="bg-orange-100 dark:bg-orange-950/50 p-1.5 rounded-lg text-orange-600 dark:text-orange-400 mr-2.5 shrink-0 mt-0.5">
+                              <MapPin size={12} className="group-hover:scale-110 transition-transform" />
+                            </div>
+                            <div className="min-w-0 flex-grow text-xs">
+                              <div className="font-bold text-gray-850 dark:text-gray-200 flex items-center justify-between gap-1">
+                                <span className="truncate">{loc.title || "View on Google Maps"}</span>
+                                <ExternalLink size={9} className="text-gray-400 dark:text-gray-650 group-hover:text-orange-600 dark:group-hover:text-orange-400 shrink-0" />
+                              </div>
+                              {loc.address && (
+                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 truncate leading-tight">
+                                  {loc.address}
+                                </p>
+                              )}
+                              <span className="text-[9px] font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider mt-1 block">
+                                Get Directions &rarr;
+                              </span>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               

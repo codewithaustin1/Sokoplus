@@ -7,6 +7,84 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
 
+const MastercardLogo = () => (
+  <div className="flex flex-col items-center justify-center">
+    <svg viewBox="0 0 32 18" className="h-[14px] w-auto animate-fade-in" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="10" cy="9" r="8" fill="#EB001B" />
+      <circle cx="22" cy="9" r="8" fill="#F79E1B" />
+      <path d="M16 9c0-2.28.92-4.34 2.4-5.83a7.97 7.97 0 00-4.8 0c1.48 1.49 2.4 3.55 2.4 5.83s-.92 4.34-2.4 5.83c1.6 1.49 3.2 1.49 4.8 0A7.97 7.97 0 0016 9z" fill="#FF5F00" opacity="0.9" />
+    </svg>
+    <span className="text-[6px] text-gray-500 dark:text-gray-400 font-sans tracking-tight leading-none uppercase font-bold mt-0.5">mastercard</span>
+  </div>
+);
+
+const VisaLogo = () => (
+  <svg viewBox="0 0 60 20" className="h-[12px] w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M21.2 2.3L15.3 17.5h-3.8L7.3 5.4c-.4-1.5-1.5-2.2-2.8-2.3v-.5h6.3c1.4 0 2.5.9 2.8 2.2l1.7 8.1 3.5-9.4c.5-1.1 1.4-1.8 2.7-1.8h3.5v.3c-2.3.5-3.3 1.5-3.8 2.9zm10.7 15.2h-3.6l2.3-15.2h3.6l-2.3 15.2zm14.1-10c-1.3-.7-2.1-1.1-2.1-1.8 0-.6.7-1.3 2.1-1.3 1.6-.1 2.8.6 3.5 1l.4-2.8c-1-.4-2.6-.8-4.3-.8-3.8 0-6.5 2-6.5 5 0 2.1 1.9 3.3 3.3 4 1.5.7 2 1.2 2 1.9 0 1-1.2 1.5-2.3 1.5-2 0-3-.5-4-1l-.4 2.9c1.1.5 3.1.9 4.8.9 4 0 6.6-2 6.6-5.1-.1-2.4-1.5-3.6-3.1-4.3zm13.1-5.2h-2.8c-1.1 0-1.6.3-2 1.2L50 17.5h3.8l.8-2.1h4.6c.1.5.4 2.1.4 2.1h3.4l-3-15.2zm-4.3 10.3c.3-.8 1.4-3.8 1.4-3.8l.8 3.8h-2.2z" className="fill-[#154694] dark:fill-white transition-colors duration-200" />
+    <path d="M11.5 2.3h-4L3 5.3s2-.5 3.5-1.6C7.9 2.5 11.5 2.3 11.5 2.3z" className="fill-[#FAA61A] dark:fill-[#FAA61A] transition-colors duration-200" />
+  </svg>
+);
+
+const MPesaLogo = () => (
+  <svg viewBox="0 0 72 20" className="h-[14px] w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g transform="translate(0, -1.5)">
+      <rect x="1" y="2" width="13" height="19" rx="3" className="fill-[#A4D852] dark:fill-[#4CA829] transition-colors duration-200" />
+      <rect x="2.5" y="3" width="10" height="7" rx="1" fill="white" />
+      <circle cx="4.5" cy="12" r="0.8" fill="white" />
+      <circle cx="7.5" cy="12" r="0.8" fill="white" />
+      <circle cx="10.5" cy="12" r="0.8" fill="white" />
+      <circle cx="4.5" cy="14.5" r="0.8" fill="white" />
+      <circle cx="7.5" cy="14.5" r="0.8" fill="white" />
+      <circle cx="10.5" cy="14.5" r="0.8" fill="white" />
+      <circle cx="4.5" cy="17" r="0.8" fill="white" />
+      <circle cx="7.5" cy="17" r="0.8" fill="white" />
+      <circle cx="10.5" cy="17" r="0.8" fill="white" />
+      <path d="M0.5 10C3.5 11.5 9 10 11.5 8L12.5 10.5C9.5 12.5 3.5 13 0.5 11.5V10Z" fill="#E11D48" />
+    </g>
+    <text x="17" y="14.5" className="fill-[#4B9A25] dark:fill-[#22C55E] transition-colors duration-200" fontFamily="'Inter', ui-sans-serif, system-ui, sans-serif" fontWeight="900" fontSize="11px" letterSpacing="0">M-</text>
+    <text x="31" y="14.5" className="fill-[#E11D48] dark:fill-rose-500 transition-colors duration-200" fontFamily="'Inter', ui-sans-serif, system-ui, sans-serif" fontWeight="900" fontSize="11px" letterSpacing="0">PESA</text>
+  </svg>
+);
+
+const AirtelLogo = () => (
+  <svg viewBox="0 0 65 20" className="h-[14px] w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="10" cy="10" r="10" fill="#E11D48" />
+    <path d="M10 5.5C7.5 5.5 5.5 7.5 5.5 10C5.5 12.5 7.5 14.5 10 14.5C12.5 14.5 14.5 12.5 14.5 10C14.5 7.5 12.5 5.5 10 5.5ZM10 12.5C8.6 12.5 7.5 11.4 7.5 10C7.5 8.6 8.6 7.5 10 7.5C11.4 7.5 12.5 8.6 12.5 10C12.5 11.4 11.4 12.5 10 12.5Z" fill="white" />
+    <text x="24" y="13.5" className="fill-[#E11D48] dark:fill-rose-400" fontFamily="'Inter', ui-sans-serif, system-ui, sans-serif" fontWeight="800" fontSize="11px" letterSpacing="-0.3">airtel</text>
+  </svg>
+);
+
+const EquitelLogo = () => (
+  <svg viewBox="0 0 76 20" className="h-[14px] w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <text x="0" y="11" className="fill-[#E28743] dark:fill-orange-400" fontFamily="'Inter', ui-sans-serif, system-ui, sans-serif" fontWeight="900" fontSize="11.5px" letterSpacing="-0.3">Equitel</text>
+    <text x="0" y="16.5" className="fill-[#8B5A2B] dark:fill-gray-400" fontFamily="'Inter', ui-sans-serif, system-ui, sans-serif" fontWeight="600" fontSize="4.2px" letterSpacing="0">My money. My phone. My life.</text>
+    <circle cx="51" cy="9" r="2.2" className="fill-[#E28743] dark:fill-orange-400" />
+    <line x1="51" y1="9" x2="57.5" y2="6.2" className="stroke-[#8B5A2B] dark:stroke-gray-600" strokeWidth="0.8" />
+    <circle cx="57.5" cy="6.2" r="3" className="fill-[#F4A261] dark:fill-orange-300" />
+    <line x1="57.5" y1="6.2" x2="65.5" y2="9" className="stroke-[#8B5A2B] dark:stroke-gray-600" strokeWidth="0.8" />
+    <circle cx="65.5" cy="9" r="4" className="fill-[#E26D5C] dark:fill-red-400" />
+    <line x1="57.5" y1="6.2" x2="57.5" y2="13.5" className="stroke-[#8B5A2B] dark:stroke-gray-600" strokeWidth="0.8" />
+    <circle cx="57.5" cy="13.5" r="2.8" className="fill-[#4A2810] dark:fill-amber-900" />
+  </svg>
+);
+
+const AmexLogo = () => (
+  <div className="flex items-center justify-center bg-[#018CCF] px-2 py-0.5 rounded-md h-[18px] w-fit shadow-xs border border-blue-400/20">
+    <span className="text-white font-black tracking-widest uppercase text-center block" style={{ fontSize: '3.8px', lineHeight: '1.1' }}>
+      AMERICAN<br />EXPRESS
+    </span>
+  </div>
+);
+
+const ApplePayLogo = () => (
+  <div className="flex items-center justify-center space-x-1">
+    <svg viewBox="0 0 16 16" className="h-[15px] w-auto fill-gray-900 dark:fill-white" xmlns="http://www.w3.org/2000/svg">
+      <path d="M11.66 3.99c.64-.78 1.07-1.86.95-2.94-.92.04-2.04.61-2.7 1.39-.57.65-1.06 1.74-.92 2.81 1.04.08 2.06-.52 2.67-1.26zm1.15 4.23c-.03-1.68 1.38-2.49 1.44-2.53-.78-1.15-2-1.3-2.43-1.33-1.03-.11-2.01.61-2.53.61-.52 0-1.33-.59-2.19-.58-1.13.02-2.17.66-2.75 1.67-1.18 2.05-.3 5.09.84 6.74.56.81 1.22 1.71 2.09 1.68.84-.03 1.15-.54 2.16-.54 1.01 0 1.3.54 2.17.51.89-.02 1.48-.82 2.02-1.62.63-.92.89-1.8 1.06-1.85-.02-.01-1.74-.67-1.76-2.67L12.81 8.22z" />
+    </svg>
+    <span className="text-gray-900 dark:text-white font-sans font-black tracking-tight leading-none text-[13px] -mt-0.5">Pay</span>
+  </div>
+);
+
 export default function Footer() {
   const [email, setEmail] = useState("");
   const [googleMapsLink, setGoogleMapsLink] = useState("");
@@ -154,8 +232,43 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Payment Methods Section */}
+        <div className="mt-16 pt-8 border-t border-gray-100 dark:border-gray-800 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <h4 className="text-[10px] font-black uppercase text-gray-400 dark:text-gray-500 tracking-widest">
+              {t("Payment methods")}
+            </h4>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium max-w-sm">
+              {t("Securely processed with standard East African gateways (Paystack, M-Pesa, Airtel, Equitel, credit cards, Apple Pay).")}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="bg-white dark:bg-gray-900 px-2.5 py-1.5 rounded-xl border border-gray-100/90 dark:border-gray-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center justify-center h-9 w-[70px] hover:scale-105 hover:border-orange-500/20 dark:hover:border-orange-500/30 transition-all duration-300">
+              <MastercardLogo />
+            </div>
+            <div className="bg-white dark:bg-gray-900 px-2.5 py-1.5 rounded-xl border border-gray-100/90 dark:border-gray-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center justify-center h-9 w-[70px] hover:scale-105 hover:border-orange-500/20 dark:hover:border-orange-500/30 transition-all duration-300">
+              <VisaLogo />
+            </div>
+            <div className="bg-white dark:bg-gray-900 px-2.5 py-1.5 rounded-xl border border-gray-100/90 dark:border-gray-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center justify-center h-9 w-[76px] hover:scale-105 hover:border-orange-500/20 dark:hover:border-orange-500/30 transition-all duration-300">
+              <MPesaLogo />
+            </div>
+            <div className="bg-white dark:bg-gray-900 px-2.5 py-1.5 rounded-xl border border-gray-100/90 dark:border-gray-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center justify-center h-9 w-[70px] hover:scale-105 hover:border-orange-500/20 dark:hover:border-orange-500/30 transition-all duration-300">
+              <AirtelLogo />
+            </div>
+            <div className="bg-white dark:bg-gray-900 px-2.5 py-1.5 rounded-xl border border-gray-100/90 dark:border-gray-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center justify-center h-9 w-[78px] hover:scale-105 hover:border-orange-500/20 dark:hover:border-orange-500/30 transition-all duration-300">
+              <EquitelLogo />
+            </div>
+            <div className="bg-white dark:bg-gray-900 px-2.5 py-1.5 rounded-xl border border-gray-100/90 dark:border-gray-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center justify-center h-9 w-[70px] hover:scale-105 hover:border-orange-500/20 dark:hover:border-orange-500/30 transition-all duration-300">
+              <AmexLogo />
+            </div>
+            <div className="bg-white dark:bg-gray-900 px-2.5 py-1.5 rounded-xl border border-gray-100/90 dark:border-gray-800 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center justify-center h-9 w-[78px] hover:scale-105 hover:border-orange-500/20 dark:hover:border-orange-500/30 transition-all duration-300">
+              <ApplePayLogo />
+            </div>
+          </div>
+        </div>
+
         {/* Bottom Bar */}
-        <div className="mt-16 pt-8 border-t border-gray-100 dark:border-gray-800 flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="flex flex-col items-center md:items-start space-y-2">
             <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">
               &copy; {new Date().getFullYear()} Sokoplus Ltd. All rights reserved.
@@ -181,12 +294,6 @@ export default function Footer() {
             <a href="#" className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl text-gray-400 dark:text-gray-500 hover:bg-orange-50 dark:hover:bg-orange-950/20 hover:text-orange-600 dark:hover:text-orange-400 transition-all shadow-sm border border-gray-100 dark:border-gray-800 text-blue-800">
               <Linkedin size={20} fill="currentColor" />
             </a>
-          </div>
-
-          <div className="flex items-center space-x-3 opacity-30 dark:opacity-40 grayscale hover:grayscale-0 hover:opacity-100 dark:hover:opacity-100 transition-all duration-500">
-             <div className="bg-gray-200 dark:bg-gray-800 px-3 py-1 rounded-lg text-[8px] font-black uppercase text-gray-600 dark:text-gray-400">MPESA</div>
-             <div className="bg-gray-200 dark:bg-gray-800 px-3 py-1 rounded-lg text-[8px] font-black uppercase text-gray-600 dark:text-gray-400">VISA</div>
-             <div className="bg-gray-200 dark:bg-gray-800 px-3 py-1 rounded-lg text-[8px] font-black uppercase text-gray-600 dark:text-gray-400">MASTERCARD</div>
           </div>
         </div>
       </div>

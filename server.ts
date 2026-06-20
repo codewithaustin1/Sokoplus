@@ -13,7 +13,8 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Initialize Firebase Admin for Backend TTL Orders Cleanup
 const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
@@ -1342,10 +1343,38 @@ ${JSON.stringify(productsData)}
       contents: contents,
       config: {
         systemInstruction,
+        tools: [{ googleMaps: {} }],
+        toolConfig: (req.body.latitude && req.body.longitude) ? {
+          retrievalConfig: {
+            latLng: {
+              latitude: req.body.latitude,
+              longitude: req.body.longitude,
+            }
+          }
+        } : undefined
       },
     });
 
-    res.json({ text: response.text });
+    // Extract any Google Maps grounding links and send back to client for rendering
+    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const mapsLinks: any[] = [];
+    groundingChunks.forEach((chunk: any) => {
+      if (chunk.maps) {
+        mapsLinks.push({
+          title: chunk.maps.title,
+          uri: chunk.maps.uri,
+          address: chunk.maps.address || ""
+        });
+      } else if (chunk.web && chunk.web.uri && chunk.web.uri.includes("google.com/maps")) {
+        mapsLinks.push({
+          title: chunk.web.title,
+          uri: chunk.web.uri,
+          address: ""
+        });
+      }
+    });
+
+    res.json({ text: response.text, mapsLinks });
   } catch (error: any) {
     const errStr = (error.message || "") + " " + JSON.stringify(error) + " " + String(error);
     const isQuotaOrOverloadError = 
@@ -1380,7 +1409,7 @@ ${JSON.stringify(productsData)}
     const lastUserMsg = messages[messages.length - 1]?.text || "";
     const fallbackText = generateLocalHeuristicResponse(lastUserMsg, productsData);
     
-    res.json({ text: fallbackText });
+    res.json({ text: fallbackText, mapsLinks: [] });
   }
 });
 
