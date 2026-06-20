@@ -45,93 +45,7 @@ import { OfflineNotifier } from "./components/OfflineNotifier";
 import { NotificationManager } from "./components/NotificationManager";
 import { motion, AnimatePresence } from "motion/react";
 
-/**
- * Synthesizes a subtle, high-quality browser-native acoustic "tok" sound
- * simulating a physical hollow woodblock percussive tap using Web Audio API.
- */
-function playTok(type: "appear" | "disappear") {
-  try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-    const now = ctx.currentTime;
 
-    // Frequencies: slightly higher pitched tight 'tok' for appear, lower hollower for disappear
-    const baseFreq = type === "appear" ? 340 : 240;
-    const clickDuration = 0.012;
-    const toneDuration = 0.10;
-
-    // Principal acoustic gain envelope
-    const gainNode = ctx.createGain();
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.25, now + 0.001); // snappy physical impulse
-    gainNode.gain.exponentialRampToValueAtTime(0.001, now + toneDuration);
-
-    // Primary clean resonance (sine) - simulates the hollow cavity
-    const osc1 = ctx.createOscillator();
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(baseFreq, now);
-    // Slight pitch drop over duration to mimic genuine physical percussion impact
-    osc1.frequency.exponentialRampToValueAtTime(baseFreq * 0.88, now + toneDuration);
-
-    // Secondary wooden harmonic (triangle) - provides the warm wood acoustic timbre
-    const osc2 = ctx.createOscillator();
-    osc2.type = "triangle";
-    osc2.frequency.setValueAtTime(baseFreq * 1.5, now); // perfect fifth harmonic
-    osc2.frequency.exponentialRampToValueAtTime(baseFreq * 1.5 * 0.85, now + toneDuration * 0.6);
-
-    const harmonicGain = ctx.createGain();
-    harmonicGain.gain.setValueAtTime(0.08, now);
-    harmonicGain.gain.exponentialRampToValueAtTime(0.001, now + toneDuration * 0.5);
-
-    // Snappy strike click transient (noise burst) for the contact mallet feel
-    const bufferSize = ctx.sampleRate * clickDuration;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-    const noiseSource = ctx.createBufferSource();
-    noiseSource.buffer = buffer;
-
-    const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = "bandpass";
-    noiseFilter.frequency.value = 1100; // woody resonant midrange
-    noiseFilter.Q.value = 4.5;
-
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.12, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + clickDuration);
-
-    // Connect audio node matrix
-    osc1.connect(gainNode);
-    osc2.connect(harmonicGain);
-    harmonicGain.connect(gainNode);
-
-    noiseSource.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
-
-    gainNode.connect(ctx.destination);
-
-    // Dispatch physical sound trigger
-    osc1.start(now);
-    osc2.start(now);
-    noiseSource.start(now);
-
-    osc1.stop(now + toneDuration + 0.05);
-    osc2.stop(now + toneDuration + 0.05);
-    noiseSource.stop(now + clickDuration + 0.05);
-
-    // Prevent memory leaks / close inactive AudioContexts
-    setTimeout(() => {
-      ctx.close().catch(() => {});
-    }, (toneDuration + 0.15) * 1000);
-  } catch (error) {
-    // Fail silently to safeguard page lifecycle
-    console.debug("Acoustic tok play skipped:", error);
-  }
-}
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -141,7 +55,6 @@ export default function App() {
   const [scrollTopBg, setScrollTopBg] = useState("rgb(234, 88, 12)"); // Dynamic background color
   const [unreadSupportCount, setUnreadSupportCount] = useState<number>(0);
   const [quotaExceededInfo, setQuotaExceededInfo] = useState<{ error: string; path: string | null } | null>(null);
-  const isFirstMount = useRef(true);
   const lastScrollYRef = useRef(0);
 
   // Monitor inactive user sessions globally to securely log them out after a period of idle status
@@ -189,15 +102,6 @@ export default function App() {
 
     return () => unsubscribe();
   }, [user?.uid]);
-
-  // Trigger browser-native acoustic tok sound when back-to-top appears / disappears
-  useEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
-      return;
-    }
-    playTok(showScrollTop ? "appear" : "disappear");
-  }, [showScrollTop]);
 
   useEffect(() => {
     const handleScroll = () => {
