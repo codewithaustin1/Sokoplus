@@ -33,10 +33,35 @@ export default function Home({ user }: HomeProps) {
   const [heroHeadingText, setHeroHeadingText] = useState<string>("Authentic & Trusted Goods");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    return searchParams.get("category") || searchParams.get("collection") || "All";
+  });
+
+  const selectCategory = (cat: string) => {
+    setSelectedCategory(cat);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (cat === "All") {
+        next.delete("category");
+        next.delete("collection");
+      } else {
+        next.set("category", cat);
+        next.delete("collection");
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  useEffect(() => {
+    const urlCategory = searchParams.get("category") || searchParams.get("collection") || "All";
+    if (urlCategory !== selectedCategory) {
+      setSelectedCategory(urlCategory);
+    }
+  }, [searchParams]);
+
   const [isOfflineView, setIsOfflineView] = useState<boolean>(false);
   const [addingMap, setAddingMap] = useState<Record<string, "idle" | "loading" | "added">>({});
-  const [searchParams, setSearchParams] = useSearchParams();
   const { addToCart } = useCart();
   const { currency, setCurrency, exchangeRate, formatPrice } = useCurrency();
 
@@ -625,7 +650,7 @@ export default function Home({ user }: HomeProps) {
             <div 
               key={cat} 
               onClick={() => {
-                setSelectedCategory(cat);
+                selectCategory(cat);
                 scrollToProducts();
               }}
               className={`h-24 md:h-32 border rounded-2xl flex items-center justify-center shadow-sm transition-all cursor-pointer group ${
@@ -877,15 +902,18 @@ export default function Home({ user }: HomeProps) {
              </p>
           </div>
           <button onClick={() => {
-            setSelectedCategory("All");
             setMinPrice("");
             setMaxPrice("");
             setMinRating(0);
             setOnlyInStock(false);
             setSearchParams(params => {
-              params.delete("search");
-              return params;
-            });
+              const next = new URLSearchParams(params);
+              next.delete("search");
+              next.delete("category");
+              next.delete("collection");
+              return next;
+            }, { replace: true });
+            setSelectedCategory("All");
           }} className="text-orange-600 dark:text-orange-500 font-bold flex items-center hover:underline group">
             Reset All <X size={16} className="ml-1 group-hover:rotate-90 transition-transform" />
           </button>
@@ -1144,7 +1172,7 @@ export default function Home({ user }: HomeProps) {
                         setMaxPrice("");
                         setMinRating(0);
                         setOnlyInStock(false);
-                        setSelectedCategory("All");
+                        selectCategory("All");
                       }}
                       className="flex items-center justify-center space-x-2 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white dark:hover:text-white px-6 py-4 rounded-xl font-black transition-all shadow-sm"
                     >
@@ -1169,12 +1197,18 @@ export default function Home({ user }: HomeProps) {
             description={`We couldn't find any products in "${selectedCategory}" matching your criteria. Try adjusting your search or category.`}
             actionLabel="Clear Filters"
             onAction={() => {
-              setSelectedCategory("All");
+              setMinPrice("");
+              setMaxPrice("");
+              setMinRating(0);
+              setOnlyInStock(false);
               setSearchParams((prev) => {
                 const next = new URLSearchParams(prev);
                 next.delete("search");
+                next.delete("category");
+                next.delete("collection");
                 return next;
-              });
+              }, { replace: true });
+              setSelectedCategory("All");
             }}
           />
         ) : (
