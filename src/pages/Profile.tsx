@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2 } from "lucide-react";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
@@ -28,6 +28,121 @@ export default function Profile({ user }: ProfileProps) {
   const [showClearModal, setShowClearModal] = useState(false);
   const [selectedClearLimit, setSelectedClearLimit] = useState<number | "all" | null>(null);
   const [isClearing, setIsClearing] = useState(false);
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const resizeAndCompressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 200;
+          const MAX_HEIGHT = 200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+            resolve(dataUrl);
+          } else {
+            reject(new Error("Failed to get canvas 2D context"));
+          }
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
+  const uploadProfileImage = async (file: File) => {
+    if (!user) return;
+    
+    if (!file.type.startsWith("image/")) {
+      toast.error(
+        language === "sw"
+          ? "Tafadhali chagua faili la picha inayofaa."
+          : "Please select a valid image file."
+      );
+      return;
+    }
+
+    setIsUploading(true);
+    const uploadToastId = toast.loading(
+      language === "sw" ? "Inapakia picha ya wasifu..." : "Uploading profile picture..."
+    );
+
+    try {
+      const compressedBase64 = await resizeAndCompressImage(file);
+      
+      await updateDoc(doc(db, "users", user.uid), {
+        photoURL: compressedBase64,
+        updatedAt: new Date().toISOString()
+      });
+
+      toast.success(
+        language === "sw"
+          ? "Picha ya wasifu imesasishwa kikamilifu!"
+          : "Profile picture uploaded successfully!",
+        { id: uploadToastId }
+      );
+    } catch (err) {
+      console.error("Failed to upload profile picture:", err);
+      toast.error(
+        language === "sw"
+          ? "Imefeli kusasisha picha ya wasifu."
+          : "Failed to upload profile picture.",
+        { id: uploadToastId }
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await uploadProfileImage(file);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await uploadProfileImage(file);
+    }
+  };
 
   const clearOrders = async (limitNum: number | "all") => {
     if (!user) return;
@@ -274,8 +389,82 @@ export default function Profile({ user }: ProfileProps) {
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-50 rounded-full -mr-32 -mt-32 opacity-50" />
         
         <div className="relative flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
-          <div className="w-24 h-24 bg-orange-600 rounded-2xl flex items-center justify-center text-white shadow-xl rotate-3">
-            <User size={48} />
+          <div className="relative group/avatar">
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`group relative w-24 h-24 rounded-full flex items-center justify-center text-white shadow-xl cursor-pointer overflow-hidden transition-all duration-300 select-none ${
+                isDragging 
+                  ? "bg-orange-500 scale-105 ring-4 ring-orange-500 rotate-0" 
+                  : "bg-orange-600 hover:bg-orange-700 hover:scale-105"
+              }`}
+              title={language === "sw" ? "Bofya au buruta picha hapa ili kupakia" : "Click or drag/drop an image to upload"}
+            >
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleFileChange} 
+              />
+
+              {isUploading ? (
+                <div className="absolute inset-0 bg-orange-600/95 flex flex-col items-center justify-center text-white p-2">
+                  <Upload size={24} className="animate-bounce" />
+                  <span className="text-[8px] font-black uppercase tracking-widest mt-1 text-center">
+                    {language === "sw" ? "Inapakia" : "Uploading"}
+                  </span>
+                </div>
+              ) : user.photoURL ? (
+                <img 
+                  src={user.photoURL} 
+                  alt={user.displayName || "Profile"} 
+                  className="w-full h-full object-cover rounded-full"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span className="text-4xl font-black font-sans select-none uppercase">
+                  {user.email ? user.email.charAt(0).toUpperCase() : (user.displayName ? user.displayName.charAt(0).toUpperCase() : <User size={40} />)}
+                </span>
+              )}
+
+              {/* Edit overlay */}
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white space-y-1 rounded-full">
+                <Camera size={20} className="animate-pulse" />
+                <span className="text-[9px] font-black uppercase tracking-wider">
+                  {language === "sw" ? "Badili" : "Upload"}
+                </span>
+              </div>
+            </div>
+
+            {/* Remove profile picture button */}
+            {user.photoURL && (
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (window.confirm(language === "sw" ? "Je, una uhakika unataka kufuta picha ya wasifu?" : "Are you sure you want to remove your profile picture?")) {
+                    const removeToastId = toast.loading(language === "sw" ? "Inafuta picha..." : "Removing picture...");
+                    try {
+                      await updateDoc(doc(db, "users", user.uid), {
+                        photoURL: null,
+                        updatedAt: new Date().toISOString()
+                      });
+                      toast.success(language === "sw" ? "Picha imefutwa kikamilifu!" : "Profile picture removed successfully!", { id: removeToastId });
+                    } catch (err) {
+                      console.error("Failed to remove profile picture:", err);
+                      toast.error(language === "sw" ? "Imefeli kufuta picha." : "Failed to remove profile picture.", { id: removeToastId });
+                    }
+                  }
+                }}
+                className="absolute bottom-0 right-0 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-full shadow-lg border-2 border-white dark:border-gray-900 transition-all cursor-pointer hover:scale-110 z-10"
+                title={language === "sw" ? "Futa picha" : "Remove photo"}
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
           </div>
           
           <div className="flex-grow text-center md:text-left space-y-4">

@@ -18,6 +18,8 @@ interface NavbarProps {
 }
 
 export default function Navbar({ user }: NavbarProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { items } = useCart();
   const { language, setLanguage, t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
@@ -54,6 +56,11 @@ export default function Navbar({ user }: NavbarProps) {
             icon: "🎙️",
             duration: 3000
           });
+          if (cleanedTranscript) {
+            navigate(`/?search=${encodeURIComponent(cleanedTranscript)}`);
+            setIsMobileMenuOpen(false);
+            setIsMobileSearchOpen(false);
+          }
         }
       };
 
@@ -92,7 +99,7 @@ export default function Navbar({ user }: NavbarProps) {
         recognitionRef.current.abort();
       }
     };
-  }, [allProducts, language]);
+  }, [allProducts, language, navigate]);
 
   const toggleVoiceSearch = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -123,8 +130,6 @@ export default function Navbar({ user }: NavbarProps) {
     }
   };
 
-  const navigate = useNavigate();
-  const location = useLocation();
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0);
   const [isBouncing, setIsBouncing] = useState(false);
   const prevItemCountRef = useRef(itemCount);
@@ -334,8 +339,12 @@ export default function Navbar({ user }: NavbarProps) {
               )}
             </Link>
 
-            <Link to="/profile" className="hidden md:inline-flex p-2 group">
-              <User className="text-gray-700 dark:text-gray-350 group-hover:text-orange-600 dark:group-hover:text-orange-500 transition-colors" size={24} />
+            <Link to="/profile" className="hidden md:inline-flex group rounded-full border border-gray-200 dark:border-gray-850 hover:border-orange-500 transition-all focus:outline-none items-center justify-center">
+              {user?.photoURL ? (
+                <img src={user.photoURL} alt={user.displayName || "User"} className="w-8 h-8 object-cover rounded-full" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="p-2"><User className="text-gray-700 dark:text-gray-350 group-hover:text-orange-600 dark:group-hover:text-orange-500 transition-colors" size={24} /></div>
+              )}
             </Link>
 
             <Link to="/cart" className="relative group p-2">
@@ -409,8 +418,12 @@ export default function Navbar({ user }: NavbarProps) {
                     </span>
                     <span className="text-[9px] text-gray-400 font-bold uppercase">Loyalty</span>
                   </div>
-                  <Link to="/profile" className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-full transition-colors">
-                    <User size={24} className="text-gray-700" />
+                  <Link to="/profile" className="flex items-center justify-center p-0.5 hover:bg-gray-100 dark:hover:bg-gray-850 rounded-full transition-colors border border-gray-200 dark:border-gray-800">
+                    {user?.photoURL ? (
+                      <img src={user.photoURL} alt={user.displayName || "User"} className="w-8 h-8 object-cover rounded-full" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="p-1.5"><User size={20} className="text-gray-700 dark:text-gray-300" /></div>
+                    )}
                   </Link>
                   <button 
                     onClick={() => setShowLogoutConfirm(true)}
@@ -754,7 +767,11 @@ export default function Navbar({ user }: NavbarProps) {
                   >
                     <span>{t("profile")}</span>
                     <div className="text-gray-400 dark:text-gray-450 group-hover:text-orange-600 transition-colors">
-                      <User size={20} />
+                      {user?.photoURL ? (
+                        <img src={user.photoURL} alt={user.displayName || "User"} className="w-6 h-6 object-cover rounded-full border border-gray-200 dark:border-gray-800" referrerPolicy="no-referrer" />
+                      ) : (
+                        <User size={20} />
+                      )}
                     </div>
                   </Link>
                 </motion.div>

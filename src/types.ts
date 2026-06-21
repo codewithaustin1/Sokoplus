@@ -46,6 +46,7 @@ export interface UserProfile {
   wishlist?: string[];
   isAdmin?: boolean;
   emailVerified: boolean;
+  photoURL?: string | null;
 }
 
 export interface Order {

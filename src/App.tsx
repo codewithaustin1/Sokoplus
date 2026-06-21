@@ -215,7 +215,8 @@ export default function App() {
               loyaltyPoints: data.loyaltyPoints || 0,
               wishlist: data.wishlist || [],
               isAdmin,
-              emailVerified: fbUser.emailVerified
+              emailVerified: fbUser.emailVerified,
+              photoURL: data.photoURL || fbUser.photoURL || null
             });
           } else {
             // Document might not exist yet if just signed up, wait for Login page to create it
@@ -227,7 +228,8 @@ export default function App() {
               loyaltyPoints: 0,
               wishlist: [],
               isAdmin,
-              emailVerified: fbUser.emailVerified
+              emailVerified: fbUser.emailVerified,
+              photoURL: fbUser.photoURL || null
             });
           }
           setLoading(false);
@@ -251,7 +253,8 @@ export default function App() {
               loyaltyPoints: 100,
               wishlist: [],
               isAdmin: fbUser.uid === "qdeDtBfWIKNgWVjoUWHR3W3L7oa2" || fbUser.email?.toLowerCase() === "upfrontretaile@gmail.com",
-              emailVerified: fbUser.emailVerified
+              emailVerified: fbUser.emailVerified,
+              photoURL: fbUser.photoURL || null
             });
           } else {
             console.error("User doc listener error:", error);

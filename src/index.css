@@ -133,3 +133,158 @@
     @apply font-sans;
     }
 }
+
+/* Custom Dark Mode Fallbacks to perfectly normalize light utility classes */
+.dark, .dark body {
+  background-color: #030712 !important; /* gray-950 */
+  color: #f3f4f6 !important; /* gray-100 */
+}
+
+.dark .bg-\[\#FAF9F6\],
+.dark .bg-\[\#FAF9F5\],
+.dark .bg-\[\#FAF9F3\],
+.dark .bg-gray-50,
+.dark .bg-gray-55,
+.dark .bg-slate-50,
+.dark .bg-slate-55,
+.dark .bg-orange-50\/25,
+.dark .bg-orange-50\/30,
+.dark .bg-amber-50 {
+  background-color: #030712 !important; /* gray-950 */
+}
+
+.dark .bg-white,
+.dark .bg-white\/70,
+.dark .bg-white\/40,
+.dark .bg-gray-100,
+.dark .bg-gray-150,
+.dark .bg-slate-100,
+.dark .bg-slate-150,
+.dark .bg-slate-200,
+.dark .bg-amber-100,
+.dark .bg-orange-50 {
+  background-color: #111827 !important; /* gray-900 */
+}
+
+/* Hover, active and accent states */
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-gray-150:hover,
+.dark .hover\:bg-gray-200:hover,
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover,
+.dark .hover\:bg-slate-150:hover,
+.dark .hover\:bg-amber-100:hover {
+  background-color: #1f2937 !important; /* gray-800 */
+}
+
+.dark .bg-gray-200,
+.dark .bg-gray-250,
+.dark .bg-gray-300,
+.dark .bg-slate-200,
+.dark .bg-slate-300,
+.dark .bg-stone-105-30,
+.dark .bg-stone-100,
+.dark .bg-stone-50 {
+  background-color: #1f2937 !important; /* gray-800 */
+}
+
+/* Light background alerts/status boxes in dark mode can have darker backgrounds to prevent blinding */
+.dark .bg-green-50,
+.dark .bg-green-105-30,
+.dark .bg-green-100\/40 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+.dark .bg-red-50,
+.dark .bg-red-100\/40,
+.dark .bg-rose-50 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+
+.dark .bg-blue-50,
+.dark .bg-blue-100\/40 {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+}
+
+/* Text color overrides */
+.dark .text-gray-900,
+.dark .text-gray-850,
+.dark .text-gray-800,
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-orange-950,
+.dark .text-orange-900,
+.dark .text-orange-850,
+.dark .text-amber-950,
+.dark .text-amber-900,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: #f9fafb !important; /* gray-50 */
+}
+
+.dark .text-gray-700,
+.dark .text-gray-750,
+.dark .text-gray-705,
+.dark .text-gray-650,
+.dark .text-gray-600,
+.dark .text-slate-700,
+.dark .text-slate-600,
+.dark .text-amber-805,
+.dark .text-amber-800,
+.dark .text-amber-700 {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+.dark .text-gray-500,
+.dark .text-gray-450,
+.dark .text-gray-400,
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Borders */
+.dark .border-gray-50,
+.dark .border-gray-100,
+.dark .border-gray-150,
+.dark .border-gray-200,
+.dark .border-gray-300,
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300,
+.dark .border-orange-100\/30,
+.dark .border-orange-100\/40,
+.dark .border-orange-100\/50,
+.dark .border-orange-200,
+.dark .border-orange-200\/50,
+.dark .border-amber-100,
+.dark .border-amber-200,
+.dark hr {
+  border-color: #374151 !important; /* gray-700 */
+}
+
+/* Form controls normalizer */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+/* Smooth toggle transition support */
+body, div, section, header, footer, nav, button, input {
+  transition-property: background-color, border-color, text-color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}

@@ -55,6 +55,7 @@
         "loyaltyPoints": { "type": "integer" },
         "wishlist": { "type": "array" },
         "theme": { "type": "string", "enum": ["light", "dark"] },
+        "photoURL": { "type": "string", "description": "Base64 encoded or URL path to user profile and avatar image" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["email"]
