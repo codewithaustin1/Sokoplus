@@ -577,6 +577,12 @@ export default function Admin({ user }: AdminProps) {
   const [confirmingApproveSellerId, setConfirmingApproveSellerId] = useState<string | null>(null);
   const [selectedSellerForRejection, setSelectedSellerForRejection] = useState<any | null>(null);
   const [rejectionReasonInput, setRejectionReasonInput] = useState("");
+  const [editingSeller, setEditingSeller] = useState<any | null>(null);
+  const [editSellerShopName, setEditSellerShopName] = useState("");
+  const [editSellerPhone, setEditSellerPhone] = useState("");
+  const [editSellerLocation, setEditSellerLocation] = useState("");
+  const [editSellerDescription, setEditSellerDescription] = useState("");
+  const [isSavingSeller, setIsSavingSeller] = useState(false);
   const [biDateRangeFilter, setBiDateRangeFilter] = useState<"all" | "today" | "7d" | "30d" | "90d" | "ytd">("all");
   const [biCategoryFilter, setBiCategoryFilter] = useState<string>("all");
   const [biArtisanSearch, setBiArtisanSearch] = useState<string>("");
@@ -5575,9 +5581,26 @@ export default function Admin({ user }: AdminProps) {
                     className="p-6 rounded-2xl border border-gray-150 bg-white shadow-xs space-y-4 hover:border-orange-200 transition-all text-left"
                   >
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div>
-                        <h4 className="text-lg font-black text-gray-900">{seller.shopName}</h4>
-                        <p className="text-xs text-gray-400 font-semibold mt-0.5">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-lg font-black text-gray-900">{seller.shopName}</h4>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingSeller(seller);
+                              setEditSellerShopName(seller.shopName || "");
+                              setEditSellerPhone(seller.phone || "");
+                              setEditSellerLocation(seller.location || "");
+                              setEditSellerDescription(seller.description || "");
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 hover:bg-orange-50 text-gray-500 hover:text-orange-600 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors border border-gray-200/50 hover:border-orange-200/50 cursor-pointer"
+                            title="Edit Seller Details"
+                          >
+                            <Pencil size={11} />
+                            <span>Edit Profile</span>
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 font-semibold mt-1">
                           Location: <span className="text-gray-700">{seller.location}</span> | Contact: <span className="text-gray-700">{seller.phone}</span>
                         </p>
                       </div>
@@ -5707,6 +5730,115 @@ export default function Admin({ user }: AdminProps) {
                     Confirm Rejection
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Interactive Edit Seller Profile Overlay Dialog */}
+          {editingSeller && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-55 flex items-center justify-center p-4">
+              <div className="bg-white p-8 rounded-3xl max-w-md w-full border border-gray-150 shadow-2xl space-y-5 animate-fade-in text-left">
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                  <h3 className="text-lg font-black text-gray-900">Edit Seller Profile</h3>
+                  <button
+                    type="button"
+                    onClick={() => setEditingSeller(null)}
+                    className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-650 transition-colors cursor-pointer border-none flex items-center justify-center"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                
+                <form 
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!editSellerShopName.trim() || !editSellerPhone.trim() || !editSellerLocation.trim()) {
+                      toast.error("Shop Name, Phone, and Location are required.");
+                      return;
+                    }
+                    setIsSavingSeller(true);
+                    try {
+                      const updatedData = {
+                        shopName: editSellerShopName.trim(),
+                        phone: editSellerPhone.trim(),
+                        location: editSellerLocation.trim(),
+                        description: editSellerDescription.trim(),
+                      };
+                      await updateDoc(doc(db, "sellers", editingSeller.uid), updatedData);
+                      setSellers(prev => prev.map(s => s.uid === editingSeller.uid ? { ...s, ...updatedData } : s));
+                      toast.success(`Seller profile updated successfully!`);
+                      setEditingSeller(null);
+                    } catch (error) {
+                      console.error("[Admin] Failed to update seller:", error);
+                      toast.error(`Failed to update seller: ${error instanceof Error ? error.message : String(error)}`);
+                    } finally {
+                      setIsSavingSeller(false);
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Shop Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={editSellerShopName}
+                      onChange={(e) => setEditSellerShopName(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-xs text-gray-950"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Phone Number</label>
+                    <input
+                      type="text"
+                      required
+                      value={editSellerPhone}
+                      onChange={(e) => setEditSellerPhone(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-xs text-gray-950"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Location / City</label>
+                    <input
+                      type="text"
+                      required
+                      value={editSellerLocation}
+                      onChange={(e) => setEditSellerLocation(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-xs text-gray-950"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Shop Description / Pitch</label>
+                    <textarea
+                      rows={3}
+                      value={editSellerDescription}
+                      onChange={(e) => setEditSellerDescription(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-xs resize-none text-gray-950 text-left"
+                      placeholder="Specify seller story, goods sourced, craft specializations, etc."
+                    />
+                  </div>
+
+                  <div className="flex gap-2 justify-end pt-2">
+                    <button
+                      type="button"
+                      disabled={isSavingSeller}
+                      onClick={() => setEditingSeller(null)}
+                      className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-650 font-extrabold rounded-xl text-xs cursor-pointer border-none"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingSeller}
+                      className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white font-extrabold rounded-xl text-xs cursor-pointer border-none shadow-md shadow-orange-600/15"
+                    >
+                      {isSavingSeller ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}

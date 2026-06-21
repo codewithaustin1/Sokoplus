@@ -58,6 +58,7 @@ export interface Order {
   paymentStatus: "unpaid" | "paid";
   createdAt: any;
   paymentReference?: string;
+  clearedByClient?: boolean;
 }
 
 export interface Review {

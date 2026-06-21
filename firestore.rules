@@ -22,7 +22,7 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isSignedIn() && (
              request.auth.uid == "qdeDtBfWIKNgWVjoUWHR3W3L7oa2" ||
-             ("email" in request.auth.token && request.auth.token.email.toLowerCase() == "upfrontretaile@gmail.com")
+             ("email" in request.auth.token && (request.auth.token.email.toLowerCase() == "upfrontretaile@gmail.com" || request.auth.token.email.toLowerCase() == "austinmakachola88@gmail.com"))
       );
     }
 
@@ -107,8 +107,10 @@ service cloud.firestore {
       allow read: if hasPermission("manage_orders") || (isSignedIn() && (existing().userId == request.auth.uid || request.auth.uid in existing().sellerIds));
       allow create: if isVerified() && isValidOrder(incoming()) && isValidId(orderId);
       allow update: if hasPermission("manage_orders") || (isSignedIn() && existing().userId == request.auth.uid && 
-                    incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
-                    incoming().status == 'cancelled' && existing().status == 'pending');
+                    ((incoming().diff(existing()).affectedKeys().hasOnly(['status']) && 
+                      incoming().status == 'cancelled' && existing().status == 'pending') ||
+                     (incoming().diff(existing()).affectedKeys().hasOnly(['clearedByClient']) && 
+                      incoming().clearedByClient == true)));
       allow delete: if hasPermission("manage_orders") || (isSignedIn() && existing().userId == request.auth.uid);
     }
 

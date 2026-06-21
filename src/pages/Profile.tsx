@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Navigate, Link } from "react-router-dom";
-import { collection, query, where, orderBy, getDocs, doc, deleteDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store } from "lucide-react";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
@@ -24,6 +24,76 @@ export default function Profile({ user }: ProfileProps) {
   const [timeFilter, setTimeFilter] = useState<"this-month" | "last-12-months" | "specific-month">("this-month");
   const [profileTab, setProfileTab] = useState<"orders" | "seller">("orders");
   const { t, language } = useLanguage();
+  
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [selectedClearLimit, setSelectedClearLimit] = useState<number | "all" | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
+
+  const clearOrders = async (limitNum: number | "all") => {
+    if (!user) return;
+    setIsClearing(true);
+    try {
+      const q = query(
+        collection(db, "orders"),
+        where("userId", "==", user.uid)
+      );
+      const snap = await getDocs(q);
+      const userOrders = snap.docs.map(d => {
+        const data = d.data();
+        let orderDate: Date;
+        if (data.createdAt?.toDate) {
+          orderDate = data.createdAt.toDate();
+        } else if (data.createdAt?.seconds) {
+          orderDate = new Date(data.createdAt.seconds * 1000);
+        } else if (data.createdAt) {
+          orderDate = new Date(data.createdAt);
+        } else {
+          orderDate = new Date(0);
+        }
+        return { id: d.id, orderDate, ...data } as (Order & { orderDate: Date });
+      });
+
+      // Filter out those already cleared has clearedByClient === true
+      const activeUserOrders = userOrders.filter(o => o.clearedByClient !== true);
+
+      // Sort descending (most recent first)
+      activeUserOrders.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
+
+      let toDelete = activeUserOrders;
+      if (limitNum !== "all") {
+        toDelete = activeUserOrders.slice(0, limitNum);
+      }
+
+      if (toDelete.length === 0) {
+        toast.error(language === "sw" ? "Hakuna agizo la kufuta." : "No orders found to clear.");
+        setIsClearing(false);
+        return;
+      }
+
+      // Soft clearance: update order docs with clearedByClient: true to preserve admin view records
+      await Promise.all(toDelete.map(o => updateDoc(doc(db, "orders", o.id), { clearedByClient: true })));
+
+      const deletedIds = new Set(toDelete.map(o => o.id));
+      setOrders(prev => prev.filter(o => !deletedIds.has(o.id)));
+
+      toast.success(
+        language === "sw"
+          ? `Agizo kiasi cha ${toDelete.length} zimefutwa kikamilifu.`
+          : `Successfully cleared up to ${toDelete.length} ${toDelete.length === 1 ? "order" : "orders"}!`
+      );
+      setShowClearModal(false);
+    } catch (err) {
+      console.error("Failed to clear user order history:", err);
+      toast.error(
+        language === "sw"
+          ? "Hitilafu imetokea wakati wa kufuta historia ya agizo."
+          : "An error occurred while clearing your order history."
+      );
+    } finally {
+      setIsClearing(false);
+      setSelectedClearLimit(null);
+    }
+  };
   
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -121,6 +191,8 @@ export default function Profile({ user }: ProfileProps) {
         const activeOrders: Order[] = [];
         
         allFetchedOrders.forEach(order => {
+          if (order.clearedByClient === true) return;
+
           let orderDate: Date;
           if (order.createdAt?.toDate) {
             orderDate = order.createdAt.toDate();
@@ -320,9 +392,21 @@ export default function Profile({ user }: ProfileProps) {
             <Package className="mr-3 text-orange-600" size={32} />
             {t("Order History")}
           </h2>
-          <span className="text-sm font-bold text-gray-500 uppercase tracking-widest bg-gray-50 px-4 py-2 rounded-full self-start sm:self-auto">
-            {language === "sw" ? `Inaonyesha ${filteredOrders.length} kati ya ${orders.length}` : `Showing ${filteredOrders.length} of ${orders.length}`}
-          </span>
+          <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+            <span className="text-sm font-bold text-gray-500 uppercase tracking-widest bg-gray-50 px-4 py-2 rounded-full">
+              {language === "sw" ? `Inaonyesha ${filteredOrders.length} kati ya ${orders.length}` : `Showing ${filteredOrders.length} of ${orders.length}`}
+            </span>
+            {orders.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowClearModal(true)}
+                className="inline-flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-650 font-black uppercase px-4 py-2.5 rounded-full text-[10px] tracking-wider transition-colors cursor-pointer border border-red-100/40"
+              >
+                <Trash2 size={13} />
+                <span>{language === 'sw' ? 'Futa Historia' : 'Clear History'}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Time Filter Action Bar */}
@@ -473,15 +557,24 @@ export default function Profile({ user }: ProfileProps) {
                         KES {order.totalAmount.toLocaleString()}
                       </p>
                     </div>
-                    <button
-                      id={`download-receipt-${order.id}`}
-                      type="button"
-                      onClick={() => downloadReceipt(order, user)}
-                      className="inline-flex items-center space-x-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 font-extrabold px-3.5 py-2.5 rounded-2xl text-xs transition-colors cursor-pointer border border-orange-100/50"
-                    >
-                      <Download size={14} />
-                      <span>{t("Receipt")}</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/track-order/${order.id}`}
+                        className="inline-flex items-center space-x-1.5 bg-orange-600 hover:bg-orange-700 text-white font-extrabold px-3.5 py-2.5 rounded-2xl text-xs transition-transform hover:-translate-y-0.5 cursor-pointer shadow-sm shadow-orange-100"
+                      >
+                        <Truck size={14} />
+                        <span>{language === 'sw' ? 'Fuatilia' : 'Track'}</span>
+                      </Link>
+                      <button
+                        id={`download-receipt-${order.id}`}
+                        type="button"
+                        onClick={() => downloadReceipt(order, user)}
+                        className="inline-flex items-center space-x-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 font-extrabold px-3.5 py-2.5 rounded-2xl text-xs transition-colors cursor-pointer border border-orange-100/50"
+                      >
+                        <Download size={14} />
+                        <span>{t("Receipt")}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -538,6 +631,154 @@ export default function Profile({ user }: ProfileProps) {
                   {t("Cancel")}
                 </button>
               </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Clear Order History Confirmation Modal */}
+      <AnimatePresence>
+        {showClearModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (!isClearing) {
+                  setShowClearModal(false);
+                  setSelectedClearLimit(null);
+                }
+              }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-3xl p-8 z-[110] shadow-2xl space-y-6 text-left animate-fade-in"
+            >
+              {selectedClearLimit === null ? (
+                <>
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center shrink-0 border border-red-100">
+                      <Trash2 size={24} />
+                    </div>
+                    <div className="space-y-1.5 flex-1">
+                      <h3 className="text-xl font-black text-gray-900 leading-tight">
+                        {language === "sw" ? "Futa Historia ya Agizo" : "Clear Order History"}
+                      </h3>
+                      <p className="text-xs text-gray-500 font-medium">
+                        {language === "sw"
+                          ? "Chagua chaguo hapa chini ili kufuta baadhi au maagizo yako yote ya SokoPlus. Kitendo hiki hakiwezi kubatilishwa baada ya kukamilika."
+                          : "Choose an option below to clear some or all of your SokoPlus order history. This action cannot be undone."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    {[
+                      {
+                        limit: 10,
+                        title: language === "sw" ? "Hadi Maagizo 10 ya Mwisho" : "Up to Last 10 Orders",
+                        desc: language === "sw" ? "Futa maagizo yako 10 ya hivi karibuni au chini ya hapo." : "Delete your 10 most recent orders or fewer.",
+                      },
+                      {
+                        limit: 50,
+                        title: language === "sw" ? "Hadi Maagizo 50 ya Mwisho" : "Up to Last 50 Orders",
+                        desc: language === "sw" ? "Futa maagizo yako 50 ya hivi karibuni au chini ya hapo." : "Delete your 50 most recent orders or fewer.",
+                      },
+                      {
+                        limit: "all" as const,
+                        title: language === "sw" ? "Historia Yote (Wakati Wote)" : "All Time Order History",
+                        desc: language === "sw" ? "Anza upya kwa kufuta historia ya maagizo yako yote ya nyuma." : "Wipe clean and clear your entire historical purchase record.",
+                      }
+                    ].map((option) => (
+                      <button
+                        key={option.limit}
+                        type="button"
+                        onClick={() => setSelectedClearLimit(option.limit)}
+                        className="w-full text-left p-4 rounded-2xl border border-gray-150 hover:border-red-200 hover:bg-red-50/10 transition-all cursor-pointer disabled:opacity-50 group flex items-start justify-between gap-3"
+                      >
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-black text-gray-900 group-hover:text-red-700 transition-colors">
+                            {option.title}
+                          </h4>
+                          <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">
+                            {option.desc}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {language === "sw" ? "Chagua" : "Select"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2 justify-end pt-2 border-t border-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowClearModal(false);
+                        setSelectedClearLimit(null);
+                      }}
+                      className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-650 font-black rounded-2xl text-xs cursor-pointer border-none transition-colors"
+                    >
+                      {language === "sw" ? "Funga" : "Close"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center shrink-0 border border-rose-100 animate-pulse">
+                      <Trash2 size={24} />
+                    </div>
+                    <div className="space-y-1.5 flex-1">
+                      <h3 className="text-xl font-black text-rose-650 leading-tight">
+                        {language === "sw" ? "Thibitisha Ufutaji" : "Confirm Clear Request"}
+                      </h3>
+                      <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
+                        {selectedClearLimit === "all"
+                          ? (language === "sw" ? "HISTORIA YOTE (WAKATI WOTE)" : "ALL TIME ORDER HISTORY")
+                          : (language === "sw" ? `HADI MAAGIZO ${selectedClearLimit} YA MWISHO` : `UP TO LAST ${selectedClearLimit} ORDERS`)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-red-50/30 border border-red-100/50 p-4 rounded-2xl space-y-2">
+                    <p className="text-xs text-gray-700 font-bold leading-relaxed">
+                      {language === "sw"
+                        ? "Je, una uhakika unataka kufuta kabisa historia hii ya agizo? Amri hizi zitafutwa milele kutoka kwenye mfumo wa SokoPlus."
+                        : "Are you absolutely sure you want to permanently clear these purchase records? Once completed, this action is irreversible."}
+                    </p>
+                    <p className="text-[10px] text-red-600 font-extrabold uppercase tracking-wide">
+                      {language === "sw" ? "KUMBUKA: Kitendo hiki hakiwezi kubatilishwa!" : "WARNING: This action cannot be undone!"}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2.5 justify-end pt-2 border-t border-gray-100">
+                    <button
+                      type="button"
+                      disabled={isClearing}
+                      onClick={() => setSelectedClearLimit(null)}
+                      className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-650 font-black rounded-2xl text-xs cursor-pointer border-none transition-colors"
+                    >
+                      {language === "sw" ? "Rudi Nyuma" : "Go Back"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isClearing}
+                      onClick={() => clearOrders(selectedClearLimit)}
+                      className="px-5 py-3 bg-red-600 hover:bg-red-700 disabled:bg-rose-400 text-white font-black rounded-2xl text-xs cursor-pointer border-none transition-all shadow-md shadow-red-600/10"
+                    >
+                      {isClearing 
+                        ? (language === "sw" ? "Inafuta..." : "Clearing...") 
+                        : (language === "sw" ? "Ndio, Futa Sasa" : "Yes, Clear Now")}
+                    </button>
+                  </div>
+                </>
+              )}
             </motion.div>
           </>
         )}

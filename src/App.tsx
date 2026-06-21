@@ -22,6 +22,7 @@ import Admin from "./pages/Admin";
 import Blog from "./pages/Blog";
 import Login from "./pages/Login";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import TrackOrder from "./pages/TrackOrder";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Cookies from "./pages/Cookies";
@@ -335,6 +336,8 @@ export default function App() {
                 <Route path="/blog" element={<Blog user={user} />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/payment-success" element={<PaymentSuccess />} />
+                <Route path="/track-order/:id" element={<TrackOrder />} />
+                <Route path="/track-order" element={<TrackOrder />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/cookies" element={<Cookies />} />

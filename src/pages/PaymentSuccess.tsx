@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import axios from "axios";
-import { CheckCircle, XCircle, ShoppingBag, ArrowRight } from "lucide-react";
+import { CheckCircle, XCircle, ShoppingBag, ArrowRight, Truck } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { doc, updateDoc, collection, query, where, getDocs, increment, writeBatch } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
@@ -13,6 +13,7 @@ export default function PaymentSuccess() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [pointsEarned, setPointsEarned] = useState<number>(0);
   const [orderReceiptId, setOrderReceiptId] = useState<string>("");
+  const [orderId, setOrderId] = useState<string>("");
   const { clearCart } = useCart();
   const reference = searchParams.get("reference");
 
@@ -37,9 +38,11 @@ export default function PaymentSuccess() {
             const calculatedPoints = Math.floor((orderData.totalAmount || 0) / 100);
             setPointsEarned(calculatedPoints);
             setOrderReceiptId(orderDoc.id.slice(0, 8).toUpperCase());
+            setOrderId(orderDoc.id);
 
             // Prevent double-processing
             if (orderData.paymentStatus === "paid") {
+              setOrderId(orderDoc.id);
               clearCart();
               setStatus("success");
               return;
@@ -193,8 +196,14 @@ export default function PaymentSuccess() {
       </div>
 
       <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6">
-        <Link to="/" className="bg-orange-600 text-white px-12 py-5 rounded-3xl font-black text-lg flex items-center shadow-2xl shadow-orange-200/50 hover:bg-orange-700 transition-all hover:translate-y--1">
-          Explore More <ArrowRight className="ml-3" size={24} />
+        <Link 
+          to={orderId ? `/track-order/${orderId}` : `/track-order?reference=${reference || ""}`}
+          className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-5 rounded-3xl font-black text-lg flex items-center justify-center gap-3 shadow-2xl shadow-orange-200/50 hover:-translate-y-0.5 transition-all text-center"
+        >
+          <Truck size={22} className="animate-pulse" /> Track Live Delivery
+        </Link>
+        <Link to="/" className="bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 border border-gray-150 dark:border-gray-800 text-gray-800 dark:text-gray-100 px-10 py-5 rounded-3xl font-black text-lg flex items-center justify-center gap-2 hover:-translate-y-0.5 transition-all text-center">
+          Explore More <ArrowRight size={22} />
         </Link>
       </div>
     </div>
