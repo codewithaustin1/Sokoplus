@@ -6549,6 +6549,7 @@ export default function Admin({ user }: AdminProps) {
                       <option value="ocean">Ocean Indigo Gradient</option>
                       <option value="royal">Royal Purple Gradient</option>
                       <option value="charcoal">Charcoal Dark Gradient</option>
+                      <option value="black">Solid Black</option>
                       <option value="gold">Amber Gold Gradient</option>
                       <option value="festive">Festive Red Gradient</option>
                     </select>
@@ -7145,6 +7146,7 @@ export default function Admin({ user }: AdminProps) {
                     <option value="ocean">Ocean Indigo Gradient</option>
                     <option value="royal">Royal Purple Gradient</option>
                     <option value="charcoal">Charcoal Dark Gradient</option>
+                    <option value="black">Solid Black</option>
                     <option value="gold">Amber Gold Gradient</option>
                     <option value="festive">Festive Red Gradient</option>
                   </select>

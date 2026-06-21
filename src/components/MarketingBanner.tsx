@@ -149,6 +149,9 @@ export default function MarketingBanner() {
     if (cleanClass === "royal" || cleanClass.includes("purple") || cleanClass.includes("violet")) {
       return "bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600";
     }
+    if (cleanClass === "black" || cleanClass === "solid-black") {
+      return "bg-black";
+    }
     if (cleanClass === "charcoal" || cleanClass.includes("black") || cleanClass.includes("gray")) {
       return "bg-gradient-to-r from-gray-900 via-slate-800 to-black";
     }
@@ -181,11 +184,6 @@ export default function MarketingBanner() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left min-h-[44px]">
           
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-            {/* Visual Icon Badge */}
-            <div className="hidden md:flex p-1.5 bg-white/15 rounded-xl text-white shrink-0 animate-pulse">
-              <Sparkles size={16} />
-            </div>
-
             <div className="space-y-0.5">
               <p className={`text-sm md:text-base font-bold tracking-tight ${textStyle} font-sans leading-tight flex flex-wrap items-center justify-center sm:justify-start gap-1.5`}>
                 {currentBanner.text}

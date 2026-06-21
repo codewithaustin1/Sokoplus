@@ -13,6 +13,7 @@ import axios from "axios";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
 import MarketingBanner from "../components/MarketingBanner";
+import PromotionalBanner from "../components/PromotionalBanner";
 import { trackEvent } from "../lib/analytics";
 import heroImage from "../assets/images/kenyan_market_hero_1779469825593.png";
 import { FastImage } from "../components/FastImage";
@@ -670,6 +671,8 @@ export default function Home({ user }: HomeProps) {
           ))}
         </div>
       </section>
+
+      <PromotionalBanner />
 
       {/* Recommended for You Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-b border-gray-100 dark:border-gray-800 bg-orange-50/10 dark:bg-gray-900/10 rounded-3xl mt-12 mb-6">
