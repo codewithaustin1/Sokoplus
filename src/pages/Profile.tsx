@@ -313,7 +313,7 @@ export default function Profile({ user }: ProfileProps) {
       </div>
 
       {/* Sub Profile Navigation Tabs */}
-      <div className="flex border-b border-gray-150 gap-4">
+      <div className="flex border-b border-gray-200 gap-4">
         <button
           onClick={() => setProfileTab("orders")}
           className={`flex items-center gap-2 px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer ${
@@ -400,7 +400,7 @@ export default function Profile({ user }: ProfileProps) {
               <button
                 type="button"
                 onClick={() => setShowClearModal(true)}
-                className="inline-flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-650 font-black uppercase px-4 py-2.5 rounded-full text-[10px] tracking-wider transition-colors cursor-pointer border border-red-100/40"
+                className="inline-flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-black uppercase px-4 py-2.5 rounded-full text-[10px] tracking-wider transition-colors cursor-pointer border border-red-100/40"
               >
                 <Trash2 size={13} />
                 <span>{language === 'sw' ? 'Futa Historia' : 'Clear History'}</span>
@@ -698,7 +698,7 @@ export default function Profile({ user }: ProfileProps) {
                         key={option.limit}
                         type="button"
                         onClick={() => setSelectedClearLimit(option.limit)}
-                        className="w-full text-left p-4 rounded-2xl border border-gray-150 hover:border-red-200 hover:bg-red-50/10 transition-all cursor-pointer disabled:opacity-50 group flex items-start justify-between gap-3"
+                        className="w-full text-left p-4 rounded-2xl border border-gray-200 hover:border-red-200 hover:bg-red-50/10 transition-all cursor-pointer disabled:opacity-50 group flex items-start justify-between gap-3"
                       >
                         <div className="space-y-1">
                           <h4 className="text-xs font-black text-gray-900 group-hover:text-red-700 transition-colors">
@@ -722,7 +722,7 @@ export default function Profile({ user }: ProfileProps) {
                         setShowClearModal(false);
                         setSelectedClearLimit(null);
                       }}
-                      className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-650 font-black rounded-2xl text-xs cursor-pointer border-none transition-colors"
+                      className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-black rounded-2xl text-xs cursor-pointer border-none transition-colors"
                     >
                       {language === "sw" ? "Funga" : "Close"}
                     </button>
@@ -735,7 +735,7 @@ export default function Profile({ user }: ProfileProps) {
                       <Trash2 size={24} />
                     </div>
                     <div className="space-y-1.5 flex-1">
-                      <h3 className="text-xl font-black text-rose-650 leading-tight">
+                      <h3 className="text-xl font-black text-rose-600 leading-tight">
                         {language === "sw" ? "Thibitisha Ufutaji" : "Confirm Clear Request"}
                       </h3>
                       <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
@@ -762,7 +762,7 @@ export default function Profile({ user }: ProfileProps) {
                       type="button"
                       disabled={isClearing}
                       onClick={() => setSelectedClearLimit(null)}
-                      className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-650 font-black rounded-2xl text-xs cursor-pointer border-none transition-colors"
+                      className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-black rounded-2xl text-xs cursor-pointer border-none transition-colors"
                     >
                       {language === "sw" ? "Rudi Nyuma" : "Go Back"}
                     </button>
