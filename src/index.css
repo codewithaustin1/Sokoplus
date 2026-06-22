@@ -288,3 +288,20 @@ body, div, section, header, footer, nav, button, input {
   transition-duration: 200ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Marketing Banner CTA Button Override for Outstanding Contrast in Light and Dark Modes */
+.marketing-cta-button {
+  background-color: #ffffff !important;
+  color: #0c0a09 !important;
+}
+
+.dark .marketing-cta-button {
+  background-color: #ffffff !important;
+  color: #0c0a09 !important;
+}
+
+.marketing-cta-button:hover,
+.dark .marketing-cta-button:hover {
+  background-color: #f5f5f4 !important;
+  color: #0c0a09 !important;
+}

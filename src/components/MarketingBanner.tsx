@@ -196,7 +196,7 @@ export default function MarketingBanner() {
             {currentBanner.actionText && currentBanner.actionUrl && (
               <a
                 href={currentBanner.actionUrl}
-                className="inline-flex items-center bg-white text-gray-950 hover:bg-gray-50 active:scale-95 px-4.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
+                className="inline-flex items-center bg-white text-gray-950 hover:bg-gray-50 active:scale-95 px-4.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all marketing-cta-button"
               >
                 {currentBanner.actionText}
               </a>
