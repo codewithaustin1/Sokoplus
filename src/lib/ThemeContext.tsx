@@ -16,14 +16,12 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("sokoplus_theme");
-      if (saved === "light" || saved === "dark") {
-        return saved;
-      }
-      // Check system preference
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      if (mediaQuery.matches) {
-        return "dark";
+      const lastUserUid = localStorage.getItem("sokoplus_last_user_uid");
+      if (lastUserUid) {
+        const saved = localStorage.getItem(`sokoplus_theme_${lastUserUid}`);
+        if (saved === "light" || saved === "dark") {
+          return saved;
+        }
       }
     }
     return "light";
@@ -45,6 +43,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("sokoplus_last_user_uid", user.uid);
+          const cachedUserTheme = localStorage.getItem(`sokoplus_theme_${user.uid}`);
+          if (cachedUserTheme === "light" || cachedUserTheme === "dark") {
+            setThemeState(cachedUserTheme);
+          }
+        }
+
         try {
           const userDocRef = doc(db, "users", user.uid);
           const docSnap = await getDoc(userDocRef);
@@ -55,6 +61,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
               // Cloud theme exists, sync locally
               setThemeState(data.theme);
               if (typeof window !== "undefined") {
+                localStorage.setItem(`sokoplus_theme_${user.uid}`, data.theme);
                 localStorage.setItem("sokoplus_theme", data.theme);
               }
             } else {
@@ -68,6 +75,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
           console.warn("[ThemeContext] Could not sync theme with Firestore:", err);
         }
+      } else {
+        // Logged out / signed out: default to light mode
+        setThemeState("light");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("sokoplus_last_user_uid");
+          localStorage.setItem("sokoplus_theme", "light");
+        }
       }
     });
 
@@ -78,6 +92,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(newTheme);
     if (typeof window !== "undefined") {
       localStorage.setItem("sokoplus_theme", newTheme);
+      if (auth.currentUser) {
+        localStorage.setItem(`sokoplus_theme_${auth.currentUser.uid}`, newTheme);
+      }
     }
     // Also save to Firestore if user is signed in
     if (auth.currentUser) {

@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Sun, Moon, Mic, MicOff } from "lucide-react";
+import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff } from "lucide-react";
 import toast from "react-hot-toast";
-import { useTheme } from "../lib/ThemeContext";
 import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { auth, db } from "../lib/firebase";
@@ -21,8 +20,7 @@ export default function Navbar({ user }: NavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { items } = useCart();
-  const { language, setLanguage, t } = useLanguage();
-  const { theme, toggleTheme } = useTheme();
+  const { language, t } = useLanguage();
   const [search, setSearch] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -339,14 +337,6 @@ export default function Navbar({ user }: NavbarProps) {
               )}
             </Link>
 
-            <Link to="/profile" className="hidden md:inline-flex group rounded-full border border-gray-200 dark:border-gray-850 hover:border-orange-500 transition-all focus:outline-none items-center justify-center">
-              {user?.photoURL ? (
-                <img src={user.photoURL} alt={user.displayName || "User"} className="w-8 h-8 object-cover rounded-full" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="p-2"><User className="text-gray-700 dark:text-gray-350 group-hover:text-orange-600 dark:group-hover:text-orange-500 transition-colors" size={24} /></div>
-              )}
-            </Link>
-
             <Link to="/cart" className="relative group p-2">
               <motion.div
                 animate={isBouncing ? { scale: [1, 1.4, 0.85, 1.15, 0.95, 1] } : { scale: 1 }}
@@ -372,66 +362,15 @@ export default function Navbar({ user }: NavbarProps) {
               </motion.div>
             </Link>
 
-            {/* Language Toggle */}
-            <div className="hidden md:flex items-center bg-gray-100 dark:bg-gray-850 rounded-full p-0.5 border border-gray-200 dark:border-gray-800 mr-2">
-              <button
-                type="button"
-                onClick={() => setLanguage("en")}
-                className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider transition-all duration-155 cursor-pointer ${
-                  language === "en"
-                    ? "bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-xs"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-950 hover:dark:text-white"
-                }`}
-              >
-                EN
-              </button>
-              <button
-                type="button"
-                onClick={() => setLanguage("sw")}
-                className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider transition-all duration-155 cursor-pointer ${
-                  language === "sw"
-                    ? "bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-xs"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-950 hover:dark:text-white"
-                }`}
-              >
-                SW
-              </button>
-            </div>
-
-            {/* Desktop Theme Toggle */}
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={toggleTheme}
-              className="hidden md:flex items-center justify-center p-2 rounded-full cursor-pointer bg-gray-100 hover:bg-gray-200 dark:bg-gray-850 dark:hover:bg-gray-800 text-gray-750 dark:text-gray-300 border border-gray-200 dark:border-gray-800 transition-colors"
-              title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Theme"}
-            >
-              {theme === "light" ? <Moon size={18} /> : <Sun size={18} className="text-yellow-500 animate-pulse-subtle" />}
-            </motion.button>
-
             <div className="hidden md:flex items-center space-x-2">
               {user ? (
-                <>
-                  <div className="flex flex-col items-end mr-2">
-                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-tighter flex items-center">
-                      <Award size={10} className="mr-0.5" /> {user.loyaltyPoints || 0} PTS
-                    </span>
-                    <span className="text-[9px] text-gray-400 font-bold uppercase">Loyalty</span>
-                  </div>
-                  <Link to="/profile" className="flex items-center justify-center p-0.5 hover:bg-gray-100 dark:hover:bg-gray-850 rounded-full transition-colors border border-gray-200 dark:border-gray-800">
-                    {user?.photoURL ? (
-                      <img src={user.photoURL} alt={user.displayName || "User"} className="w-8 h-8 object-cover rounded-full" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="p-1.5"><User size={20} className="text-gray-700 dark:text-gray-300" /></div>
-                    )}
-                  </Link>
-                  <button 
-                    onClick={() => setShowLogoutConfirm(true)}
-                    className="p-2 text-gray-500 hover:text-red-500 transition-colors"
-                  >
-                    <LogOut size={20} />
-                  </button>
-                </>
+                <Link to="/profile" className="flex items-center justify-center p-0.5 hover:bg-gray-100 dark:hover:bg-gray-850 rounded-full transition-colors border border-gray-200 dark:border-gray-800">
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt={user.displayName || "User"} className="w-8 h-8 object-cover rounded-full" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="p-1.5"><User size={20} className="text-gray-700 dark:text-gray-350" /></div>
+                  )}
+                </Link>
               ) : (
                 <Link
                   to="/login"
@@ -442,15 +381,26 @@ export default function Navbar({ user }: NavbarProps) {
               )}
             </div>
 
-            {/* Mobile Theme Toggle */}
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={toggleTheme}
-              className="md:hidden flex items-center justify-center p-2 rounded-xl bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-gray-800 transition-colors mr-1 cursor-pointer"
-              title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Theme"}
+            {/* Mobile Account Profile Indicator / Guest Placeholder */}
+            <Link
+              to="/profile"
+              className="md:hidden flex items-center justify-center w-9 h-9 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden mr-1 cursor-pointer"
+              title={user ? "View Profile" : "Sign In"}
             >
-              {theme === "light" ? <Moon size={20} /> : <Sun size={20} className="text-yellow-500" />}
-            </motion.button>
+              {user ? (
+                user.photoURL ? (
+                  <img src={user.photoURL} alt={user.displayName || "User"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-orange-600 text-white text-xs font-black">
+                    {user.displayName?.[0] || "U"}
+                  </div>
+                )
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors bg-gray-50 dark:bg-gray-900">
+                  <User size={18} />
+                </div>
+              )}
+            </Link>
 
             <button 
               onClick={() => {
@@ -633,36 +583,6 @@ export default function Navbar({ user }: NavbarProps) {
                   </button>
                 </div>
               </motion.form>
-
-              {/* Mobile Language Selector */}
-              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-950 rounded-2xl border border-gray-150/50 dark:border-gray-850">
-                <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">Lugha / Language</span>
-                <div className="flex bg-white dark:bg-gray-800 rounded-xl p-0.5 border border-gray-100 dark:border-gray-750 shadow-xs">
-                  <button
-                    type="button"
-                    onClick={() => setLanguage("en")}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all ${
-                      language === "en"
-                        ? "bg-orange-600 text-white shadow-xs"
-                        : "text-gray-500 hover:text-gray-900"
-                    }`}
-                  >
-                    EN
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLanguage("sw")}
-                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all ${
-                      language === "sw"
-                        ? "bg-orange-600 text-white shadow-xs"
-                        : "text-gray-500 hover:text-gray-900"
-                    }`}
-                  >
-                    SW
-                  </button>
-                </div>
-              </div>
-
               {/* Staggered Links */}
               <motion.div 
                 variants={{

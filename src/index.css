@@ -305,3 +305,68 @@ body, div, section, header, footer, nav, button, input {
   background-color: #f5f5f4 !important;
   color: #0c0a09 !important;
 }
+
+/* Premium Professional Aesthetics & Micro-interactions CSS Suite */
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  transform: translateX(-100%);
+  animation: shimmer 1.8s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom continuous pulsing ambient glow for premium localized artifacts */
+@keyframes ambient-glow {
+  0%, 100% {
+    box-shadow: 0 4px 14px 0 rgba(234, 88, 12, 0.15);
+  }
+  50% {
+    box-shadow: 0 4px 20px 4px rgba(234, 88, 12, 0.3);
+  }
+}
+
+.premium-ambient-glow {
+  animation: ambient-glow 3s infinite ease-in-out;
+}
+
+/* Micro-interaction: High-Fidelity Card Elevation & Spotlight Border */
+.premium-card-spotlight {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.premium-card-spotlight:hover {
+  transform: translateY(-4px) scale(1.01);
+  border-color: rgba(234, 88, 12, 0.35) !important;
+  box-shadow: 0 20px 30px -10px rgba(15, 23, 42, 0.1), 0 0 15px 1px rgba(234, 88, 12, 0.05);
+}
+.dark .premium-card-spotlight:hover {
+  border-color: rgba(234, 88, 12, 0.5) !important;
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.5), 0 0 15px 1px rgba(234, 88, 12, 0.12);
+}
+
+/* Beautiful custom tooltips and details indicators */
+.custom-tooltip-trigger:hover .custom-tooltip-content {
+  opacity: 1 !important;
+  transform: translateY(0) scale(1) !important;
+  pointer-events: auto !important;
+}
+
+/* Kenyan Flag Colors premium decorative accent strip */
+.kenya-accent-strip {
+  background: linear-gradient(
+    to right,
+    #060606 0%, #060606 30%,
+    #ffffff 30%, #ffffff 33%,
+    #990000 33%, #990000 66%,
+    #ffffff 66%, #ffffff 69%,
+    #006600 69%, #006600 100%
+  );
+  height: 3px;
+  width: 100%;
+}

@@ -18,6 +18,7 @@ import PromotionalBanner from "../components/PromotionalBanner";
 import { trackEvent } from "../lib/analytics";
 import heroImage from "../assets/images/kenyan_market_hero_1779469825593.png";
 import { FastImage } from "../components/FastImage";
+import ProductCardSkeleton from "../components/ProductCardSkeleton";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
 import { saveProductsToCache, getCachedProducts, saveHomepageSettings, getHomepageSettings } from "../utils/offlineDb";
@@ -703,15 +704,7 @@ export default function Home({ user }: HomeProps) {
         </div>
 
         {recLoading ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((n) => (
-              <div key={n} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm animate-pulse space-y-4">
-                <div className="aspect-square bg-gray-100 rounded-xl"></div>
-                <div className="h-4 bg-gray-100 rounded w-2/3"></div>
-                <div className="h-4 bg-gray-100 rounded w-1/2"></div>
-              </div>
-            ))}
-          </div>
+          <ProductCardSkeleton />
         ) : recommendedProducts.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
             <Heart size={40} className="mx-auto text-gray-300 mb-2" />
@@ -723,7 +716,7 @@ export default function Home({ user }: HomeProps) {
               <motion.div 
                 whileHover={{ y: -5 }}
                 key={`rec-${p.id}`} 
-                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
+                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-4 shadow-sm transition-all premium-card-spotlight"
               >
                 <Link 
                   to={`/product/${p.id}`} 
@@ -1203,9 +1196,7 @@ export default function Home({ user }: HomeProps) {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-pulse">
-            {[1,2,3,4].map(n => <div key={n} className="bg-gray-100 h-80 rounded-2xl"></div>)}
-          </div>
+          <ProductCardSkeleton />
         ) : filteredProducts.length === 0 ? (
           <EmptyState 
             icon={ShoppingBag}
@@ -1233,7 +1224,7 @@ export default function Home({ user }: HomeProps) {
               <motion.div 
                 whileHover={{ y: -5 }}
                 key={p.id} 
-                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all"
+                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-4 shadow-sm transition-all premium-card-spotlight"
               >
                 <Link 
                   to={`/product/${p.id}`} 

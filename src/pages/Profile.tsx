@@ -3,13 +3,15 @@ import { Navigate, Link } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload } from "lucide-react";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload, Settings, Sun, Moon, Globe, Coins } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
 import { downloadReceipt } from "../utils/pdfGenerator";
 import { useLanguage } from "../lib/LanguageContext";
+import { useTheme } from "../lib/ThemeContext";
+import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
 import SellerStudio from "../components/SellerStudio";
 
@@ -22,8 +24,10 @@ export default function Profile({ user }: ProfileProps) {
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [timeFilter, setTimeFilter] = useState<"this-month" | "last-12-months" | "specific-month">("this-month");
-  const [profileTab, setProfileTab] = useState<"orders" | "seller">("orders");
-  const { t, language } = useLanguage();
+  const [profileTab, setProfileTab] = useState<"orders" | "seller" | "settings">("orders");
+  const { t, language, setLanguage } = useLanguage();
+  const { theme, setTheme } = useTheme();
+  const { currency, setCurrency } = useCurrency();
   
   const [showClearModal, setShowClearModal] = useState(false);
   const [selectedClearLimit, setSelectedClearLimit] = useState<number | "all" | null>(null);
@@ -525,6 +529,17 @@ export default function Profile({ user }: ProfileProps) {
           <Store size={16} />
           {t("Seller Studio")}
         </button>
+        <button
+          onClick={() => setProfileTab("settings")}
+          className={`flex items-center gap-2 px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer ${
+            profileTab === "settings"
+              ? "border-orange-600 text-orange-600"
+              : "border-transparent text-gray-400 hover:text-gray-900"
+          }`}
+        >
+          <Settings size={16} />
+          {language === "sw" ? "Vipangilio" : "Settings"}
+        </button>
       </div>
 
       {profileTab === "orders" ? (
@@ -772,8 +787,149 @@ export default function Profile({ user }: ProfileProps) {
         )}
       </div>
         </>
-      ) : (
+      ) : profileTab === "seller" ? (
         <SellerStudio user={user} />
+      ) : (
+        <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 border border-gray-105 dark:border-gray-800 space-y-8 shadow-sm">
+          {/* Settings Section Header */}
+          <div className="space-y-1.5 border-b border-gray-100 dark:border-gray-800 pb-4">
+            <h2 className="text-2xl font-black text-gray-900 dark:text-gray-100 flex items-center gap-2 tracking-tight">
+              <Settings className="text-orange-600" size={24} />
+              {language === "sw" ? "Vipangilio vya Programu" : "App Settings"}
+            </h2>
+            <p className="text-xs text-gray-405 font-semibold uppercase tracking-wider">
+              {language === "sw" ? "Binafsisha mwonekano na utendaji wa SokoPlus" : "Personalize your SokoPlus experience, preferences & aesthetics"}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Language Preference Card */}
+            <div className="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 p-6 rounded-2xl flex flex-col justify-between space-y-4">
+              <div className="space-y-1">
+                <div className="w-10 h-10 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-xl flex items-center justify-center font-bold">
+                  <Globe size={20} />
+                </div>
+                <h3 className="text-base font-black text-gray-900 dark:text-gray-100 pt-2">
+                  {language === "sw" ? "Lugha ya Programu" : "App Language"}
+                </h3>
+                <p className="text-xs text-gray-400 font-medium">
+                  {language === "sw" ? "Chagua lugha unayopendelea kutumia kwenye SokoPlus." : "Choose which language SokoPlus should display."}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLanguage("en")}
+                  className={`px-4 py-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    language === "en"
+                      ? "bg-orange-600 text-white shadow-md shadow-orange-600/10"
+                      : "bg-white dark:bg-gray-800 text-gray-750 dark:text-gray-300 border border-gray-150 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <span className="text-base mt-0.5">🇬🇧</span>
+                  <span>English</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLanguage("sw")}
+                  className={`px-4 py-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    language === "sw"
+                      ? "bg-orange-600 text-white shadow-md shadow-orange-600/10"
+                      : "bg-white dark:bg-gray-800 text-gray-750 dark:text-gray-300 border border-gray-150 dark:border-gray-700 hover:bg-gray-150/50 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <span className="text-base mt-0.5">🇰🇪</span>
+                  <span>Kiswahili</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Dark & Light Theme Preference Card */}
+            <div className="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 p-6 rounded-2xl flex flex-col justify-between space-y-4">
+              <div className="space-y-1">
+                <div className="w-10 h-10 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-xl flex items-center justify-center font-bold">
+                  {theme === "light" ? <Sun size={20} /> : <Moon size={20} />}
+                </div>
+                <h3 className="text-base font-black text-gray-900 dark:text-gray-100 pt-2">
+                  {language === "sw" ? "Mandhari ya Mwonekano" : "Appearance Theme"}
+                </h3>
+                <p className="text-xs text-gray-400 font-medium">
+                  {language === "sw" ? "Badilisha kati ya mwangaza au ya usiku." : "Toggle between light and eye-safe deep dark mode."}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTheme("light")}
+                  className={`px-4 py-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    theme === "light"
+                      ? "bg-orange-600 text-white shadow-md shadow-orange-600/10"
+                      : "bg-white dark:bg-gray-800 text-gray-750 dark:text-gray-300 border border-gray-150 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <Sun size={14} />
+                  <span>{language === "sw" ? "Mwangaza" : "Light"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTheme("dark")}
+                  className={`px-4 py-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    theme === "dark"
+                      ? "bg-orange-600 text-white shadow-md shadow-orange-600/10"
+                      : "bg-white dark:bg-gray-800 text-gray-750 dark:text-gray-300 border border-gray-150 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <Moon size={14} />
+                  <span>{language === "sw" ? "Giza" : "Dark"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Currency Preference Card */}
+            <div className="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 p-6 rounded-2xl flex flex-col justify-between space-y-4 md:col-span-2 lg:col-span-1">
+              <div className="space-y-1">
+                <div className="w-10 h-10 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-xl flex items-center justify-center font-bold">
+                  <Coins size={20} />
+                </div>
+                <h3 className="text-base font-black text-gray-900 dark:text-gray-100 pt-2">
+                  {language === "sw" ? "Mata ya Bei" : "Display Currency"}
+                </h3>
+                <p className="text-xs text-gray-400 font-medium">
+                  {language === "sw" ? "Chagua sarafu utakayotumia kutazama bei za bidhaa kote sokoni." : "Select the preferred currency for browsing products and pricing."}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrency("KES")}
+                  className={`px-4 py-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    currency === "KES"
+                      ? "bg-orange-600 text-white shadow-md shadow-orange-600/10"
+                      : "bg-white dark:bg-gray-800 text-gray-750 dark:text-gray-300 border border-gray-150 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <span>KES</span>
+                  <span>{language === "sw" ? "Shilingi" : "Shilling"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrency("USD")}
+                  className={`px-4 py-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    currency === "USD"
+                      ? "bg-orange-600 text-white shadow-md shadow-orange-600/10"
+                      : "bg-white dark:bg-gray-800 text-gray-750 dark:text-gray-300 border border-gray-150 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <span>USD</span>
+                  <span>{language === "sw" ? "Dola" : "Dollar"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Logout Confirmation Modal */}
