@@ -587,20 +587,20 @@ export default function Home({ user }: HomeProps) {
       />
       <MarketingBanner />
       {/* Hero Section */}
-      <section className="relative bg-orange-50 py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <section className="relative bg-white dark:bg-gray-950 py-20 px-4 sm:px-6 lg:px-8 border-b border-gray-100 dark:border-gray-900/50 overflow-hidden transition-colors duration-200">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between">
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className="md:w-1/2 space-y-6 z-10"
           >
-            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 leading-tight">
+            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 dark:text-white leading-tight">
               {language === "sw" ? "Bidhaa Bora," : "Quality Goods,"} <br/>
               <span className="text-orange-600 underline decoration-orange-200">
                 {language === "sw" ? "Nafsi ya Kenya." : "Kenyan Soul."}
               </span>
             </h1>
-            <p className="text-lg text-gray-600 max-w-lg font-medium">
+            <p className="text-lg text-gray-600 dark:text-gray-350 max-w-lg font-medium">
               {t("heroSubtitle")}
             </p>
 
@@ -615,7 +615,7 @@ export default function Home({ user }: HomeProps) {
               </button>
               <button 
                 onClick={() => setShowMission(true)}
-                className="bg-white text-gray-900 border border-gray-200 px-8 py-4 rounded-full font-bold hover:bg-gray-50 transition-all font-sans cursor-pointer"
+                className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-800 px-8 py-4 rounded-full font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all font-sans cursor-pointer"
               >
                 {language === "sw" ? "Jifunze Zaidi" : "Learn More"}
               </button>
@@ -627,8 +627,8 @@ export default function Home({ user }: HomeProps) {
             animate={{ opacity: 1, scale: 1 }}
             className="md:w-1/2 mt-12 md:mt-0 relative"
           >
-            <div className="w-80 h-80 md:w-[450px] md:h-[450px] bg-orange-200 rounded-full blur-3xl absolute -top-10 -right-10 opacity-50"></div>
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl border-8 border-white bg-white aspect-square">
+            <div className="w-80 h-80 md:w-[450px] md:h-[450px] bg-orange-200/40 dark:bg-orange-950/20 rounded-full blur-3xl absolute -top-10 -right-10 opacity-50"></div>
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl border-8 border-white dark:border-gray-900 bg-white dark:bg-gray-900 aspect-square">
                <img
                  src={heroImageUrl || heroImage}
                  alt="Authentic Kenyan Crafts & Products on SokoPlus"
