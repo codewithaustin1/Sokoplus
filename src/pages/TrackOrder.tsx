@@ -25,9 +25,11 @@ import {
   BadgeAlert,
   HelpCircle,
   Compass,
-  Zap
+  Zap,
+  QrCode
 } from "lucide-react";
 import { calculateDelivery, DeliveryPrediction } from "../utils/delivery";
+import QRScannerModal from "../components/QRScannerModal";
 
 interface OrderItem {
   productId: string;
@@ -74,6 +76,8 @@ export default function TrackOrder() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [searchOrderIdInput, setSearchOrderIdInput] = useState("");
 
   // Simulation mode states
   const [simulationActive, setSimulationActive] = useState(false);
@@ -315,24 +319,78 @@ export default function TrackOrder() {
 
   if (error || !order) {
     return (
-      <div className="min-h-[75vh] flex flex-col items-center justify-center px-4 bg-white dark:bg-gray-950 text-center space-y-8">
-        <div className="bg-red-50 dark:bg-red-950/25 p-6 rounded-full border border-red-100 dark:border-red-900/50">
-          <BadgeAlert size={56} className="text-red-500 dark:text-red-400" />
+      <div className="min-h-[85vh] flex flex-col items-center justify-center px-4 bg-gray-50/50 dark:bg-gray-950 text-center py-12">
+        <div className="max-w-md w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-8 rounded-[2.5rem] shadow-xl space-y-8">
+          <div className="bg-orange-50 dark:bg-orange-950/20 p-6 rounded-full border border-orange-100 dark:border-orange-900/30 w-fit mx-auto relative">
+            <Truck size={48} className="text-orange-600 animate-pulse" />
+          </div>
+          
+          <div className="space-y-2">
+            <h1 className="text-2.5xl font-black tracking-tight text-gray-950 dark:text-white">
+              {isSw ? "Soma kadi au Tafuta Agizo" : "Track Your Order"}
+            </h1>
+            <p className="text-xs sm:text-sm font-medium text-gray-400 dark:text-gray-400 max-w-xs mx-auto leading-relaxed">
+              {isSw 
+                ? "Tafadhali weka kitambulisho cha agizo au soma msimbo wa barua ili kufuatilia mzigo wako kwa muda halisi."
+                : "Enter your order reference code or scan a receipt QR code to instantly track dispatch milestones."}
+            </p>
+          </div>
+
+          {/* Interactive Search Field and QR Scanner Trigger */}
+          <div className="space-y-3.5 pt-2">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={isSw ? "Mfano: SOKO_ORDER_123..." : "Enter Order Reference ID..."}
+                value={searchOrderIdInput}
+                onChange={(e) => setSearchOrderIdInput(e.target.value)}
+                className="w-full pl-5 pr-12 py-4 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl text-sm font-bold placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-600 transition-all font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => setIsQRModalOpen(true)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl text-gray-500 hover:text-orange-600 transition-colors cursor-pointer"
+                title={isSw ? "Soma msimbo wa QR" : "Scan receipt QR"}
+              >
+                <QrCode size={20} />
+              </button>
+            </div>
+
+            <button
+              onClick={() => {
+                const cleanedId = searchOrderIdInput.trim().replace(/^#/, "");
+                if (cleanedId) {
+                  navigate(`/track-order/${cleanedId}`);
+                }
+              }}
+              disabled={!searchOrderIdInput.trim()}
+              className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white font-black uppercase tracking-wider text-xs py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
+            >
+              {isSw ? "Tafuta na Ufuatilie" : "Locate & Track Order"}
+            </button>
+          </div>
+
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-gray-150 dark:border-gray-800"></div>
+            <span className="flex-shrink mx-4 text-[10px] text-gray-400 uppercase font-black tracking-widest">Or</span>
+            <div className="flex-grow border-t border-gray-150 dark:border-gray-800"></div>
+          </div>
+
+          <div className="flex gap-4">
+            <Link to="/" className="w-full py-4.5 bg-gray-50 dark:bg-gray-950 hover:bg-gray-100 border border-gray-150 dark:border-gray-800 text-gray-700 dark:text-gray-300 font-black uppercase tracking-wider text-[10px] rounded-2xl transition-all hover:bg-gray-100 text-center">
+              {str.backButton}
+            </Link>
+            <Link to="/profile" className="w-full py-4.5 bg-gray-50 dark:bg-gray-950 hover:bg-gray-100 border border-gray-150 dark:border-gray-800 text-gray-700 dark:text-gray-300 font-black uppercase tracking-wider text-[10px] rounded-2xl transition-all hover:bg-gray-100 text-center">
+              {str.profileButton}
+            </Link>
+          </div>
         </div>
-        <div className="space-y-3 max-w-sm">
-          <h1 className="text-3xl font-black italic text-gray-900 dark:text-white">{str.notFound}</h1>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 leading-relaxed">
-            {str.notFoundDesc}
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-4 min-w-[240px]">
-          <Link to="/" className="w-full bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-wider text-xs px-6 py-4 rounded-2xl shadow-lg transition-transform hover:-translate-y-0.5 text-center">
-            {str.backButton}
-          </Link>
-          <Link to="/profile" className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-150 dark:border-gray-800 text-gray-700 dark:text-gray-300 font-black uppercase tracking-wider text-xs px-6 py-4 rounded-2xl hover:bg-gray-100 transition-colors text-center">
-            {str.profileButton}
-          </Link>
-        </div>
+
+        <QRScannerModal
+          isOpen={isQRModalOpen}
+          onClose={() => setIsQRModalOpen(false)}
+          language={language === "sw" ? "sw" : "en"}
+        />
       </div>
     );
   }
@@ -397,6 +455,13 @@ export default function TrackOrder() {
                   title="Copy Code"
                 >
                   {copied ? <span className="text-[10px] font-black text-green-600 uppercase tracking-tighter">{str.copySuccess}</span> : <Copy size={13} />}
+                </button>
+                <button 
+                  onClick={() => setIsQRModalOpen(true)} 
+                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg text-gray-400 hover:text-orange-600 transition-all cursor-pointer"
+                  title={isSw ? "Soma agizo lingine" : "Scan another order QR"}
+                >
+                  <QrCode size={13} />
                 </button>
               </div>
             </div>
@@ -806,6 +871,12 @@ export default function TrackOrder() {
         </div>
 
       </div>
+
+      <QRScannerModal
+        isOpen={isQRModalOpen}
+        onClose={() => setIsQRModalOpen(false)}
+        language={language === "sw" ? "sw" : "en"}
+      />
     </div>
   );
 }

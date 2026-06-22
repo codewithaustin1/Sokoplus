@@ -39,16 +39,26 @@ export default function Wishlist({ user }: WishlistProps) {
       return;
     }
 
+    const currentWishlist = user.wishlist || [];
+    const newWishlist = currentWishlist.filter(itemId => itemId !== productId);
+    const originalProducts = [...products];
+
+    // Optimistic user state update (helps instant count in Navbar / sidebar)
+    window.dispatchEvent(new CustomEvent("optimistic-user-update", { detail: { wishlist: newWishlist } }));
+    toast.success("Removed from wishlist");
+    // Local state update for immediate feedback
+    setProducts(prev => prev.filter(p => p.id !== productId));
+
     try {
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         wishlist: arrayRemove(productId)
       });
-      toast.success("Removed from wishlist");
-      // Local state update for immediate feedback
-      setProducts(prev => prev.filter(p => p.id !== productId));
     } catch (error) {
       console.error("Wishlist error:", error);
+      // Rollback
+      window.dispatchEvent(new CustomEvent("optimistic-user-update", { detail: { wishlist: currentWishlist } }));
+      setProducts(originalProducts);
       toast.error("Failed to remove from wishlist");
     }
   };

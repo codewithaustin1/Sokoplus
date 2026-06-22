@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs, limit, query, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
@@ -274,7 +275,15 @@ export default function Home({ user }: HomeProps) {
       return;
     }
 
-    const isWishlisted = user.wishlist?.includes(productId);
+    const currentWishlist = user.wishlist || [];
+    const isWishlisted = currentWishlist.includes(productId);
+    const newWishlist = isWishlisted 
+      ? currentWishlist.filter(id => id !== productId)
+      : [...currentWishlist, productId];
+
+    // Optimistic state update via custom event prior to database transaction
+    window.dispatchEvent(new CustomEvent("optimistic-user-update", { detail: { wishlist: newWishlist } }));
+    toast.success(isWishlisted ? "Removed from wishlist" : "Added to wishlist");
 
     try {
       const userRef = doc(db, "users", user.uid);
@@ -282,44 +291,64 @@ export default function Home({ user }: HomeProps) {
         await updateDoc(userRef, {
           wishlist: arrayRemove(productId)
         });
-        toast.success("Removed from wishlist");
       } else {
         await updateDoc(userRef, {
           wishlist: arrayUnion(productId)
         });
-        toast.success("Added to wishlist");
       }
     } catch (error) {
       console.error("Wishlist error:", error);
+      // Roll back to original list in database if the transaction fails
+      window.dispatchEvent(new CustomEvent("optimistic-user-update", { detail: { wishlist: currentWishlist } }));
       toast.error("Failed to update wishlist");
     }
   };
 
-  useEffect(() => {
-    async function fetchProducts() {
+  const { data: heroSettings } = useQuery({
+    queryKey: ["homepage-hero-settings"],
+    queryFn: async () => {
+      if (!navigator.onLine) {
+        const cachedSettings = await getHomepageSettings("hero");
+        return cachedSettings || null;
+      }
+      try {
+        const settingsRef = doc(db, "settings", "homepage");
+        const settingsSnap = await getDoc(settingsRef);
+        if (settingsSnap.exists()) {
+          const settingsData = settingsSnap.data();
+          const newImg = settingsData.heroImageUrl || "";
+          const newBadge = settingsData.heroBadgeText || "Vetted excellence";
+          const newHeading = settingsData.heroHeadingText || "Authentic & Trusted Goods";
+          
+          await saveHomepageSettings("hero", {
+            heroImageUrl: newImg,
+            heroBadgeText: newBadge,
+            heroHeadingText: newHeading
+          });
+
+          return { heroImageUrl: newImg, heroBadgeText: newBadge, heroHeadingText: newHeading };
+        }
+      } catch (err) {
+        console.warn("Could not retrieve homepage settings:", err);
+      }
+      const cachedSettings = await getHomepageSettings("hero");
+      return cachedSettings || null;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: queriedProductsList, isLoading: isQueryLoading, refetch: refetchProductsQuery } = useQuery<Product[]>({
+    queryKey: ["products-list"],
+    queryFn: async () => {
       // Offline Flow Check
       if (!navigator.onLine) {
-        try {
-          const cached = await getCachedProducts();
-          if (cached && cached.length > 0) {
-            setProducts(cached);
-            setFilteredProducts(cached);
-            setIsOfflineView(true);
-            cached.forEach(p => productCache.set(p.id, p));
-          }
-          
-          const cachedSettings = await getHomepageSettings("hero");
-          if (cachedSettings) {
-            if (cachedSettings.heroImageUrl) setHeroImageUrl(cachedSettings.heroImageUrl);
-            if (cachedSettings.heroBadgeText) setHeroBadgeText(cachedSettings.heroBadgeText);
-            if (cachedSettings.heroHeadingText) setHeroHeadingText(cachedSettings.heroHeadingText);
-          }
-        } catch (cacheErr) {
-          console.error("Failed to load products from local cached database:", cacheErr);
-        } finally {
-          setLoading(false);
+        const cached = await getCachedProducts();
+        if (cached && cached.length > 0) {
+          setIsOfflineView(true);
+          cached.forEach(p => productCache.set(p.id, p));
+          return cached;
         }
-        return;
+        throw new Error("Offline and no cache");
       }
 
       // Online Flow Path
@@ -329,8 +358,7 @@ export default function Home({ user }: HomeProps) {
         const fetched = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Product))
           .filter(p => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved"));
-        setProducts(fetched);
-        setFilteredProducts(fetched);
+        
         setIsOfflineView(false);
         fetched.forEach(p => productCache.set(p.id, p));
 
@@ -339,29 +367,7 @@ export default function Home({ user }: HomeProps) {
           console.error("IndexedDB storage cache failure:", err)
         );
 
-        try {
-          const settingsRef = doc(db, "settings", "homepage");
-          const settingsSnap = await getDoc(settingsRef);
-          if (settingsSnap.exists()) {
-            const settingsData = settingsSnap.data();
-            const newImg = settingsData.heroImageUrl || "";
-            const newBadge = settingsData.heroBadgeText || "Vetted excellence";
-            const newHeading = settingsData.heroHeadingText || "Authentic & Trusted Goods";
-            
-            if (newImg) setHeroImageUrl(newImg);
-            if (newBadge) setHeroBadgeText(newBadge);
-            if (newHeading) setHeroHeadingText(newHeading);
-
-            // Back up settings in offline db
-            saveHomepageSettings("hero", {
-              heroImageUrl: newImg,
-              heroBadgeText: newBadge,
-              heroHeadingText: newHeading
-            }).catch(e => console.error(e));
-          }
-        } catch (settingsErr) {
-          console.warn("Could not retrieve homepage settings:", settingsErr);
-        }
+        return fetched;
       } catch (error) {
         // Dispatch global quota exception if detected
         const errStr = error instanceof Error ? error.message : String(error);
@@ -380,100 +386,107 @@ export default function Home({ user }: HomeProps) {
           console.error("Fetch products error, attempting local cache fallback:", error);
         }
 
-        try {
-          let cached = await getCachedProducts();
-          if (!cached || cached.length === 0) {
-            // Build excellent default storefront catalog item fallback
-            cached = [
-              {
-                id: "maasai-beaded-necklace",
-                name: "Maasai Beaded Necklace",
-                price: 2500,
-                category: "Local Crafts",
-                description: "Authentic handmade Maasai jewelry from Narok.",
-                stock: 50,
-                images: ["https://images.unsplash.com/photo-1629196914068-3974bcda318b?auto=format&fit=crop&q=80&w=2000"],
-                artisan: "Mama Stacey of Narok Maasai Crafts",
-                rating: 4.8,
-                reviewCount: 15,
-                createdAt: new Date().toISOString()
-              },
-              {
-                id: "sokoplus-tech-bag",
-                name: "Sokoplus Tech Bag",
-                price: 4500,
-                category: "Fashion",
-                description: "Waterproof laptop bag for the Nairobi commuter.",
-                stock: 30,
-                images: ["https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=2000"],
-                artisan: "Kariobangi Leather Artisans",
-                rating: 4.7,
-                reviewCount: 22,
-                createdAt: new Date().toISOString()
-              },
-              {
-                id: "mount-kenya-coffee",
-                name: "Coffee - Mount Kenya Special",
-                price: 1200,
-                category: "Groceries",
-                description: "Premium medium roast coffee beans from Central Kenya.",
-                stock: 100,
-                images: ["https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=2000"],
-                artisan: "Nyeri Smallholder Coffee Coop",
-                rating: 4.9,
-                reviewCount: 37,
-                createdAt: new Date().toISOString()
-              },
-              {
-                id: "bamboo-speaker",
-                name: "Bamboo Speaker",
-                price: 3200,
-                category: "Electronics",
-                description: "Eco-friendly bamboo bluetooth speaker, handcrafted.",
-                stock: 15,
-                images: ["https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&q=80&w=2000"],
-                artisan: "Mombasa Sustainable Woodworks",
-                rating: 4.6,
-                reviewCount: 8,
-                createdAt: new Date().toISOString()
-              }
-            ] as any[];
-          }
-
-          if (cached && cached.length > 0) {
-            setProducts(cached);
-            setFilteredProducts(cached);
-            setIsOfflineView(true);
-            cached.forEach(p => productCache.set(p.id, p));
-            toast.success("Loaded products offline in secure fallback mode", { icon: "📦" });
-          }
-          
-          const cachedSettings = await getHomepageSettings("hero");
-          if (cachedSettings) {
-            if (cachedSettings.heroImageUrl) setHeroImageUrl(cachedSettings.heroImageUrl);
-            if (cachedSettings.heroBadgeText) setHeroBadgeText(cachedSettings.heroBadgeText);
-            if (cachedSettings.heroHeadingText) setHeroHeadingText(cachedSettings.heroHeadingText);
-          }
-        } catch (cachedErr) {
-          console.error("Local database error during fallback:", cachedErr);
+        let cached = await getCachedProducts();
+        if (!cached || cached.length === 0) {
+          // Build excellent default storefront catalog item fallback
+          cached = [
+            {
+              id: "maasai-beaded-necklace",
+              name: "Maasai Beaded Necklace",
+              price: 2500,
+              category: "Local Crafts",
+              description: "Authentic handmade Maasai jewelry from Narok.",
+              stock: 50,
+              images: ["https://images.unsplash.com/photo-1629196914068-3974bcda318b?auto=format&fit=crop&q=80&w=2000"],
+              artisan: "Mama Stacey of Narok Maasai Crafts",
+              rating: 4.8,
+              reviewCount: 15,
+              createdAt: new Date().toISOString()
+            },
+            {
+              id: "sokoplus-tech-bag",
+              name: "Sokoplus Tech Bag",
+              price: 4500,
+              category: "Fashion",
+              description: "Waterproof laptop bag for the Nairobi commuter.",
+              stock: 30,
+              images: ["https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=2000"],
+              artisan: "Kariobangi Leather Artisans",
+              rating: 4.7,
+              reviewCount: 22,
+              createdAt: new Date().toISOString()
+            },
+            {
+              id: "mount-kenya-coffee",
+              name: "Coffee - Mount Kenya Special",
+              price: 1200,
+              category: "Groceries",
+              description: "Premium medium roast coffee beans from Central Kenya.",
+              stock: 100,
+              images: ["https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=2000"],
+              artisan: "Nyeri Smallholder Coffee Coop",
+              rating: 4.9,
+              reviewCount: 37,
+              createdAt: new Date().toISOString()
+            },
+            {
+              id: "bamboo-speaker",
+              name: "Bamboo Speaker",
+              price: 3200,
+              category: "Electronics",
+              description: "Eco-friendly bamboo bluetooth speaker, handcrafted.",
+              stock: 15,
+              images: ["https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&q=80&w=2000"],
+              artisan: "Mombasa Sustainable Woodworks",
+              rating: 4.6,
+              reviewCount: 8,
+              createdAt: new Date().toISOString()
+            }
+          ] as any[];
         }
-      } finally {
-        setLoading(false);
+
+        if (cached && cached.length > 0) {
+          setIsOfflineView(true);
+          cached.forEach(p => productCache.set(p.id, p));
+          toast.success("Loaded products offline in secure fallback mode", { icon: "📦" });
+          return cached;
+        }
+
+        throw error;
       }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (queriedProductsList) {
+      setProducts(queriedProductsList);
+      setFilteredProducts(queriedProductsList);
     }
+  }, [queriedProductsList]);
 
-    fetchProducts();
+  useEffect(() => {
+    if (heroSettings) {
+      if (heroSettings.heroImageUrl) setHeroImageUrl(heroSettings.heroImageUrl);
+      if (heroSettings.heroBadgeText) setHeroBadgeText(heroSettings.heroBadgeText);
+      if (heroSettings.heroHeadingText) setHeroHeadingText(heroSettings.heroHeadingText);
+    }
+  }, [heroSettings]);
 
-    // Listen to custom 'network-sync' event triggered when connection restores
+  useEffect(() => {
+    setLoading(isQueryLoading);
+  }, [isQueryLoading]);
+
+  useEffect(() => {
     const handleSync = () => {
-      fetchProducts();
+      refetchProductsQuery();
     };
 
     window.addEventListener("network-sync", handleSync);
     return () => {
       window.removeEventListener("network-sync", handleSync);
     };
-  }, []);
+  }, [refetchProductsQuery]);
 
   useEffect(() => {
     const searchTerm = searchParams.get("search")?.toLowerCase();

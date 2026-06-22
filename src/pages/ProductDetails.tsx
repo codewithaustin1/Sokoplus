@@ -322,21 +322,30 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
     }
     if (!id) return;
 
+    const currentWishlist = user.wishlist || [];
+    const newWishlist = isWishlisted 
+      ? currentWishlist.filter(itemId => itemId !== id)
+      : [...currentWishlist, id];
+
+    // Optimistically trigger state transition in App.tsx user state
+    window.dispatchEvent(new CustomEvent("optimistic-user-update", { detail: { wishlist: newWishlist } }));
+    toast.success(isWishlisted ? "Removed from wishlist" : "Added to wishlist");
+
     try {
       const userRef = doc(db, "users", user.uid);
       if (isWishlisted) {
         await updateDoc(userRef, {
           wishlist: arrayRemove(id)
         });
-        toast.success("Removed from wishlist");
       } else {
         await updateDoc(userRef, {
           wishlist: arrayUnion(id)
         });
-        toast.success("Added to wishlist");
       }
     } catch (error) {
       console.error("Wishlist error:", error);
+      // Roll back state if update fails
+      window.dispatchEvent(new CustomEvent("optimistic-user-update", { detail: { wishlist: currentWishlist } }));
       toast.error("Failed to update wishlist");
     }
   };

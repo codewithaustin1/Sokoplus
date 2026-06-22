@@ -7,6 +7,7 @@ import { doc, updateDoc, collection, query, where, getDocs, increment, writeBatc
 import { db, auth } from "../lib/firebase";
 import { motion } from "motion/react";
 import { trackEvent } from "../lib/analytics";
+import QRCode from "qrcode";
 
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
@@ -14,6 +15,7 @@ export default function PaymentSuccess() {
   const [pointsEarned, setPointsEarned] = useState<number>(0);
   const [orderReceiptId, setOrderReceiptId] = useState<string>("");
   const [orderId, setOrderId] = useState<string>("");
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   const { clearCart } = useCart();
   const reference = searchParams.get("reference");
 
@@ -103,6 +105,25 @@ export default function PaymentSuccess() {
     verifyPayment();
   }, [reference, clearCart]);
 
+  useEffect(() => {
+    if (orderId) {
+      QRCode.toDataURL(`${window.location.origin}/track-order/${orderId}`, {
+        margin: 1,
+        width: 256,
+        color: {
+          dark: "#ea580c",
+          light: "#ffffff",
+        }
+      })
+        .then((url) => {
+          setQrCodeUrl(url);
+        })
+        .catch((err) => {
+          console.error("Failed to generate screen QR", err);
+        });
+    }
+  }, [orderId]);
+
   if (status === "loading") {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 relative overflow-hidden bg-white dark:bg-gray-950">
@@ -189,7 +210,25 @@ export default function PaymentSuccess() {
           <span>Points Earned</span>
           <span className="text-green-600 dark:text-green-400">+{pointsEarned || 85} XP</span>
         </div>
+        
         <div className="h-px bg-gray-50 dark:bg-gray-800 w-full"></div>
+
+        {qrCodeUrl && (
+          <div className="flex flex-col items-center justify-center p-4 bg-orange-50/25 dark:bg-orange-950/10 border border-orange-100/20 dark:border-orange-900/10 rounded-3xl space-y-2">
+            <img 
+              src={qrCodeUrl} 
+              alt="Receipt QR Code" 
+              className="w-32 h-32 rounded-2xl object-contain shadow-sm border border-orange-100/20 bg-white"
+              referrerPolicy="no-referrer"
+            />
+            <p className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider animate-pulse">
+              Scan Receipt to Track Delivery
+            </p>
+          </div>
+        )}
+
+        <div className="h-px bg-gray-50 dark:bg-gray-800 w-full"></div>
+        
         <p className="text-xs text-gray-450 dark:text-gray-400 leading-relaxed italic">
           A receipt and tracking details have been sent to your email. You can view progress in your profile.
         </p>

@@ -5,8 +5,9 @@
 
 import { jsPDF } from "jspdf";
 import { Order, UserProfile } from "../types";
+import QRCode from "qrcode";
 
-export function downloadReceipt(order: Order, user: UserProfile) {
+export async function downloadReceipt(order: Order, user: UserProfile) {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -53,6 +54,23 @@ export function downloadReceipt(order: Order, user: UserProfile) {
       day: "numeric"
     });
   };
+
+  // Generate tracking QR code
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://www.sokoplus.co.ke";
+  const trackingUrl = `${origin}/track-order/${order.id}`;
+  let qrCodeDataUrl = "";
+  try {
+    qrCodeDataUrl = await QRCode.toDataURL(trackingUrl, {
+      margin: 1,
+      width: 150,
+      color: {
+        dark: "#ea580c", // Brand orange matching SokoPlus theme
+        light: "#ffffff",
+      }
+    });
+  } catch (err) {
+    console.error("Failed to generate QR Code for receipt PDF", err);
+  }
 
   let currentY = 20;
 
@@ -347,18 +365,35 @@ export function downloadReceipt(order: Order, user: UserProfile) {
     doc.setFontSize(7.5);
     doc.text("Reach our customer support instantly via live email hello@sokoplus.co.ke or start a Support Ticket directly inside our chat portal.", margin + 8, bannerTop + 14);
 
-    // Seal Right (Sokoplus Secure Check)
-    doc.setDrawColor(orangeColor.r, orangeColor.g, orangeColor.b, 30);
-    doc.setLineWidth(0.4);
-    // Draw a small decorative circle stamp
-    const stampX = pageWidth - margin - 15;
-    const stampY = bannerTop + 12;
-    doc.circle(stampX, stampY, 6);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(5);
-    doc.setTextColor(orangeColor.r, orangeColor.g, orangeColor.b);
-    doc.text("SAFE", stampX, stampY - 1, { align: "center" });
-    doc.text("ORDER", stampX, stampY + 2, { align: "center" });
+    // QR Code / Seal Right (Sokoplus Secure Check)
+    if (qrCodeDataUrl) {
+      // Draw white background card for QR Code
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(pageWidth - margin - 22, bannerTop + 3, 18, 18, 1.5, 1.5, "F");
+      doc.addImage(qrCodeDataUrl, "PNG", pageWidth - margin - 21, bannerTop + 4, 16, 16);
+      
+      // Label text next to QR Code
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.5);
+      doc.setTextColor(charcoalColor.r, charcoalColor.g, charcoalColor.b);
+      doc.text("SCAN TO TRACK", pageWidth - margin - 25, bannerTop + 10, { align: "right" });
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(5.5);
+      doc.setTextColor(mutedColor.r, mutedColor.g, mutedColor.b);
+      doc.text("Instant Live Delivery", pageWidth - margin - 25, bannerTop + 14, { align: "right" });
+    } else {
+      doc.setDrawColor(orangeColor.r, orangeColor.g, orangeColor.b, 30);
+      doc.setLineWidth(0.4);
+      const stampX = pageWidth - margin - 15;
+      const stampY = bannerTop + 12;
+      doc.circle(stampX, stampY, 6);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(5);
+      doc.setTextColor(orangeColor.r, orangeColor.g, orangeColor.b);
+      doc.text("SAFE", stampX, stampY - 1, { align: "center" });
+      doc.text("ORDER", stampX, stampY + 2, { align: "center" });
+    }
   }
 
   // Footer text

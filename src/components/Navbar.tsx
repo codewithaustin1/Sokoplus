@@ -232,7 +232,7 @@ export default function Navbar({ user }: NavbarProps) {
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onFocus={() => setShowDesktopSuggestions(true)}
                   placeholder={t("searchPlaceholder")}
-                  className="block w-full pl-10 pr-20 py-2 border border-gray-200 dark:border-gray-800 rounded-full leading-5 bg-gray-50 dark:bg-gray-900 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 sm:text-sm transition-all focus:shadow-sm"
+                  className="block w-full pl-10 pr-18 py-2 border border-gray-200 dark:border-gray-800 rounded-full leading-5 bg-gray-50 dark:bg-gray-900 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 sm:text-sm transition-all focus:shadow-sm"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center space-x-1">
                   {search && (
@@ -242,7 +242,7 @@ export default function Navbar({ user }: NavbarProps) {
                         setSearch("");
                         setSuggestedProducts([]);
                       }}
-                      className="p-1 text-gray-450 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
+                      className="p-1 text-gray-450 hover:text-gray-650 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
                       title={language === "sw" ? "Futa" : "Clear"}
                     >
                       <X size={16} />
@@ -475,7 +475,7 @@ export default function Navbar({ user }: NavbarProps) {
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={language === "sw" ? "Tafuta bidhaa bora za Kenya..." : "Search products in Kenya..."}
-            className="block w-full pl-9 pr-16 py-2 border border-gray-200/80 dark:border-gray-800 rounded-xl leading-5 bg-gray-50/80 dark:bg-gray-900/80 placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all shadow-inner-sm"
+            className="block w-full pl-9 pr-14 py-2 border border-gray-200/80 dark:border-gray-800 rounded-xl leading-5 bg-gray-50/80 dark:bg-gray-900/80 placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all shadow-inner-sm"
           />
           <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center space-x-1">
             {search && (
@@ -497,7 +497,7 @@ export default function Navbar({ user }: NavbarProps) {
               className={`p-1 rounded-full transition-all duration-200 flex items-center justify-center cursor-pointer ${
                 isListening
                   ? "text-red-600 bg-red-50 dark:bg-red-950/45 animate-pulse scale-110"
-                  : "text-gray-400 hover:text-orange-600 dark:text-gray-500 dark:hover:text-orange-400"
+                  : "text-gray-400 hover:text-orange-600 dark:text-gray-550 dark:hover:text-orange-400"
               }`}
               title={language === "sw" ? "Tafuta kwa sauti" : "Search by voice"}
             >

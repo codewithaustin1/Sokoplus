@@ -42,6 +42,8 @@ export default function Checkout({ user }: CheckoutProps) {
   const { items, total, addToCart, removeFromCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const [redirectStage, setRedirectStage] = useState("Securing Connection");
+  const [redirectDescription, setRedirectDescription] = useState("We are connecting you securely to Paystack to finalize your payment options.");
   const [paymentMethod, setPaymentMethod] = useState<"mpesa" | "card">("mpesa");
   const [showMobilSummaryDrawer, setShowMobilSummaryDrawer] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
@@ -161,7 +163,12 @@ export default function Checkout({ user }: CheckoutProps) {
       return;
     }
 
+    // Instantly activate redirection/processing screen as an Optimistic action
+    setRedirecting(true);
     setLoading(true);
+    setRedirectStage("Validating Basket Stock");
+    setRedirectDescription("Ensuring items in your cart are in stock and ready to pack for delivery...");
+
     try {
       // 1. Stock Check
       for (const item of items) {
@@ -172,10 +179,14 @@ export default function Checkout({ user }: CheckoutProps) {
           if (pData.stock < item.quantity) {
             toast.error(`Sorry, "${item.name}" has insufficient stock. Only ${pData.stock} available.`);
             setLoading(false);
+            setRedirecting(false);
             return;
           }
         }
       }
+
+      setRedirectStage("Securing Connection");
+      setRedirectDescription("Drafting Paystack billing configuration securely for instant payment validation...");
 
       // 2. Initialize Paystack
       const response = await axios.post("/api/paystack/initialize", {
@@ -190,6 +201,9 @@ export default function Checkout({ user }: CheckoutProps) {
       });
 
       const { authorization_url, reference } = response.data.data;
+
+      setRedirectStage("Placing Order Records");
+      setRedirectDescription("Updating your transaction database records so your order is tracked live...");
 
       // 3. Log Order to Firestore (as pending)
       const submittedAddress = {
@@ -214,16 +228,19 @@ export default function Checkout({ user }: CheckoutProps) {
       });
 
       // 4. Smooth Redirect
-      setRedirecting(true);
+      setRedirectStage("Redirecting to Paystack");
+      setRedirectDescription("Navigating you securely to final portal Checkout...");
+      
       setTimeout(() => {
         window.location.href = authorization_url;
-      }, 300);
+      }, 100);
       
     } catch (error: any) {
       const detail = error.response?.data?.details || error.response?.data?.error || "Failed to process checkout. Please try again.";
       console.error("Checkout error:", error);
       toast.error(detail, { duration: 5000 });
       setLoading(false);
+      setRedirecting(false);
     }
   };
 
@@ -246,9 +263,9 @@ export default function Checkout({ user }: CheckoutProps) {
                 <ShieldCheck size={32} className="text-orange-600 animate-pulse" />
               </div>
             </div>
-            <h2 className="text-3xl font-black italic mb-2 tracking-tight">Securing Connection</h2>
+            <h2 className="text-3xl font-black italic mb-2 tracking-tight">{redirectStage}</h2>
             <p className="text-gray-500 font-semibold max-w-sm">
-              We are connecting you securely to <span className="text-orange-655 font-black">Paystack</span> to finalize your payment options.
+              {redirectDescription}
             </p>
           </motion.div>
         )}

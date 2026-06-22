@@ -45,6 +45,18 @@ import CookieConsentBanner from "./components/CookieConsentBanner";
 import { OfflineNotifier } from "./components/OfflineNotifier";
 import { NotificationManager } from "./components/NotificationManager";
 import { motion, AnimatePresence } from "motion/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes cache stale duration
+      gcTime: 1000 * 60 * 15,    // 15 minutes garbage collection duration
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 
 
@@ -75,6 +87,26 @@ export default function App() {
     window.addEventListener("firestore-quota-exceeded", handleQuotaExceeded);
     return () => {
       window.removeEventListener("firestore-quota-exceeded", handleQuotaExceeded);
+    };
+  }, []);
+
+  // Event handler for optimistic user state modifications (e.g., instant wishlist count, etc.)
+  useEffect(() => {
+    const handleOptimisticUserUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setUser((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            ...customEvent.detail,
+          };
+        });
+      }
+    };
+    window.addEventListener("optimistic-user-update", handleOptimisticUserUpdate);
+    return () => {
+      window.removeEventListener("optimistic-user-update", handleOptimisticUserUpdate);
     };
   }, []);
 
@@ -277,130 +309,132 @@ export default function App() {
   if (loading) return <div className="h-screen flex items-center justify-center font-sans">Loading Soplus...</div>;
 
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <CurrencyProvider>
-          <CartProvider>
-            <Router>
-              <AnalyticsTracker />
-            <div className="min-h-screen flex flex-col font-sans bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 selection:bg-orange-100 transition-colors duration-200">
-            {quotaExceededInfo && (
-              <div id="firestore-quota-warning-banner" className="bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/50 px-4 py-3 select-none">
-                <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex gap-3 items-start">
-                    <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg text-amber-700 dark:text-amber-300 shrink-0 mt-0.5">
-                      <Database size={18} className="animate-pulse" />
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <LanguageProvider>
+          <CurrencyProvider>
+            <CartProvider>
+              <Router>
+                <AnalyticsTracker />
+              <div className="min-h-screen flex flex-col font-sans bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 selection:bg-orange-100 transition-colors duration-200">
+              {quotaExceededInfo && (
+                <div id="firestore-quota-warning-banner" className="bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/50 px-4 py-3 select-none">
+                  <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex gap-3 items-start">
+                      <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg text-amber-700 dark:text-amber-300 shrink-0 mt-0.5">
+                        <Database size={18} className="animate-pulse" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-amber-900 dark:text-amber-100 flex items-center gap-2">
+                          Firestore Free-Tier Quota Limit Reached
+                          <span className="text-[10px] uppercase font-black tracking-wider bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded text-amber-800 dark:text-amber-200">
+                            Offline Cache Active
+                          </span>
+                        </h3>
+                        <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
+                          The Firestore daily free-tier read quota metric for this project has been fully exhausted because of high usage. 
+                          SokoPlus is operating seamlessly via local database queries and IndexedDB offline cache fallbacks.
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-amber-900 dark:text-amber-100 flex items-center gap-2">
-                        Firestore Free-Tier Quota Limit Reached
-                        <span className="text-[10px] uppercase font-black tracking-wider bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded text-amber-800 dark:text-amber-200">
-                          Offline Cache Active
-                        </span>
-                      </h3>
-                      <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
-                        The Firestore daily free-tier read quota metric for this project has been fully exhausted because of high usage. 
-                        SokoPlus is operating seamlessly via local database queries and IndexedDB offline cache fallbacks.
-                      </p>
+                    <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
+                      <a
+                        href="https://console.firebase.google.com/project/gen-lang-client-0489491426/firestore/databases/ai-studio-8d476022-e7b3-48f3-98d2-317aae594cb7/data?openUpgradeDialog=true"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 bg-amber-600 hover:bg-amber-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white text-xs font-black px-3.5 py-2 rounded-lg shadow-sm transition active:scale-95 cursor-pointer uppercase tracking-tight"
+                      >
+                        <ExternalLink size={14} />
+                        Upgrade/Check Database
+                      </a>
+                      <button
+                        onClick={() => setQuotaExceededInfo(null)}
+                        className="p-1.5 text-amber-700 dark:text-amber-400 hover:bg-amber-150 dark:hover:bg-amber-900/50 rounded-lg transition cursor-pointer"
+                        title="Dismiss Alert"
+                      >
+                        <X size={16} />
+                      </button>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
-                    <a
-                      href="https://console.firebase.google.com/project/gen-lang-client-0489491426/firestore/databases/ai-studio-8d476022-e7b3-48f3-98d2-317aae594cb7/data?openUpgradeDialog=true"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 bg-amber-600 hover:bg-amber-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white text-xs font-black px-3.5 py-2 rounded-lg shadow-sm transition active:scale-95 cursor-pointer uppercase tracking-tight"
-                    >
-                      <ExternalLink size={14} />
-                      Upgrade/Check Database
-                    </a>
-                    <button
-                      onClick={() => setQuotaExceededInfo(null)}
-                      className="p-1.5 text-amber-700 dark:text-amber-400 hover:bg-amber-150 dark:hover:bg-amber-900/50 rounded-lg transition cursor-pointer"
-                      title="Dismiss Alert"
-                    >
-                      <X size={16} />
-                    </button>
                   </div>
                 </div>
+              )}
+              {user && !user.emailVerified && <VerificationBanner email={user.email} />}
+              <Navbar user={user} />
+              <main className="flex-grow">
+                <Routes>
+                  <Route path="/" element={<Home user={user} />} />
+                  <Route path="/product/:id" element={<ProductDetails user={user} />} />
+                  <Route path="/wishlist" element={<Wishlist user={user} />} />
+                  <Route path="/profile" element={<Profile user={user} />} />
+                  <Route path="/cart" element={<Cart />} />
+                  <Route path="/checkout" element={<Checkout user={user} />} />
+                  <Route path="/admin/*" element={<Admin user={user} />} />
+                  <Route path="/blog" element={<Blog user={user} />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/payment-success" element={<PaymentSuccess />} />
+                  <Route path="/track-order/:id" element={<TrackOrder />} />
+                  <Route path="/track-order" element={<TrackOrder />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/cookies" element={<Cookies />} />
+                  <Route path="/faq" element={<FAQ />} />
+                  <Route path="/returns" element={<ReturnPolicy />} />
+                  <Route path="/shipping" element={<Shipping />} />
+                  <Route path="/careers" element={<Careers user={user} />} />
+                </Routes>
+              </main>
+              <Footer />
+              <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-4 z-[60]">
+                <AnimatePresence>
+                  {showScrollTop && (
+                    <motion.button
+                      key="back-to-top"
+                      initial={{ opacity: 0, scale: 0.8, y: 15 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, y: 15 }}
+                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                      onClick={scrollToTop}
+                      style={{ backgroundColor: scrollTopBg }}
+                      className="p-4 rounded-full shadow-2xl border border-white/10 text-white hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center group"
+                      title="Back to Top"
+                      id="back-to-top-btn"
+                    >
+                      <ArrowUp size={24} className="group-hover:-translate-y-1 transition-transform" />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+
+                <button 
+                  id="unified-support-trigger-btn"
+                  className={`p-4 rounded-full shadow-2xl transition-all group flex items-center cursor-pointer relative ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
+                  onClick={() => setIsSupportOpen(!isSupportOpen)}
+                >
+                  <MessageCircle size={24} />
+                  {!isSupportOpen && (
+                    <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
+                      Help & Support
+                    </span>
+                  )}
+                  {!isSupportOpen && unreadSupportCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border border-white animate-bounce shadow">
+                      {unreadSupportCount}
+                    </span>
+                  )}
+                </button>
               </div>
-            )}
-            {user && !user.emailVerified && <VerificationBanner email={user.email} />}
-            <Navbar user={user} />
-            <main className="flex-grow">
-              <Routes>
-                <Route path="/" element={<Home user={user} />} />
-                <Route path="/product/:id" element={<ProductDetails user={user} />} />
-                <Route path="/wishlist" element={<Wishlist user={user} />} />
-                <Route path="/profile" element={<Profile user={user} />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/checkout" element={<Checkout user={user} />} />
-                <Route path="/admin/*" element={<Admin user={user} />} />
-                <Route path="/blog" element={<Blog user={user} />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/payment-success" element={<PaymentSuccess />} />
-                <Route path="/track-order/:id" element={<TrackOrder />} />
-                <Route path="/track-order" element={<TrackOrder />} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-                <Route path="/terms" element={<TermsOfService />} />
-                <Route path="/cookies" element={<Cookies />} />
-                <Route path="/faq" element={<FAQ />} />
-                <Route path="/returns" element={<ReturnPolicy />} />
-                <Route path="/shipping" element={<Shipping />} />
-                <Route path="/careers" element={<Careers user={user} />} />
-              </Routes>
-            </main>
-            <Footer />
-            <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-4 z-[60]">
-              <AnimatePresence>
-                {showScrollTop && (
-                  <motion.button
-                    key="back-to-top"
-                    initial={{ opacity: 0, scale: 0.8, y: 15 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.8, y: 15 }}
-                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                    onClick={scrollToTop}
-                    style={{ backgroundColor: scrollTopBg }}
-                    className="p-4 rounded-full shadow-2xl border border-white/10 text-white hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center group"
-                    title="Back to Top"
-                    id="back-to-top-btn"
-                  >
-                    <ArrowUp size={24} className="group-hover:-translate-y-1 transition-transform" />
-                  </motion.button>
-                )}
-              </AnimatePresence>
 
-              <button 
-                id="unified-support-trigger-btn"
-                className={`p-4 rounded-full shadow-2xl transition-all group flex items-center cursor-pointer relative ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
-                onClick={() => setIsSupportOpen(!isSupportOpen)}
-              >
-                <MessageCircle size={24} />
-                {!isSupportOpen && (
-                  <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-300 font-bold text-xs uppercase tracking-widest whitespace-nowrap">
-                    Help & Support
-                  </span>
-                )}
-                {!isSupportOpen && unreadSupportCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border border-white animate-bounce shadow">
-                    {unreadSupportCount}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            <SupportChat user={user} isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
-            <CookieConsentBanner />
-            <ProductCompareDrawer />
-            <OfflineNotifier />
-            <NotificationManager user={user} />
-            <Toaster position="bottom-right" />
-            </div>
-          </Router>
-        </CartProvider>
-        </CurrencyProvider>
-      </LanguageProvider>
-    </ThemeProvider>
+              <SupportChat user={user} isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
+              <CookieConsentBanner />
+              <ProductCompareDrawer />
+              <OfflineNotifier />
+              <NotificationManager user={user} />
+              <Toaster position="bottom-right" />
+              </div>
+            </Router>
+          </CartProvider>
+          </CurrencyProvider>
+        </LanguageProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
