@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff } from "lucide-react";
+import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -497,16 +497,16 @@ export default function Navbar({ user }: NavbarProps) {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
-            {/* Elegant premium backdrop with deep blur */}
+            {/* Elegant premium backdrop with deep blur - High z-index to stay above other floating tags */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.25 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 md:hidden"
+              className="fixed inset-0 bg-black/65 backdrop-blur-lg z-[140] md:hidden"
             />
-            {/* Spring-physics powered right-to-left drawer with interactive swipe close gesture */}
+            {/* Spring-physics powered right-to-left drawer - Solid background and High z-index to overlay perfectly */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
@@ -520,7 +520,7 @@ export default function Navbar({ user }: NavbarProps) {
                   setIsMobileMenuOpen(false);
                 }
               }}
-              className="fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-900 shadow-2xl z-50 md:hidden p-6 flex flex-col space-y-7 touch-pan-y transition-colors duration-200"
+              className="fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-950 shadow-2xl z-[150] md:hidden p-6 flex flex-col space-y-6 touch-pan-y transition-all duration-300 border-l border-gray-100 dark:border-gray-850"
             >
               <div className="flex justify-between items-center">
                 <span className="text-xl font-bold tracking-tighter text-gray-900 dark:text-gray-100 flex items-center space-x-2">
@@ -553,7 +553,7 @@ export default function Navbar({ user }: NavbarProps) {
                   value={search}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder={t("searchPlaceholder")}
-                  className="w-full pl-10 pr-16 py-3 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 text-gray-900 dark:text-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all focus:border-orange-500 focus:bg-white focus:dark:bg-gray-900 font-medium"
+                  className="w-full pl-10 pr-16 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-150 dark:border-gray-800 text-gray-900 dark:text-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all focus:border-orange-500 focus:bg-white focus:dark:bg-gray-950 font-medium"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center space-x-1">
                   {search && (
@@ -583,6 +583,12 @@ export default function Navbar({ user }: NavbarProps) {
                   </button>
                 </div>
               </motion.form>
+
+              {/* Category tag for organization */}
+              <div className="text-[10px] uppercase font-black tracking-widest text-orange-600 dark:text-orange-500 px-1 py-0.5 select-none pt-2 opacity-80">
+                Menu Directories
+              </div>
+
               {/* Staggered Links */}
               <motion.div 
                 variants={{
@@ -597,7 +603,7 @@ export default function Navbar({ user }: NavbarProps) {
                 }}
                 initial="hidden"
                 animate="show"
-                className="flex flex-col space-y-4"
+                className="flex flex-col space-y-3"
               >
                 {/* Home */}
                 <motion.div 
@@ -611,16 +617,25 @@ export default function Navbar({ user }: NavbarProps) {
                   <Link
                     to="/"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center justify-between group py-1"
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                      location.pathname === "/"
+                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-extrabold shadow-sm"
+                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    }`}
                   >
-                    <span>{t("home")}</span>
-                    <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
-                      <ShoppingBag size={20} />
+                    <div className="flex items-center space-x-3.5">
+                      <div className={`p-2 rounded-xl scale-110 ${
+                        location.pathname === "/"
+                          ? "bg-orange-100/60 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400"
+                          : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-100 dark:border-gray-850"
+                      }`}>
+                        <ShoppingBag size={18} />
+                      </div>
+                      <span className="text-sm tracking-tight">{t("home")}</span>
                     </div>
+                    <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
                   </Link>
                 </motion.div>
-
-
 
                 {/* Blog */}
                 <motion.div 
@@ -634,12 +649,23 @@ export default function Navbar({ user }: NavbarProps) {
                   <Link
                     to="/blog"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center justify-between group py-1"
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                      location.pathname === "/blog"
+                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-extrabold shadow-sm"
+                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    }`}
                   >
-                    <span>{t("blog")}</span>
-                    <div className="text-gray-400 group-hover:text-orange-600 transition-colors">
-                      <Award size={20} />
+                    <div className="flex items-center space-x-3.5">
+                      <div className={`p-2 rounded-xl scale-110 ${
+                        location.pathname === "/blog"
+                          ? "bg-orange-100/60 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400"
+                          : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
+                      }`}>
+                        <Award size={18} />
+                      </div>
+                      <span className="text-sm tracking-tight">{t("blog")}</span>
                     </div>
+                    <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/blog" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
                   </Link>
                 </motion.div>
 
@@ -655,19 +681,30 @@ export default function Navbar({ user }: NavbarProps) {
                   <Link
                     to="/wishlist"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center justify-between group py-1"
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                      location.pathname === "/wishlist"
+                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-extrabold shadow-sm"
+                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    }`}
                   >
-                    <div className="flex items-center space-x-2">
-                       <span>{t("wishlist")}</span>
-                      {user?.wishlist && user.wishlist.length > 0 && (
-                        <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                          {user.wishlist.length}
-                        </span>
-                      )}
+                    <div className="flex items-center space-x-3.5">
+                      <div className={`p-2 rounded-xl scale-110 ${
+                        location.pathname === "/wishlist"
+                          ? "bg-orange-100/60 dark:bg-orange-905/50 text-orange-600 dark:text-orange-400"
+                          : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
+                      }`}>
+                        <Heart size={18} />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm tracking-tight">{t("wishlist")}</span>
+                        {user?.wishlist && user.wishlist.length > 0 && (
+                          <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                            {user.wishlist.length}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-gray-400 group-hover:text-red-500 transition-colors">
-                      <Heart size={20} />
-                    </div>
+                    <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/wishlist" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
                   </Link>
                 </motion.div>
 
@@ -683,16 +720,27 @@ export default function Navbar({ user }: NavbarProps) {
                   <Link
                     to="/profile"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center justify-between group py-1"
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                      location.pathname === "/profile"
+                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-extrabold shadow-sm"
+                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-850/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    }`}
                   >
-                    <span>{t("profile")}</span>
-                    <div className="text-gray-400 dark:text-gray-450 group-hover:text-orange-600 transition-colors">
-                      {user?.photoURL ? (
-                        <img src={user.photoURL} alt={user.displayName || "User"} className="w-6 h-6 object-cover rounded-full border border-gray-200 dark:border-gray-800" referrerPolicy="no-referrer" />
-                      ) : (
-                        <User size={20} />
-                      )}
+                    <div className="flex items-center space-x-3.5">
+                      <div className={`p-2 rounded-xl scale-110 ${
+                        location.pathname === "/profile"
+                          ? "bg-orange-100/60 dark:bg-orange-905/50 text-orange-600 dark:text-orange-400"
+                          : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
+                      }`}>
+                        {user?.photoURL ? (
+                          <img src={user.photoURL} alt={user.displayName || "User"} className="w-[18px] h-[18px] object-cover rounded-full border border-gray-250 dark:border-gray-800" referrerPolicy="no-referrer" />
+                        ) : (
+                          <User size={18} />
+                        )}
+                      </div>
+                      <span className="text-sm tracking-tight">{t("profile")}</span>
                     </div>
+                    <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/profile" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
                   </Link>
                 </motion.div>
 
@@ -709,12 +757,23 @@ export default function Navbar({ user }: NavbarProps) {
                     <Link
                       to="/admin"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="text-lg font-black text-orange-600 flex items-center justify-between group py-1"
+                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                        location.pathname === "/admin"
+                          ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-extrabold shadow-sm"
+                          : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-900 dark:text-gray-100"
+                      }`}
                     >
-                      <span>{t("admin")}</span>
-                      <div className="text-orange-605">
-                        <Award size={20} />
+                      <div className="flex items-center space-x-3.5">
+                        <div className={`p-2 rounded-xl scale-110 ${
+                          location.pathname === "/admin"
+                            ? "bg-orange-100/60 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400"
+                            : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
+                        }`}>
+                          <Award size={18} />
+                        </div>
+                        <span className="text-sm tracking-tight">{t("admin")}</span>
                       </div>
+                      <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/admin" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
                     </Link>
                   </motion.div>
                 )}
@@ -763,7 +822,7 @@ export default function Navbar({ user }: NavbarProps) {
                     <Link
                       to="/login"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="block w-full bg-orange-600 hover:bg-orange-700 text-white text-center py-4 rounded-2xl font-bold text-base transition-colors shadow-md"
+                      className="block w-full bg-orange-600 hover:bg-orange-700 text-white text-center py-4 rounded-2xl font-bold text-base transition-colors shadow-md animate-pulse"
                     >
                       Get Started
                     </Link>

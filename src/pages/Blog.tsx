@@ -31,6 +31,57 @@ interface BlogComment {
   replies: CommentReply[];
 }
 
+const DEFAULT_FALLBACK_POSTS: BlogPost[] = [
+  {
+    id: "kisii-soapstone",
+    title: "The Art of Kisii Soapstone: Preserving Kenyan Craft Traditions",
+    content: "Deep in the green highlands of Kisii County, artisans have been carving Tabaka soapstone for generations. Each piece represents hours of meticulous hand-shaping, carving, and delicate painting. From abstract sculptures symbolizing family unity to finely polished bowls and animal figurines, these items are beautiful decorative objects and critical livelihoods for local workshops. At Sokoplus, we partner directly with Tabaka self-help groups to ensure they receive fair trade premiums and sustainable wages, preserving this magnificent heritage for generations to come. When you buy a Sokoplus soapstone piece, you are buying a piece of Kisii history.",
+    image: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&q=80&w=2000",
+    tags: ["Crafts", "Heritage", "Sokoplus Impact"],
+    author: "Grace Wambui",
+    publishedAt: "2026-06-18T10:00:00.000Z",
+    readTime: "5 min read",
+    seoTitle: "The Art of Kisii Soapstone Carving - Sokoplus Blog",
+    seoDescription: "Discover the heritage of Kisii soapstone carving, Tabaka artisan communities, and how ethically purchasing local crafts transforms lives in Kenya."
+  },
+  {
+    id: "nairobi-leather",
+    title: "The Essential Guide to Kenyan Premium Leather Craftsmanship",
+    content: "Nairobi is fast becoming a hub for premium leather goods. By combining locally sourced, full-grain bovine leather with traditional hand-stretching and modern stitching techniques, Kenyan leather artisans are creating pieces that rival top European fashion houses. From sturdy canvas-lined travel duffels to sleek minimalist wallets, these accessories are built for durability and character that only improves with age. We take a look inside the Kariobangi leather workshops to see how raw hides are processed sustainably, colored using natural vegetable dyes, and meticulously finished into Sokoplus signature bags.",
+    image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=2000",
+    tags: ["Fashion", "Artisans", "Style"],
+    author: "David Mwangi",
+    publishedAt: "2026-06-12T14:30:00.000Z",
+    readTime: "4 min read",
+    seoTitle: "Kenyan Leather Guide: Premium Handcrafted Bags - Sokoplus",
+    seoDescription: "Explore the rising trend of premium Kenyan leather craftsmanship. Learn about sustainable vegetable-dyed full-grain leather bags and local artisans."
+  },
+  {
+    id: "sustainable-weaving",
+    title: "Weaving Hope: How Handwoven Sisal Kiondos Support Rural Women",
+    content: "The iconic Kiondo basket is a testament to the perseverance and skill of rural weavers in Machakos and Taita Taveta counties. Woven using resilient sisal plant fibers—often stripped, hand-spun, and naturally dyed—each basket can take anywhere from a week to a month to complete. Originally designed for carrying groceries, modern Kiondos feature clean contemporary patterns, leather handles, and secure linings, making them the ultimate eco-friendly accessory. Sokoplus partners with women-led weaving cooperatives, providing stable incomes that fund children's secondary education and health coverage. Discover how your fashion choices can directly touch the hearts and lives of communities.",
+    image: "https://images.unsplash.com/photo-1533867617858-e7b97e060509?auto=format&fit=crop&q=80&w=2000",
+    tags: ["Sustainability", "Weaving", "Community"],
+    author: "Amara Okech",
+    publishedAt: "2026-06-05T08:00:00.000Z",
+    readTime: "6 min read",
+    seoTitle: "Sisal Kiondo Bags & Handwoven African Baskets - Sokoplus",
+    seoDescription: "Learn about the ancient art of weaving Kiondo baskets from sisal fibers, and how rural Kenyan women's cooperatives achieve financial independence."
+  },
+  {
+    id: "central-kenya-coffee",
+    title: "Nurturing the Perfect Cup: The Journey of Central Kenya's Coffee",
+    content: "The rich, volcanic red soils of Mt. Kenya's slopes provide the absolute perfect microclimate for producing some of the world's finest Arabica coffee beans. Highly regarded for their intense aroma, crisp brightness, and complex dark berry undertones, these beans are grown with extreme care by smallholder farmers. In this story, we follow the life cycle of our Mount Kenya Special single-origin coffee from the delicate white blossoms on the farms, through the honey processing watermills, to the precision medium-roasts in Nairobi. Plus, we share top brewing tips from professional Nairobi baristas on how to unlock the perfect notes at home using a French press or pour-over.",
+    image: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=2000",
+    tags: ["Groceries", "Culinary", "Local Produce"],
+    author: "Njuguna Kimani",
+    publishedAt: "2026-05-28T09:15:00.000Z",
+    readTime: "5 min read",
+    seoTitle: "Nurturing Mount Kenya Arabica Coffee Beans - Sokoplus",
+    seoDescription: "The journey of premium Arabica coffee beans from Nyeri's volcanic slopes to your morning cup. Learn processing steps and brewing techniques."
+  }
+];
+
 export default function Blog({ user }: { user: UserProfile | null }) {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -289,10 +340,14 @@ export default function Blog({ user }: { user: UserProfile | null }) {
           };
         });
         
-        setPosts(fetched);
+        if (fetched.length > 0) {
+          setPosts(fetched);
+        } else {
+          setPosts(DEFAULT_FALLBACK_POSTS);
+        }
       } catch (error) {
-        console.error("Error fetching blogs:", error);
-        setPosts([]);
+        console.error("Error fetching blogs (using premium fallback/static cache):", error);
+        setPosts(DEFAULT_FALLBACK_POSTS);
       } finally {
         setLoading(false);
       }
