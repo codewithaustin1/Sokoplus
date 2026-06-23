@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { CartProvider } from "./lib/CartContext";
 import { CurrencyProvider } from "./lib/CurrencyContext";
@@ -58,7 +58,59 @@ const queryClient = new QueryClient({
   },
 });
 
+interface QuotaBannerWrapperProps {
+  quotaExceededInfo: { error: string; path: string | null } | null;
+  onClear: () => void;
+}
 
+function QuotaBannerWrapper({ quotaExceededInfo, onClear }: QuotaBannerWrapperProps) {
+  const location = useLocation();
+  const isAdminPath = location.pathname.startsWith("/admin");
+
+  if (!quotaExceededInfo || !isAdminPath) return null;
+
+  return (
+    <div id="firestore-quota-warning-banner" className="bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/50 px-4 py-3 select-none">
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex gap-3 items-start">
+          <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg text-amber-700 dark:text-amber-300 shrink-0 mt-0.5">
+            <Database size={18} className="animate-pulse" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-amber-900 dark:text-amber-100 flex items-center gap-2">
+              Firestore Free-Tier Quota Limit Reached
+              <span className="text-[10px] uppercase font-black tracking-wider bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded text-amber-800 dark:text-amber-200">
+                Offline Cache Active
+              </span>
+            </h3>
+            <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
+              The Firestore daily free-tier read quota metric for this project has been fully exhausted because of high usage. 
+              SokoPlus is operating seamlessly via local database queries and IndexedDB offline cache fallbacks.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
+          <a
+            href="https://console.firebase.google.com/project/gen-lang-client-0489491426/firestore/databases/ai-studio-8d476022-e7b3-48f3-98d2-317aae594cb7/data?openUpgradeDialog=true"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 bg-amber-600 hover:bg-amber-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white text-xs font-black px-3.5 py-2 rounded-lg shadow-sm transition active:scale-95 cursor-pointer uppercase tracking-tight"
+          >
+            <ExternalLink size={14} />
+            Upgrade/Check Database
+          </a>
+          <button
+            onClick={onClear}
+            className="p-1.5 text-amber-700 dark:text-amber-400 hover:bg-amber-150 dark:hover:bg-amber-900/50 rounded-lg transition cursor-pointer"
+            title="Dismiss Alert"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -317,47 +369,10 @@ export default function App() {
               <Router>
                 <AnalyticsTracker />
               <div className="min-h-screen flex flex-col font-sans bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 selection:bg-orange-100 transition-colors duration-200">
-              {quotaExceededInfo && (
-                <div id="firestore-quota-warning-banner" className="bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/50 px-4 py-3 select-none">
-                  <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex gap-3 items-start">
-                      <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg text-amber-700 dark:text-amber-300 shrink-0 mt-0.5">
-                        <Database size={18} className="animate-pulse" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-amber-900 dark:text-amber-100 flex items-center gap-2">
-                          Firestore Free-Tier Quota Limit Reached
-                          <span className="text-[10px] uppercase font-black tracking-wider bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded text-amber-800 dark:text-amber-200">
-                            Offline Cache Active
-                          </span>
-                        </h3>
-                        <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
-                          The Firestore daily free-tier read quota metric for this project has been fully exhausted because of high usage. 
-                          SokoPlus is operating seamlessly via local database queries and IndexedDB offline cache fallbacks.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
-                      <a
-                        href="https://console.firebase.google.com/project/gen-lang-client-0489491426/firestore/databases/ai-studio-8d476022-e7b3-48f3-98d2-317aae594cb7/data?openUpgradeDialog=true"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 bg-amber-600 hover:bg-amber-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white text-xs font-black px-3.5 py-2 rounded-lg shadow-sm transition active:scale-95 cursor-pointer uppercase tracking-tight"
-                      >
-                        <ExternalLink size={14} />
-                        Upgrade/Check Database
-                      </a>
-                      <button
-                        onClick={() => setQuotaExceededInfo(null)}
-                        className="p-1.5 text-amber-700 dark:text-amber-400 hover:bg-amber-150 dark:hover:bg-amber-900/50 rounded-lg transition cursor-pointer"
-                        title="Dismiss Alert"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <QuotaBannerWrapper
+                quotaExceededInfo={quotaExceededInfo}
+                onClear={() => setQuotaExceededInfo(null)}
+              />
               {user && !user.emailVerified && <VerificationBanner email={user.email} />}
               <Navbar user={user} />
               <main className="flex-grow">
