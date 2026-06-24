@@ -24,10 +24,10 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Hero Section / Homepage
     heroBadge: "SokoPlus Kenya • 100% Authentic Handcrafts",
-    heroTitle: "Quality Goods, Kenyan Soul.",
-    heroSubtitle: "Discover verified Kenyan crafts and daily goods delivered straight to your door. Safely checkout with M-Pesa & track your delivery from workshop to home.",
-    shopCollect: "Shop Collection",
-    learnStory: "Learn Our Story",
+    heroTitle: "Better Products. Better Prices.",
+    heroSubtitle: "Discover trending, trusted, and affordable products from across Kenya—all in one place. Shop confidently with secure payments and convenient delivery nationwide.",
+    shopCollect: "Start Shopping",
+    learnStory: "See What's New",
     categoriesTitle: "Curated Categories",
     categoriesSub: "Handcrafted, sourced sustainably from direct Kenyan artisans.",
     featuredTitle: "Trending Masterpieces",
@@ -98,10 +98,10 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Hero Section / Homepage
     heroBadge: "SokoPlus Kenya • Kazi Maalum na Bidhaa 100% Halisi za Kienyeji",
-    heroTitle: "Bidhaa Bora, Nafsi ya Kenya.",
-    heroSubtitle: "Gundua sanaa asilia kamilifu na bidhaa bora zilizoundwa kwa upendo na mafundi wetu kote nchini. Lipa salama kupitia M-Pesa na upokee mzigo mlangoni pako kwa uaminifu na amani ya akili.",
-    shopCollect: "Anza Kununua Sasa",
-    learnStory: "Jifunze Historia Yetu",
+    heroTitle: "Bidhaa Bora. Bei Bora zaidi.",
+    heroSubtitle: "Gundua bidhaa zinazovuma, zinazoaminika na za bei nafuu kutoka kote nchini Kenya—zote sehemu moja. Nunua kwa kujiamini kwa malipo salama na utoaji rahisi kote nchini.",
+    shopCollect: "Anza Kununua",
+    learnStory: "Tazama Mapya",
     categoriesTitle: "Vitengo Vilivyoteuliwa kwa Makini",
     categoriesSub: "Kazi safi za mikono, zilizosafirishwa moja kwa moja kutoka kwa mafundi shupavu wa Kenya.",
     featuredTitle: "Kazi Kubwa za Sanaa Zinazovuma",

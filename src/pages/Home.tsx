@@ -596,9 +596,9 @@ export default function Home({ user }: HomeProps) {
             className="md:w-1/2 space-y-6 z-10"
           >
             <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 dark:text-white leading-tight">
-              {language === "sw" ? "Bidhaa Bora," : "Quality Goods,"} <br/>
+              {language === "sw" ? "Bidhaa Bora." : "Better Products."} <br/>
               <span className="text-orange-600 underline decoration-orange-200">
-                {language === "sw" ? "Nafsi ya Kenya." : "Kenyan Soul."}
+                {language === "sw" ? "Bei Bora zaidi." : "Better Prices."}
               </span>
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-350 max-w-lg font-medium">
@@ -612,13 +612,13 @@ export default function Home({ user }: HomeProps) {
                 onClick={scrollToProducts}
                 className="bg-orange-600 text-white px-8 py-4 rounded-full font-bold hover:bg-orange-700 transition-all flex items-center font-sans cursor-pointer"
               >
-                {language === "sw" ? "Nunua Sasa" : "Shop Now"} <ArrowRight className="ml-2" size={20} />
+                {t("shopCollect")} <ArrowRight className="ml-2" size={20} />
               </button>
               <button 
                 onClick={() => setShowMission(true)}
                 className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-800 px-8 py-4 rounded-full font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all font-sans cursor-pointer"
               >
-                {language === "sw" ? "Jifunze Zaidi" : "Learn More"}
+                {t("learnStory")}
               </button>
             </div>
           </motion.div>
