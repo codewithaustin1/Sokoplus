@@ -1430,53 +1430,62 @@ export default function Home({ user }: HomeProps) {
           <motion.div 
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white max-w-2xl w-full rounded-3xl overflow-y-auto max-h-[90vh] md:max-h-[95vh] shadow-2xl relative"
+            className="bg-white dark:bg-gray-900 max-w-2xl w-full rounded-3xl overflow-y-auto max-h-[90vh] md:max-h-[95vh] shadow-2xl relative border border-gray-100 dark:border-gray-800"
           >
             <button 
               onClick={() => setShowMission(false)}
-              className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 bg-white/95 backdrop-blur-sm hover:bg-gray-100 rounded-full transition-all z-20 shadow-sm border border-gray-100 cursor-pointer"
+              className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all z-20 shadow-sm border border-gray-100 dark:border-gray-800 cursor-pointer"
               title="Close"
             >
-              <X size={18} className="text-gray-700" />
+              <X size={18} className="text-gray-700 dark:text-gray-300" />
             </button>
             
             <div className="grid grid-cols-1 md:grid-cols-2">
               <div className="p-6 sm:p-10 space-y-5 sm:space-y-6">
                 <div>
-                  <div className="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest w-fit mb-4">Our Mission</div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">Empowering Kenyan <span className="text-orange-600">Commerce.</span></h2>
+                  <div className="bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest w-fit mb-4">Our Commitment</div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white leading-tight">Shop With <span className="text-orange-600">Confidence.</span></h2>
                 </div>
-                <p className="text-xs sm:text-sm text-gray-500 leading-relaxed">
-                  Sokoplus isn't just a store; it's a bridge between Kenya's finest local artisans and a modern, digital world.
-                </p>
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="bg-green-100 text-green-600 p-1.5 rounded-lg mt-1"><Star size={14} fill="currentColor" /></div>
-                    <div>
-                      <h4 className="font-bold text-xs sm:text-sm text-gray-800">Verified Retailers</h4>
-                      <p className="text-[11px] sm:text-xs text-gray-400">Every shop is vetted for quality and authenticity.</p>
+                <div className="space-y-3">
+                  <p className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200">
+                    Finding quality online shouldn't feel like a gamble.
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                    Sokoplus brings together trusted sellers, secure payments, and carefully selected products so you can spend less time worrying and more time enjoying what you buy.
+                  </p>
+                </div>
+                <div className="space-y-3 bg-gray-50 dark:bg-gray-950/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-850">
+                  <div className="flex items-center space-x-3 text-gray-800 dark:text-gray-200">
+                    <div className="bg-green-100 dark:bg-green-950/40 text-green-600 dark:text-green-450 p-1 rounded-md shrink-0">
+                      <Check size={14} className="stroke-[3]" />
                     </div>
+                    <span className="font-bold text-xs sm:text-sm">Verified Sellers</span>
                   </div>
-                  <div className="flex items-start space-x-3">
-                    <div className="bg-blue-100 text-blue-600 p-1.5 rounded-lg mt-1"><ShoppingBag size={14} /></div>
-                    <div>
-                      <h4 className="font-bold text-xs sm:text-sm text-gray-800">Loyalty Ecosystem</h4>
-                      <p className="text-[11px] sm:text-xs text-gray-400">Earn points on every purchase across all local categories.</p>
+                  <div className="flex items-center space-x-3 text-gray-800 dark:text-gray-200">
+                    <div className="bg-green-100 dark:bg-green-950/40 text-green-600 dark:text-green-450 p-1 rounded-md shrink-0">
+                      <Check size={14} className="stroke-[3]" />
                     </div>
+                    <span className="font-bold text-xs sm:text-sm">Secure M-pesa Payments</span>
+                  </div>
+                  <div className="flex items-center space-x-3 text-gray-800 dark:text-gray-200">
+                    <div className="bg-green-100 dark:bg-green-950/40 text-green-600 dark:text-green-450 p-1 rounded-md shrink-0">
+                      <Check size={14} className="stroke-[3]" />
+                    </div>
+                    <span className="font-bold text-xs sm:text-sm">Nationwide Delivery</span>
                   </div>
                 </div>
                 <button 
                   onClick={() => setShowMission(false)}
-                  className="w-full bg-gray-900 text-white font-bold py-3.5 rounded-2xl hover:bg-orange-600 text-xs sm:text-sm transition-all shadow-lg cursor-pointer"
+                  className="w-full bg-gray-900 dark:bg-gray-800 text-white font-bold py-3.5 rounded-2xl hover:bg-orange-600 dark:hover:bg-orange-600 text-xs sm:text-sm transition-all shadow-lg cursor-pointer"
                 >
-                  Start Exploring
+                  Browse What's New
                 </button>
               </div>
               <div className="bg-orange-600 p-6 sm:p-10 flex flex-col justify-center text-white space-y-5 sm:space-y-6 relative overflow-hidden">
                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
                  <div className="relative z-10 space-y-2">
                    <h3 className="text-3xl sm:text-4xl font-black italic opacity-20 uppercase tracking-tighter">Sokoplus</h3>
-                   <p className="text-lg sm:text-xl font-bold">"Bridging the gap between tradition and technology."</p>
+                   <p className="text-lg sm:text-xl font-bold">"Built for shoppers who value quality and value equally."</p>
                  </div>
                  <div className="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/20">
                     <p className="text-xs sm:text-sm font-medium leading-relaxed">
