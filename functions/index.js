@@ -462,3 +462,146 @@ async function sendCampaignEmail(email, displayName, title, message) {
 
   await transporter.sendMail(mailOptions);
 }
+
+/**
+ * APPROACH D: Order Status Shipping Trigger (Transactional Notifications)
+ * ----------------------------------------------------------------------
+ * Trigger: Runs on document updates in `/orders/{orderId}`.
+ * Action: Sends a transactional email notification to users when their order status
+ *         changes from 'pending' (or 'processing') to 'shipped'.
+ */
+exports.onOrderStatusShippedTrigger = onDocumentUpdated({
+  document: "orders/{orderId}",
+}, async (event) => {
+  const beforeData = event.data.before.data();
+  const afterData = event.data.after.data();
+  
+  if (!afterData) return;
+  
+  const beforeStatus = beforeData ? beforeData.status : null;
+  const afterStatus = afterData ? afterData.status : null;
+  
+  const isShippedNow = afterStatus === "shipped";
+  const wasPendingOrProcessing = beforeStatus === "pending" || beforeStatus === "processing";
+  
+  if (isShippedNow && wasPendingOrProcessing) {
+    const orderId = event.params.orderId;
+    logger.info(`[Order Shipper Trigger] Detected status change to 'shipped' for order ${orderId}. Initializing notification dispatch...`);
+    
+    // Resolve recipient email address
+    let userEmail = afterData.userEmail || afterData.email;
+    if (!userEmail && afterData.userId) {
+      userEmail = await fetchUserEmailFallback(afterData.userId);
+    }
+    
+    if (!userEmail) {
+      logger.warn(`[Order Shipper Trigger] Skipping notification for order ${orderId} due to lack of a valid email address.`);
+      return;
+    }
+    
+    try {
+      await sendShippedEmail(orderId, userEmail, afterData);
+      logger.info(`[Order Shipper Trigger] Transactional notification sent successfully to ${userEmail} for order ${orderId}.`);
+    } catch (err) {
+      logger.error(`[Order Shipper Trigger Failure] Failed to send email for order ${orderId}:`, err);
+    }
+  }
+});
+
+/**
+ * Dispatches a stylized shipment email to the customer using nodemailer
+ */
+async function sendShippedEmail(orderId, email, order) {
+  let itemsRowsHtml = "";
+  const items = order.items || [];
+  
+  items.forEach((item) => {
+    const lineCost = (item.price || 0) * (item.quantity || 1);
+    itemsRowsHtml += `
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid #f1f1f1; text-align: left;">
+          <div style="font-weight: bold; color: #1e293b; font-size: 14px;">${item.name}</div>
+          ${item.customizations ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">Material: ${item.customizations.material || "Standard"} • Color: ${item.customizations.colorName || "Standard"}</div>` : ""}
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid #f1f1f1; text-align: center; color: #475569; font-size: 14px;">${item.quantity}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #f1f1f1; text-align: right; color: #0f172a; font-weight: bold; font-size: 14px;">KES ${lineCost.toLocaleString()}</td>
+      </tr>
+    `;
+  });
+
+  const trackingUrl = `https://sokoplus.co.ke/track-order/${orderId}`;
+
+  const emailHtmlBody = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; padding: 40px 20px; color: #334155; line-height: 1.6;">
+      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05); overflow: hidden; border: 1px solid #f1f1f1;">
+        
+        <!-- Brand Header -->
+        <div style="background-color: #0f172a; padding: 30px 40px; text-align: center;">
+          <span style="font-size: 26px; font-weight: 900; color: #f97316; letter-spacing: -1px; text-transform: uppercase;">Soko<span style="color: #ffffff;">Plus</span></span>
+          <div style="color: #94a3b8; font-size: 11px; font-weight: bold; letter-spacing: 2px; margin-top: 4px; text-transform: uppercase;">Authentic Kenyan Handcrafts</div>
+        </div>
+        
+        <!-- Content Body -->
+        <div style="padding: 40px;">
+          <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0; margin-bottom: 16px;">Habari! Your SokoPlus order has been shipped! 🚚💨</h2>
+          <p style="margin-top: 0; margin-bottom: 24px; color: #475569; font-size: 14px; line-height: 1.6;">
+            We have exciting news! Your order <strong>#${orderId}</strong> has been shipped and handed over to our delivery partners. It is on its way to your designated shipping location!
+          </p>
+          
+          <!-- Shipping Bullet Points -->
+          <div style="background-color: #f8fafc; border-left: 4px solid #f97316; padding: 15px 20px; margin-bottom: 24px; border-radius: 4px 12px 12px 4px;">
+            <p style="margin: 0 0 8px 0; font-size: 13px; color: #1e293b; font-weight: bold;">📦 Delivery Highlights:</p>
+            <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
+              <li style="margin-bottom: 4px;"><strong>Verified Sellers:</strong> Authenticity fully certified</li>
+              <li style="margin-bottom: 4px;"><strong>Payment Status:</strong> M-Pesa secure payment verified</li>
+              <li style="margin-bottom: 0;"><strong>Nationwide Tracker:</strong> Live delivery updates</li>
+            </ul>
+          </div>
+          
+          <!-- Order Items Summary Table -->
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; border: 1px solid #f8fafc;">
+            <thead>
+              <tr style="background-color: #f8fafc;">
+                <th style="padding: 12px; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 1px; text-align: left; border-bottom: 2px solid #e2e8f0;">Item Shipped</th>
+                <th style="padding: 12px; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 1px; text-align: center; border-bottom: 2px solid #e2e8f0; width: 60px;">Qty</th>
+                <th style="padding: 12px; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 1px; text-align: right; border-bottom: 2px solid #e2e8f0; width: 120px;">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRowsHtml}
+              <tr>
+                <td colspan="2" style="padding: 16px 12px; text-align: right; font-weight: bold; color: #475569; font-size: 14px;">Total Amount:</td>
+                <td style="padding: 16px 12px; text-align: right; font-size: 16px; font-weight: 950; color: #ea580c;">KES ${(order.totalAmount || 0).toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <!-- Call-to-action Button -->
+          <div style="text-align: center; margin-bottom: 30px; margin-top: 30px;">
+            <a href="${trackingUrl}" style="background-color: #ea580c; color: #ffffff; font-weight: bold; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase; display: inline-block; box-shadow: 0 4px 6px rgba(234, 88, 12, 0.15);">
+              Track Your Shipment
+            </a>
+          </div>
+          
+          <hr style="border: 0; border-top: 1px solid #f1f1f1; margin-bottom: 24px;" />
+          
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 0; line-height: 1.6;">
+            This is an automated transactional email notification from SokoPlus Kenya. You received this because you made a purchase on SokoPlus and your order status was updated.
+          </p>
+        </div>
+        
+      </div>
+    </div>
+  `;
+
+  const mailOptions = {
+    from: '"SokoPlus Kenya Deliveries" <no-reply@sokoplus.co.ke>',
+    to: email,
+    subject: `🚚 SokoPlus Order Shipped: Your package #${orderId} is on its way!`,
+    html: emailHtmlBody,
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  logger.info(`[Order Shipper Trigger] Dispatched mail success to ${email}. Message ID: ${info.messageId}`);
+}
+
