@@ -11,6 +11,7 @@ import { LanguageProvider } from "./lib/LanguageContext";
 import { ThemeProvider } from "./lib/ThemeContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import AudioPlayer from "./components/AudioPlayer";
 import { ProductCompareDrawer } from "./components/ProductCompareDrawer";
 import Home from "./pages/Home";
 import ProductDetails from "./pages/ProductDetails";
@@ -439,6 +440,7 @@ export default function App() {
               </div>
 
               <SupportChat user={user} isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
+              <AudioPlayer />
               <CookieConsentBanner />
               <ProductCompareDrawer />
               <OfflineNotifier />
