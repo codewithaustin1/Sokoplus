@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useCart } from "../lib/CartContext";
 import { UserProfile, CartItem } from "../types";
 import { db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from "firebase/firestore";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { useNavigate, Link } from "react-router-dom";
@@ -26,7 +26,9 @@ import {
   ChevronUp,
   Receipt,
   HelpCircle,
-  ArrowRight
+  ArrowRight,
+  Gift,
+  X
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { counties } from "../data/counties";
@@ -96,8 +98,100 @@ export default function Checkout({ user }: CheckoutProps) {
   const selectedCountyData = counties.find(c => c.name === address.county) || counties.find(c => c.name === "Nairobi City County") || counties[0];
   const currentCities = selectedCountyData ? selectedCountyData.cities : [];
 
-  const shippingFee = calculateShippingFee(address.county, address.city, total);
-  const overallTotal = total + shippingFee;
+  const baseShippingFee = calculateShippingFee(address.county, address.city, total);
+
+  const [appliedVoucher, setAppliedVoucher] = useState<any | null>(null);
+  const [voucherCodeInput, setVoucherCodeInput] = useState("");
+  const [voucherError, setVoucherError] = useState("");
+  const [voucherSuccess, setVoucherSuccess] = useState("");
+
+  const handleApplyVoucherCode = (code: string) => {
+    setVoucherError("");
+    setVoucherSuccess("");
+    
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanCode) {
+      setVoucherError("Please enter a voucher code.");
+      return;
+    }
+
+    const activeVouchers = user?.vouchers || [];
+    const matchedVoucher = activeVouchers.find(
+      (v: any) => v.code.toUpperCase() === cleanCode && v.status === "active"
+    );
+
+    if (matchedVoucher) {
+      setAppliedVoucher(matchedVoucher);
+      setVoucherSuccess(`🎉 Voucher applied: ${matchedVoucher.title}!`);
+      toast.success(`Voucher applied: ${matchedVoucher.title}!`);
+    } else {
+      if (cleanCode === "SOKO-SHIP-FREE-NEXT") {
+        setAppliedVoucher({
+          id: "free-shipping",
+          title: "Free Nationwide Shipping",
+          badge: "SAVER REWARD",
+          description: "Enjoy zero delivery fees on your next order, absolutely free!",
+          code: "SOKO-SHIP-FREE-NEXT"
+        });
+        setVoucherSuccess("🎉 Voucher applied: Free Nationwide Shipping!");
+        toast.success("Voucher applied: Free Shipping!");
+      } else if (cleanCode === "SOKO-VOUCH-500K") {
+        setAppliedVoucher({
+          id: "gift-voucher",
+          title: "KES 500 Shopping Voucher",
+          badge: "CASH VOUCHER",
+          description: "Get KES 500 off your next checkout basket total with no minimum spend.",
+          code: "SOKO-VOUCH-500K"
+        });
+        setVoucherSuccess("🎉 Voucher applied: KES 500 Shopping Discount!");
+        toast.success("Voucher applied: KES 500 Discount!");
+      } else if (cleanCode === "SOKO-MULTIPLY-1.5X") {
+        setAppliedVoucher({
+          id: "points-multiplier",
+          title: "1.5x Loyalty Points Multiplier",
+          badge: "POINTS ACCELERATOR",
+          description: "Receive 1.5x more loyalty reward points on any trusted shop item.",
+          code: "SOKO-MULTIPLY-1.5X"
+        });
+        setVoucherSuccess("🎉 Voucher applied: 1.5x Loyalty Points!");
+        toast.success("Voucher applied: 1.5x Loyalty Points!");
+      } else if (cleanCode === "SOKO-VIP-ARTISAN-PASS") {
+        setAppliedVoucher({
+          id: "artisan-pass",
+          title: "Artisan Guild Golden Pass",
+          badge: "EXCLUSIVE VIP DROP",
+          description: "Early premier access & priority reserve on extremely rare, handmade collections.",
+          code: "SOKO-VIP-ARTISAN-PASS"
+        });
+        setVoucherSuccess("🎉 Voucher applied: Artisan Golden Pass!");
+        toast.success("Voucher applied: Artisan Golden Pass!");
+      } else {
+        setVoucherError("Invalid or expired voucher code.");
+        toast.error("Invalid voucher code.");
+      }
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherCodeInput("");
+    setVoucherSuccess("");
+    setVoucherError("");
+    toast.success("Voucher removed.");
+  };
+
+  let appliedDiscount = 0;
+  let shippingFee = baseShippingFee;
+
+  if (appliedVoucher) {
+    if (appliedVoucher.id === "free-shipping" || appliedVoucher.code === "SOKO-SHIP-FREE-NEXT") {
+      shippingFee = 0;
+    } else if (appliedVoucher.id === "gift-voucher" || appliedVoucher.code === "SOKO-VOUCH-500K") {
+      appliedDiscount = 500;
+    }
+  }
+
+  const overallTotal = Math.max(0, total + shippingFee - appliedDiscount);
 
   // Free shipping progress variables
   const FREE_SHIPPING_LIMIT = 15000;
@@ -213,19 +307,64 @@ export default function Checkout({ user }: CheckoutProps) {
 
       const sellerIdsList = Array.from(new Set(items.map(i => i.sellerId).filter((id): id is string => !!id)));
 
-      await addDoc(collection(db, "orders"), {
+      // Helper to clean undefined fields before saving to Firestore to prevent crashes
+      const sanitizeData = (obj: any): any => {
+        if (obj === undefined) return null;
+        if (obj === null) return null;
+        if (typeof obj === "object" && obj.constructor && obj.constructor.name !== "Object" && obj.constructor.name !== "Array") {
+          return obj;
+        }
+        if (Array.isArray(obj)) return obj.map(sanitizeData);
+        if (typeof obj === "object") {
+          const clean: any = {};
+          for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+              const value = obj[key];
+              if (value !== undefined) {
+                clean[key] = sanitizeData(value);
+              }
+            }
+          }
+          return clean;
+        }
+        return obj;
+      };
+
+      // If a voucher is applied, we must remove it from the user's vouchers array in Firestore to enforce single-use!
+      if (appliedVoucher) {
+        try {
+          const userRef = doc(db, "users", user.uid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            const currentVouchers = userData.vouchers || [];
+            // Filter out the matching voucher
+            const updatedVouchers = currentVouchers.filter((v: any) => v.code.toUpperCase() !== appliedVoucher.code.toUpperCase());
+            await updateDoc(userRef, {
+              vouchers: updatedVouchers
+            });
+            console.log(`[Checkout] Successfully consumed voucher: ${appliedVoucher.code}`);
+          }
+        } catch (vErr) {
+          console.error("Error consuming voucher from Firestore:", vErr);
+        }
+      }
+
+      await addDoc(collection(db, "orders"), sanitizeData({
         userId: user.uid,
         userEmail: address.email,
         items,
         sellerIds: sellerIdsList,
         totalAmount: overallTotal,
+        discountAmount: appliedDiscount,
+        appliedVoucherCode: appliedVoucher ? appliedVoucher.code : null,
         status: "pending",
         paymentStatus: "unpaid",
         paymentReference: reference,
         shippingAddress: submittedAddress,
         preferredPaymentMethod: paymentMethod,
         createdAt: serverTimestamp()
-      });
+      }));
 
       // 4. Smooth Redirect
       setRedirectStage("Redirecting to Paystack");
@@ -567,8 +706,7 @@ export default function Checkout({ user }: CheckoutProps) {
                 </div>
               ))}
             </div>
-
-            {/* Total Items count alert details */}
+                          {/* Total Items count alert details */}
             <div className="bg-gray-50 dark:bg-gray-950 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 text-xs font-semibold text-gray-500 dark:text-gray-400 flex justify-between items-center">
               <span>Dynamic cart total weight/item count check:</span>
               <span className="font-black text-gray-900 dark:text-white uppercase font-black">Pre-Cleaned</span>
@@ -576,7 +714,124 @@ export default function Checkout({ user }: CheckoutProps) {
 
           </div>
 
-          {/* STEP 3: Interactive Payment gateway selector */}
+          {/* STEP 3: Promo Voucher Application (Optional) */}
+          <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl dark:shadow-none space-y-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 bg-gradient-to-r from-orange-500 to-amber-500 h-1.5 w-full"></div>
+            
+            <div className="flex items-start justify-between gap-4 border-b border-gray-50 dark:border-gray-800 pb-4">
+              <div className="flex items-start gap-4">
+                <div className="bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 p-2.5 rounded-2xl shrink-0">
+                  <Gift size={22} />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-black tracking-tight text-gray-955 dark:text-white">3. Apply Soko Voucher (Optional)</h3>
+                  <p className="text-xs text-gray-400 dark:text-gray-550 font-semibold uppercase tracking-wider">
+                    Redeem special mystery box rewards or type a coupon code
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {appliedVoucher ? (
+                <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 p-5 rounded-2xl flex items-center justify-between gap-4 animate-fade-in">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                      <Check size={20} />
+                    </div>
+                    <div>
+                      <p className="font-black text-sm text-emerald-900 dark:text-emerald-300">
+                        Voucher Applied: <span className="font-extrabold uppercase bg-emerald-100 dark:bg-emerald-900/60 px-2.5 py-1 rounded-lg text-xs tracking-wider">{appliedVoucher.code}</span>
+                      </p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-semibold leading-relaxed">
+                        {appliedVoucher.title} — {appliedVoucher.description}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveVoucher}
+                    className="p-2 bg-emerald-100 dark:bg-emerald-900 hover:bg-emerald-200 dark:hover:bg-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl transition-all cursor-pointer"
+                    title="Remove voucher"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+                  <div className="md:col-span-8">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={voucherCodeInput}
+                        onChange={(e) => setVoucherCodeInput(e.target.value)}
+                        placeholder="Type or paste voucher code (e.g., SOKO-VOUCH-500K)"
+                        className="w-full p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-950 dark:text-white uppercase tracking-wide placeholder-gray-400 text-xs sm:text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleApplyVoucherCode(voucherCodeInput)}
+                        className="px-6 py-4 bg-gray-950 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        Apply Code
+                      </button>
+                    </div>
+
+                    {voucherError && (
+                      <p className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-2 ml-1">
+                        <AlertTriangle size={12} />
+                        <span>{voucherError}</span>
+                      </p>
+                    )}
+
+                    {voucherSuccess && (
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 mt-2 ml-1">
+                        <Check size={12} />
+                        <span>{voucherSuccess}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* ACTIVE VOUCHERS QUICK SELECT */}
+                  <div className="md:col-span-4 space-y-2 bg-gray-50/70 dark:bg-gray-950/40 p-4 rounded-2xl border border-gray-150 dark:border-gray-800">
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-widest leading-none">
+                      Your Available Vouchers
+                    </p>
+                    {!user ? (
+                      <p className="text-[10px] text-gray-400 font-semibold italic">Sign in to apply saved vouchers.</p>
+                    ) : !user.vouchers || user.vouchers.filter((v: any) => v.status === "active").length === 0 ? (
+                      <p className="text-[10px] text-gray-400 font-semibold italic leading-relaxed">No active rewards on your profile yet. Order & win mystery boxes!</p>
+                    ) : (
+                      <div className="flex flex-col gap-2 max-h-36 overflow-y-auto no-scrollbar">
+                        {user.vouchers
+                          .filter((v: any) => v.status === "active")
+                          .map((voucher: any, idx: number) => (
+                            <button
+                              key={`${voucher.id}-${idx}`}
+                              type="button"
+                              onClick={() => handleApplyVoucherCode(voucher.code)}
+                              className="w-full text-left p-2.5 bg-white dark:bg-gray-900 hover:bg-orange-50 dark:hover:bg-orange-950/20 border border-gray-200 dark:border-gray-800 rounded-xl transition-colors cursor-pointer group flex items-center justify-between"
+                            >
+                              <div className="min-w-0 pr-1.5">
+                                <p className="text-[10px] font-black uppercase text-gray-900 dark:text-white group-hover:text-orange-600 tracking-wider">
+                                  {voucher.code}
+                                </p>
+                                <p className="text-[8px] text-gray-400 truncate max-w-[150px]">
+                                  {voucher.title}
+                                </p>
+                              </div>
+                              <Plus size={10} className="text-gray-400 group-hover:text-orange-600 shrink-0" />
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* STEP 4: Interactive Payment gateway selector */}
           <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl dark:shadow-none space-y-6 relative overflow-hidden">
             <div className="absolute top-0 left-0 bg-gradient-to-r from-blue-500 to-indigo-500 h-1.5 w-full"></div>
             
@@ -585,7 +840,7 @@ export default function Checkout({ user }: CheckoutProps) {
                 <CreditCard size={22} />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-black tracking-tight text-gray-950 dark:text-white">3. Preferred Payment Method</h3>
+                <h3 className="text-lg font-black tracking-tight text-gray-955 dark:text-white">4. Preferred Payment Method</h3>
                 <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider">
                   Both channels processed automatically & securely through Paystack
                 </p>
@@ -734,6 +989,13 @@ export default function Checkout({ user }: CheckoutProps) {
                 <span>Value Added Tax (16% VAT)</span>
                 <span className="font-bold">Included</span>
               </div>
+
+              {appliedDiscount > 0 && (
+                <div className="flex justify-between items-center text-emerald-650 dark:text-emerald-400 font-black bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-2 rounded-xl border border-emerald-100 dark:border-emerald-950/50">
+                  <span>Voucher Discount</span>
+                  <span>- KES {appliedDiscount.toLocaleString()}</span>
+                </div>
+              )}
 
               <div className="border-t border-gray-100 dark:border-gray-800 pt-5 space-y-1">
                 <div className="flex justify-between items-baseline text-2xl font-black text-gray-950 dark:text-white">
@@ -905,6 +1167,13 @@ export default function Checkout({ user }: CheckoutProps) {
                   <span>VAT Tax (16% inclusive)</span>
                   <span className="font-bold">Included</span>
                 </div>
+
+                {appliedDiscount > 0 && (
+                  <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-2 rounded-xl border border-emerald-100 dark:border-emerald-950/50">
+                    <span>Voucher Discount</span>
+                    <span>- KES {appliedDiscount.toLocaleString()}</span>
+                  </div>
+                )}
 
                 <div className="border-t border-gray-100 dark:border-gray-800 pt-4 space-y-1">
                   <div className="flex justify-between items-baseline text-2xl font-black text-gray-950 dark:text-white">

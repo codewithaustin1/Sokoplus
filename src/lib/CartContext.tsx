@@ -14,6 +14,32 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+// Helper to clean undefined fields before saving to Firestore to prevent crashes
+function sanitizeData(obj: any): any {
+  if (obj === undefined) {
+    return null;
+  }
+  if (obj === null) {
+    return null;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeData);
+  }
+  if (typeof obj === "object") {
+    const clean: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const value = obj[key];
+        if (value !== undefined) {
+          clean[key] = sanitizeData(value);
+        }
+      }
+    }
+    return clean;
+  }
+  return obj;
+}
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>(() => {
     const saved = localStorage.getItem("sokoplus_cart");
@@ -33,13 +59,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const user = auth.currentUser;
     if (user) {
       const cartRef = doc(db, "carts", user.uid);
-      setDoc(cartRef, {
+      const rawData = {
         userId: user.uid,
-        email: user.email,
+        email: user.email || null,
         items: items,
         isAbandonedEmailSent: false,
         updatedAt: new Date().toISOString()
-      }, { merge: true }).catch((err) => {
+      };
+      setDoc(cartRef, sanitizeData(rawData), { merge: true }).catch((err) => {
         console.warn("Firestore cart auto-sync failed:", err);
       });
     }
@@ -59,23 +86,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setItems(data.items);
             } else if (items.length > 0) {
               // Upload local items to cloud if cloud is empty
-              await setDoc(cartRef, {
+              const rawData = {
                 userId: user.uid,
-                email: user.email,
+                email: user.email || null,
                 items: items,
                 isAbandonedEmailSent: false,
                 updatedAt: new Date().toISOString()
-              }, { merge: true });
+              };
+              await setDoc(cartRef, sanitizeData(rawData), { merge: true });
             }
           } else if (items.length > 0) {
             // Create cloud cart from local items
-            await setDoc(cartRef, {
+            const rawData = {
               userId: user.uid,
-              email: user.email,
+              email: user.email || null,
               items: items,
               isAbandonedEmailSent: false,
               updatedAt: new Date().toISOString()
-            });
+            };
+            await setDoc(cartRef, sanitizeData(rawData));
           }
         } catch (err) {
           console.warn("Could not sync cloud cart on authenticator change:", err);

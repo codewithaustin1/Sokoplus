@@ -2,8 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { UserProfile, Order } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload, Settings, Sun, Moon, Globe, Coins } from "lucide-react";
+import { UserProfile, Order, Voucher } from "../types";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload, Settings, Sun, Moon, Globe, Coins, Gift, Copy, Check } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
@@ -15,6 +15,72 @@ import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
 import SellerStudio from "../components/SellerStudio";
 
+function VoucherCard({ voucher, language }: { voucher: Voucher; language: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(voucher.code);
+    setCopied(true);
+    toast.success(language === "sw" ? "Kodi ya vocha imenakiliwa!" : "Voucher code copied!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="relative bg-white dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+      {/* Ticket Cutouts */}
+      <div className="absolute top-1/2 -left-3 w-6 h-6 bg-gray-50 dark:bg-gray-900 border-r border-gray-150 dark:border-gray-800 rounded-full -translate-y-1/2 z-10" />
+      <div className="absolute top-1/2 -right-3 w-6 h-6 bg-gray-50 dark:bg-gray-900 border-l border-gray-150 dark:border-gray-800 rounded-full -translate-y-1/2 z-10" />
+
+      {/* Top Section */}
+      <div className="p-6 space-y-4">
+        <div className="flex justify-between items-start">
+          <span className="text-[10px] font-black uppercase tracking-wider bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full border border-orange-100">
+            {voucher.badge}
+          </span>
+          <span className="text-[10px] font-bold text-gray-400">
+            {voucher.unlockedAt ? new Date(voucher.unlockedAt).toLocaleDateString() : ""}
+          </span>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-black text-gray-900 leading-snug">{voucher.title}</h3>
+          <p className="text-gray-500 text-xs mt-1 leading-relaxed">{voucher.description}</p>
+        </div>
+      </div>
+
+      {/* Dotted Divider line */}
+      <div className="border-t border-dashed border-gray-200 dark:border-gray-800 relative mx-6" />
+
+      {/* Bottom section with Code and Copy */}
+      <div className="p-6 bg-gray-50/50 dark:bg-gray-900/10 flex items-center justify-between gap-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 px-3.5 py-2 rounded-xl font-mono text-xs font-bold text-gray-800 tracking-wider">
+          {voucher.code}
+        </div>
+        <button
+          onClick={handleCopy}
+          className={`flex items-center gap-1.5 font-black uppercase text-[10px] tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer ${
+            copied
+              ? "bg-green-600 text-white"
+              : "bg-gray-900 hover:bg-orange-600 text-white"
+          }`}
+        >
+          {copied ? (
+            <>
+              <Check size={12} />
+              <span>{language === "sw" ? "Imenakiliwa" : "Copied"}</span>
+            </>
+          ) : (
+            <>
+              <Copy size={12} />
+              <span>{language === "sw" ? "Nakili" : "Copy"}</span>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface ProfileProps {
   user: UserProfile | null;
 }
@@ -24,7 +90,7 @@ export default function Profile({ user }: ProfileProps) {
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [timeFilter, setTimeFilter] = useState<"this-month" | "last-12-months" | "specific-month">("this-month");
-  const [profileTab, setProfileTab] = useState<"orders" | "seller" | "settings">("orders");
+  const [profileTab, setProfileTab] = useState<"orders" | "vouchers" | "seller" | "settings">("orders");
   const { t, language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
   const { currency, setCurrency } = useCurrency();
@@ -506,10 +572,10 @@ export default function Profile({ user }: ProfileProps) {
       </div>
 
       {/* Sub Profile Navigation Tabs */}
-      <div className="flex border-b border-gray-200 gap-4">
+      <div className="flex border-b border-gray-200 gap-2 sm:gap-4 overflow-x-auto scrollbar-none select-none">
         <button
           onClick={() => setProfileTab("orders")}
-          className={`flex items-center gap-2 px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer whitespace-nowrap ${
             profileTab === "orders"
               ? "border-orange-600 text-orange-600"
               : "border-transparent text-gray-400 hover:text-gray-900"
@@ -519,8 +585,19 @@ export default function Profile({ user }: ProfileProps) {
           {t("Order History")}
         </button>
         <button
+          onClick={() => setProfileTab("vouchers")}
+          className={`flex items-center gap-2 px-4 sm:px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+            profileTab === "vouchers"
+              ? "border-orange-600 text-orange-600"
+              : "border-transparent text-gray-400 hover:text-gray-900"
+          }`}
+        >
+          <Gift size={16} />
+          {language === "sw" ? "Vocha Zangu" : "My Vouchers"}
+        </button>
+        <button
           onClick={() => setProfileTab("seller")}
-          className={`flex items-center gap-2 px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer whitespace-nowrap ${
             profileTab === "seller"
               ? "border-orange-600 text-orange-600"
               : "border-transparent text-gray-400 hover:text-gray-900"
@@ -531,7 +608,7 @@ export default function Profile({ user }: ProfileProps) {
         </button>
         <button
           onClick={() => setProfileTab("settings")}
-          className={`flex items-center gap-2 px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer whitespace-nowrap ${
             profileTab === "settings"
               ? "border-orange-600 text-orange-600"
               : "border-transparent text-gray-400 hover:text-gray-900"
@@ -542,7 +619,56 @@ export default function Profile({ user }: ProfileProps) {
         </button>
       </div>
 
-      {profileTab === "orders" ? (
+      {profileTab === "vouchers" ? (
+        <div className="space-y-8 animate-fade-in mt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 flex items-center">
+                <Gift className="mr-3 text-orange-600" size={30} />
+                {language === "sw" ? "Vocha Zangu Amilifu" : "My Active Vouchers"}
+              </h2>
+              <p className="text-gray-500 text-sm font-medium mt-1">
+                {language === "sw"
+                  ? "Tumia vocha hizi wakati wa kulipia ili kupata punguzo la kipekee."
+                  : "Apply these vouchers during checkout to receive exclusive discounts."}
+              </p>
+            </div>
+            <div className="text-sm font-bold text-orange-600 uppercase tracking-wider bg-orange-50 dark:bg-orange-950/20 px-4 py-2 rounded-full self-start sm:self-center">
+              {language === "sw"
+                ? `${user?.vouchers?.filter((v: any) => v.status === "active").length || 0} Amilifu`
+                : `${user?.vouchers?.filter((v: any) => v.status === "active").length || 0} Active`}
+            </div>
+          </div>
+
+          {!user?.vouchers || user.vouchers.filter((v: any) => v.status === "active").length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-gray-150 shadow-sm max-w-md mx-auto space-y-4 my-8">
+              <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 mx-auto">
+                <Gift size={28} />
+              </div>
+              <h3 className="text-xl font-black text-gray-900">{language === "sw" ? "Hakuna vocha amilifu" : "No active vouchers"}</h3>
+              <p className="text-gray-500 text-sm font-medium">
+                {language === "sw"
+                  ? "Bado huna vocha zozote amilifu. Ununue bidhaa upate nafasi ya kufungua sanduku la siri!"
+                  : "You don't have any active vouchers yet. Place orders to unlock mystery box rewards!"}
+              </p>
+              <Link
+                to="/"
+                className="inline-block bg-orange-600 hover:bg-orange-700 text-white font-extrabold px-6 py-3 rounded-2xl text-sm transition-all shadow-md shadow-orange-100 cursor-pointer"
+              >
+                {t("Start Shopping")}
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+              {user.vouchers
+                .filter((v: any) => v.status === "active")
+                .map((voucher: any, index: number) => (
+                  <VoucherCard key={`${voucher.id}-${index}`} voucher={voucher} language={language} />
+                ))}
+            </div>
+          )}
+        </div>
+      ) : profileTab === "orders" ? (
         <>
           {/* Device Notifications Setup */}
       <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">

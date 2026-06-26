@@ -209,6 +209,7 @@ const swahiliOverrideMap: Record<string, string> = {
   "all products": "Bidhaa Zote Safi",
   "best sellers": "Zinazouzwa Sana",
   "market stories": "Hadithi za Soko",
+  "find a job": "Pata Kazi",
   "support": "Msaada & Huduma",
   "track order": "Fuatilia Mzigo wako",
   "revlon plaza, biashara street,": "Jengo la Revlon Plaza, Mtaa wa Biashara,",

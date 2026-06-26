@@ -37,6 +37,20 @@ export interface CartItem {
   sellerName?: string;
 }
 
+export interface Voucher {
+  id: string;
+  title: string;
+  badge: string;
+  description: string;
+  code: string;
+  icon: string;
+  color: string;
+  bgGradient: string;
+  unlockedAt: string;
+  orderId: string;
+  status: "active" | "used" | "redeemed";
+}
+
 export interface UserProfile {
   uid: string;
   email?: string | null;
@@ -47,6 +61,7 @@ export interface UserProfile {
   isAdmin?: boolean;
   emailVerified: boolean;
   photoURL?: string | null;
+  vouchers?: Voucher[];
 }
 
 export interface Order {

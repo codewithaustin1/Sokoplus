@@ -301,7 +301,8 @@ export default function App() {
               wishlist: data.wishlist || [],
               isAdmin,
               emailVerified: fbUser.emailVerified,
-              photoURL: data.photoURL || fbUser.photoURL || null
+              photoURL: data.photoURL || fbUser.photoURL || null,
+              vouchers: data.vouchers || []
             });
           } else {
             // Document might not exist yet if just signed up, wait for Login page to create it
@@ -314,7 +315,8 @@ export default function App() {
               wishlist: [],
               isAdmin,
               emailVerified: fbUser.emailVerified,
-              photoURL: fbUser.photoURL || null
+              photoURL: fbUser.photoURL || null,
+              vouchers: []
             });
           }
           setLoading(false);

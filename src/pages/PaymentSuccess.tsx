@@ -8,6 +8,7 @@ import { db, auth } from "../lib/firebase";
 import { motion } from "motion/react";
 import { trackEvent } from "../lib/analytics";
 import QRCode from "qrcode";
+import MysteryBox from "../components/MysteryBox";
 
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
@@ -15,6 +16,7 @@ export default function PaymentSuccess() {
   const [pointsEarned, setPointsEarned] = useState<number>(0);
   const [orderReceiptId, setOrderReceiptId] = useState<string>("");
   const [orderId, setOrderId] = useState<string>("");
+  const [buyerId, setBuyerId] = useState<string>("");
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   const { clearCart } = useCart();
   const reference = searchParams.get("reference");
@@ -41,6 +43,9 @@ export default function PaymentSuccess() {
             setPointsEarned(calculatedPoints);
             setOrderReceiptId(orderDoc.id.slice(0, 8).toUpperCase());
             setOrderId(orderDoc.id);
+            if (orderData.userId) {
+              setBuyerId(orderData.userId);
+            }
 
             // Prevent double-processing
             if (orderData.paymentStatus === "paid") {
@@ -203,6 +208,10 @@ export default function PaymentSuccess() {
         <p className="text-gray-500 dark:text-gray-400 text-xl font-medium max-w-md mx-auto leading-relaxed">
           Your payment was successful and your order #{orderReceiptId || (reference || "").slice(-6).toUpperCase()} is now being processed.
         </p>
+      </div>
+
+      <div className="w-full max-w-xl mx-auto">
+        <MysteryBox userId={buyerId || auth.currentUser?.uid} orderId={orderId} />
       </div>
 
       <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border-2 border-gray-50 dark:border-gray-800 shadow-2xl shadow-orange-100/50 dark:shadow-none space-y-6 max-w-sm w-full">
