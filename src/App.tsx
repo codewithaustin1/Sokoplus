@@ -303,7 +303,14 @@ export default function App() {
               isAdmin,
               emailVerified: fbUser.emailVerified,
               photoURL: data.photoURL || fbUser.photoURL || null,
-              vouchers: data.vouchers || []
+              vouchers: (data.vouchers || []).filter((v: any) => {
+                if (!v.unlockedAt) return true;
+                const unlockedTime = new Date(v.unlockedAt).getTime();
+                if (isNaN(unlockedTime)) return true;
+                const diffTime = new Date().getTime() - unlockedTime;
+                const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                return diffDays <= 21;
+              })
             });
           } else {
             // Document might not exist yet if just signed up, wait for Login page to create it

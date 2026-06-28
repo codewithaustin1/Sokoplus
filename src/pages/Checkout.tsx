@@ -145,13 +145,13 @@ export default function Checkout({ user }: CheckoutProps) {
         });
         setVoucherSuccess("🎉 Voucher applied: KES 500 Shopping Discount!");
         toast.success("Voucher applied: KES 500 Discount!");
-      } else if (cleanCode === "SOKO-MULTIPLY-1.5X") {
+      } else if (cleanCode === "SOKO-POINTS-MULTIPLY") {
         setAppliedVoucher({
           id: "points-multiplier",
           title: "1.5x Loyalty Points Multiplier",
-          badge: "POINTS ACCELERATOR",
-          description: "Receive 1.5x more loyalty reward points on any trusted shop item.",
-          code: "SOKO-MULTIPLY-1.5X"
+          badge: "LOYALTY BOOST",
+          description: "Earn 1.5 times the loyalty points on your next purchase!",
+          code: "SOKO-POINTS-MULTIPLY"
         });
         setVoucherSuccess("🎉 Voucher applied: 1.5x Loyalty Points!");
         toast.success("Voucher applied: 1.5x Loyalty Points!");
@@ -820,7 +820,19 @@ export default function Checkout({ user }: CheckoutProps) {
                                   {voucher.title}
                                 </p>
                               </div>
-                              <Plus size={10} className="text-gray-400 group-hover:text-orange-600 shrink-0" />
+                              <div className="flex items-center gap-2">
+                                {voucher.unlockedAt && (
+                                  <span className="text-[8px] bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-extrabold px-1.5 py-0.5 rounded">
+                                    {(() => {
+                                      const expiry = new Date(new Date(voucher.unlockedAt).getTime() + 21 * 24 * 60 * 60 * 1000);
+                                      const diff = expiry.getTime() - new Date().getTime();
+                                      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                                      return `${days > 0 ? days : 0}d left`;
+                                    })()}
+                                  </span>
+                                )}
+                                <Plus size={10} className="text-gray-400 group-hover:text-orange-600 shrink-0" />
+                              </div>
                             </button>
                           ))}
                       </div>

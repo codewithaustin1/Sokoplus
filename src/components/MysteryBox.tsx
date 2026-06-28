@@ -35,9 +35,9 @@ const REWARDS_POOL: Reward[] = [
   {
     id: "points-multiplier",
     title: "1.5x Loyalty Points Multiplier",
-    badge: "POINTS ACCELERATOR",
-    description: "Receive 1.5x more loyalty reward points on any trusted shop item.",
-    code: "SOKO-MULTIPLY-1.5X",
+    badge: "LOYALTY BOOST",
+    description: "Earn 1.5 times the loyalty points on your next purchase!",
+    code: "SOKO-POINTS-MULTIPLY",
     icon: "points",
     color: "from-amber-500 to-orange-500",
     bgGradient: "bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/10"
@@ -63,6 +63,24 @@ const REWARDS_POOL: Reward[] = [
     bgGradient: "bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/10"
   }
 ];
+
+function getVoucherBgImage(voucherId: string, code: string): string {
+  const id = (voucherId || "").toLowerCase();
+  const c = (code || "").toLowerCase();
+  if (id.includes("shipping") || c.includes("ship")) {
+    return "/free_shipping_voucher.jpg"; // premium shipping voucher card recreated design
+  }
+  if (id.includes("points") || c.includes("multiply")) {
+    return "/loyalty_points_voucher.jpg"; // premium loyalty points background
+  }
+  if (id.includes("voucher") || c.includes("vouch")) {
+    return "/cash_voucher_bg.jpg"; // premium cash voucher background design
+  }
+  if (id.includes("pass") || c.includes("vip") || id.includes("artisan")) {
+    return "/artisan_pass_bg.jpg"; // premium VIP artisan pass background design
+  }
+  return "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=600&auto=format&fit=crop"; // general fallback workbench
+}
 
 export default function MysteryBox({ userId, orderId }: MysteryBoxProps) {
   const [selectedBox, setSelectedBox] = useState<number | null>(null);
@@ -295,76 +313,92 @@ export default function MysteryBox({ userId, orderId }: MysteryBoxProps) {
             </motion.div>
           ) : (
             /* REVEALED PRIZE CARD */
-            <motion.div
-              key="prize-reveal"
-              initial={{ opacity: 0, scale: 0.9, y: 30 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 200, damping: 18 }}
-              className={`w-full ${revealedReward?.bgGradient} p-6 sm:p-8 rounded-[2.5rem] border border-gray-150 dark:border-gray-800 text-center flex flex-col items-center space-y-6 shadow-2xl relative overflow-hidden`}
-            >
-              {/* Shiny Ambient Sparkles Backdrop */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(249,115,22,0.06),transparent_60%)] pointer-events-none" />
+            (() => {
+              const isShipping = (revealedReward?.id || "").toLowerCase().includes("shipping") || (revealedReward?.code || "").toLowerCase().includes("ship");
+              const isPoints = (revealedReward?.id || "").toLowerCase().includes("points") || (revealedReward?.code || "").toLowerCase().includes("multiply");
+              const isGift = (revealedReward?.id || "").toLowerCase().includes("voucher") || (revealedReward?.code || "").toLowerCase().includes("vouch");
+              const isPass = (revealedReward?.id || "").toLowerCase().includes("pass") || (revealedReward?.code || "").toLowerCase().includes("vip") || (revealedReward?.id || "").toLowerCase().includes("artisan");
+              const isPremiumBg = isShipping || isPoints || isGift || isPass;
+              return (
+                <motion.div
+                  key="prize-reveal"
+                  initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 18 }}
+                  className="w-full bg-gray-950 p-6 sm:p-8 rounded-[2.5rem] border border-gray-800 text-center flex flex-col items-center space-y-6 shadow-2xl relative overflow-hidden text-white"
+                >
+                  {/* Background Image with Overlay */}
+                  <div 
+                    className={`absolute inset-0 bg-cover bg-center ${isPremiumBg ? "opacity-60" : "opacity-25 mix-blend-luminosity"} animate-pulse pointer-events-none`} 
+                    style={{ backgroundImage: `url(${getVoucherBgImage(revealedReward?.id || "", revealedReward?.code || "")})` }}
+                  />
+                  <div className={`absolute inset-0 bg-gradient-to-b ${isPremiumBg ? "from-gray-950/50 via-gray-950/70 to-gray-950/92" : "from-gray-950/80 via-gray-950/85 to-gray-950/98"} pointer-events-none z-0`} />
 
-              {/* Reward Icon Wrapper */}
-              <motion.div
-                initial={{ scale: 0, rotate: -45 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 0.15, type: "spring", stiffness: 300 }}
-                className={`p-5 rounded-3xl bg-gradient-to-br ${revealedReward?.color} text-white shadow-xl shadow-orange-500/10 flex items-center justify-center shrink-0`}
-              >
-                {revealedReward?.icon === "truck" && <Truck size={36} className="animate-pulse" />}
-                {revealedReward?.icon === "points" && <Percent size={36} className="animate-pulse" />}
-                {revealedReward?.icon === "gift" && <Gift size={36} className="animate-pulse" />}
-                {revealedReward?.icon === "star" && <Star size={36} className="animate-pulse" fill="currentColor" />}
-              </motion.div>
+                  {/* Shiny Ambient Sparkles Backdrop */}
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(249,115,22,0.15),transparent_60%)] pointer-events-none z-0" />
 
-              {/* Title & Badge */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 px-3 py-1 bg-orange-100/50 dark:bg-orange-950/40 rounded-full">
-                  {revealedReward?.badge}
-                </span>
-                <h3 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight">
-                  {revealedReward?.title}
-                </h3>
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium px-4 leading-relaxed max-w-sm mx-auto">
-                  {revealedReward?.description}
-                </p>
-              </div>
-
-              {/* Copyable Promo Code block */}
-              <div className="w-full max-w-sm space-y-2">
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest text-left pl-1">
-                  Claim Code
-                </p>
-                <div className="bg-white dark:bg-gray-950 p-2 rounded-2xl border border-gray-150 dark:border-gray-850 flex items-center justify-between shadow-inner">
-                  <span className="font-mono text-xs sm:text-sm font-black text-gray-800 dark:text-gray-100 select-all pl-3">
-                    {revealedReward?.code}
-                  </span>
-                  <button
-                    onClick={copyCode}
-                    className="bg-gray-900 dark:bg-gray-800 text-white hover:bg-orange-600 dark:hover:bg-orange-600 px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  {/* Reward Icon Wrapper */}
+                  <motion.div
+                    initial={{ scale: 0, rotate: -45 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ delay: 0.15, type: "spring", stiffness: 300 }}
+                    className={`p-5 rounded-3xl bg-gradient-to-br ${revealedReward?.color} text-white shadow-xl shadow-orange-500/10 flex items-center justify-center shrink-0 relative z-10`}
                   >
-                    {copied ? (
-                      <>
-                        <Check size={14} className="stroke-[3]" /> Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={14} /> Copy
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
+                    {revealedReward?.icon === "truck" && <Truck size={36} className="animate-pulse" />}
+                    {revealedReward?.icon === "points" && <Percent size={36} className="animate-pulse" />}
+                    {revealedReward?.icon === "gift" && <Gift size={36} className="animate-pulse" />}
+                    {revealedReward?.icon === "star" && <Star size={36} className="animate-pulse" fill="currentColor" />}
+                  </motion.div>
 
-              {/* User Sync Status feedback line */}
-              <div className="text-[11px] text-gray-400 dark:text-gray-500 font-bold flex items-center gap-1">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                {userId 
-                  ? "Voucher added to your personal profile wallet" 
-                  : "Saved locally — log in to sync dynamically"}
-              </div>
-            </motion.div>
+                  {/* Title & Badge */}
+                  <div className="space-y-2 relative z-10">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-orange-400 px-3 py-1 bg-orange-550/15 border border-orange-500/25 rounded-full backdrop-blur-md">
+                      {revealedReward?.badge}
+                    </span>
+                    <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
+                      {revealedReward?.title}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-gray-300 font-medium px-4 leading-relaxed max-w-sm mx-auto">
+                      {revealedReward?.description}
+                    </p>
+                  </div>
+
+                  {/* Copyable Promo Code block */}
+                  <div className="w-full max-w-sm space-y-2 relative z-10">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-left pl-1">
+                      Claim Code
+                    </p>
+                    <div className="bg-gray-950/60 p-2 rounded-2xl border border-white/10 flex items-center justify-between shadow-inner backdrop-blur-md">
+                      <span className="font-mono text-xs sm:text-sm font-black text-orange-300 select-all pl-3">
+                        {revealedReward?.code}
+                      </span>
+                      <button
+                        onClick={copyCode}
+                        className="bg-orange-600 text-white hover:bg-orange-500 px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-orange-950/40"
+                      >
+                        {copied ? (
+                          <>
+                            <Check size={14} className="stroke-[3]" /> Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={14} /> Copy
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* User Sync Status feedback line */}
+                  <div className="text-[11px] text-gray-400 font-bold flex items-center gap-1 relative z-10">
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                    {userId 
+                      ? "Voucher added to your personal profile wallet" 
+                      : "Saved locally — log in to sync dynamically"}
+                  </div>
+                </motion.div>
+              );
+            })()
           )}
         </AnimatePresence>
       </div>

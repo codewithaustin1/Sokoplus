@@ -15,6 +15,24 @@ import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
 import SellerStudio from "../components/SellerStudio";
 
+function getVoucherBgImage(voucherId: string, code: string): string {
+  const id = (voucherId || "").toLowerCase();
+  const c = (code || "").toLowerCase();
+  if (id.includes("shipping") || c.includes("ship")) {
+    return "/free_shipping_voucher.jpg"; // premium shipping voucher card recreated design
+  }
+  if (id.includes("points") || c.includes("multiply")) {
+    return "/loyalty_points_voucher.jpg"; // premium loyalty points background
+  }
+  if (id.includes("voucher") || c.includes("vouch")) {
+    return "/cash_voucher_bg.jpg"; // premium cash voucher background design
+  }
+  if (id.includes("pass") || c.includes("vip") || id.includes("artisan")) {
+    return "/artisan_pass_bg.jpg"; // premium VIP artisan pass background design
+  }
+  return "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=600&auto=format&fit=crop"; // general fallback workbench
+}
+
 function VoucherCard({ voucher, language }: { voucher: Voucher; language: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -25,48 +43,89 @@ function VoucherCard({ voucher, language }: { voucher: Voucher; language: string
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const bgImage = getVoucherBgImage(voucher.id, voucher.code);
+  const isShipping = (voucher.id || "").toLowerCase().includes("shipping") || (voucher.code || "").toLowerCase().includes("ship");
+  const isPoints = (voucher.id || "").toLowerCase().includes("points") || (voucher.code || "").toLowerCase().includes("multiply");
+  const isGift = (voucher.id || "").toLowerCase().includes("voucher") || (voucher.code || "").toLowerCase().includes("vouch");
+  const isPass = (voucher.id || "").toLowerCase().includes("pass") || (voucher.code || "").toLowerCase().includes("vip") || (voucher.id || "").toLowerCase().includes("artisan");
+  const isPremiumBg = isShipping || isPoints || isGift || isPass;
+
   return (
-    <div className="relative bg-white dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+    <div className="group relative bg-gray-950 border border-gray-800/80 rounded-3xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between min-h-[220px]">
+      {/* Background Image with Overlay */}
+      <div 
+        className={`absolute inset-0 bg-cover bg-center ${isPremiumBg ? "opacity-60" : "opacity-30 mix-blend-luminosity"} group-hover:scale-105 group-hover:opacity-75 transition-all duration-700 pointer-events-none`} 
+        style={{ backgroundImage: `url(${bgImage})` }}
+      />
+      {/* Premium dark gradient overlay for text legibility */}
+      <div className={`absolute inset-0 bg-gradient-to-b ${isPremiumBg ? "from-gray-950/50 via-gray-950/70 to-gray-950/92" : "from-gray-950/75 via-gray-950/85 to-gray-950/98"} pointer-events-none z-0`} />
+
       {/* Ticket Cutouts */}
-      <div className="absolute top-1/2 -left-3 w-6 h-6 bg-gray-50 dark:bg-gray-900 border-r border-gray-150 dark:border-gray-800 rounded-full -translate-y-1/2 z-10" />
-      <div className="absolute top-1/2 -right-3 w-6 h-6 bg-gray-50 dark:bg-gray-900 border-l border-gray-150 dark:border-gray-800 rounded-full -translate-y-1/2 z-10" />
+      <div className="absolute top-1/2 -left-3 w-6 h-6 bg-gray-50 dark:bg-gray-900 border-r border-gray-850 dark:border-gray-800 rounded-full -translate-y-1/2 z-10 pointer-events-none" />
+      <div className="absolute top-1/2 -right-3 w-6 h-6 bg-gray-50 dark:bg-gray-900 border-l border-gray-850 dark:border-gray-800 rounded-full -translate-y-1/2 z-10 pointer-events-none" />
 
       {/* Top Section */}
-      <div className="p-6 space-y-4">
+      <div className="p-6 space-y-4 relative z-10">
         <div className="flex justify-between items-start">
-          <span className="text-[10px] font-black uppercase tracking-wider bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full border border-orange-100">
+          <span className="text-[10px] font-black uppercase tracking-wider bg-orange-500/15 text-orange-400 px-2.5 py-1 rounded-full border border-orange-500/25 backdrop-blur-md">
             {voucher.badge}
           </span>
-          <span className="text-[10px] font-bold text-gray-400">
-            {voucher.unlockedAt ? new Date(voucher.unlockedAt).toLocaleDateString() : ""}
-          </span>
+          {voucher.unlockedAt && (
+            <span 
+              className="text-[10px] font-bold text-gray-400 flex flex-col items-end"
+              title={(() => {
+                const expiry = new Date(new Date(voucher.unlockedAt).getTime() + 21 * 24 * 60 * 60 * 1000);
+                return language === "sw" 
+                  ? `Muda unaisha: ${expiry.toLocaleDateString()}` 
+                  : `Expires: ${expiry.toLocaleDateString()}`;
+              })()}
+            >
+              <span className="text-orange-400 font-black animate-pulse">
+                {(() => {
+                  const expiry = new Date(new Date(voucher.unlockedAt).getTime() + 21 * 24 * 60 * 60 * 1000);
+                  const diff = expiry.getTime() - new Date().getTime();
+                  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                  return language === "sw" 
+                    ? `Zimesalia siku ${days > 0 ? days : 0}` 
+                    : `${days > 0 ? days : 0} days left`;
+                })()}
+              </span>
+              <span className="text-[8px] text-gray-500 mt-0.5">
+                {language === "sw" ? "Hadi " : "Until "}{new Date(new Date(voucher.unlockedAt).getTime() + 21 * 24 * 60 * 60 * 1000).toLocaleDateString()}
+              </span>
+            </span>
+          )}
         </div>
 
         <div>
-          <h3 className="text-lg font-black text-gray-900 leading-snug">{voucher.title}</h3>
-          <p className="text-gray-500 text-xs mt-1 leading-relaxed">{voucher.description}</p>
+          <h3 className="text-lg font-black text-white leading-snug group-hover:text-orange-400 transition-colors duration-300">
+            {voucher.title}
+          </h3>
+          <p className="text-gray-300 text-xs mt-1 leading-relaxed">
+            {voucher.description}
+          </p>
         </div>
       </div>
 
       {/* Dotted Divider line */}
-      <div className="border-t border-dashed border-gray-200 dark:border-gray-800 relative mx-6" />
+      <div className="border-t border-dashed border-gray-800/80 relative mx-6 z-10 pointer-events-none" />
 
       {/* Bottom section with Code and Copy */}
-      <div className="p-6 bg-gray-50/50 dark:bg-gray-900/10 flex items-center justify-between gap-4">
-        <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 px-3.5 py-2 rounded-xl font-mono text-xs font-bold text-gray-800 tracking-wider">
+      <div className="p-6 bg-gray-950/40 relative z-10 flex items-center justify-between gap-4">
+        <div className="bg-white/5 border border-white/10 px-3.5 py-2 rounded-xl font-mono text-xs font-bold text-orange-300 tracking-wider backdrop-blur-md">
           {voucher.code}
         </div>
         <button
           onClick={handleCopy}
           className={`flex items-center gap-1.5 font-black uppercase text-[10px] tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer ${
             copied
-              ? "bg-green-600 text-white"
-              : "bg-gray-900 hover:bg-orange-600 text-white"
+              ? "bg-green-600 text-white shadow-lg shadow-green-900/35"
+              : "bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-950/40"
           }`}
         >
           {copied ? (
             <>
-              <Check size={12} />
+              <Check size={12} className="stroke-[3]" />
               <span>{language === "sw" ? "Imenakiliwa" : "Copied"}</span>
             </>
           ) : (
