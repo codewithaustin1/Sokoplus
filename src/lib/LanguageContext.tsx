@@ -160,6 +160,25 @@ const translations: Record<Language, Record<string, string>> = {
 };
 
 const swahiliOverrideMap: Record<string, string> = {
+  "share wishlist": "Sambaza Vipendavyo",
+  "share your wishlist": "Sambaza vipendavyo vyako",
+  "share on whatsapp": "Sambaza kwenye WhatsApp",
+  "share on facebook": "Sambaza kwenye Facebook",
+  "share on twitter": "Sambaza kwenye Twitter",
+  "share on telegram": "Sambaza kwenye Telegram",
+  "share via email": "Sambaza kwa Barua pepe",
+  "copied!": "Imenakiliwa!",
+  "close": "Funga",
+  "generating link...": "Inatengeneza Kiungo...",
+  "wishlist link copied to clipboard!": "Kiungo cha vipendavyo kimenakiliwa!",
+  "failed to generate shareable link. please try again.": "Imeshindwa kutengeneza kiungo. Tafadhali jaribu tena.",
+  "your wishlist is ready to share!": "Orodha yako ya vipendavyo iko tayari kusambazwa!",
+  "anyone with this unique link can view your curated collection and add items to their cart.": "Yeyote aliye na kiungo hiki anaweza kuona bidhaa zako na kuziweka kwenye kikapu.",
+  "copy link": "Nakili Kiungo",
+  "explore these handpicked artisan crafts saved by a sokoplus user. ready to add them to your cart?": "Gundua kazi hizi za mikono zilizohifadhiwa na mtumiaji wa SokoPlus. Je, uko tayari kuziweka kwenye kikapu chako?",
+  "love these selections?": "Je, umependa bidhaa hizi?",
+  "join sokoplus today to create your own personalized wishlists, discover unique local crafts, and support brilliant artisans across the region.": "Jiunge na SokoPlus leo utengeneze orodha zako za vipendavyo, ugundue kazi za kipekee, na usaidie wasanii hodari kote nchini.",
+  "explore marketplace": "Gundua Soko",
   // Simple words and phrases
   "recommended for you": "Zilizopendekezwa kwa Ajili Yako",
   "personalized for you": "Kulingana na Mapendezi Yako",

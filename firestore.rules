@@ -345,5 +345,14 @@ service cloud.firestore {
       allow update: if (isOwner(sellerId) && isValidSeller(incoming())) || isAdmin();
       allow delete: if isAdmin();
     }
+
+    // Shared Wishlists
+    match /shared_wishlists/{wishlistId} {
+      allow read: if true;
+      allow create: if isSignedIn() && 
+                    request.resource.data.productIds is list && 
+                    request.resource.data.productIds.size() > 0;
+      allow update, delete: if false; // Immutable after creation
+    }
   }
 }

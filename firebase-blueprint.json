@@ -311,6 +311,17 @@
         "rejectedReason": { "type": "string" }
       },
       "required": ["shopName", "description", "location", "phone", "status"]
+    },
+    "SharedWishlist": {
+      "title": "SharedWishlist",
+      "description": "A wishlist shared by a user with a unique link.",
+      "type": "object",
+      "properties": {
+        "productIds": { "type": "array", "description": "Array of product IDs saved in the shared wishlist." },
+        "ownerName": { "type": "string", "description": "The public name of the wishlist owner." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productIds"]
     }
   },
   "firestore": {
@@ -393,6 +404,10 @@
     "/sellers": {
       "schema": "SellerProfile",
       "description": "Registered third-party artisan or merchant profiles."
+    },
+    "/shared_wishlists": {
+      "schema": "SharedWishlist",
+      "description": "Publicly readable shared wishlists."
     }
   }
 }

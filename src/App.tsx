@@ -16,6 +16,7 @@ import { ProductCompareDrawer } from "./components/ProductCompareDrawer";
 import Home from "./pages/Home";
 import ProductDetails from "./pages/ProductDetails";
 import Wishlist from "./pages/Wishlist";
+import SharedWishlist from "./pages/SharedWishlist";
 import Profile from "./pages/Profile";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
@@ -383,6 +384,7 @@ export default function App() {
                   <Route path="/" element={<Home user={user} />} />
                   <Route path="/product/:id" element={<ProductDetails user={user} />} />
                   <Route path="/wishlist" element={<Wishlist user={user} />} />
+                  <Route path="/wishlist/shared/:shareId" element={<SharedWishlist />} />
                   <Route path="/profile" element={<Profile user={user} />} />
                   <Route path="/cart" element={<Cart />} />
                   <Route path="/checkout" element={<Checkout user={user} />} />
