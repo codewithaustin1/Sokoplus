@@ -166,6 +166,8 @@ const swahiliOverrideMap: Record<string, string> = {
   "share on facebook": "Sambaza kwenye Facebook",
   "share on twitter": "Sambaza kwenye Twitter",
   "share on telegram": "Sambaza kwenye Telegram",
+  "share on tiktok": "Sambaza kwenye TikTok",
+  "wishlist link copied! paste it in your tiktok bio or dm.": "Kiungo cha vipendavyo kimenakiliwa! Kibandike kwenye wasifu wa TikTok au DM.",
   "share via email": "Sambaza kwa Barua pepe",
   "copied!": "Imenakiliwa!",
   "close": "Funga",
