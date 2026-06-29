@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sokoplus | Premier Kenyan E-commerce Marketplace</title>
     <link rel="icon" type="image/png" href="/src/assets/images/sokoplus_favicon_1780371572074.png" />
+    <script>
+      (function() {
+        try {
+          const lastUserUid = localStorage.getItem("sokoplus_last_user_uid");
+          let theme = "light";
+          if (lastUserUid) {
+            theme = localStorage.getItem("sokoplus_theme_" + lastUserUid) || localStorage.getItem("sokoplus_theme") || "light";
+          } else {
+            theme = localStorage.getItem("sokoplus_theme") || "light";
+          }
+          if (theme === "dark") {
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

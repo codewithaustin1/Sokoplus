@@ -23,6 +23,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           return saved;
         }
       }
+      const generic = localStorage.getItem("sokoplus_theme");
+      if (generic === "light" || generic === "dark") {
+        return generic;
+      }
     }
     return "light";
   });
