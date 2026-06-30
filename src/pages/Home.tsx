@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs, limit, query, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -16,7 +16,7 @@ import EmptyState from "../components/EmptyState";
 import MarketingBanner from "../components/MarketingBanner";
 import PromotionalBanner from "../components/PromotionalBanner";
 import { trackEvent } from "../lib/analytics";
-import heroImage from "../assets/images/kenyan_market_hero_1779469825593.png";
+import heroImage from "../assets/images/sokoplus_hero_bg_1782815259030.jpg";
 import { FastImage } from "../components/FastImage";
 import ProductCardSkeleton from "../components/ProductCardSkeleton";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
@@ -32,8 +32,8 @@ export default function Home({ user }: HomeProps) {
   const { language, t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [heroImageUrl, setHeroImageUrl] = useState<string>("");
-  const [heroBadgeText, setHeroBadgeText] = useState<string>("Vetted excellence");
-  const [heroHeadingText, setHeroHeadingText] = useState<string>("Authentic & Trusted Goods");
+  const [heroImageUrls, setHeroImageUrls] = useState<string[]>([]);
+  const [currentSlide, setCurrentSlide] = useState<number>(0);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -318,16 +318,14 @@ export default function Home({ user }: HomeProps) {
         if (settingsSnap.exists()) {
           const settingsData = settingsSnap.data();
           const newImg = settingsData.heroImageUrl || "";
-          const newBadge = settingsData.heroBadgeText || "Vetted excellence";
-          const newHeading = settingsData.heroHeadingText || "Authentic & Trusted Goods";
+          const newImgs = settingsData.heroImageUrls || [];
           
           await saveHomepageSettings("hero", {
             heroImageUrl: newImg,
-            heroBadgeText: newBadge,
-            heroHeadingText: newHeading
+            heroImageUrls: newImgs
           });
 
-          return { heroImageUrl: newImg, heroBadgeText: newBadge, heroHeadingText: newHeading };
+          return { heroImageUrl: newImg, heroImageUrls: newImgs };
         }
       } catch (err) {
         console.warn("Could not retrieve homepage settings:", err);
@@ -469,10 +467,27 @@ export default function Home({ user }: HomeProps) {
   useEffect(() => {
     if (heroSettings) {
       if (heroSettings.heroImageUrl) setHeroImageUrl(heroSettings.heroImageUrl);
-      if (heroSettings.heroBadgeText) setHeroBadgeText(heroSettings.heroBadgeText);
-      if (heroSettings.heroHeadingText) setHeroHeadingText(heroSettings.heroHeadingText);
+      if (heroSettings.heroImageUrls) setHeroImageUrls(heroSettings.heroImageUrls);
     }
   }, [heroSettings]);
+
+  const slides = useMemo(() => {
+    if (heroImageUrls && heroImageUrls.length > 0) {
+      return heroImageUrls;
+    }
+    if (heroImageUrl) {
+      return [heroImageUrl];
+    }
+    return [heroImage];
+  }, [heroImageUrls, heroImageUrl]);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [slides]);
 
   useEffect(() => {
     setLoading(isQueryLoading);
@@ -588,71 +603,89 @@ export default function Home({ user }: HomeProps) {
       />
       <MarketingBanner />
       {/* Hero Section */}
-      <section className="relative bg-white dark:bg-gray-950 py-20 px-4 sm:px-6 lg:px-8 border-b border-gray-100 dark:border-gray-900/50 overflow-hidden transition-colors duration-200">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="md:w-1/2 space-y-6 z-10"
-          >
-            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 dark:text-white leading-tight">
-              {language === "sw" ? "Bidhaa Bora." : "Better Products."} <br/>
-              <span className="text-orange-600 underline decoration-orange-200">
-                {language === "sw" ? "Bei Bora zaidi." : "Better Prices."}
-              </span>
-            </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-350 max-w-lg font-medium">
-              {t("heroSubtitle")}
-            </p>
-
-
-
-            <div className="flex space-x-4">
-              <button 
-                onClick={scrollToProducts}
-                className="bg-orange-600 text-white px-8 py-4 rounded-full font-bold hover:bg-orange-700 transition-all flex items-center font-sans cursor-pointer"
-              >
-                {t("shopCollect")} <ArrowRight className="ml-2" size={20} />
-              </button>
-              <button 
-                onClick={() => setShowMission(true)}
-                className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-800 px-8 py-4 rounded-full font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all font-sans cursor-pointer"
-              >
-                {t("learnStory")}
-              </button>
-            </div>
-          </motion.div>
-          
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="md:w-1/2 mt-12 md:mt-0 relative"
-          >
-            <div className="w-80 h-80 md:w-[450px] md:h-[450px] bg-orange-200/40 dark:bg-orange-950/20 rounded-full blur-3xl absolute -top-10 -right-10 opacity-50"></div>
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl border-8 border-white dark:border-gray-900 bg-white dark:bg-gray-900 aspect-square">
-               <img
-                 src={heroImageUrl || heroImage}
-                 alt="Authentic Kenyan Crafts & Products on SokoPlus"
-                 className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-700"
-                 referrerPolicy="no-referrer"
-               />
-               <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" />
-               <div className="absolute bottom-4 left-4 right-4 bg-transparent px-6 py-4 flex items-center justify-between">
-                 <div>
-                   <p className="text-[10px] text-orange-400 font-black tracking-wider uppercase">{heroBadgeText}</p>
-                   <p className="text-sm font-black text-white mt-0.5">{heroHeadingText}</p>
-                 </div>
-                 <div className="hidden">
-                   {[1, 2, 3].map((n) => (
-                     <div key={n} className="w-7 h-7 rounded-full bg-orange-100 border border-white flex items-center justify-center text-[10px] font-bold text-orange-650">
-                       ✦
-                     </div>
-                   ))}
-                 </div>
-               </div>
-            </div>
-          </motion.div>
+      <section className="relative min-h-[460px] sm:min-h-[500px] md:min-h-[580px] py-10 sm:py-16 md:py-24 px-4 sm:px-6 lg:px-8 border-b border-gray-100 dark:border-gray-900/50 overflow-hidden flex items-center transition-colors duration-200">
+        {/* Full-width Responsive Background Carousel */}
+        <div className="absolute inset-0 z-0 overflow-hidden">
+          <AnimatePresence initial={false}>
+            <motion.img
+              key={currentSlide}
+              src={slides[currentSlide]}
+              alt="SokoPlus - Premium Kenyan Marketplace"
+              variants={{
+                enter: { x: "100%", opacity: 0 },
+                center: { x: 0, opacity: 1 },
+                exit: { x: "-100%", opacity: 0 }
+              }}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute inset-0 w-full h-full object-cover object-[70%_center] md:object-right"
+              referrerPolicy="no-referrer"
+            />
+          </AnimatePresence>
+          {/* Subtle responsive gradients to blend background and ensure text readability on all devices */}
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/50 via-amber-450/20 to-transparent md:from-amber-400/10 md:via-transparent md:to-transparent pointer-events-none z-10" />
+          <div className="absolute inset-0 bg-black/15 dark:bg-black/35 pointer-events-none z-10" />
         </div>
+
+        <div className="max-w-7xl mx-auto w-full relative z-10">
+          <div className="flex flex-col md:flex-row items-center justify-start">
+            <motion.div 
+              initial={{ opacity: 0, y: 25 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="w-full md:max-w-xl space-y-4 sm:space-y-6 bg-white/75 dark:bg-gray-950/75 backdrop-blur-md p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl border border-white/40 dark:border-gray-800/40 shadow-2xl"
+            >
+              <div className="space-y-2 sm:space-y-3">
+                <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-gray-900 dark:text-white leading-tight">
+                  {language === "sw" ? "Bidhaa Bora." : "Better Products."} <br/>
+                  <span className="text-orange-600 underline decoration-orange-200 dark:decoration-orange-800">
+                    {language === "sw" ? "Bei Bora zaidi." : "Better Prices."}
+                  </span>
+                </h1>
+              </div>
+
+              <p className="text-sm sm:text-base md:text-lg text-gray-700 dark:text-gray-350 font-semibold leading-relaxed">
+                {t("heroSubtitle")}
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-1 sm:pt-2">
+                <button 
+                  onClick={scrollToProducts}
+                  className="group bg-orange-600 text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-bold hover:bg-orange-700 transition-all flex items-center justify-center font-sans cursor-pointer shadow-lg shadow-orange-600/30 hover:shadow-orange-600/40 transform hover:-translate-y-0.5 active:translate-y-0 text-sm sm:text-base"
+                >
+                  {t("shopCollect")}{" "}
+                  <ArrowRight className="ml-2 transform group-hover:translate-x-1 transition-transform duration-200" size={18} />
+                </button>
+                <button 
+                  onClick={() => setShowMission(true)}
+                  className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-800 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all font-sans cursor-pointer flex items-center justify-center shadow-md transform hover:-translate-y-0.5 active:translate-y-0 text-sm sm:text-base"
+                >
+                  {t("learnStory")}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Carousel Indicators */}
+        {slides.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-12 sm:bottom-6 z-20 flex space-x-2">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentSlide(idx)}
+                className={`w-2.5 h-2.5 rounded-full transition-all duration-300 border-none outline-none cursor-pointer ${
+                  currentSlide === idx 
+                    ? "bg-orange-600 w-7" 
+                    : "bg-white/55 hover:bg-white"
+                }`}
+                aria-label={`Go to slide ${idx + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Product categories */}

@@ -28,79 +28,62 @@ export default function Login() {
   const navigate = useNavigate();
 
   const handleProfileSync = async (user: User) => {
-    try {
-      const userRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userRef);
+    const userRef = doc(db, "users", user.uid);
+    const userDoc = await getDoc(userRef);
 
-      if (!userDoc.exists()) {
-        await setDoc(userRef, {
-          email: user.email || null,
-          displayName: user.displayName || email.split('@')[0] || "Valued Customer",
-          loyaltyPoints: 0,
-          createdAt: new Date().toISOString(),
-        });
-      }
+    if (!userDoc.exists()) {
+      await setDoc(userRef, {
+        email: user.email || null,
+        displayName: user.displayName || email.split('@')[0] || "Valued Customer",
+        loyaltyPoints: 0,
+        createdAt: new Date().toISOString(),
+      });
+    }
 
-      // Automatically check for pre-authorized admin invitations if user has an email
-      if (user.email) {
-        try {
-          const inviteDocId = user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
-          const inviteRef = doc(db, "admin_invitations", inviteDocId);
-          const inviteSnap = await getDoc(inviteRef);
+    // Automatically check for pre-authorized admin invitations if user has an email
+    if (user.email) {
+      try {
+        const inviteDocId = user.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+        const inviteRef = doc(db, "admin_invitations", inviteDocId);
+        const inviteSnap = await getDoc(inviteRef);
 
-          if (inviteSnap.exists()) {
-            const inviteData = inviteSnap.data();
-            if (inviteData && inviteData.status === "pending") {
-              // Found a pending invite! Auto-promote to admin
-              const adminRef = doc(db, "admins", user.uid);
-              await setDoc(adminRef, {
-                email: user.email.toLowerCase(),
-                roleId: inviteData.roleId || "custom",
-                roleName: inviteData.roleName || "Custom Profile",
-                permissions: inviteData.permissions || [],
-                updatedAt: new Date().toISOString(),
-                updatedBy: inviteData.invitedBy || "Pre-authorized Invitation"
-              }, { merge: true });
+        if (inviteSnap.exists()) {
+          const inviteData = inviteSnap.data();
+          if (inviteData && inviteData.status === "pending") {
+            // Found a pending invite! Auto-promote to admin
+            const adminRef = doc(db, "admins", user.uid);
+            await setDoc(adminRef, {
+              email: user.email.toLowerCase(),
+              roleId: inviteData.roleId || "custom",
+              roleName: inviteData.roleName || "Custom Profile",
+              permissions: inviteData.permissions || [],
+              updatedAt: new Date().toISOString(),
+              updatedBy: inviteData.invitedBy || "Pre-authorized Invitation"
+            }, { merge: true });
 
-              // Mark invitation as accepted
-              await setDoc(inviteRef, { status: "accepted" }, { merge: true });
-              
-              toast.success(`Welcome back ${user.displayName || user.email}! Admin access activated successfully per invitation!`, {
-                duration: 6000
-              });
-            }
+            // Mark invitation as accepted
+            await setDoc(inviteRef, { status: "accepted" }, { merge: true });
+            
+            toast.success(`Welcome back ${user.displayName || user.email}! Admin access activated successfully per invitation!`, {
+              duration: 6000
+            });
           }
-        } catch (invError) {
-          console.warn("Could not check or claim pre-authorized invitation:", invError);
         }
+      } catch (invError) {
+        console.warn("Could not check or claim pre-authorized invitation:", invError);
       }
+    }
 
-      // Automatically promote certain email to admin for testing
-      if (user.email === "upfrontretaile@gmail.com") {
-        try {
-          const adminRef = doc(db, "admins", user.uid);
-          const adminSnap = await getDoc(adminRef);
-          if (!adminSnap.exists()) {
-            await setDoc(adminRef, { email: user.email });
-          }
-        } catch (e) {
-          console.warn("Could not register admin profile:", e);
+    // Automatically promote certain email to admin for testing
+    if (user.email === "upfrontretaile@gmail.com") {
+      try {
+        const adminRef = doc(db, "admins", user.uid);
+        const adminSnap = await getDoc(adminRef);
+        if (!adminSnap.exists()) {
+          await setDoc(adminRef, { email: user.email });
         }
-      }
-    } catch (error: any) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      const isQuota = errorMsg.toLowerCase().includes("quota") || error.code === "resource-exhausted";
-      if (isQuota) {
-        console.warn("Profile sync Firestore quota limit exceeded, caching status locally:", errorMsg);
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(
-            new CustomEvent("firestore-quota-exceeded", {
-              detail: { error: errorMsg, path: `users/${user.uid}` }
-            })
-          );
-        }
-      } else {
-        console.error("Profile sync error:", error);
+      } catch (e) {
+        console.warn("Could not register admin profile:", e);
       }
     }
   };

@@ -588,8 +588,8 @@ export default function Admin({ user }: AdminProps) {
   const [biArtisanSearch, setBiArtisanSearch] = useState<string>("");
   const [biActiveMetric, setBiActiveMetric] = useState<"revenue" | "profit" | "units">("revenue");
   const [homepageHeroUrl, setHomepageHeroUrl] = useState<string>("");
-  const [homepageHeroBadge, setHomepageHeroBadge] = useState<string>("Vetted excellence");
-  const [homepageHeroHeading, setHomepageHeroHeading] = useState<string>("Authentic & Trusted Goods");
+  const [homepageHeroUrls, setHomepageHeroUrls] = useState<string[]>([]);
+  const [activePreviewSlide, setActivePreviewSlide] = useState<number>(0);
   const [googleMapsLink, setGoogleMapsLink] = useState<string>("");
   const [googleMapsLinks, setGoogleMapsLinks] = useState<{ name: string; url: string }[]>([]);
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
@@ -810,11 +810,10 @@ export default function Admin({ user }: AdminProps) {
           if (settingsData.heroImageUrl) {
             setHomepageHeroUrl(settingsData.heroImageUrl);
           }
-          if (settingsData.heroBadgeText) {
-            setHomepageHeroBadge(settingsData.heroBadgeText);
-          }
-          if (settingsData.heroHeadingText) {
-            setHomepageHeroHeading(settingsData.heroHeadingText);
+          if (settingsData.heroImageUrls) {
+            setHomepageHeroUrls(settingsData.heroImageUrls);
+          } else if (settingsData.heroImageUrl) {
+            setHomepageHeroUrls([settingsData.heroImageUrl]);
           }
           if (settingsData.googleMapsLink) {
             setGoogleMapsLink(settingsData.googleMapsLink);
@@ -933,80 +932,86 @@ export default function Admin({ user }: AdminProps) {
     return () => unsubscribe();
   }, [user]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImageFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (file.size > 12 * 1024 * 1024) {
+        reject(new Error("Image file is too large! Maximum limit is 12MB."));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const maxDim = 1000;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+
+          if (ctx) {
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+
+            try {
+              const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.72);
+              const sizeInBytes = Math.round((compressedDataUrl.length * 3) / 4);
+              if (sizeInBytes > 800 * 1024) {
+                reject(new Error("The image is still too large. Please select a simpler image."));
+                return;
+              }
+              resolve(compressedDataUrl);
+            } catch (compressErr) {
+              reject(compressErr);
+            }
+          } else {
+            reject(new Error("Could not initialize browser canvas for graphics compression."));
+          }
+        };
+
+        img.onerror = () => {
+          reject(new Error("Failed to parse upload as a valid image."));
+        };
+
+        if (typeof event.target?.result === "string") {
+          img.src = event.target.result;
+        }
+      };
+      reader.onerror = () => {
+        reject(new Error("Failed to process the uploaded source file."));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 12 * 1024 * 1024) {
-      toast.error("Image file is too large! Maximum limit is 12MB.");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new window.Image();
-      img.onload = () => {
-        // High-definition but optimized boundary sizing
-        const maxDim = 1000;
-        let width = img.width;
-        let height = img.height;
-
-        // Perform resize maintaining standard aspect ratio
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-
-        if (ctx) {
-          // Render white solid background first (so transparent PNGs are clean JPEGs)
-          ctx.fillStyle = "#FFFFFF";
-          ctx.fillRect(0, 0, width, height);
-          ctx.drawImage(img, 0, 0, width, height);
-
-          try {
-            // Compress with high quality parameter to JPEG
-            const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.75);
-            
-            // Validate against the exact Firestore 1MB document limit
-            const sizeInBytes = Math.round((compressedDataUrl.length * 3) / 4);
-            if (sizeInBytes > 800 * 1024) {
-              toast.error("The image is still too large to store. Please select a simpler image with less complexity.");
-              return;
-            }
-
-            setHomepageHeroUrl(compressedDataUrl);
-            toast.success("Image successfully optimized & loaded! Click 'Save Changes' to update the site.");
-          } catch (compressErr) {
-            console.error("Compression error:", compressErr);
-            toast.error("Failed to compress and optimize the image file.");
-          }
-        } else {
-          toast.error("Could not initialize browser canvas for graphics compression.");
-        }
-      };
-
-      img.onerror = () => {
-        toast.error("Failed to parse upload as a valid image.");
-      };
-
-      if (typeof event.target?.result === "string") {
-        img.src = event.target.result;
+    try {
+      const optimized = await compressImageFile(file);
+      setHomepageHeroUrl(optimized);
+      if (!homepageHeroUrls.includes(optimized)) {
+        setHomepageHeroUrls(prev => [...prev, optimized]);
       }
-    };
-    reader.onerror = () => {
-      toast.error("Failed to process the uploaded source file.");
-    };
-    reader.readAsDataURL(file);
+      toast.success("Image successfully optimized & loaded! Click 'Save Changes' to update the site.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to compress and optimize the image file.");
+    }
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -1014,8 +1019,18 @@ export default function Admin({ user }: AdminProps) {
     setIsSavingSettings(true);
     try {
       // Direct guard against Firestore document exceeding 1 MiB limit
-      if (homepageHeroUrl && homepageHeroUrl.startsWith("data:") && homepageHeroUrl.length > 1.2 * 1024 * 1024) {
-        toast.error("Saved settings exceed Firestore document limit! Please clear and upload an optimized image.");
+      let totalLength = 0;
+      homepageHeroUrls.forEach(url => {
+        if (url && url.startsWith("data:")) {
+          totalLength += url.length;
+        }
+      });
+      if (homepageHeroUrl && homepageHeroUrl.startsWith("data:")) {
+        totalLength += homepageHeroUrl.length;
+      }
+
+      if (totalLength > 1.2 * 1024 * 1024) {
+        toast.error("Total size of uploaded base64 images is too large! Please use image URLs/links or upload smaller files.");
         setIsSavingSettings(false);
         return;
       }
@@ -1023,8 +1038,7 @@ export default function Admin({ user }: AdminProps) {
       const settingsRef = doc(db, "settings", "homepage");
       await setDoc(settingsRef, {
         heroImageUrl: homepageHeroUrl,
-        heroBadgeText: homepageHeroBadge,
-        heroHeadingText: homepageHeroHeading,
+        heroImageUrls: homepageHeroUrls,
         googleMapsLink: googleMapsLinks.length > 0 ? googleMapsLinks[0].url : "",
         googleMapsLinks: googleMapsLinks,
         updatedAt: new Date(),
@@ -1050,16 +1064,14 @@ export default function Admin({ user }: AdminProps) {
         const settingsRef = doc(db, "settings", "homepage");
         await setDoc(settingsRef, {
           heroImageUrl: "",
-          heroBadgeText: "Vetted excellence",
-          heroHeadingText: "Authentic & Trusted Goods",
+          heroImageUrls: [],
           googleMapsLink: "",
           googleMapsLinks: [],
           updatedAt: new Date(),
           updatedBy: user?.email || "Admin",
         }, { merge: true });
         setHomepageHeroUrl("");
-        setHomepageHeroBadge("Vetted excellence");
-        setHomepageHeroHeading("Authentic & Trusted Goods");
+        setHomepageHeroUrls([]);
         setGoogleMapsLink("");
         setGoogleMapsLinks([]);
         toast.success("Successfully reset to default hero banner & texts!");
@@ -1071,6 +1083,17 @@ export default function Admin({ user }: AdminProps) {
       }
     }
   };
+
+  useEffect(() => {
+    if (homepageHeroUrls.length <= 1) {
+      setActivePreviewSlide(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setActivePreviewSlide((prev) => (prev + 1) % homepageHeroUrls.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [homepageHeroUrls]);
 
   const seedData = async () => {
     try {
@@ -4083,91 +4106,234 @@ export default function Admin({ user }: AdminProps) {
             <div className="lg:col-span-7 space-y-6">
               <div className="p-6 bg-orange-50/40 rounded-3xl border border-orange-100/50 space-y-3">
                 <h3 className="text-sm font-bold text-orange-850 flex items-center">
-                  <Image size={16} className="mr-2 text-orange-600" /> Homepage Hero Banner Configuration
+                  <Image size={16} className="mr-2 text-orange-600" /> Homepage Hero Background Carousel Configuration
                 </h3>
                 <p className="text-xs text-orange-705 leading-relaxed font-medium">
-                  Personalize the first visual banner shown to Kenyan shoppers and global collectors. You can either paste an image URL or upload a custom image file below.
+                  Configure multiple rotating hero background images to create a dynamic sliding carousel presentation. Re-order, add, or delete slides below.
                 </p>
               </div>
 
-              {/* URL Option */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                  Custom Image Source URL
-                </label>
-                <div className="relative">
-                  <input
-                    type="url"
-                    placeholder="e.g. https://images.unsplash.com/photo-..."
-                    value={homepageHeroUrl}
-                    onChange={(e) => setHomepageHeroUrl(e.target.value)}
-                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs font-sans text-gray-950"
-                  />
+              {/* Carousel Background Images Management */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    Background Carousel Slides ({homepageHeroUrls.length})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = [...homepageHeroUrls, ""];
+                      setHomepageHeroUrls(updated);
+                      if (!homepageHeroUrl) {
+                        setHomepageHeroUrl("");
+                      }
+                    }}
+                    className="text-xs font-extrabold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-xl transition-all border-none cursor-pointer self-start sm:self-auto"
+                  >
+                    + Add New Image Slot
+                  </button>
                 </div>
-                <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">
-                  Paste the direct URL of any high-resolution image hosted online.
-                </p>
-              </div>
 
-              {/* Upload Option */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                  Or Upload Direct Image Target
-                </label>
-                <div className="border border-dashed border-gray-200 hover:border-orange-300 rounded-2xl p-6 bg-gray-50/50 hover:bg-orange-50/10 transition-colors flex flex-col items-center justify-center text-center relative group min-h-[140px]">
+                {/* Multiple Images Upload Dropzone */}
+                <div className="border border-dashed border-gray-200 hover:border-orange-300 rounded-2xl p-6 bg-gray-50/50 hover:bg-orange-50/10 transition-all text-center relative group min-h-[120px] flex flex-col items-center justify-center">
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={handleImageUpload}
+                    multiple
+                    onChange={async (e) => {
+                      if (e.target.files) {
+                        const validFiles = Array.from(e.target.files).filter(f => f.type.startsWith("image/"));
+                        if (validFiles.length === 0) {
+                          toast.error("Please select valid image files.");
+                          return;
+                        }
+                        const loadedUrls: string[] = [];
+                        for (const file of validFiles) {
+                          try {
+                            const compressed = await compressImageFile(file);
+                            loadedUrls.push(compressed);
+                          } catch (err: any) {
+                            toast.error(`Could not process "${file.name}": ${err.message}`);
+                          }
+                        }
+                        if (loadedUrls.length > 0) {
+                          const updated = [...homepageHeroUrls.filter(url => url.trim() !== ""), ...loadedUrls];
+                          setHomepageHeroUrls(updated);
+                          if (updated.length > 0) {
+                            setHomepageHeroUrl(updated[0]);
+                          }
+                          toast.success(`Successfully uploaded & optimized ${loadedUrls.length} background image(s).`);
+                        }
+                      }
+                    }}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                    title="Upload homepage hero image"
+                    title="Upload and append background images"
                   />
-                  <Upload size={28} className="text-gray-400 group-hover:text-orange-600 transition-colors duration-200" />
-                  <p className="text-xs font-bold text-gray-705 mt-2">
-                    Click or Drag to Upload
+                  <UploadCloud className="mx-auto text-gray-400 group-hover:text-orange-600 transition-colors duration-200" size={28} />
+                  <p className="text-xs font-bold text-gray-750 mt-1">
+                    Click or Drag Image Files to Append to Slides
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1 font-semibold leading-relaxed">
-                    PNG, JPG, JPEG formats accepted (Max size: 2.5MB)
-                  </p>
-                </div>
-              </div>
-
-              {/* Overlay Badge and Heading Settings */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-gray-400 block">
-                    Hero Badge Text Overlay
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={30}
-                    placeholder="e.g. Vetted excellence"
-                    value={homepageHeroBadge}
-                    onChange={(e) => setHomepageHeroBadge(e.target.value)}
-                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs font-sans text-gray-950"
-                  />
-                  <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">
-                    Max 30 characters. Describes active standard trust label (e.g., "Verified Artisans").
+                  <p className="text-[10px] text-gray-400 mt-0.5 font-semibold">
+                    PNG, JPG, WebP supported. Re-ordered or updated below.
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-gray-400 block">
-                    Hero Main Headline Overlay
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={40}
-                    placeholder="e.g. Authentic & Trusted Goods"
-                    value={homepageHeroHeading}
-                    onChange={(e) => setHomepageHeroHeading(e.target.value)}
-                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs font-sans text-gray-950"
-                  />
-                  <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">
-                    Max 40 characters. High-impact text displayed over image template.
-                  </p>
+                {/* Slides List */}
+                <div className="space-y-3 max-h-[360px] overflow-y-auto pr-2 custom-scrollbar">
+                  {homepageHeroUrls.map((url, idx) => {
+                    const isValidUrl = url && url.trim().length > 0;
+                    const isFirst = idx === 0;
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex flex-col sm:flex-row gap-3 p-4 border rounded-2xl relative transition-all ${
+                          isFirst ? "border-orange-200 bg-orange-50/10" : "border-gray-150 bg-white"
+                        }`}
+                      >
+                        <div className="absolute -top-2.5 -left-2 flex items-center z-10">
+                          {isFirst ? (
+                            <span className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
+                              ★ Main Banner Slide
+                            </span>
+                          ) : (
+                            <span className="bg-gray-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                              Slide {idx + 1}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="w-16 h-16 rounded-xl border border-gray-150 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {isValidUrl ? (
+                            <img
+                              src={url}
+                              alt={`Slide ${idx}`}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src =
+                                  "https://images.unsplash.com/photo-1594122230689-45899d9e6f69?auto=format&fit=crop&q=80&w=200";
+                              }}
+                            />
+                          ) : (
+                            <Image className="text-gray-300" size={24} />
+                          )}
+                        </div>
+
+                        <div className="flex-grow flex flex-col gap-1 min-w-0">
+                          <input
+                            type="text"
+                            placeholder="Paste image URL address or upload file below"
+                            className="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-150 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-850"
+                            value={url}
+                            onChange={(e) => {
+                              const updated = [...homepageHeroUrls];
+                              updated[idx] = e.target.value;
+                              setHomepageHeroUrls(updated);
+                              if (idx === 0) {
+                                setHomepageHeroUrl(e.target.value);
+                              }
+                            }}
+                          />
+                          <label className="text-[10px] text-gray-400 hover:text-orange-600 font-extrabold uppercase cursor-pointer flex items-center gap-1 w-fit">
+                            <Upload size={10} />
+                            <span>Upload file to this slot</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  try {
+                                    const optimized = await compressImageFile(file);
+                                    const updated = [...homepageHeroUrls];
+                                    updated[idx] = optimized;
+                                    setHomepageHeroUrls(updated);
+                                    if (idx === 0) {
+                                      setHomepageHeroUrl(optimized);
+                                    }
+                                    toast.success("Image slot optimized successfully!");
+                                  } catch (err: any) {
+                                    toast.error(`Failed: ${err.message}`);
+                                  }
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+
+                        <div className="flex sm:flex-col items-center justify-end gap-1.5 self-center sm:self-stretch">
+                          <div className="flex sm:flex-col gap-1">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => {
+                                const updated = [...homepageHeroUrls];
+                                const temp = updated[idx];
+                                updated[idx] = updated[idx - 1];
+                                updated[idx - 1] = temp;
+                                setHomepageHeroUrls(updated);
+                                if (idx - 1 === 0 || idx === 0) {
+                                  setHomepageHeroUrl(updated[0]);
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-gray-950 hover:bg-gray-100 rounded disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer border-none bg-transparent"
+                              title="Move Slide Up"
+                            >
+                              <ChevronUp size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === homepageHeroUrls.length - 1}
+                              onClick={() => {
+                                const updated = [...homepageHeroUrls];
+                                const temp = updated[idx];
+                                updated[idx] = updated[idx + 1];
+                                updated[idx + 1] = temp;
+                                setHomepageHeroUrls(updated);
+                                if (idx + 1 === 0 || idx === 0) {
+                                  setHomepageHeroUrl(updated[0]);
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-gray-950 hover:bg-gray-100 rounded disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer border-none bg-transparent"
+                              title="Move Slide Down"
+                            >
+                              <ChevronDown size={16} />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = homepageHeroUrls.filter((_, i) => i !== idx);
+                              setHomepageHeroUrls(updated);
+                              if (updated.length > 0) {
+                                setHomepageHeroUrl(updated[0]);
+                              } else {
+                                setHomepageHeroUrl("");
+                              }
+                            }}
+                            className="p-2 text-red-500 hover:bg-red-50 hover:text-red-700 rounded-xl transition-all cursor-pointer border-none bg-transparent"
+                            title="Remove Slide"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {homepageHeroUrls.length === 0 && (
+                    <div className="p-8 border border-dashed border-gray-200 rounded-3xl text-center text-gray-400">
+                      <Image className="mx-auto mb-2 opacity-50" size={32} />
+                      <p className="text-xs font-semibold">No carousel slides defined yet.</p>
+                      <p className="text-[10px] mt-1 text-gray-400">Upload or add slots above to construct your animated slider.</p>
+                    </div>
+                  )}
                 </div>
               </div>
+
+
 
               {/* Google Maps Link Configuration */}
               <div className="p-6 bg-orange-50/20 dark:bg-orange-950/10 rounded-3xl border border-orange-100/50 dark:border-orange-900/30 space-y-4">
@@ -4296,7 +4462,28 @@ export default function Admin({ user }: AdminProps) {
               <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100/80 flex flex-col items-center justify-center relative">
                 {/* Simulated Container of the Hero banner */}
                 <div className="w-full max-w-[280px] sm:max-w-sm aspect-square bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 relative group">
-                  {homepageHeroUrl ? (
+                  {homepageHeroUrls.length > 0 ? (
+                    <div className="w-full h-full relative overflow-hidden">
+                      <img
+                        src={homepageHeroUrls[activePreviewSlide % homepageHeroUrls.length] || homepageHeroUrl}
+                        alt="Hero Live Preview"
+                        className="w-full h-full object-cover transition-all duration-700"
+                        referrerPolicy="no-referrer"
+                      />
+                      {homepageHeroUrls.length > 1 && (
+                        <div className="absolute bottom-2 right-2 flex space-x-1 bg-black/40 px-2 py-1 rounded-full">
+                          {homepageHeroUrls.map((_, i) => (
+                            <span
+                              key={i}
+                              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                                (activePreviewSlide % homepageHeroUrls.length) === i ? "bg-orange-600 w-3" : "bg-white/60"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : homepageHeroUrl ? (
                     <img
                       src={homepageHeroUrl}
                       alt="Hero Live Preview"
@@ -4311,20 +4498,7 @@ export default function Admin({ user }: AdminProps) {
                     </div>
                   )}
 
-                  {/* Superimposed badge mirroring Home page precisely */}
-                  <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl flex items-center justify-between border border-white/20 shadow-lg text-left">
-                    <div>
-                      <p className="text-[9px] text-orange-600 font-black tracking-wider uppercase">{homepageHeroBadge}</p>
-                      <p className="text-xs font-black text-gray-900 mt-0.5">{homepageHeroHeading}</p>
-                    </div>
-                    <div className="flex -space-x-1.5">
-                      {[1, 2, 3].map((n) => (
-                        <div key={n} className="w-5 h-5 rounded-full bg-orange-100 border border-white flex items-center justify-center text-[8px] font-bold text-orange-650 animate-pulse">
-                          ✦
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+
                 </div>
 
                 <div className="mt-4 text-center">

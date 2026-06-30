@@ -126,6 +126,10 @@
       "type": "object",
       "properties": {
         "heroImageUrl": { "type": "string" },
+        "heroImageUrls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "heroBadgeText": { "type": "string" },
         "heroHeadingText": { "type": "string" },
         "googleMapsLink": { "type": "string" },
