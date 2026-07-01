@@ -58,6 +58,7 @@ import {
   Sparkles,
   Megaphone,
   Calendar,
+  Music,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -592,6 +593,7 @@ export default function Admin({ user }: AdminProps) {
   const [activePreviewSlide, setActivePreviewSlide] = useState<number>(0);
   const [googleMapsLink, setGoogleMapsLink] = useState<string>("");
   const [googleMapsLinks, setGoogleMapsLinks] = useState<{ name: string; url: string }[]>([]);
+  const [showAudioBubble, setShowAudioBubble] = useState<boolean>(true);
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
@@ -823,6 +825,9 @@ export default function Admin({ user }: AdminProps) {
           } else if (settingsData.googleMapsLink) {
             setGoogleMapsLinks([{ name: "Nairobi Store", url: settingsData.googleMapsLink }]);
           }
+          if (settingsData.showAudioBubble !== undefined) {
+            setShowAudioBubble(settingsData.showAudioBubble);
+          }
         }
       } catch (settingsError) {
         console.warn("Could not retrieve hero image settings: ", settingsError);
@@ -1041,6 +1046,7 @@ export default function Admin({ user }: AdminProps) {
         heroImageUrls: homepageHeroUrls,
         googleMapsLink: googleMapsLinks.length > 0 ? googleMapsLinks[0].url : "",
         googleMapsLinks: googleMapsLinks,
+        showAudioBubble: showAudioBubble,
         updatedAt: new Date(),
         updatedBy: user?.email || "Admin",
       }, { merge: true });
@@ -1067,6 +1073,7 @@ export default function Admin({ user }: AdminProps) {
           heroImageUrls: [],
           googleMapsLink: "",
           googleMapsLinks: [],
+          showAudioBubble: true,
           updatedAt: new Date(),
           updatedBy: user?.email || "Admin",
         }, { merge: true });
@@ -1074,6 +1081,7 @@ export default function Admin({ user }: AdminProps) {
         setHomepageHeroUrls([]);
         setGoogleMapsLink("");
         setGoogleMapsLinks([]);
+        setShowAudioBubble(true);
         toast.success("Successfully reset to default hero banner & texts!");
       } catch (error) {
         console.error("Error resetting settings:", error);
@@ -4420,6 +4428,34 @@ export default function Admin({ user }: AdminProps) {
                       <Plus size={14} className="text-orange-600" /> Add Another Store Location
                     </button>
                   )}
+                </div>
+              </div>
+
+              {/* Audio Bubble Toggle Configuration */}
+              <div className="p-6 bg-orange-50/20 dark:bg-orange-950/10 rounded-3xl border border-orange-100/50 dark:border-orange-900/30 space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-orange-850 dark:text-orange-400 flex items-center">
+                      <Music size={16} className="mr-2 text-orange-600 animate-pulse" /> Floating Audio Bubble Widget
+                    </h3>
+                    <p className="text-xs text-orange-705 dark:text-orange-300 leading-relaxed font-medium">
+                      Control the visibility of the ambient background acoustic audio player for all customers.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAudioBubble(!showAudioBubble)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      showAudioBubble ? "bg-orange-650" : "bg-gray-200 dark:bg-gray-800"
+                    }`}
+                    id="audio-bubble-toggle"
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        showAudioBubble ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
                 </div>
               </div>
 

@@ -603,7 +603,7 @@ export default function Home({ user }: HomeProps) {
       />
       <MarketingBanner />
       {/* Hero Section */}
-      <section className="relative min-h-[460px] sm:min-h-[500px] md:min-h-[580px] py-10 sm:py-16 md:py-24 px-4 sm:px-6 lg:px-8 border-b border-gray-100 dark:border-gray-900/50 overflow-hidden flex items-center transition-colors duration-200">
+      <section className="relative min-h-[480px] sm:min-h-[520px] md:min-h-[580px] py-12 sm:py-16 md:py-24 px-4 sm:px-6 lg:px-8 border-b border-gray-100 dark:border-gray-900/50 overflow-hidden flex items-center transition-colors duration-200">
         {/* Full-width Responsive Background Carousel */}
         <div className="absolute inset-0 z-0 overflow-hidden">
           <AnimatePresence initial={false}>
@@ -624,9 +624,12 @@ export default function Home({ user }: HomeProps) {
               referrerPolicy="no-referrer"
             />
           </AnimatePresence>
-          {/* Subtle responsive gradients to blend background and ensure text readability on all devices */}
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/50 via-amber-450/20 to-transparent md:from-amber-400/10 md:via-transparent md:to-transparent pointer-events-none z-10" />
-          <div className="absolute inset-0 bg-black/15 dark:bg-black/35 pointer-events-none z-10" />
+          {/* Immersive Cinematic Scrim - dual dark gradients on mobile to guarantee extreme contrast & rich depth */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/25 md:hidden pointer-events-none z-10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent md:hidden pointer-events-none z-10" />
+          {/* Desktop-specific standard premium blending overlays */}
+          <div className="hidden md:block absolute inset-0 bg-gradient-to-r from-amber-500/15 via-transparent to-transparent pointer-events-none z-10" />
+          <div className="hidden md:block absolute inset-0 bg-black/15 dark:bg-black/40 pointer-events-none z-10" />
         </div>
 
         <div className="max-w-7xl mx-auto w-full relative z-10">
@@ -635,22 +638,22 @@ export default function Home({ user }: HomeProps) {
               initial={{ opacity: 0, y: 25 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="w-full md:max-w-xl space-y-4 sm:space-y-6 bg-white/75 dark:bg-gray-950/75 backdrop-blur-md p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl border border-white/40 dark:border-gray-800/40 shadow-2xl"
+              className="w-full md:max-w-xl space-y-4 sm:space-y-6 bg-transparent md:bg-white/75 md:dark:bg-gray-950/75 md:backdrop-blur-md p-0 md:p-10 rounded-none md:rounded-3xl border-none md:border md:border-white/40 md:dark:border-gray-800/40 shadow-none md:shadow-2xl"
             >
               <div className="space-y-2 sm:space-y-3">
-                <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-gray-900 dark:text-white leading-tight">
+                <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white md:text-gray-900 md:dark:text-white leading-tight">
                   {language === "sw" ? "Bidhaa Bora." : "Better Products."} <br/>
-                  <span className="text-orange-600 underline decoration-orange-200 dark:decoration-orange-800">
+                  <span className="text-orange-400 md:text-orange-600 underline decoration-orange-300 md:decoration-orange-200 dark:decoration-orange-800">
                     {language === "sw" ? "Bei Bora zaidi." : "Better Prices."}
                   </span>
                 </h1>
               </div>
 
-              <p className="text-sm sm:text-base md:text-lg text-gray-700 dark:text-gray-350 font-semibold leading-relaxed">
+              <p className="text-sm sm:text-base md:text-lg text-gray-200 md:text-gray-700 md:dark:text-gray-350 font-semibold leading-relaxed">
                 {t("heroSubtitle")}
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-1 sm:pt-2">
+              <div className="flex flex-col sm:flex-row gap-3.5 sm:gap-4 pt-1 sm:pt-2">
                 <button 
                   onClick={scrollToProducts}
                   className="group bg-orange-600 text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-bold hover:bg-orange-700 transition-all flex items-center justify-center font-sans cursor-pointer shadow-lg shadow-orange-600/30 hover:shadow-orange-600/40 transform hover:-translate-y-0.5 active:translate-y-0 text-sm sm:text-base"
@@ -660,7 +663,7 @@ export default function Home({ user }: HomeProps) {
                 </button>
                 <button 
                   onClick={() => setShowMission(true)}
-                  className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-800 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all font-sans cursor-pointer flex items-center justify-center shadow-md transform hover:-translate-y-0.5 active:translate-y-0 text-sm sm:text-base"
+                  className="bg-white/10 backdrop-blur-sm md:bg-white md:dark:bg-gray-900 text-white md:text-gray-900 md:dark:text-white border border-white/30 md:border-gray-200 md:dark:border-gray-800 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-bold hover:bg-white/20 md:hover:bg-gray-50 md:dark:hover:bg-gray-800 transition-all font-sans cursor-pointer flex items-center justify-center shadow-md transform hover:-translate-y-0.5 active:translate-y-0 text-sm sm:text-base"
                 >
                   {t("learnStory")}
                 </button>
