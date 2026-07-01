@@ -68,6 +68,40 @@ interface QuotaBannerWrapperProps {
 function QuotaBannerWrapper({ quotaExceededInfo, onClear }: QuotaBannerWrapperProps) {
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith("/admin");
+  const [secondsLeft, setSecondsLeft] = useState(7);
+  const [keepShowing, setKeepShowing] = useState(false);
+
+  // Reset local state when a new quota exceeded warning is triggered
+  useEffect(() => {
+    if (quotaExceededInfo) {
+      setSecondsLeft(7);
+      setKeepShowing(false);
+    }
+  }, [quotaExceededInfo]);
+
+  // Handle the auto-dismiss timer countdown
+  useEffect(() => {
+    if (!quotaExceededInfo || keepShowing) return;
+
+    const interval = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [quotaExceededInfo, keepShowing]);
+
+  // Cleanly trigger onClear side-effect in a separate useEffect once countdown hits 0
+  useEffect(() => {
+    if (quotaExceededInfo && !keepShowing && secondsLeft === 0) {
+      onClear();
+    }
+  }, [secondsLeft, quotaExceededInfo, keepShowing, onClear]);
 
   if (!quotaExceededInfo || !isAdminPath) return null;
 
@@ -92,6 +126,18 @@ function QuotaBannerWrapper({ quotaExceededInfo, onClear }: QuotaBannerWrapperPr
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
+          {!keepShowing && (
+            <button
+              onClick={() => setKeepShowing(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 border border-amber-200/60 dark:border-amber-900/40 text-amber-900 dark:text-amber-200 text-xs font-black rounded-lg transition cursor-pointer active:scale-95 uppercase tracking-tight"
+            >
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-600"></span>
+              </span>
+              Keep showing ({secondsLeft}s)
+            </button>
+          )}
           <a
             href="https://console.firebase.google.com/project/gen-lang-client-0489491426/firestore/databases/ai-studio-8d476022-e7b3-48f3-98d2-317aae594cb7/data?openUpgradeDialog=true"
             target="_blank"
