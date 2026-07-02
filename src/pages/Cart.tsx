@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Trash2, ShoppingBag, Plus, Minus, ArrowRight, MapPin, ChevronDown, Check } from "lucide-react";
+import { Trash2, ShoppingBag, Plus, Minus, ArrowRight, MapPin, ChevronDown, Check, ShieldCheck } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { motion, AnimatePresence } from "motion/react";
@@ -258,9 +258,16 @@ export default function Cart() {
             >
               {t("Secure Checkout")} <ArrowRight size={20} className="ml-2" />
             </Link>
-            <p className="text-[10px] text-gray-450 dark:text-gray-450 text-center">
-              {t("Payments secured via Paystack. Trusted across 47 counties.")}
-            </p>
+            <div className="flex items-center justify-center gap-1.5 mt-4 bg-[#32ba78]/10 dark:bg-[#32ba78]/5 px-3.5 py-2.5 rounded-2xl border border-[#32ba78]/20 w-full">
+              <span className="flex h-2 w-2 relative shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#32ba78] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#32ba78]"></span>
+              </span>
+              <p className="text-[10px] text-[#32ba78] font-bold uppercase tracking-wider flex items-center gap-1.5 leading-none">
+                <ShieldCheck size={13} className="stroke-[2.5]" />
+                {t("Payments secured via Paystack. Trusted across 47 counties.")}
+              </p>
+            </div>
           </div>
         </div>
       </div>

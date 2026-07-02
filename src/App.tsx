@@ -478,17 +478,23 @@ export default function App() {
                   {showScrollTop && (
                     <motion.button
                       key="back-to-top"
-                      initial={{ opacity: 0, scale: 0.8, y: 15 }}
+                      initial={{ opacity: 0, scale: 0.4, y: 20 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.8, y: 15 }}
-                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                      exit={{ opacity: 0, scale: 0.4, y: 20 }}
+                      whileHover={{ scale: 1.1, y: -4, boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.25)" }}
+                      whileTap={{ scale: 0.92, y: 0 }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 400, 
+                        damping: 22
+                      }}
                       onClick={scrollToTop}
                       style={{ backgroundColor: scrollTopBg }}
-                      className="p-4 rounded-full shadow-2xl border border-white/10 text-white hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center group"
+                      className="p-4 rounded-full shadow-2xl border border-white/10 text-white hover:brightness-110 transition-colors duration-200 cursor-pointer flex items-center justify-center group"
                       title="Back to Top"
                       id="back-to-top-btn"
                     >
-                      <ArrowUp size={24} className="group-hover:-translate-y-1 transition-transform" />
+                      <ArrowUp size={24} className="group-hover:-translate-y-1 transition-transform duration-300" />
                     </motion.button>
                   )}
                 </AnimatePresence>

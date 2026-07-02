@@ -45,7 +45,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       onClick={handleClick}
       disabled={disabled || status === "loading"}
       className={`relative overflow-hidden transition-all duration-300 select-none flex items-center justify-center ${className} ${
-        status === "added" ? "bg-green-600 hover:bg-green-700 text-white" : ""
+        status === "added" ? "brand-success-bg text-white brand-success-glow scale-[1.02]" : ""
       }`}
       style={{ minHeight: "2.75rem" }}
     >
@@ -90,7 +90,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
               initial={{ scale: 0.2 }}
               animate={{ scale: [1, 1.3, 1] }}
               transition={{ delay: 0.1, duration: 0.25 }}
-              className="bg-white text-green-600 rounded-full p-0.5 shadow-sm flex items-center justify-center shrink-0"
+              className="bg-white brand-success-text rounded-full p-0.5 shadow-sm flex items-center justify-center shrink-0"
             >
               <Check size={12} className="stroke-[3.5]" />
             </motion.div>

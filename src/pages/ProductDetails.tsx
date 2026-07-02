@@ -692,9 +692,9 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </div>
           </div>
           
-          <div className="flex items-center space-x-2">
-            <div className={`w-3 h-3 rounded-full ${product.stock > 0 ? "bg-green-500" : "bg-red-500"}`} />
-            <p className={`text-sm font-bold ${product.stock > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+          <div className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-950 px-4 py-2.5 rounded-2xl border border-gray-100 dark:border-gray-800 w-fit">
+            <div className={`w-2.5 h-2.5 rounded-full ${product.stock > 0 ? "brand-success-bg animate-success-pulse" : "bg-red-500"}`} />
+            <p className={`text-xs font-extrabold uppercase tracking-wider ${product.stock > 0 ? "brand-success-text" : "text-red-600 dark:text-red-400"}`}>
               {product.stock > 0 ? `${product.stock} units in stock` : "Out of stock"}
             </p>
           </div>
@@ -916,7 +916,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                          Low Stock
                        </span>
                      ) : (
-                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-405 border border-green-200/20 dark:border-green-900/30 shadow-sm">
+                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#32ba78]/10 text-[#32ba78] border-[#32ba78]/30 shadow-sm font-extrabold uppercase tracking-wide">
                          In Stock
                        </span>
                      )}

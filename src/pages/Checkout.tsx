@@ -915,12 +915,12 @@ export default function Checkout({ user }: CheckoutProps) {
 
             </div>
 
-            <div className="bg-gray-50/70 dark:bg-gray-950/70 p-4 rounded-2xl border border-gray-150 dark:border-gray-800 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 font-semibold justify-between mt-2">
+            <div className="bg-[#32ba78]/10 dark:bg-[#32ba78]/5 p-4 rounded-2xl border border-[#32ba78]/25 flex items-center gap-3 text-xs text-gray-700 dark:text-gray-300 font-semibold justify-between mt-2">
               <div className="flex items-center gap-2">
-                <Lock size={14} className="text-emerald-600 dark:text-emerald-400" />
-                <span>100% Secure Checkout powered by Paystack.</span>
+                <Lock size={14} className="text-[#32ba78]" />
+                <span className="font-extrabold text-[#32ba78] uppercase tracking-wide text-[10px]">100% Secure Checkout powered by Paystack.</span>
               </div>
-              <span className="text-[10px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-550 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shadow-sm">
+              <span className="text-[10px] bg-white dark:bg-gray-900 border border-[#32ba78]/30 text-[#32ba78] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider shadow-sm shrink-0">
                 PCI-DSS Compliant
               </span>
             </div>
