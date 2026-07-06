@@ -155,7 +155,7 @@ export default function PaymentSuccess() {
 
           <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 space-y-3">
             <div className="flex items-center space-x-3 text-sm font-bold text-gray-450 dark:text-gray-505">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-[#32ba78] rounded-full animate-pulse"></div>
               <span>Payment Verified</span>
             </div>
             <div className="flex items-center space-x-3 text-sm font-bold text-gray-450 dark:text-gray-505">
@@ -198,9 +198,9 @@ export default function PaymentSuccess() {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", damping: 12 }}
-        className="bg-green-50 dark:bg-green-950/20 p-10 rounded-full shadow-inner border border-green-105/30"
+        className="bg-[#32ba78]/10 dark:bg-[#32ba78]/5 p-10 rounded-full shadow-inner border border-[#32ba78]/20 brand-success-glow"
       >
-        <CheckCircle size={100} className="text-green-550 dark:text-green-400" />
+        <CheckCircle size={100} className="text-[#32ba78]" />
       </motion.div>
       
       <div className="space-y-4">
@@ -217,7 +217,7 @@ export default function PaymentSuccess() {
       <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border-2 border-gray-50 dark:border-gray-800 shadow-2xl shadow-orange-100/50 dark:shadow-none space-y-6 max-w-sm w-full">
         <div className="flex justify-between items-center text-sm font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
           <span>Points Earned</span>
-          <span className="text-green-600 dark:text-green-400">+{pointsEarned || 85} XP</span>
+          <span className="text-[#32ba78] font-black">+{pointsEarned || 85} XP</span>
         </div>
         
         <div className="h-px bg-gray-50 dark:bg-gray-800 w-full"></div>

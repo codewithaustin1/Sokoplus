@@ -28,19 +28,22 @@ import {
   HelpCircle,
   ArrowRight,
   Gift,
-  X
+  X,
+  RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { counties } from "../data/counties";
 import { FastImage } from "../components/FastImage";
 import { calculateDelivery, calculateShippingFee } from "../utils/delivery";
 import { DeliveryCountdown } from "../components/DeliveryCountdown";
+import { useSellerStudio } from "../lib/SellerStudioContext";
 
 interface CheckoutProps {
   user: UserProfile | null;
 }
 
 export default function Checkout({ user }: CheckoutProps) {
+  const { sellerStudioEnabled } = useSellerStudio();
   const { items, total, addToCart, removeFromCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
@@ -605,11 +608,11 @@ export default function Checkout({ user }: CheckoutProps) {
 
           {/* STEP 2: Product Review & Interactive Quantities */}
           <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl dark:shadow-none space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 bg-gradient-to-r from-teal-500 to-emerald-500 h-1.5 w-full"></div>
+            <div className="absolute top-0 left-0 bg-[#32ba78] h-1.5 w-full"></div>
             
             <div className="flex items-start justify-between gap-4 border-b border-gray-50 dark:border-gray-800 pb-4">
               <div className="flex items-start gap-4">
-                <div className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 p-2.5 rounded-2xl shrink-0">
+                <div className="bg-[#32ba78]/10 dark:bg-[#32ba78]/5 text-[#32ba78] p-2.5 rounded-2xl shrink-0">
                   <ShoppingBag size={22} />
                 </div>
                 <div className="space-y-1">
@@ -734,16 +737,16 @@ export default function Checkout({ user }: CheckoutProps) {
 
             <div className="space-y-4">
               {appliedVoucher ? (
-                <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 p-5 rounded-2xl flex items-center justify-between gap-4 animate-fade-in">
+                <div className="bg-[#32ba78]/10 dark:bg-[#32ba78]/5 border border-[#32ba78]/30 p-5 rounded-2xl flex items-center justify-between gap-4 animate-fade-in brand-success-glow">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                    <div className="p-2.5 bg-[#32ba78]/20 dark:bg-[#32ba78]/10 text-[#32ba78] rounded-xl">
                       <Check size={20} />
                     </div>
                     <div>
-                      <p className="font-black text-sm text-emerald-900 dark:text-emerald-300">
-                        Voucher Applied: <span className="font-extrabold uppercase bg-emerald-100 dark:bg-emerald-900/60 px-2.5 py-1 rounded-lg text-xs tracking-wider">{appliedVoucher.code}</span>
+                      <p className="font-black text-sm text-[#32ba78] dark:text-gray-100">
+                        Voucher Applied: <span className="font-extrabold uppercase bg-[#32ba78]/20 dark:bg-[#32ba78]/25 text-[#32ba78] px-2.5 py-1 rounded-lg text-xs tracking-wider">{appliedVoucher.code}</span>
                       </p>
-                      <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-semibold leading-relaxed">
+                      <p className="text-xs text-[#32ba78]/90 dark:text-[#32ba78] mt-1 font-semibold leading-relaxed">
                         {appliedVoucher.title} — {appliedVoucher.description}
                       </p>
                     </div>
@@ -751,7 +754,7 @@ export default function Checkout({ user }: CheckoutProps) {
                   <button
                     type="button"
                     onClick={handleRemoveVoucher}
-                    className="p-2 bg-emerald-100 dark:bg-emerald-900 hover:bg-emerald-200 dark:hover:bg-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl transition-all cursor-pointer"
+                    className="p-2 bg-[#32ba78]/10 dark:bg-[#32ba78]/10 hover:bg-[#32ba78]/20 dark:hover:bg-[#32ba78]/20 text-[#32ba78] rounded-xl transition-all cursor-pointer"
                     title="Remove voucher"
                   >
                     <X size={16} />
@@ -785,7 +788,7 @@ export default function Checkout({ user }: CheckoutProps) {
                     )}
 
                     {voucherSuccess && (
-                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 mt-2 ml-1">
+                      <p className="text-[10px] text-[#32ba78] font-bold flex items-center gap-1 mt-2 ml-1">
                         <Check size={12} />
                         <span>{voucherSuccess}</span>
                       </p>
@@ -964,7 +967,7 @@ export default function Checkout({ user }: CheckoutProps) {
                   Add <span className="font-extrabold text-orange-600 dark:text-orange-400">KES {remainingForFreeShipping.toLocaleString()}</span> more to unlock <span className="font-extrabold">FREE shipping</span>.
                 </p>
               ) : (
-                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 mt-1 uppercase tracking-tight">
+                <p className="text-[10px] text-[#32ba78] font-bold flex items-center gap-1 mt-1 uppercase tracking-tight">
                   <Check size={12} />
                   <span>Unbelievable! You've unlocked FREE Delivery.</span>
                 </p>
@@ -988,7 +991,7 @@ export default function Checkout({ user }: CheckoutProps) {
                 </div>
                 <span className="font-black text-gray-900 dark:text-white">
                   {shippingFee === 0 ? (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-black uppercase text-[10px] bg-emerald-50 dark:bg-emerald-950/35 px-2 py-0.5 rounded-full">
+                    <span className="text-[#32ba78] font-black uppercase text-[10px] bg-[#32ba78]/10 dark:bg-[#32ba78]/5 px-2 py-0.5 rounded-full">
                       Free shipping
                     </span>
                   ) : (
@@ -1003,7 +1006,7 @@ export default function Checkout({ user }: CheckoutProps) {
               </div>
 
               {appliedDiscount > 0 && (
-                <div className="flex justify-between items-center text-emerald-650 dark:text-emerald-400 font-black bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-2 rounded-xl border border-emerald-100 dark:border-emerald-950/50">
+                <div className="flex justify-between items-center text-[#32ba78] font-black bg-[#32ba78]/10 dark:bg-[#32ba78]/5 px-3 py-2 rounded-xl border border-[#32ba78]/20">
                   <span>Voucher Discount</span>
                   <span>- KES {appliedDiscount.toLocaleString()}</span>
                 </div>
@@ -1049,6 +1052,49 @@ export default function Checkout({ user }: CheckoutProps) {
             </div>
 
           </div>
+
+          {/* SokoPlus Buyer Protection Assurance Panel */}
+          <div className="bg-gradient-to-br from-[#32ba78]/10 via-[#32ba78]/5 to-transparent border border-[#32ba78]/30 rounded-3xl p-6 space-y-4 shadow-sm mt-6">
+            <div className="flex items-center space-x-3 text-[#32ba78]">
+              <ShieldCheck size={22} className="shrink-0" />
+              <h4 className="font-extrabold text-sm uppercase tracking-wider text-gray-950 dark:text-white">Buyer Protection Guarantee</h4>
+            </div>
+            <ul className="space-y-3.5 text-xs text-gray-600 dark:text-gray-400 font-semibold leading-relaxed">
+              <li className="flex items-start gap-2.5 text-left">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#32ba78] mt-1.5 shrink-0" />
+                <span>
+                  {sellerStudioEnabled ? (
+                    <>
+                      <strong className="text-gray-900 dark:text-white">Direct-to-Artisan support:</strong> 100% of purchase goes to the certified craft maker with fair-wage protection.
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-gray-900 dark:text-white">Direct Quality Sourcing:</strong> 100% genuine products sourced directly from trusted workshops with quality assurances.
+                    </>
+                  )}
+                </span>
+              </li>
+              {sellerStudioEnabled && (
+                <li className="flex items-start gap-2.5 text-left">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#32ba78] mt-1.5 shrink-0" />
+                  <span>
+                    <strong className="text-gray-900 dark:text-white">Escrow Payment Protection:</strong> Payments are safely held in escrow and only released to sellers after dispatch confirmation.
+                  </span>
+                </li>
+              )}
+              <li className="flex items-start gap-2.5 text-left">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#32ba78] mt-1.5 shrink-0" />
+                <span>
+                  <strong className="text-gray-900 dark:text-white">7-Day Free Returns:</strong> Simple, hassle-free replacement or full refund if you're not completely in love.
+                </span>
+              </li>
+            </ul>
+            <div className="border-t border-gray-150 dark:border-gray-800/60 pt-3 flex items-center justify-between text-[10px] text-gray-400 font-extrabold uppercase">
+              <span>{sellerStudioEnabled ? "Verified Artisan Seller Guild" : "Verified Quality Guarantee"}</span>
+              <span className="text-[#32ba78]">● Active Protection</span>
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -1143,7 +1189,7 @@ export default function Checkout({ user }: CheckoutProps) {
                     Add <span className="font-extrabold text-orange-600 dark:text-orange-400">KES {remainingForFreeShipping.toLocaleString()}</span> more to unlock <span className="font-extrabold text-gray-800 dark:text-gray-300">FREE shipping</span>.
                   </p>
                 ) : (
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 uppercase tracking-tight">
+                  <p className="text-[10px] text-[#32ba78] font-bold flex items-center gap-1 uppercase tracking-tight">
                     <Check size={12} />
                     <span>Unlocked FREE delivery!</span>
                   </p>
@@ -1166,7 +1212,7 @@ export default function Checkout({ user }: CheckoutProps) {
                   </div>
                   <span className="font-bold text-gray-950 dark:text-white">
                     {shippingFee === 0 ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 font-black uppercase text-[10px] bg-emerald-50 dark:bg-emerald-950/35 px-2 py-0.5 rounded-full">
+                      <span className="text-[#32ba78] font-black uppercase text-[10px] bg-[#32ba78]/10 dark:bg-[#32ba78]/5 px-2 py-0.5 rounded-full">
                         Free shipping
                       </span>
                     ) : (
@@ -1181,7 +1227,7 @@ export default function Checkout({ user }: CheckoutProps) {
                 </div>
 
                 {appliedDiscount > 0 && (
-                  <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-2 rounded-xl border border-emerald-100 dark:border-emerald-950/50">
+                  <div className="flex justify-between items-center text-[#32ba78] font-bold bg-[#32ba78]/10 dark:bg-[#32ba78]/5 px-3 py-2 rounded-xl border border-[#32ba78]/20">
                     <span>Voucher Discount</span>
                     <span>- KES {appliedDiscount.toLocaleString()}</span>
                   </div>
@@ -1195,6 +1241,22 @@ export default function Checkout({ user }: CheckoutProps) {
                     </span>
                   </div>
                 </div>
+
+                <div className="flex justify-around items-center pt-3 border-t border-gray-100 dark:border-gray-800 text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center select-none gap-2">
+                  <div className="flex items-center gap-1">
+                    <ShieldCheck size={12} className="text-[#32ba78]" />
+                    <span>Escrow Safe</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Truck size={12} className="text-orange-500" />
+                    <span>Speedy Delivery</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <RefreshCw size={12} className="text-blue-500" />
+                    <span>7d Returns</span>
+                  </div>
+                </div>
+
               </div>
 
               <div className="bg-gray-50 dark:bg-gray-955 p-4 rounded-2xl text-[10px] leading-relaxed text-gray-400 dark:text-gray-500 font-semibold max-w-full">

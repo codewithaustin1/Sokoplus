@@ -147,6 +147,19 @@ export default function Navbar({ user }: NavbarProps) {
     setIsMobileSearchOpen(false);
   }, [location.pathname]);
 
+  // Focus mobile search bar when navigating with search-focus query parameter
+  useEffect(() => {
+    if (location.search.includes("search-focus=true")) {
+      const input = document.getElementById("mobile-search-input");
+      if (input) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        setTimeout(() => {
+          input.focus();
+        }, 150);
+      }
+    }
+  }, [location.search]);
+
   useEffect(() => {
     async function fetchProducts() {
       try {
@@ -421,6 +434,7 @@ export default function Navbar({ user }: NavbarProps) {
             <Search size={16} />
           </span>
           <input
+            id="mobile-search-input"
             type="text"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}

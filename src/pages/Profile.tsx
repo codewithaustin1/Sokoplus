@@ -14,6 +14,7 @@ import { useTheme } from "../lib/ThemeContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
 import SellerStudio from "../components/SellerStudio";
+import { useSellerStudio } from "../lib/SellerStudioContext";
 
 function getVoucherBgImage(voucherId: string, code: string): string {
   const id = (voucherId || "").toLowerCase();
@@ -145,12 +146,19 @@ interface ProfileProps {
 }
 
 export default function Profile({ user }: ProfileProps) {
+  const { sellerStudioEnabled } = useSellerStudio();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [timeFilter, setTimeFilter] = useState<"this-month" | "last-12-months" | "specific-month">("this-month");
   const [profileTab, setProfileTab] = useState<"orders" | "vouchers" | "seller" | "settings">("orders");
   const { t, language, setLanguage } = useLanguage();
+
+  useEffect(() => {
+    if (!sellerStudioEnabled && profileTab === "seller") {
+      setProfileTab("orders");
+    }
+  }, [sellerStudioEnabled, profileTab]);
   const { theme, setTheme } = useTheme();
   const { currency, setCurrency } = useCurrency();
   
@@ -654,17 +662,19 @@ export default function Profile({ user }: ProfileProps) {
           <Gift size={16} />
           {language === "sw" ? "Vocha Zangu" : "My Vouchers"}
         </button>
-        <button
-          onClick={() => setProfileTab("seller")}
-          className={`flex items-center gap-2 px-4 sm:px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-            profileTab === "seller"
-              ? "border-orange-600 text-orange-600"
-              : "border-transparent text-gray-400 hover:text-gray-900"
-          }`}
-        >
-          <Store size={16} />
-          {t("Seller Studio")}
-        </button>
+        {sellerStudioEnabled && (
+          <button
+            onClick={() => setProfileTab("seller")}
+            className={`flex items-center gap-2 px-4 sm:px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+              profileTab === "seller"
+                ? "border-orange-600 text-orange-600"
+                : "border-transparent text-gray-400 hover:text-gray-900"
+            }`}
+          >
+            <Store size={16} />
+            {t("Seller Studio")}
+          </button>
+        )}
         <button
           onClick={() => setProfileTab("settings")}
           className={`flex items-center gap-2 px-4 sm:px-5 py-3 border-b-2 font-black uppercase text-xs tracking-wider transition-all cursor-pointer whitespace-nowrap ${

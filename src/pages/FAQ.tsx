@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import SEO from "../components/SEO";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Search, MessageSquare, HelpCircle } from "lucide-react";
+import { useSellerStudio } from "../lib/SellerStudioContext";
 
 interface FAQItem {
   question: string;
@@ -63,17 +64,35 @@ const FAQ_ITEMS: FAQItem[] = [
 ];
 
 export default function FAQ() {
+  const { sellerStudioEnabled } = useSellerStudio();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
-  const categories = ["All", "General", "Orders & Shipping", "Payments", "Artisans & Support"];
+  const categories = sellerStudioEnabled
+    ? ["All", "General", "Orders & Shipping", "Payments", "Artisans & Support"]
+    : ["All", "General", "Orders & Shipping", "Payments", "Support"];
 
   const filteredFAQs = FAQ_ITEMS.filter((item) => {
+    if (!sellerStudioEnabled) {
+      const qLower = item.question.toLowerCase();
+      const aLower = item.answer.toLowerCase();
+      if (
+        qLower.includes("seller") ||
+        qLower.includes("artisan") ||
+        aLower.includes("seller") ||
+        aLower.includes("artisan")
+      ) {
+        return false;
+      }
+    }
+
     const matchesSearch = 
       item.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.answer.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = activeCategory === "All" || item.category === activeCategory;
+
+    const mappedItemCategory = !sellerStudioEnabled && item.category === "Artisans & Support" ? "Support" : item.category;
+    const matchesCategory = activeCategory === "All" || mappedItemCategory === activeCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -97,7 +116,10 @@ export default function FAQ() {
           </div>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight text-gray-900">FAQ</h1>
           <p className="text-gray-500 max-w-lg mx-auto font-medium">
-            Find instant answers to common questions about SokoPlus products, delivery, secure payment, and artisanal trade.
+            {sellerStudioEnabled 
+              ? "Find instant answers to common questions about SokoPlus products, delivery, secure payment, and artisanal trade."
+              : "Find instant answers to common questions about SokoPlus products, delivery, secure payment, and customer support."
+            }
           </p>
         </div>
 

@@ -9,7 +9,9 @@ import { CartProvider } from "./lib/CartContext";
 import { CurrencyProvider } from "./lib/CurrencyContext";
 import { LanguageProvider } from "./lib/LanguageContext";
 import { ThemeProvider } from "./lib/ThemeContext";
+import { SellerStudioProvider } from "./lib/SellerStudioContext";
 import Navbar from "./components/Navbar";
+import BottomNavigation from "./components/BottomNavigation";
 import Footer from "./components/Footer";
 import AudioPlayer from "./components/AudioPlayer";
 import { ProductCompareDrawer } from "./components/ProductCompareDrawer";
@@ -436,9 +438,10 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <LanguageProvider>
-          <CurrencyProvider>
-            <CartProvider>
+        <SellerStudioProvider>
+          <LanguageProvider>
+            <CurrencyProvider>
+              <CartProvider>
               <Router>
                 <AnalyticsTracker />
               <div className="min-h-screen flex flex-col font-sans bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 selection:bg-orange-100 transition-colors duration-200">
@@ -448,7 +451,8 @@ export default function App() {
               />
               {user && !user.emailVerified && <VerificationBanner email={user.email} />}
               <Navbar user={user} />
-              <main className="flex-grow">
+              <BottomNavigation user={user} />
+              <main className="flex-grow pb-20 md:pb-0">
                 <Routes>
                   <Route path="/" element={<Home user={user} />} />
                   <Route path="/product/:id" element={<ProductDetails user={user} />} />
@@ -473,7 +477,7 @@ export default function App() {
                 </Routes>
               </main>
               <Footer />
-              <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-4 z-[60]">
+              <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 flex flex-col items-end space-y-4 z-[60]">
                 <AnimatePresence>
                   {showScrollTop && (
                     <motion.button
@@ -530,6 +534,7 @@ export default function App() {
           </CartProvider>
           </CurrencyProvider>
         </LanguageProvider>
+        </SellerStudioProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

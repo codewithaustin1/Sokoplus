@@ -19,16 +19,18 @@ import { trackEvent } from "../lib/analytics";
 import heroImage from "../assets/images/sokoplus_hero_bg_1782815259030.jpg";
 import { FastImage } from "../components/FastImage";
 import ProductCardSkeleton from "../components/ProductCardSkeleton";
-import { prefetchProductAssets } from "../utils/imagePrefetcher";
+import { prefetchProductAssets, prefetchImageUrl } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
 import { saveProductsToCache, getCachedProducts, saveHomepageSettings, getHomepageSettings } from "../utils/offlineDb";
 import { getCompareList, addToCompare, removeFromCompare } from "../utils/compare";
+import { useSellerStudio } from "../lib/SellerStudioContext";
 
 interface HomeProps {
   user: UserProfile | null;
 }
 
 export default function Home({ user }: HomeProps) {
+  const { sellerStudioEnabled } = useSellerStudio();
   const { language, t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [heroImageUrl, setHeroImageUrl] = useState<string>("");
@@ -489,6 +491,15 @@ export default function Home({ user }: HomeProps) {
     return () => clearInterval(interval);
   }, [slides]);
 
+  // Prefetch large carousel images to guarantee zero-latency transitions
+  useEffect(() => {
+    if (slides && slides.length > 0) {
+      slides.forEach((url) => {
+        prefetchImageUrl(url);
+      });
+    }
+  }, [slides]);
+
   useEffect(() => {
     setLoading(isQueryLoading);
   }, [isQueryLoading]);
@@ -915,7 +926,10 @@ export default function Home({ user }: HomeProps) {
                                 initial={{ opacity: 0, scale: 0.5 }}
                                 animate={{ opacity: 1, scale: [1, 1.25, 1] }}
                                 exit={{ opacity: 0, scale: 0.5 }}
-                                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                transition={{ 
+                                  scale: { duration: 0.3, ease: "easeInOut" },
+                                  opacity: { type: "spring", stiffness: 400, damping: 10 }
+                                }}
                                 className="flex items-center justify-center"
                               >
                                 <Check size={18} className="stroke-[3]" />
@@ -1423,7 +1437,10 @@ export default function Home({ user }: HomeProps) {
                                 initial={{ opacity: 0, scale: 0.5 }}
                                 animate={{ opacity: 1, scale: [1, 1.25, 1] }}
                                 exit={{ opacity: 0, scale: 0.5 }}
-                                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                transition={{ 
+                                  scale: { duration: 0.3, ease: "easeInOut" },
+                                  opacity: { type: "spring", stiffness: 400, damping: 10 }
+                                }}
                                 className="flex items-center justify-center"
                               >
                                 <Check size={18} className="stroke-[3]" />
@@ -1487,7 +1504,11 @@ export default function Home({ user }: HomeProps) {
                     Finding quality online shouldn't feel like a gamble.
                   </p>
                   <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                    Sokoplus brings together trusted sellers, secure payments, and carefully selected products so you can spend less time worrying and more time enjoying what you buy.
+                    {sellerStudioEnabled ? (
+                      "Sokoplus brings together trusted sellers, secure payments, and carefully selected products so you can spend less time worrying and more time enjoying what you buy."
+                    ) : (
+                      "Sokoplus brings together secure payments, certified quality, and carefully selected products so you can spend less time worrying and more time enjoying what you buy."
+                    )}
                   </p>
                 </div>
                 <div className="space-y-3 bg-gray-50 dark:bg-gray-950/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-850">
@@ -1495,7 +1516,9 @@ export default function Home({ user }: HomeProps) {
                     <div className="bg-green-100 dark:bg-green-950/40 text-green-600 dark:text-green-450 p-1 rounded-md shrink-0">
                       <Check size={14} className="stroke-[3]" />
                     </div>
-                    <span className="font-bold text-xs sm:text-sm">Verified Sellers</span>
+                    <span className="font-bold text-xs sm:text-sm">
+                      {sellerStudioEnabled ? "Verified Sellers" : "Verified Products"}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-3 text-gray-800 dark:text-gray-200">
                     <div className="bg-green-100 dark:bg-green-950/40 text-green-600 dark:text-green-450 p-1 rounded-md shrink-0">

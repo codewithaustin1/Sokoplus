@@ -89,7 +89,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
             <motion.div
               initial={{ scale: 0.2 }}
               animate={{ scale: [1, 1.3, 1] }}
-              transition={{ delay: 0.1, duration: 0.25 }}
+              transition={{ delay: 0.1, duration: 0.25, type: "keyframes", ease: "easeInOut" }}
               className="bg-white brand-success-text rounded-full p-0.5 shadow-sm flex items-center justify-center shrink-0"
             >
               <Check size={12} className="stroke-[3.5]" />

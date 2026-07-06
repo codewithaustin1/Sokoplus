@@ -432,6 +432,15 @@ export default function Blog({ user }: { user: UserProfile | null }) {
         }
         type={selectedPost ? "article" : "website"}
         schema={blogSchema}
+        keywords={selectedPost?.tags || ["Kenyan market news", "artisan stories", "ecommerce Kenya", "Sokoplus blog"]}
+        articleAuthor={selectedPost ? (selectedPost.author || "Sokoplus Team") : undefined}
+        articlePublishedTime={
+          selectedPost 
+            ? (selectedPost.publishedAt?.toDate 
+                ? selectedPost.publishedAt.toDate().toISOString() 
+                : new Date(selectedPost.publishedAt).toISOString())
+            : undefined
+        }
       />
       
       {/* Editorial Header Section */}

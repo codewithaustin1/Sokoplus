@@ -59,8 +59,10 @@ import {
   Megaphone,
   Calendar,
   Music,
+  Store,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useSellerStudio } from "../lib/SellerStudioContext";
 import axios from "axios";
 import RichTextEditor from "../components/RichTextEditor";
 import { downloadReceipt } from "../utils/pdfGenerator";
@@ -548,6 +550,7 @@ const CustomCategoryTooltip = ({ active, payload }: any) => {
 };
 
 export default function Admin({ user }: AdminProps) {
+  const { sellerStudioEnabled, toggleSellerStudio } = useSellerStudio();
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -570,6 +573,12 @@ export default function Admin({ user }: AdminProps) {
   const [activeTab, setActiveTab] = useState<
     "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue"
   >("inventory");
+
+  useEffect(() => {
+    if (!sellerStudioEnabled && (activeTab === "sellers" || activeTab === "approval_queue")) {
+      setActiveTab("inventory");
+    }
+  }, [sellerStudioEnabled, activeTab]);
   const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
   const [confirmingApprovePendingId, setConfirmingApprovePendingId] = useState<string | null>(null);
   const [selectedPendingForRejection, setSelectedPendingForRejection] = useState<Product | null>(null);
@@ -2389,7 +2398,21 @@ export default function Admin({ user }: AdminProps) {
             Welcome back, {user.displayName}. Managing Soplus Kenya.
           </p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => toggleSellerStudio(!sellerStudioEnabled)}
+            className={`px-6 py-3 rounded-2xl font-bold flex items-center gap-2 transition-all self-start border ${
+              sellerStudioEnabled
+                ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100/50"
+                : "bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/30 text-rose-700 dark:text-rose-400 hover:bg-rose-100/50"
+            }`}
+          >
+            <Store size={18} />
+            <span>Seller Studio:</span>
+            <span className="uppercase tracking-wider font-extrabold text-xs px-2 py-0.5 rounded-lg bg-white/80 dark:bg-black/30 shadow-sm">
+              {sellerStudioEnabled ? "ON" : "OFF"}
+            </span>
+          </button>
           <button
             onClick={seedData}
             className="bg-gray-100 text-gray-700 px-6 py-3 rounded-2xl font-bold flex items-center hover:bg-gray-200 transition-all self-start"
@@ -2734,28 +2757,32 @@ export default function Admin({ user }: AdminProps) {
         >
           Product Reviews
         </button>
-        <button
-          onClick={() => setActiveTab("sellers")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "sellers" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
-        >
-          Marketplace Sellers
-          {sellers.filter((s) => s.status === "pending").length > 0 && (
-            <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
-              {sellers.filter((s) => s.status === "pending").length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab("approval_queue")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "approval_queue" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
-        >
-          Approval Queue
-          {pendingProducts.filter((p) => p.approvalStatus === "pending").length > 0 && (
-            <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
-              {pendingProducts.filter((p) => p.approvalStatus === "pending").length}
-            </span>
-          )}
-        </button>
+        {sellerStudioEnabled && (
+          <>
+            <button
+              onClick={() => setActiveTab("sellers")}
+              className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "sellers" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+            >
+              Marketplace Sellers
+              {sellers.filter((s) => s.status === "pending").length > 0 && (
+                <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
+                  {sellers.filter((s) => s.status === "pending").length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("approval_queue")}
+              className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "approval_queue" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+            >
+              Approval Queue
+              {pendingProducts.filter((p) => p.approvalStatus === "pending").length > 0 && (
+                <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
+                  {pendingProducts.filter((p) => p.approvalStatus === "pending").length}
+                </span>
+              )}
+            </button>
+          </>
+        )}
         {user?.email === "upfrontretaile@gmail.com" && (
           <button
             onClick={() => setActiveTab("security")}
@@ -5768,7 +5795,7 @@ export default function Admin({ user }: AdminProps) {
             </div>
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
               <span className="text-xs text-gray-400 font-bold uppercase block">Marketplace Commission Fee</span>
-              <p className="text-3xl font-black text-gray-900 mt-1">5.0% flat</p>
+              <p className="text-3xl font-black text-gray-900 mt-1">10.0% flat</p>
             </div>
           </div>
 
@@ -5835,6 +5862,34 @@ export default function Admin({ user }: AdminProps) {
                       )}
                     </div>
 
+                    {/* Paystack Split Settlement & Onboarding Details */}
+                    <div className="p-4 bg-gray-50/50 rounded-xl border border-gray-150 space-y-2">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Paystack Split Settlement & Onboarding Details</span>
+                      {seller.paystackSubaccountCode ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                          <div>
+                            <span className="text-[9px] uppercase font-bold text-gray-400 block">Subaccount Code</span>
+                            <span className="font-mono font-bold text-gray-900">{seller.paystackSubaccountCode}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase font-bold text-gray-400 block">Settlement Target</span>
+                            <span className="font-bold text-gray-800">MPESA ({seller.mpesaPhone || seller.phone})</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase font-bold text-gray-400 block">Split Setup Status</span>
+                            <span className="inline-flex items-center gap-1 text-[10px] bg-green-50 text-green-700 px-2.5 py-0.5 rounded-full font-black border border-green-150">
+                              ● Active (10% Split)
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between text-xs bg-amber-50/50 p-2.5 rounded-lg border border-amber-100/40">
+                          <span className="text-amber-800 font-semibold italic">Onboarding incomplete: No Paystack Subaccount configured by seller yet.</span>
+                          <span className="text-[9px] uppercase font-black text-amber-700 bg-white px-2 py-1 rounded-md shadow-xs border border-amber-200">Pending Setup</span>
+                        </div>
+                      )}
+                    </div>
+
                     {seller.status === "pending" && (
                       <div className="flex items-center gap-2 justify-end pt-2">
                         {confirmingApproveSellerId === seller.uid && (
@@ -5865,8 +5920,33 @@ export default function Admin({ user }: AdminProps) {
                               return;
                             }
                             try {
+                              // First approve the seller
                               await updateDoc(doc(db, "sellers", seller.uid), { status: "approved" });
-                              setSellers(prev => prev.map(s => s.uid === seller.uid ? { ...s, status: "approved" } : s));
+                              
+                              // Now attempt to programmatically trigger Paystack Subaccount creation
+                              let extraData = {};
+                              try {
+                                const phoneNum = seller.mpesaPhone || seller.phone || "";
+                                if (phoneNum) {
+                                  const subRes = await axios.post("/api/paystack/subaccount/create", {
+                                    sellerId: seller.uid,
+                                    businessName: seller.shopName,
+                                    mpesaPhone: phoneNum
+                                  });
+                                  if (subRes.data && subRes.data.success) {
+                                    extraData = subRes.data.updateData || {};
+                                    if (subRes.data.status === "live") {
+                                      toast.success(`Paystack Subaccount automatically created and linked: ${subRes.data.subaccountCode}`);
+                                    } else {
+                                      toast.success(`Paystack Subaccount successfully initialized (simulated/sandbox): ${subRes.data.subaccountCode}`);
+                                    }
+                                  }
+                                }
+                              } catch (subErr) {
+                                console.warn("[Admin] Auto-subaccount creation had issues:", subErr);
+                              }
+
+                              setSellers(prev => prev.map(s => s.uid === seller.uid ? { ...s, status: "approved", ...extraData } : s));
                               toast.success(`Merchant "${seller.shopName}" has been successfully approved!`);
                               setConfirmingApproveSellerId(null);
                             } catch (error) {
@@ -6209,6 +6289,30 @@ export default function Admin({ user }: AdminProps) {
                               <strong>Declined Action:</strong> "{pendingItem.rejectionReason}"
                             </span>
                           )}
+
+                          {(() => {
+                            const checkText = `${pendingItem.name} ${pendingItem.description || ""} ${pendingItem.category || ""}`.toLowerCase();
+                            const prohibitedWords = [
+                              "firearm", "weapon", "ammunition", "rifle", "pistol", "gun", "bullets",
+                              "tobacco", "nicotine", "vape", "vaping", "e-cigarette", "cigarette",
+                              "marijuana", "cannabis", "cocaine", "heroin", "narcotic",
+                              "gambling", "betting", "lottery", "casino", "poker",
+                              "cryptocurrency", "bitcoin", "adult content", "pornography", "escort"
+                            ];
+                            const matched = prohibitedWords.filter(word => checkText.includes(word));
+                            if (matched.length > 0) {
+                              return (
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-red-50 text-red-650 border border-red-200 animate-pulse flex items-center gap-1 shrink-0">
+                                  ⚠ Paystack AUP Flagged: {matched.join(", ")}
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-[#32ba78]/10 text-[#32ba78] border border-[#32ba78]/25 flex items-center gap-1 shrink-0">
+                                ✓ Paystack AUP Compliant
+                              </span>
+                            );
+                          })()}
                         </div>
 
                         {/* Seller Metadata */}

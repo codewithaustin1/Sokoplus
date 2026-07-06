@@ -155,6 +155,18 @@ export interface SellerProfile {
   status: "pending" | "approved" | "rejected";
   createdAt: any;
   rejectedReason?: string;
+  mpesaPhone?: string;
+  paystackSubaccountCode?: string;
+  settlementType?: "manual" | "automatic";
+  splitStatus?: "active" | "pending" | "inactive";
+  paidOutAmount?: number;
+  payoutHistory?: {
+    id: string;
+    amount: number;
+    mpesaPhone: string;
+    status: "pending" | "success" | "failed";
+    date: string;
+  }[];
 }
 
 
