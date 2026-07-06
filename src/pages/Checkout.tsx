@@ -37,6 +37,7 @@ import { FastImage } from "../components/FastImage";
 import { calculateDelivery, calculateShippingFee } from "../utils/delivery";
 import { DeliveryCountdown } from "../components/DeliveryCountdown";
 import { useSellerStudio } from "../lib/SellerStudioContext";
+import FreeDeliveryMap from "../components/FreeDeliveryMap";
 
 interface CheckoutProps {
   user: UserProfile | null;
@@ -487,6 +488,28 @@ export default function Checkout({ user }: CheckoutProps) {
                 </div>
               </div>
             </div>
+
+            {/* Free OpenStreetMap Interactive Pin-drop */}
+            <FreeDeliveryMap 
+              county={address.county}
+              city={address.city}
+              onChange={(lat, lng, addressText) => {
+                setAddress(prev => {
+                  const updated = { ...prev, lat, lng };
+                  if (addressText) {
+                    updated.street = addressText;
+                  }
+                  return updated;
+                });
+                if (addressText) {
+                  setValidationErrors(prev => {
+                    const updated = { ...prev };
+                    delete updated.street;
+                    return updated;
+                  });
+                }
+              }}
+            />
 
             <div className="space-y-2">
               <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Detailed Street Address / Apartment / Estate</label>

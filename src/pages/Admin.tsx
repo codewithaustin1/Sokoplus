@@ -2695,6 +2695,142 @@ export default function Admin({ user }: AdminProps) {
         </div>
       </div>
 
+      {/* Active Business Model Visualizer */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-850 p-6 sm:p-8 rounded-3xl shadow-md space-y-6 animate-fade-in text-gray-900 dark:text-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500"></span>
+              </span>
+              <h2 className="text-xl font-black text-gray-950 dark:text-white uppercase tracking-tight">
+                Active Platform Business Model
+              </h2>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1">
+              Dynamic operational model adjusted in real-time according to third-party integration toggles.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${
+              sellerStudioEnabled 
+                ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200/50" 
+                : "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border border-blue-200/50"
+            }`}>
+              {sellerStudioEnabled ? "Hybrid Marketplace" : "Direct-Sourced Retail"}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Core Concept */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">
+              Core Revenue Stream & Settlement
+            </h3>
+            <div className="bg-gray-50 dark:bg-gray-950/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-850/60 h-full flex flex-col justify-between min-h-[120px]">
+              {sellerStudioEnabled ? (
+                <>
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 leading-snug">
+                    SokoPlus charges a <span className="text-orange-600 font-extrabold">10.0% flat split commission</span> on independent artisan transactions.
+                  </p>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-1">
+                    <p>• Automated split-payment calculation</p>
+                    <p>• Escrow payout hold until delivery check</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 leading-snug">
+                    SokoPlus operates on a <span className="text-blue-600 font-extrabold">100% Direct Retail Sourcing Model</span> with full warehouse margins.
+                  </p>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-1">
+                    <p>• SokoPlus acts as the direct seller of record</p>
+                    <p>• 0% third-party marketplace commission splits</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Sourcing & Supply Chain */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">
+              Supply Chain & Inventory Flow
+            </h3>
+            <div className="bg-gray-50 dark:bg-gray-950/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-850/60 h-full flex flex-col justify-between min-h-[120px]">
+              {sellerStudioEnabled ? (
+                <>
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 leading-snug">
+                    Decentralized network of <span className="text-orange-600 font-extrabold">approved local workshops</span> managing their own virtual shops.
+                  </p>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-1">
+                    <p>• Artisans register & list catalog directly</p>
+                    <p>• Goods are physical/escrow inspected</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200 leading-snug">
+                    Centralized <span className="text-blue-600 font-extrabold">wholesale workshop acquisitions</span> with standardized quality checks.
+                  </p>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 space-y-1">
+                    <p>• Direct supply purchases from co-ops</p>
+                    <p>• Safe 100% certified product warranties</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Feature Enforcement Status */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">
+              System Capabilities Enforced
+            </h3>
+            <div className="bg-gray-50 dark:bg-gray-950/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-850/60 h-full flex flex-col justify-between min-h-[120px]">
+              <div className="space-y-2 text-xs">
+                {sellerStudioEnabled ? (
+                  <>
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Seller Studios: ACTIVE</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span>Artisan Audits & Reviews: ACTIVE</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span>Marketplace Fee Splits: ACTIVE</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-rose-650 dark:text-rose-400 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                      <span>Seller Studio Interfaces: DISCONNECTED</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-rose-650 dark:text-rose-400 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                      <span>Vendor Registration: BLOCKED</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-rose-650 dark:text-rose-400 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                      <span>Escrow Delay System: DISCIPLINED</span>
+                    </div>
+                  </>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-400 font-extrabold uppercase mt-2 border-t border-gray-100 dark:border-gray-800/80 pt-2">
+                * Clean build compliance: {sellerStudioEnabled ? "100% Marketplace Mode" : "100% Merchant Direct Mode"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-2xl w-fit flex-wrap gap-y-2">
         <button
