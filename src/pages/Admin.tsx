@@ -65,6 +65,7 @@ import toast from "react-hot-toast";
 import { useSellerStudio } from "../lib/SellerStudioContext";
 import axios from "axios";
 import RichTextEditor from "../components/RichTextEditor";
+import ArtisanColorPicker from "../components/ArtisanColorPicker";
 import { downloadReceipt } from "../utils/pdfGenerator";
 import SecurityManager from "../components/SecurityManager";
 import AdminReviewsManager from "../components/AdminReviewsManager";
@@ -138,6 +139,19 @@ function handleFirestoreError(
   toast.error(`Error: ${errInfo.error}`);
   throw new Error(JSON.stringify(errInfo));
 }
+
+const ARTISAN_COLORS = [
+  { name: "Charcoal Black", hex: "#1a1a1a" },
+  { name: "Tan Leather", hex: "#a0522d" },
+  { name: "Espresso Brown", hex: "#4a2c11" },
+  { name: "Desert Sand", hex: "#dfc9b1" },
+  { name: "Terracotta Rust", hex: "#c25e40" },
+  { name: "Olive Green", hex: "#556b2f" },
+  { name: "Mustard Gold", hex: "#d4af37" },
+  { name: "Crimson Red", hex: "#b22222" },
+  { name: "Royal Blue", hex: "#0f4c81" },
+  { name: "Ivory White", hex: "#fdfbf7" }
+];
 
 const compressImageFile = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -679,6 +693,11 @@ export default function Admin({ user }: AdminProps) {
   const [showBlogEditModal, setShowBlogEditModal] = useState(false);
   const [editingBlog, setEditingBlog] = useState<BlogPost | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [hasColorsAdd, setHasColorsAdd] = useState(false);
+  const [selectedColorsAdd, setSelectedColorsAdd] = useState<string[]>([]);
+  const [hasColorsEdit, setHasColorsEdit] = useState(false);
+  const [selectedColorsEdit, setSelectedColorsEdit] = useState<string[]>([]);
+
   const [newProduct, setNewProduct] = useState({
     name: "",
     description: "",
@@ -1218,9 +1237,12 @@ export default function Admin({ user }: AdminProps) {
         rating: 4.5,
         reviewCount: 0,
         createdAt: new Date().toISOString(),
+        availableColors: hasColorsAdd ? selectedColorsAdd : [],
       });
       toast.success("Product added successfully!");
       setShowAddModal(false);
+      setHasColorsAdd(false);
+      setSelectedColorsAdd([]);
       setNewProduct({
         name: "",
         description: "",
@@ -1301,6 +1323,7 @@ export default function Admin({ user }: AdminProps) {
         ...updateData,
         images: sanitizedImages.length > 0 ? sanitizedImages : [],
         originalPrice: editingProduct.originalPrice && editingProduct.originalPrice > 0 ? editingProduct.originalPrice : null,
+        availableColors: hasColorsEdit ? selectedColorsEdit : [],
       });
 
       if (isPriceDropped) {
@@ -3761,6 +3784,8 @@ export default function Admin({ user }: AdminProps) {
                           <button
                             onClick={() => {
                               setEditingProduct(p);
+                              setHasColorsEdit(!!(p.availableColors && p.availableColors.length > 0));
+                              setSelectedColorsEdit(p.availableColors || []);
                               setShowEditModal(true);
                             }}
                             className="text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-all"
@@ -4881,6 +4906,95 @@ export default function Admin({ user }: AdminProps) {
                   placeholder="Describe your premium item (supports bold, headings, bullets, lists, link-items, quotes...)"
                 />
               </div>
+
+              {/* Beautiful Color Specifications Toggle & Swatches */}
+              <div className="col-span-2 bg-gray-50/50 dark:bg-gray-950/20 border border-gray-150 dark:border-gray-800 p-5 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-500">
+                      Color Variations & Specifications
+                    </label>
+                    <p className="text-[10px] text-gray-400 font-bold">
+                      Does this craft offer distinct color options?
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={hasColorsAdd}
+                      onChange={(e) => {
+                        setHasColorsAdd(e.target.checked);
+                        if (!e.target.checked) {
+                          setSelectedColorsAdd([]);
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 dark:bg-gray-800 rounded-full peer peer-focus:ring-2 peer-focus:ring-orange-100 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:width-5 after:transition-all peer-checked:bg-orange-600"></div>
+                  </label>
+                </div>
+
+                {hasColorsAdd && (
+                  <div className="space-y-4 pt-3 border-t border-gray-100 dark:border-gray-800 animate-fade-in">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">
+                      Select Available Artisan Swatches
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {ARTISAN_COLORS.map((color) => {
+                        const representation = `${color.name}|${color.hex}`;
+                        const isSelected = selectedColorsAdd.includes(representation);
+                        return (
+                          <button
+                            key={color.name}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedColorsAdd((prev) => prev.filter((c) => c !== representation));
+                              } else {
+                                setSelectedColorsAdd((prev) => [...prev, representation]);
+                              }
+                            }}
+                            className={`flex items-center gap-1.5 p-1.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-orange-50/40 dark:bg-orange-950/20 border-orange-500/60 shadow-xs"
+                                : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-gray-300"
+                            }`}
+                          >
+                            <span
+                              className="w-5 h-5 rounded-full border border-black/10 shrink-0 flex items-center justify-center shadow-xs"
+                              style={{ backgroundColor: color.hex }}
+                            >
+                              {isSelected && (
+                                <Check
+                                  className={color.hex === "#fdfbf7" ? "text-gray-900" : "text-white"}
+                                  size={12}
+                                  strokeWidth={3}
+                                />
+                              )}
+                            </span>
+                            <span className="text-[10px] font-extrabold text-gray-750 dark:text-gray-300 truncate">
+                              {color.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Interactive Color Wheel Picker */}
+                    <ArtisanColorPicker
+                      selectedColors={selectedColorsAdd}
+                      onAddColor={(rep) => setSelectedColorsAdd((prev) => [...prev, rep])}
+                    />
+
+                    {selectedColorsAdd.length === 0 && (
+                      <p className="text-[9px] text-amber-600 font-bold flex items-center gap-1">
+                        <span>⚠ Please select or pick at least one available swatch.</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="col-span-2">
                 <ProductImageManager
                   images={newProduct.images}
@@ -5081,6 +5195,95 @@ export default function Admin({ user }: AdminProps) {
                   placeholder="Describe your premium item (supports bold, headings, bullets, lists, link-items, quotes...)"
                 />
               </div>
+
+              {/* Beautiful Color Specifications Toggle & Swatches */}
+              <div className="col-span-2 bg-gray-50/50 dark:bg-gray-950/20 border border-gray-150 dark:border-gray-800 p-5 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-500">
+                      Color Variations & Specifications
+                    </label>
+                    <p className="text-[10px] text-gray-400 font-bold">
+                      Does this craft offer distinct color options?
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={hasColorsEdit}
+                      onChange={(e) => {
+                        setHasColorsEdit(e.target.checked);
+                        if (!e.target.checked) {
+                          setSelectedColorsEdit([]);
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 dark:bg-gray-800 rounded-full peer peer-focus:ring-2 peer-focus:ring-orange-100 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:width-5 after:transition-all peer-checked:bg-orange-600"></div>
+                  </label>
+                </div>
+
+                {hasColorsEdit && (
+                  <div className="space-y-4 pt-3 border-t border-gray-100 dark:border-gray-800 animate-fade-in">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 block">
+                      Select Available Artisan Swatches
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {ARTISAN_COLORS.map((color) => {
+                        const representation = `${color.name}|${color.hex}`;
+                        const isSelected = selectedColorsEdit.includes(representation);
+                        return (
+                          <button
+                            key={color.name}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedColorsEdit((prev) => prev.filter((c) => c !== representation));
+                              } else {
+                                setSelectedColorsEdit((prev) => [...prev, representation]);
+                              }
+                            }}
+                            className={`flex items-center gap-1.5 p-1.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-orange-50/40 dark:bg-orange-950/20 border-orange-500/60 shadow-xs"
+                                : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-gray-300"
+                            }`}
+                          >
+                            <span
+                              className="w-5 h-5 rounded-full border border-black/10 shrink-0 flex items-center justify-center shadow-xs"
+                              style={{ backgroundColor: color.hex }}
+                            >
+                              {isSelected && (
+                                <Check
+                                  className={color.hex === "#fdfbf7" ? "text-gray-900" : "text-white"}
+                                  size={12}
+                                  strokeWidth={3}
+                                />
+                              )}
+                            </span>
+                            <span className="text-[10px] font-extrabold text-gray-750 dark:text-gray-300 truncate">
+                              {color.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Interactive Color Wheel Picker */}
+                    <ArtisanColorPicker
+                      selectedColors={selectedColorsEdit}
+                      onAddColor={(rep) => setSelectedColorsEdit((prev) => [...prev, rep])}
+                    />
+
+                    {selectedColorsEdit.length === 0 && (
+                      <p className="text-[9px] text-amber-600 font-bold flex items-center gap-1">
+                        <span>⚠ Please select or pick at least one available swatch.</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="col-span-2">
                 <ProductImageManager
                   images={editingProduct.images}
@@ -6526,7 +6729,8 @@ export default function Admin({ user }: AdminProps) {
                               active: true,
                               approvalStatus: "approved",
                               rejectionReason: "",
-                              createdAt: pendingItem.createdAt || new Date().toISOString()
+                              createdAt: pendingItem.createdAt || new Date().toISOString(),
+                              availableColors: pendingItem.availableColors || []
                             };
 
                             if (pendingItem.originalProductId) {

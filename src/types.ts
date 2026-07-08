@@ -19,6 +19,7 @@ export interface Product {
   rejectionReason?: string;
   originalProductId?: string;
   isPending?: boolean;
+  availableColors?: string[];
 }
 
 export interface CartItem {

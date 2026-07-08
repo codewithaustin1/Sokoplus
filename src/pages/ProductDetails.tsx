@@ -3,7 +3,7 @@ import { useParams, Link, useLocation } from "react-router-dom";
 import { doc, getDoc, collection, query, limit, getDocs, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
-import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare, Camera, Trash2, Image, Video, VideoOff, Users, Flame } from "lucide-react";
+import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare, Camera, Trash2, Image, Video, VideoOff, Users, Flame, Check } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -74,6 +74,16 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
 
   // Advanced Photo Capture & Review Attachment state
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (product && product.availableColors && product.availableColors.length > 0) {
+      setSelectedColor(product.availableColors[0]);
+    } else {
+      setSelectedColor(null);
+    }
+  }, [product]);
+
   const [showCamera, setShowCamera] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
@@ -817,6 +827,59 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             )}
           </div>
 
+          {/* Beautiful Color Specifications Swatches on Details view */}
+          {product.availableColors && product.availableColors.length > 0 && (
+            <div className="mb-6 p-4 bg-gray-50/50 dark:bg-gray-950/20 border border-gray-150 dark:border-gray-850 rounded-2xl">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-450">
+                  Available Color Options
+                </span>
+                {selectedColor && (
+                  <span className="text-xs font-black text-orange-600 dark:text-orange-400 bg-orange-100/50 dark:bg-orange-950/40 px-2.5 py-0.5 rounded-full">
+                    Selected: {selectedColor.split("|")[0]}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {product.availableColors.map((colorStr) => {
+                  const parts = colorStr.split("|");
+                  const name = parts[0];
+                  const hex = parts[1] || "#808080";
+                  const isSelected = selectedColor === colorStr;
+                  return (
+                    <button
+                      key={colorStr}
+                      type="button"
+                      onClick={() => setSelectedColor(colorStr)}
+                      className={`group relative flex items-center gap-1.5 p-1.5 px-3 rounded-xl border transition-all cursor-pointer select-none ${
+                        isSelected
+                          ? "bg-white dark:bg-gray-900 border-orange-500 shadow-md scale-[1.03]"
+                          : "bg-white/50 dark:bg-gray-900/50 border-gray-150 dark:border-gray-850 hover:border-gray-350"
+                      }`}
+                      title={name}
+                    >
+                      <span
+                        className="w-4 h-4 rounded-full border border-black/10 shrink-0 flex items-center justify-center shadow-xs"
+                        style={{ backgroundColor: hex }}
+                      >
+                        {isSelected && (
+                          <Check
+                            className={hex === "#fdfbf7" ? "text-gray-900" : "text-white"}
+                            size={10}
+                            strokeWidth={3}
+                          />
+                        )}
+                      </span>
+                      <span className="text-xs font-bold text-gray-750 dark:text-gray-350 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
+                        {name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <DeliveryCountdown className="mb-6" />
 
           <div className="flex space-x-3">
@@ -832,7 +895,11 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                   quantity: 1, 
                   image: product.images?.[0] || "", 
                   sellerId: product.sellerId, 
-                  sellerName: product.sellerName 
+                  sellerName: product.sellerName,
+                  customizations: selectedColor ? {
+                    color: selectedColor.split("|")[1],
+                    colorName: selectedColor.split("|")[0]
+                  } : undefined
                 });
                 trackEvent("add_to_cart", {
                   items: [{
