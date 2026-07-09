@@ -25,6 +25,13 @@ const COUNTRY_FLAGS: Record<string, string> = {
   "Rwanda": "🇷🇼",
 };
 
+const COUNTRY_FLAG_IMAGES: Record<string, string> = {
+  "Kenya": "https://flagcdn.com/w40/ke.png",
+  "Uganda": "https://flagcdn.com/w40/ug.png",
+  "Tanzania": "https://flagcdn.com/w40/tz.png",
+  "Rwanda": "https://flagcdn.com/w40/rw.png",
+};
+
 const CITIES_BY_COUNTRY: Record<string, string[]> = {
   "Kenya": ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret"],
   "Uganda": ["Kampala", "Entebbe", "Jinja"],
@@ -277,8 +284,14 @@ export default function Navbar({ user }: NavbarProps) {
               onClick={() => setShowLocationModal(true)}
               className="flex items-center gap-1.5 cursor-pointer hover:text-amber-400 transition-colors"
             >
-              Deliver to <span className="text-white font-extrabold flex items-center gap-1">
-                <span className="text-[13px]">{COUNTRY_FLAGS[deliveryCountry] || "🇰🇪"}</span> {deliveryCity}
+              Deliver to <span className="text-white font-extrabold flex items-center gap-1.5">
+                <img 
+                  src={COUNTRY_FLAG_IMAGES[deliveryCountry] || "https://flagcdn.com/w40/ke.png"} 
+                  alt={deliveryCountry} 
+                  className="w-4 h-3 object-cover rounded-xs border border-gray-800/80 shrink-0 select-none"
+                  referrerPolicy="no-referrer"
+                />
+                <span>{deliveryCity}</span>
               </span>
               <ChevronDown size={11} className="text-gray-400" />
             </div>
@@ -287,9 +300,12 @@ export default function Navbar({ user }: NavbarProps) {
               🚚 Express Delivery
             </div>
             <span className="text-gray-700">|</span>
-            <div className="text-gray-400 hover:text-white transition-colors flex items-center gap-1">
+            <Link
+              to="/returns"
+              className="text-gray-400 hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+            >
               🔄 Free Returns
-            </div>
+            </Link>
           </div>
 
           <div className="flex items-center gap-5">
@@ -298,9 +314,6 @@ export default function Navbar({ user }: NavbarProps) {
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="flex items-center gap-1.5 cursor-pointer select-none text-gray-400 hover:text-white transition-colors group"
             >
-              <span className="text-[10px] uppercase font-black tracking-wider text-gray-400 group-hover:text-amber-400 transition-colors">
-                {theme === "dark" ? "Dark Theme" : "Light Theme"}
-              </span>
               <div className="w-9 h-4.5 bg-gray-750 dark:bg-amber-500 rounded-full p-0.5 relative transition-colors">
                 <div 
                   className={`w-3.5 h-3.5 rounded-full flex items-center justify-center absolute top-0.5 transition-all duration-200 bg-white shadow-sm ${
