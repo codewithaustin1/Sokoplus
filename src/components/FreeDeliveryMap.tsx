@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapPin, Navigation, Compass, Search, AlertCircle, CheckCircle } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 // Inline pin SVG to avoid broken default asset URLs in bundlers
 const PIN_SVG = `
@@ -227,7 +228,7 @@ export default function FreeDeliveryMap({ county, city, onChange }: FreeDelivery
   // Geolocation trigger
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
+      toast.error("Geolocation is not supported by your browser.");
       return;
     }
 
@@ -244,10 +245,11 @@ export default function FreeDeliveryMap({ county, city, onChange }: FreeDelivery
           setSelectedCoords({ lat: latitude, lng: longitude });
         }
         setLoading(false);
+        toast.success("Successfully pinpointed your location!");
       },
       (err) => {
         console.warn("Geolocation warning:", err);
-        alert("Could not access your physical location. Please select it manually on the map.");
+        toast.error("Could not access your physical location. Please select it manually on the map.");
         setLoading(false);
       },
       { enableHighAccuracy: true, timeout: 8000 }
