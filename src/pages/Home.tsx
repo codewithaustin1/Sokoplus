@@ -36,7 +36,15 @@ export default function Home({ user }: HomeProps) {
   const [loading, setLoading] = useState(true);
 
   const activeCategories = useMemo(() => {
-    const defaultCats = ["Fashion", "Electronics", "Local Crafts", "Groceries"];
+    const defaultCats = [
+      "Fashion",
+      "Electronics",
+      "Local Crafts",
+      "Groceries",
+      "Beauty & Personal Care (Skincare, Haircare, Cosmetics)",
+      "Home & Office Décor (Small Scale & Gadgets)",
+      "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)"
+    ];
     if (products.length === 0) {
       if (loading) {
         return ["All", ...defaultCats];
@@ -755,7 +763,15 @@ export default function Home({ user }: HomeProps) {
                    ? "text-white" 
                    : "text-gray-900 dark:text-gray-100 group-hover:text-orange-600 dark:group-hover:text-orange-400"
                }`}>
-                 {cat === "All" ? t("allCategories") : cat === "Local Crafts" ? (language === "sw" ? "Sanaa na Kazi za Mikono" : "Local Crafts") : cat === "Fashion" ? (language === "sw" ? "Mitindo na Mavazi" : "Fashion") : cat === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali" : "Electronics") : cat === "Groceries" ? (language === "sw" ? "Bidhaa Safi na Vyakula" : "Groceries") : cat}
+                 {cat === "All" ? t("allCategories") : 
+                  cat === "Local Crafts" ? (language === "sw" ? "Sanaa na Kazi za Mikono" : "Local Crafts") : 
+                  cat === "Fashion" ? (language === "sw" ? "Mitindo na Mavazi" : "Fashion") : 
+                  cat === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali" : "Electronics") : 
+                  cat === "Groceries" ? (language === "sw" ? "Bidhaa Safi na Vyakula" : "Groceries") : 
+                  cat === "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" ? (language === "sw" ? "Urembo na Vipodozi" : "Beauty & Personal Care") :
+                  cat === "Home & Office Décor (Small Scale & Gadgets)" ? (language === "sw" ? "Mapambo ya Nyumbani na Ofisini" : "Home & Office Décor") :
+                  cat === "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" ? (language === "sw" ? "Vifaa vya Wanyama" : "Pet Supplies") :
+                  cat}
                </span>
             </div>
           ))}
@@ -981,9 +997,16 @@ export default function Home({ user }: HomeProps) {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
              <h2 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">
-               {selectedCategory === "All" 
-                 ? (language === "sw" ? "Mkusanyiko Mpya wa Bidhaa" : "Latest Arrivals") 
-                 : (selectedCategory === "Local Crafts" ? (language === "sw" ? "Sanaa Maalum za Mikono" : "Local Crafts Collection") : selectedCategory === "Fashion" ? (language === "sw" ? "Mavazi na Mitindo ya Kisasa" : "Fashion Collection") : selectedCategory === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali na Kielektroniki" : "Electronics Collection") : selectedCategory === "Groceries" ? (language === "sw" ? "Vyakula Fresh na Mahitaji ya Jikoni" : "Groceries Collection") : `${selectedCategory} Collection`)}
+              {selectedCategory === "All" 
+                ? (language === "sw" ? "Mkusanyiko Mpya wa Bidhaa" : "Latest Arrivals") 
+                : (selectedCategory === "Local Crafts" ? (language === "sw" ? "Sanaa Maalum za Mikono" : "Local Crafts Collection") : 
+                   selectedCategory === "Fashion" ? (language === "sw" ? "Mavazi na Mitindo ya Kisasa" : "Fashion Collection") : 
+                   selectedCategory === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali na Kielektroniki" : "Electronics Collection") : 
+                   selectedCategory === "Groceries" ? (language === "sw" ? "Vyakula Fresh na Mahitaji ya Jikoni" : "Groceries Collection") : 
+                   selectedCategory === "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" ? (language === "sw" ? "Urembo na Vipodozi" : "Beauty & Personal Care") :
+                   selectedCategory === "Home & Office Décor (Small Scale & Gadgets)" ? (language === "sw" ? "Mkusanyiko wa Mapambo ya Nyumbani & Ofisini" : "Home & Office Décor Collection") :
+                   selectedCategory === "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" ? (language === "sw" ? "Bidhaa za Wanyama wa Kufugwa" : "Pet Supplies Collection") :
+                   `${selectedCategory} Collection`)}
              </h2>
              <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
                {language === "sw" ? "Sanaa safi na bidhaa teule zilizosafirishwa moja kwa moja kutoka kaunti zote 47 za Kenya yetu." : "Handpicked premium goods from across the 47 counties."}

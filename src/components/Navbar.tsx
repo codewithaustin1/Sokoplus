@@ -65,7 +65,10 @@ export default function Navbar({ user }: NavbarProps) {
       { name: "Fashion", label: language === "sw" ? "Mitindo na Mavazi" : "Fashion" },
       { name: "Electronics", label: language === "sw" ? "Vifaa vya Kidijitali" : "Electronics" },
       { name: "Local Crafts", label: language === "sw" ? "Sanaa za Mikono" : "Local Crafts" },
-      { name: "Groceries", label: language === "sw" ? "Bidhaa za Vyakula" : "Groceries" }
+      { name: "Groceries", label: language === "sw" ? "Bidhaa za Vyakula" : "Groceries" },
+      { name: "Beauty & Personal Care (Skincare, Haircare, Cosmetics)", label: language === "sw" ? "Urembo na Vipodozi" : "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" },
+      { name: "Home & Office Décor (Small Scale & Gadgets)", label: language === "sw" ? "Mapambo ya Nyumbani na Ofisini" : "Home & Office Décor (Small Scale & Gadgets)" },
+      { name: "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)", label: language === "sw" ? "Vifaa vya Wanyama" : "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" }
     ];
 
     if (allProducts.length === 0) {
@@ -780,7 +783,14 @@ export default function Navbar({ user }: NavbarProps) {
                   onClick={() => handleCategoryClick(cat.name)}
                   className="hover:bg-amber-500 px-4 h-full flex items-center transition-all cursor-pointer border-r border-amber-600/10 text-black select-none font-extrabold uppercase whitespace-nowrap"
                 >
-                  {cat.name === "Local Crafts" ? (language === "sw" ? "SANAA ZA MIKONO" : "LOCAL CRAFTS") : cat.name === "Fashion" ? (language === "sw" ? "MITINDO" : "FASHION") : cat.name === "Electronics" ? (language === "sw" ? "VIFAA VYA KIDIITALI" : "ELECTRONICS") : cat.name === "Groceries" ? (language === "sw" ? "VYAKULA" : "GROCERIES") : cat.label}
+                  {cat.name === "Local Crafts" ? (language === "sw" ? "SANAA ZA MIKONO" : "LOCAL CRAFTS") : 
+                   cat.name === "Fashion" ? (language === "sw" ? "MITINDO" : "FASHION") : 
+                   cat.name === "Electronics" ? (language === "sw" ? "VIFAA VYA KIDIITALI" : "ELECTRONICS") : 
+                   cat.name === "Groceries" ? (language === "sw" ? "VYAKULA" : "GROCERIES") : 
+                   cat.name === "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" ? (language === "sw" ? "UREMBO NA VIPODOZI" : "BEAUTY & PERSONAL CARE") :
+                   cat.name === "Home & Office Décor (Small Scale & Gadgets)" ? (language === "sw" ? "MAPAMBO" : "HOME & OFFICE DÉCOR") :
+                   cat.name === "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" ? (language === "sw" ? "VIFAA VYA WANYAMA" : "PET SUPPLIES") :
+                   cat.label}
                 </div>
               ))}
             </div>

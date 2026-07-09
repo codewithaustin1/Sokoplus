@@ -4788,6 +4788,13 @@ export default function Admin({ user }: AdminProps) {
                   <option>Electronics</option>
                   <option>Local Crafts</option>
                   <option>Groceries</option>
+                  <option>Beauty & Personal Care (Skincare, Haircare, Cosmetics)</option>
+                  <option>Home & Office Décor (Small Scale & Gadgets)</option>
+                  <option>Pet Supplies (Toys, Collars, Accessories, Dry Kibble)</option>
+                  <option>Home Decor</option>
+                  <option>Sustainable</option>
+                  <option>Gifts & Souvenirs</option>
+                  <option>Accessories</option>
                 </select>
               </div>
               <div>
@@ -5074,6 +5081,13 @@ export default function Admin({ user }: AdminProps) {
                   <option>Electronics</option>
                   <option>Local Crafts</option>
                   <option>Groceries</option>
+                  <option>Beauty & Personal Care (Skincare, Haircare, Cosmetics)</option>
+                  <option>Home & Office Décor (Small Scale & Gadgets)</option>
+                  <option>Pet Supplies (Toys, Collars, Accessories, Dry Kibble)</option>
+                  <option>Home Decor</option>
+                  <option>Sustainable</option>
+                  <option>Gifts & Souvenirs</option>
+                  <option>Accessories</option>
                 </select>
               </div>
               <div>
