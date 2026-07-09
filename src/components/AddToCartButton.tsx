@@ -41,11 +41,13 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   };
 
   return (
-    <button
+    <motion.button
       onClick={handleClick}
       disabled={disabled || status === "loading"}
-      className={`relative overflow-hidden transition-all duration-300 select-none flex items-center justify-center ${className} ${
-        status === "added" ? "brand-success-bg text-white brand-success-glow scale-[1.02]" : ""
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.95 }}
+      className={`relative overflow-hidden transition-all duration-300 select-none flex items-center justify-center cursor-pointer ${className} ${
+        status === "added" ? "brand-success-bg text-white brand-success-glow" : ""
       }`}
       style={{ minHeight: "2.75rem" }}
     >
@@ -97,6 +99,6 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
-    </button>
+    </motion.button>
   );
 };

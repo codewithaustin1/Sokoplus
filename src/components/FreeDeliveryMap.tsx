@@ -67,6 +67,17 @@ const CITY_COORDINATES: { [key: string]: LocationCoords } = {
   "Kisumu City": { lat: -0.1022, lng: 34.7617, zoom: 14 },
   "Machakos Town": { lat: -1.5177, lng: 37.2634, zoom: 14 },
   "Mlolongo": { lat: -1.3917, lng: 36.9242, zoom: 14 },
+  // Uganda
+  "Kampala": { lat: 0.3476, lng: 32.5825, zoom: 14 },
+  "Entebbe": { lat: 0.0512, lng: 32.4637, zoom: 14 },
+  "Jinja": { lat: 0.4244, lng: 33.2042, zoom: 14 },
+  // Tanzania
+  "Dar es Salaam": { lat: -6.7924, lng: 39.2083, zoom: 14 },
+  "Arusha": { lat: -3.3731, lng: 36.6830, zoom: 14 },
+  "Zanzibar": { lat: -6.1659, lng: 39.1990, zoom: 14 },
+  // Rwanda
+  "Kigali": { lat: -1.9441, lng: 30.0619, zoom: 14 },
+  "Gisenyi": { lat: -1.7011, lng: 29.2553, zoom: 14 },
 };
 
 export default function FreeDeliveryMap({ county, city, onChange }: FreeDeliveryMapProps) {

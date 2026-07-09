@@ -26,6 +26,14 @@ export default function QRScannerModal({ isOpen, onClose, language }: QRScannerM
   const [scannedPayload, setScannedPayload] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [isLoadingCamera, setIsLoadingCamera] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Play a beautiful, synthetic, retro digital success beep
   const playBeep = () => {
@@ -264,14 +272,24 @@ export default function QRScannerModal({ isOpen, onClose, language }: QRScannerM
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-950/80 backdrop-blur-md p-4">
+      <div 
+        className={`fixed inset-0 z-[100] flex ${isMobile ? "items-end" : "items-center justify-center"} bg-gray-950/80 backdrop-blur-md ${isMobile ? "p-0" : "p-4"}`}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          transition={{ type: "spring", stiffness: 350, damping: 25 }}
-          className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-2xl border border-gray-100 dark:border-gray-800 text-gray-900 dark:text-gray-100 flex flex-col"
+          initial={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95, y: 15 }}
+          animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
+          exit={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95, y: 15 }}
+          transition={{ type: "spring", stiffness: 350, damping: isMobile ? 32 : 25 }}
+          className={`relative w-full ${isMobile ? "rounded-t-3xl max-h-[92vh] pb-safe-bottom" : "max-w-md rounded-3xl border border-gray-100 dark:border-gray-800"} overflow-hidden bg-white dark:bg-gray-900 shadow-2xl text-gray-900 dark:text-gray-100 flex flex-col`}
         >
+          {/* Mobile drag handle */}
+          {isMobile && (
+            <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-850 rounded-full mx-auto mt-3 shrink-0 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-700" onClick={onClose} />
+          )}
+
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
             <div className="flex items-center space-x-2">
@@ -284,7 +302,7 @@ export default function QRScannerModal({ isOpen, onClose, language }: QRScannerM
             </div>
             <button
               onClick={onClose}
-              className="p-1 px-1.5 rounded-lg border border-transparent hover:border-gray-200 dark:hover:border-gray-800 bg-gray-50 dark:bg-gray-850 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all cursor-pointer text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              className="p-1 px-1.5 rounded-lg border border-transparent hover:border-gray-200 dark:hover:border-gray-800 bg-gray-50 dark:bg-gray-850 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all cursor-pointer text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 active:scale-95"
             >
               <X size={18} />
             </button>
@@ -427,13 +445,13 @@ export default function QRScannerModal({ isOpen, onClose, language }: QRScannerM
                   value={manualCode}
                   onChange={(e) => setManualCode(e.target.value)}
                   placeholder={language === "sw" ? "Weka ID ya bidhaa au agizo..." : "Enter Product ID or Tracking Code..."}
-                  className="block w-full pl-9 pr-4 py-2 text-xs border border-gray-100 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-550 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  className="block w-full pl-9 pr-4 py-3 text-xs border border-gray-100 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-955 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-550 focus:outline-none focus:ring-1 focus:ring-orange-500"
                   onKeyDown={(e) => e.key === "Enter" && handleManualSearch()}
                 />
               </div>
               <button
                 onClick={handleManualSearch}
-                className="px-4 py-2 font-bold text-xs uppercase bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 text-gray-850 dark:text-gray-100 rounded-xl transition cursor-pointer flex items-center space-x-1 border border-transparent dark:border-gray-800"
+                className="px-5 py-3 font-bold text-xs uppercase bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 text-gray-850 dark:text-gray-100 rounded-xl transition cursor-pointer flex items-center space-x-1 border border-transparent dark:border-gray-800 active:scale-95 shrink-0"
               >
                 <span>{language === "sw" ? "Wasilisha" : "Soma"}</span>
               </button>

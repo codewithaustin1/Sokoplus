@@ -7,8 +7,9 @@ import { calculateDelivery, getCutoffCountdown, DeliveryPrediction } from "../ut
 interface DeliveryCountdownProps {
   county?: string;
   city?: string;
+  country?: string;
   hideSelector?: boolean;
-  onLocationChange?: (county: string, city: string) => void;
+  onLocationChange?: (county: string, city: string, country?: string) => void;
   compact?: boolean;
   className?: string;
 }
@@ -16,12 +17,16 @@ interface DeliveryCountdownProps {
 export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
   county,
   city,
+  country,
   hideSelector = false,
   onLocationChange,
   compact = false,
   className = "",
 }) => {
   // Read location from localStorage or default to Nairobi CBD
+  const [internalCountry, setInternalCountry] = useState<string>(() => {
+    return localStorage.getItem("sokoplus_delivery_country") || "Kenya";
+  });
   const [internalCounty, setInternalCounty] = useState<string>(() => {
     return localStorage.getItem("sokoplus_delivery_county") || "Nairobi City County";
   });
@@ -29,6 +34,7 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
     return localStorage.getItem("sokoplus_delivery_city") || "Nairobi CBD";
   });
 
+  const selectedCountry = country !== undefined ? country : internalCountry;
   const selectedCounty = county !== undefined ? county : internalCounty;
   const selectedCity = city !== undefined ? city : internalCity;
 
@@ -38,10 +44,13 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
 
   // Update prediction when location changes
   useEffect(() => {
-    const pred = calculateDelivery(selectedCounty, selectedCity);
+    const pred = calculateDelivery(selectedCounty, selectedCity, new Date(), selectedCountry);
     setPrediction(pred);
     
     // Only write internal state and local storage if not controlled from props
+    if (country === undefined) {
+      localStorage.setItem("sokoplus_delivery_country", selectedCountry);
+    }
     if (county === undefined) {
       localStorage.setItem("sokoplus_delivery_county", selectedCounty);
     }
@@ -50,9 +59,9 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
     }
 
     if (onLocationChange) {
-      onLocationChange(selectedCounty, selectedCity);
+      onLocationChange(selectedCounty, selectedCity, selectedCountry);
     }
-  }, [selectedCounty, selectedCity, county, city, onLocationChange]);
+  }, [selectedCounty, selectedCity, selectedCountry, county, city, country, onLocationChange]);
 
   // Handle countdown clock ticking
   useEffect(() => {

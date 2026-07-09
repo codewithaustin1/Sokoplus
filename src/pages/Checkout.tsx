@@ -39,6 +39,20 @@ import { DeliveryCountdown } from "../components/DeliveryCountdown";
 import { useSellerStudio } from "../lib/SellerStudioContext";
 import FreeDeliveryMap from "../components/FreeDeliveryMap";
 
+const COUNTRY_FLAGS: Record<string, string> = {
+  "Kenya": "🇰🇪",
+  "Uganda": "🇺🇬",
+  "Tanzania": "🇹🇿",
+  "Rwanda": "🇷🇼",
+};
+
+const CITIES_BY_COUNTRY: Record<string, string[]> = {
+  "Kenya": ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret"],
+  "Uganda": ["Kampala", "Entebbe", "Jinja"],
+  "Tanzania": ["Dar es Salaam", "Arusha", "Zanzibar"],
+  "Rwanda": ["Kigali", "Gisenyi"],
+};
+
 interface CheckoutProps {
   user: UserProfile | null;
 }
@@ -55,9 +69,29 @@ export default function Checkout({ user }: CheckoutProps) {
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   
   const [address, setAddress] = useState(() => {
-    const savedCounty = localStorage.getItem("sokoplus_delivery_county") || "Nairobi City County";
-    const savedCity = localStorage.getItem("sokoplus_delivery_city") || "Nairobi CBD";
-    
+    const savedCountry = localStorage.getItem("sokoplus_delivery_country") || "Kenya";
+    let savedCity = localStorage.getItem("sokoplus_delivery_city") || "Nairobi CBD";
+    let savedCounty = localStorage.getItem("sokoplus_delivery_county") || "Nairobi City County";
+
+    if (savedCountry === "Kenya") {
+      if (savedCity === "Nairobi") {
+        savedCounty = "Nairobi City County";
+        savedCity = "Nairobi CBD";
+      } else if (savedCity === "Mombasa") {
+        savedCounty = "Mombasa County";
+        savedCity = "Mombasa City (CBD/Island)";
+      } else if (savedCity === "Kisumu") {
+        savedCounty = "Kisumu County";
+        savedCity = "Kisumu City";
+      } else if (savedCity === "Nakuru") {
+        savedCounty = "Nakuru County";
+        savedCity = "Nakuru City";
+      } else if (savedCity === "Eldoret") {
+        savedCounty = "Uasin Gishu County";
+        savedCity = "Eldoret City";
+      }
+    }
+
     let initialPhone = user?.phoneNumber || "";
     initialPhone = initialPhone.replace(/\s+/g, "");
     if (initialPhone.startsWith("+254")) {
@@ -69,8 +103,9 @@ export default function Checkout({ user }: CheckoutProps) {
     }
 
     return {
+      country: savedCountry,
       city: savedCity,
-      county: savedCounty,
+      county: savedCountry === "Kenya" ? savedCounty : "",
       street: "",
       phone: initialPhone,
       email: user?.email || ""
@@ -87,6 +122,31 @@ export default function Checkout({ user }: CheckoutProps) {
     }
   }, [items, navigate, redirecting]);
 
+  const handleCountryChange = (countryName: string) => {
+    if (countryName === "Kenya") {
+      setAddress({
+        ...address,
+        country: "Kenya",
+        county: "Nairobi City County",
+        city: "Nairobi CBD"
+      });
+      localStorage.setItem("sokoplus_delivery_country", "Kenya");
+      localStorage.setItem("sokoplus_delivery_county", "Nairobi City County");
+      localStorage.setItem("sokoplus_delivery_city", "Nairobi CBD");
+    } else {
+      const defaultCity = CITIES_BY_COUNTRY[countryName]?.[0] || "";
+      setAddress({
+        ...address,
+        country: countryName,
+        county: "",
+        city: defaultCity
+      });
+      localStorage.setItem("sokoplus_delivery_country", countryName);
+      localStorage.setItem("sokoplus_delivery_county", "");
+      localStorage.setItem("sokoplus_delivery_city", defaultCity);
+    }
+  };
+
   const handleCountyChange = (countyName: string) => {
     const selectedCounty = counties.find(c => c.name === countyName);
     const defaultCity = selectedCounty && selectedCounty.cities.length > 0 ? selectedCounty.cities[0] : "";
@@ -102,7 +162,7 @@ export default function Checkout({ user }: CheckoutProps) {
   const selectedCountyData = counties.find(c => c.name === address.county) || counties.find(c => c.name === "Nairobi City County") || counties[0];
   const currentCities = selectedCountyData ? selectedCountyData.cities : [];
 
-  const baseShippingFee = calculateShippingFee(address.county, address.city, total);
+  const baseShippingFee = calculateShippingFee(address.county, address.city, total, address.country);
 
   const [appliedVoucher, setAppliedVoucher] = useState<any | null>(null);
   const [voucherCodeInput, setVoucherCodeInput] = useState("");
@@ -203,7 +263,7 @@ export default function Checkout({ user }: CheckoutProps) {
   const remainingForFreeShipping = FREE_SHIPPING_LIMIT - total;
 
   // Real-time Dynamic Delivery Prediction
-  const deliveryPrediction = calculateDelivery(address.county, address.city);
+  const deliveryPrediction = calculateDelivery(address.county, address.city, new Date(), address.country);
 
   // Change Quantity in Checkout page
   const handleIncreaseQty = (item: CartItem) => {
@@ -440,25 +500,25 @@ export default function Checkout({ user }: CheckoutProps) {
                 <MapPin size={22} />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-black tracking-tight text-gray-950 dark:text-white">1. Delivery Location</h3>
+                <h3 className="text-lg font-black tracking-tight text-gray-955 dark:text-white">1. Delivery Location</h3>
                 <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider">
-                  Select your exact shipping destination inside Kenya
+                  Select your exact shipping destination {address.country === "Kenya" ? "inside Kenya" : `in ${address.country}`}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
               <div>
-                <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">County Territory</label>
+                <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Country</label>
                 <div className="relative">
                   <select 
-                    value={address.county}
-                    onChange={(e) => handleCountyChange(e.target.value)}
-                    className="w-full p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
+                    value={address.country}
+                    onChange={(e) => handleCountryChange(e.target.value)}
+                    className="w-full p-4 bg-gray-50 dark:bg-gray-955 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
                   >
-                    {counties.map((c) => (
-                      <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
-                        {c.name}
+                    {Object.keys(COUNTRY_FLAGS).map((cty) => (
+                      <option key={cty} value={cty} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                        {COUNTRY_FLAGS[cty]} {cty}
                       </option>
                     ))}
                   </select>
@@ -466,27 +526,71 @@ export default function Checkout({ user }: CheckoutProps) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Township / Settlement</label>
-                <div className="relative">
-                  <select 
-                    value={address.city}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setAddress({...address, city: val});
-                      localStorage.setItem("sokoplus_delivery_city", val);
-                    }}
-                    className="w-full p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
-                  >
-                    {currentCities.map((city) => (
-                      <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
-                        {city}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+              {address.country === "Kenya" ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">County Territory</label>
+                    <div className="relative">
+                      <select 
+                        value={address.county}
+                        onChange={(e) => handleCountyChange(e.target.value)}
+                        className="w-full p-4 bg-gray-50 dark:bg-gray-955 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
+                      >
+                        {counties.map((c) => (
+                          <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Township / Settlement</label>
+                    <div className="relative">
+                      <select 
+                        value={address.city}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAddress({...address, city: val});
+                          localStorage.setItem("sokoplus_delivery_city", val);
+                        }}
+                        className="w-full p-4 bg-gray-50 dark:bg-gray-955 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
+                      >
+                        {currentCities.map((city) => (
+                          <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                            {city}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">City / Destination</label>
+                  <div className="relative">
+                    <select 
+                      value={address.city}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setAddress({...address, city: val});
+                        localStorage.setItem("sokoplus_delivery_city", val);
+                      }}
+                      className="w-full p-4 bg-gray-50 dark:bg-gray-955 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
+                    >
+                      {CITIES_BY_COUNTRY[address.country]?.map((city) => (
+                        <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                          {city}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Free OpenStreetMap Interactive Pin-drop */}
@@ -623,6 +727,7 @@ export default function Checkout({ user }: CheckoutProps) {
             <DeliveryCountdown 
               county={address.county} 
               city={address.city} 
+              country={address.country}
               hideSelector={true} 
               className="mt-4"
             />
@@ -1009,7 +1114,7 @@ export default function Checkout({ user }: CheckoutProps) {
                 <div>
                   <span>Express Courier Fee</span>
                   <p className="text-[9px] text-gray-450 dark:text-gray-400 font-bold mt-0.5 leading-none uppercase">
-                    {address.county.split(" ")[0]} Area Rate
+                    {address.country !== "Kenya" ? address.country : address.county.split(" ")[0]} Area Rate
                   </p>
                 </div>
                 <span className="font-black text-gray-900 dark:text-white">
@@ -1230,7 +1335,7 @@ export default function Checkout({ user }: CheckoutProps) {
                   <div>
                     <span>Express Delivery Courier Fee</span>
                     <p className="text-[9px] text-gray-400 dark:text-gray-500 font-semibold leading-none mt-0.5">
-                      {address.county} Zone Rate
+                      {address.country !== "Kenya" ? address.country : address.county} Zone Rate
                     </p>
                   </div>
                   <span className="font-bold text-gray-950 dark:text-white">
@@ -1283,7 +1388,7 @@ export default function Checkout({ user }: CheckoutProps) {
               </div>
 
               <div className="bg-gray-50 dark:bg-gray-955 p-4 rounded-2xl text-[10px] leading-relaxed text-gray-400 dark:text-gray-500 font-semibold max-w-full">
-                🚨 Delivery expectation for <span className="text-gray-900 dark:text-white font-black">{address.county} ({address.city})</span>: {deliveryPrediction.time}.
+                🚨 Delivery expectation for <span className="text-gray-900 dark:text-white font-black">{address.country !== "Kenya" ? address.country : address.county} ({address.city})</span>: {deliveryPrediction.time}.
               </div>
             </motion.div>
           </>

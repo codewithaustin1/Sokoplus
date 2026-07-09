@@ -195,7 +195,7 @@ export default function AudioPlayer() {
   );
 
   return (
-    <div className="fixed bottom-6 left-6 z-[60] flex flex-col items-start font-sans" id="sokoplus-audio-widget">
+    <div className="fixed bottom-20 md:bottom-6 left-4 md:left-6 z-[60] flex flex-col items-start font-sans" id="sokoplus-audio-widget">
       <audio
         ref={audioRef}
         src={activeTrack.url}

@@ -82,10 +82,11 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
         {navItems.map((item) => {
           const IconComponent = item.icon;
           return (
-            <button
+            <motion.button
               key={item.id}
               onClick={item.onClick}
-              className="relative flex flex-col items-center justify-center flex-1 h-full py-1 text-center group cursor-pointer focus:outline-none"
+              whileTap={{ scale: 0.9 }}
+              className="relative flex flex-col items-center justify-center flex-1 h-full py-1 text-center group cursor-pointer focus:outline-none bg-transparent border-none"
             >
               {/* Active Backing Pill */}
               {item.isActive && (
@@ -138,7 +139,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
               >
                 {item.label}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>
