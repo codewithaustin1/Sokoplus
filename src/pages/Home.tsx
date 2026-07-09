@@ -33,11 +33,31 @@ export default function Home({ user }: HomeProps) {
   const { sellerStudioEnabled } = useSellerStudio();
   const { language, t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const activeCategories = useMemo(() => {
+    const defaultCats = ["Fashion", "Electronics", "Local Crafts", "Groceries"];
+    if (products.length === 0) {
+      if (loading) {
+        return ["All", ...defaultCats];
+      }
+      return ["All"];
+    }
+    const dbCats = Array.from(new Set(
+      products
+        .filter(p => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved"))
+        .map(p => p.category)
+        .filter((c): c is string => !!c)
+    ));
+    const orderedCats = defaultCats.filter(cat => dbCats.includes(cat));
+    const extraCats = dbCats.filter(cat => !defaultCats.includes(cat));
+    return ["All", ...orderedCats, ...extraCats];
+  }, [products, loading]);
+
   const [heroImageUrl, setHeroImageUrl] = useState<string>("");
   const [heroImageUrls, setHeroImageUrls] = useState<string[]>([]);
   const [currentSlide, setCurrentSlide] = useState<number>(0);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState<string>(() => {
     return searchParams.get("category") || searchParams.get("collection") || "All";
@@ -64,6 +84,12 @@ export default function Home({ user }: HomeProps) {
       setSelectedCategory(urlCategory);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!loading && activeCategories.length > 0 && !activeCategories.includes(selectedCategory)) {
+      selectCategory("All");
+    }
+  }, [activeCategories, selectedCategory, loading]);
 
   const [isOfflineView, setIsOfflineView] = useState<boolean>(false);
   const [addingMap, setAddingMap] = useState<Record<string, "idle" | "loading" | "added">>({});
@@ -707,8 +733,11 @@ export default function Home({ user }: HomeProps) {
         <h2 className="text-2xl font-bold mb-8 text-gray-900 dark:text-white">
           {language === "sw" ? "Vitengo Maarufu Sokoni" : "Popular Categories"}
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {["All", "Fashion", "Electronics", "Local Crafts", "Groceries"].map((cat) => (
+        <div 
+          className="grid grid-cols-2 gap-4"
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}
+        >
+          {activeCategories.map((cat) => (
             <div 
               key={cat} 
               onClick={() => {

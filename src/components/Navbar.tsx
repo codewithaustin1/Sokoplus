@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff, ChevronRight, ChevronDown, Globe, Moon, Sun, Grid, Check } from "lucide-react";
 import toast from "react-hot-toast";
@@ -60,6 +60,33 @@ export default function Navbar({ user }: NavbarProps) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const activeCategories = useMemo(() => {
+    const defaultCats = [
+      { name: "Fashion", label: language === "sw" ? "Mitindo na Mavazi" : "Fashion" },
+      { name: "Electronics", label: language === "sw" ? "Vifaa vya Kidijitali" : "Electronics" },
+      { name: "Local Crafts", label: language === "sw" ? "Sanaa za Mikono" : "Local Crafts" },
+      { name: "Groceries", label: language === "sw" ? "Bidhaa za Vyakula" : "Groceries" }
+    ];
+
+    if (allProducts.length === 0) {
+      return [...defaultCats, { name: "All", label: language === "sw" ? "Vitengo Vyote" : "All Products" }];
+    }
+
+    const dbCats = Array.from(new Set(
+      allProducts
+        .filter(p => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved"))
+        .map(p => p.category)
+        .filter((c): c is string => !!c)
+    ));
+
+    const orderedCats = defaultCats.filter(cat => dbCats.includes(cat.name));
+    const extraCats = dbCats
+      .filter(catName => !defaultCats.some(dc => dc.name === catName))
+      .map(catName => ({ name: catName, label: catName }));
+
+    return [...orderedCats, ...extraCats, { name: "All", label: language === "sw" ? "Vitengo Vyote" : "All Products" }];
+  }, [allProducts, language]);
+
   const [suggestedProducts, setSuggestedProducts] = useState<Product[]>([]);
   const [showDesktopSuggestions, setShowDesktopSuggestions] = useState(false);
 
@@ -209,7 +236,7 @@ export default function Navbar({ user }: NavbarProps) {
         const snapshot = await getDocs(q);
         const fetched = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Product))
-          .filter(p => p.active !== false);
+          .filter(p => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved"));
         setAllProducts(fetched);
         fetched.forEach(p => productCache.set(p.id, p));
       } catch (err) {
@@ -722,13 +749,7 @@ export default function Navbar({ user }: NavbarProps) {
                     exit={{ opacity: 0, y: 5 }}
                     className="absolute top-full left-0 bg-white text-gray-800 border border-gray-150 rounded-b-xl shadow-2xl py-1.5 w-56 z-50 text-left font-black text-xs divide-y divide-gray-50"
                   >
-                    {[
-                      { name: "Fashion", label: language === "sw" ? "Mitindo na Mavazi" : "Fashion" },
-                      { name: "Electronics", label: language === "sw" ? "Vifaa vya Kidijitali" : "Electronics" },
-                      { name: "Local Crafts", label: language === "sw" ? "Sanaa za Mikono" : "Local Crafts" },
-                      { name: "Groceries", label: language === "sw" ? "Bidhaa za Vyakula" : "Groceries" },
-                      { name: "All", label: language === "sw" ? "Vitengo Vyote" : "All Products" }
-                    ].map((cat) => (
+                    {activeCategories.map((cat) => (
                       <div 
                         key={cat.name}
                         onClick={() => {
@@ -753,30 +774,15 @@ export default function Navbar({ user }: NavbarProps) {
               >
                 HOME
               </Link>
-              <div 
-                onClick={() => handleCategoryClick("Fashion")}
-                className="hover:bg-amber-500 px-4 h-full flex items-center transition-all cursor-pointer border-r border-amber-600/10 text-black select-none font-extrabold"
-              >
-                {language === "sw" ? "MITINDO" : "FASHION"}
-              </div>
-              <div 
-                onClick={() => handleCategoryClick("Electronics")}
-                className="hover:bg-amber-500 px-4 h-full flex items-center transition-all cursor-pointer border-r border-amber-600/10 text-black select-none font-extrabold"
-              >
-                {language === "sw" ? "VIFAA VYA KIDIITALI" : "ELECTRONICS"}
-              </div>
-              <div 
-                onClick={() => handleCategoryClick("Local Crafts")}
-                className="hover:bg-amber-500 px-4 h-full flex items-center transition-all cursor-pointer border-r border-amber-600/10 text-black select-none font-extrabold"
-              >
-                {language === "sw" ? "SANAA ZA MIKONO" : "LOCAL CRAFTS"}
-              </div>
-              <div 
-                onClick={() => handleCategoryClick("Groceries")}
-                className="hover:bg-amber-500 px-4 h-full flex items-center transition-all cursor-pointer border-r border-amber-600/10 text-black select-none font-extrabold"
-              >
-                {language === "sw" ? "VYAKULA" : "GROCERIES"}
-              </div>
+              {activeCategories.filter(cat => cat.name !== "All").map((cat) => (
+                <div 
+                  key={cat.name}
+                  onClick={() => handleCategoryClick(cat.name)}
+                  className="hover:bg-amber-500 px-4 h-full flex items-center transition-all cursor-pointer border-r border-amber-600/10 text-black select-none font-extrabold uppercase whitespace-nowrap"
+                >
+                  {cat.name === "Local Crafts" ? (language === "sw" ? "SANAA ZA MIKONO" : "LOCAL CRAFTS") : cat.name === "Fashion" ? (language === "sw" ? "MITINDO" : "FASHION") : cat.name === "Electronics" ? (language === "sw" ? "VIFAA VYA KIDIITALI" : "ELECTRONICS") : cat.name === "Groceries" ? (language === "sw" ? "VYAKULA" : "GROCERIES") : cat.label}
+                </div>
+              ))}
             </div>
           </div>
 
