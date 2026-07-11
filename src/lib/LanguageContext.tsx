@@ -75,6 +75,9 @@ const translations: Record<Language, Record<string, string>> = {
     filterSpecific: "Specific Month",
     noOrders: "No orders found in this selection.",
     recommendedForYou: "Recommended for You",
+    dailyDeals: "Daily Deals",
+    trendingToday: "Trending Today",
+    dealActive: "Real-time Hot Deals",
 
     // Footer
     aboutTitle: "About SokoPlus",
@@ -149,6 +152,9 @@ const translations: Record<Language, Record<string, string>> = {
     filterSpecific: "Mwezi Maalum",
     noOrders: "Bado hujaagiza katika kundi hili.",
     recommendedForYou: "Zilizopendekezwa kwa Ajili Yako",
+    dailyDeals: "Ofa Maalum za Leo",
+    trendingToday: "Zinazovuma Leo",
+    dealActive: "Ofa Moto za Sasa Hivi",
 
     // Footer
     aboutTitle: "Kuhusu SokoPlus Kenya",

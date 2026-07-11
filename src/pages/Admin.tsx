@@ -60,6 +60,7 @@ import {
   Calendar,
   Music,
   Store,
+  Flame,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSellerStudio } from "../lib/SellerStudioContext";
@@ -617,6 +618,7 @@ export default function Admin({ user }: AdminProps) {
   const [googleMapsLink, setGoogleMapsLink] = useState<string>("");
   const [googleMapsLinks, setGoogleMapsLinks] = useState<{ name: string; url: string }[]>([]);
   const [showAudioBubble, setShowAudioBubble] = useState<boolean>(true);
+  const [showDailyDeals, setShowDailyDeals] = useState<boolean>(true);
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
@@ -856,6 +858,9 @@ export default function Admin({ user }: AdminProps) {
           if (settingsData.showAudioBubble !== undefined) {
             setShowAudioBubble(settingsData.showAudioBubble);
           }
+          if (settingsData.showDailyDeals !== undefined) {
+            setShowDailyDeals(settingsData.showDailyDeals);
+          }
         }
       } catch (settingsError) {
         console.warn("Could not retrieve hero image settings: ", settingsError);
@@ -1075,6 +1080,7 @@ export default function Admin({ user }: AdminProps) {
         googleMapsLink: googleMapsLinks.length > 0 ? googleMapsLinks[0].url : "",
         googleMapsLinks: googleMapsLinks,
         showAudioBubble: showAudioBubble,
+        showDailyDeals: showDailyDeals,
         updatedAt: new Date(),
         updatedBy: user?.email || "Admin",
       }, { merge: true });
@@ -1102,6 +1108,7 @@ export default function Admin({ user }: AdminProps) {
           googleMapsLink: "",
           googleMapsLinks: [],
           showAudioBubble: true,
+          showDailyDeals: true,
           updatedAt: new Date(),
           updatedBy: user?.email || "Admin",
         }, { merge: true });
@@ -1110,6 +1117,7 @@ export default function Admin({ user }: AdminProps) {
         setGoogleMapsLink("");
         setGoogleMapsLinks([]);
         setShowAudioBubble(true);
+        setShowDailyDeals(true);
         toast.success("Successfully reset to default hero banner & texts!");
       } catch (error) {
         console.error("Error resetting settings:", error);
@@ -4641,6 +4649,34 @@ export default function Admin({ user }: AdminProps) {
                     <span
                       className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                         showAudioBubble ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Daily Deals Ticker Toggle Configuration */}
+              <div className="p-6 bg-orange-50/20 dark:bg-orange-950/10 rounded-3xl border border-orange-100/50 dark:border-orange-900/30 space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-orange-850 dark:text-orange-400 flex items-center">
+                      <Flame size={16} className="mr-2 text-orange-600 animate-pulse" /> Daily Deals Ticker Widget
+                    </h3>
+                    <p className="text-xs text-orange-705 dark:text-orange-300 leading-relaxed font-medium">
+                      Enable or disable the real-time top trending Daily Deals announcement ticker on the homepage.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDailyDeals(!showDailyDeals)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      showDailyDeals ? "bg-orange-650" : "bg-gray-200 dark:bg-gray-800"
+                    }`}
+                    id="daily-deals-toggle"
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        showDailyDeals ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
                   </button>
