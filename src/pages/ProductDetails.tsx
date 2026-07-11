@@ -488,8 +488,28 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   useEffect(() => {
     async function fetchProduct() {
       if (!id) return;
-      const hasProductPreloaded = productCache.has(id) || (location.state?.product && (location.state.product as Product).id === id);
-      if (!hasProductPreloaded) {
+      const preloaded = productCache.get(id) || (location.state?.product && (location.state.product as Product).id === id ? (location.state.product as Product) : null);
+      if (preloaded) {
+        setProduct(preloaded);
+        setLoading(false);
+        fetchReviews();
+        
+        // Setup initial recommendations based on category of preloaded product
+        const cachedRecs = recommendationCache.get(id);
+        if (cachedRecs) {
+          setRecommendations(cachedRecs.items);
+          setRecSource(cachedRecs.source);
+        } else {
+          getCachedProducts().then(all => {
+            const approved = all.filter(ap => ap.active !== false && (!ap.approvalStatus || ap.approvalStatus === "approved"));
+            const fallbacks = approved.filter(ap => ap.category === preloaded.category && ap.id !== preloaded.id).slice(0, 4);
+            if (fallbacks.length > 0) {
+              setRecommendations(fallbacks);
+              setRecSource("category");
+            }
+          }).catch(() => {});
+        }
+      } else {
         setLoading(true);
       }
       try {

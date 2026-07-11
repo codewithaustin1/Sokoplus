@@ -1014,27 +1014,27 @@ export default function Navbar({ user }: NavbarProps) {
                     hidden: { opacity: 0, x: 25 },
                     show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
                   }}
-                  whileHover={{ x: 6 }} 
+                  whileHover={{ x: 6, scale: 1.01 }} 
                   whileTap={{ scale: 0.98 }}
                 >
                   <Link
                     to="/"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
                       location.pathname === "/"
-                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-extrabold shadow-sm"
-                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-900 dark:text-gray-100"
+                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm"
+                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium"
                     }`}
                   >
                     <div className="flex items-center space-x-3.5">
-                      <div className={`p-2 rounded-xl scale-110 ${
+                      <div className={`p-2 rounded-xl scale-110 transition-all ${
                         location.pathname === "/"
                           ? "bg-orange-100/60 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400"
                           : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-100 dark:border-gray-850"
                       }`}>
                         <ShoppingBag size={18} />
                       </div>
-                      <span className="text-sm tracking-tight">{t("home")}</span>
+                      <span className="text-sm tracking-tight font-semibold">{t("home")}</span>
                     </div>
                     <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
                   </Link>
@@ -1046,27 +1046,27 @@ export default function Navbar({ user }: NavbarProps) {
                     hidden: { opacity: 0, x: 25 },
                     show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
                   }}
-                  whileHover={{ x: 6 }} 
+                  whileHover={{ x: 6, scale: 1.01 }} 
                   whileTap={{ scale: 0.98 }}
                 >
                   <Link
                     to="/blog"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
                       location.pathname === "/blog"
-                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-extrabold shadow-sm"
-                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-900 dark:text-gray-100"
+                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm"
+                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium"
                     }`}
                   >
                     <div className="flex items-center space-x-3.5">
-                      <div className={`p-2 rounded-xl scale-110 ${
+                      <div className={`p-2 rounded-xl scale-110 transition-all ${
                         location.pathname === "/blog"
                           ? "bg-orange-100/60 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400"
                           : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
                       }`}>
                         <Award size={18} />
                       </div>
-                      <span className="text-sm tracking-tight">{t("blog")}</span>
+                      <span className="text-sm tracking-tight font-semibold">{t("blog")}</span>
                     </div>
                     <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/blog" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
                   </Link>
@@ -1078,20 +1078,20 @@ export default function Navbar({ user }: NavbarProps) {
                     hidden: { opacity: 0, x: 25 },
                     show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
                   }}
-                  whileHover={{ x: 6 }} 
+                  whileHover={{ x: 6, scale: 1.01 }} 
                   whileTap={{ scale: 0.98 }}
                 >
                   <Link
                     to="/wishlist"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
                       location.pathname === "/wishlist"
-                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-extrabold shadow-sm"
-                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-900 dark:text-gray-100"
+                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm"
+                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium"
                     }`}
                   >
                     <div className="flex items-center space-x-3.5">
-                      <div className={`p-2 rounded-xl scale-110 ${
+                      <div className={`p-2 rounded-xl scale-110 transition-all ${
                         location.pathname === "/wishlist"
                           ? "bg-orange-100/60 dark:bg-orange-905/50 text-orange-600 dark:text-orange-400"
                           : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
@@ -1099,7 +1099,7 @@ export default function Navbar({ user }: NavbarProps) {
                         <Heart size={18} />
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm tracking-tight">{t("wishlist")}</span>
+                        <span className="text-sm tracking-tight font-semibold">{t("wishlist")}</span>
                         {user?.wishlist && user.wishlist.length > 0 && (
                           <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                             {user.wishlist.length}
@@ -1117,20 +1117,20 @@ export default function Navbar({ user }: NavbarProps) {
                     hidden: { opacity: 0, x: 25 },
                     show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
                   }}
-                  whileHover={{ x: 6 }} 
+                  whileHover={{ x: 6, scale: 1.01 }} 
                   whileTap={{ scale: 0.98 }}
                 >
                   <Link
                     to="/profile"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
                       location.pathname === "/profile"
-                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-extrabold shadow-sm"
-                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-850/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-900 dark:text-gray-100"
+                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm"
+                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-850/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium"
                     }`}
                   >
                     <div className="flex items-center space-x-3.5">
-                      <div className={`p-2 rounded-xl scale-110 ${
+                      <div className={`p-2 rounded-xl scale-110 transition-all ${
                         location.pathname === "/profile"
                           ? "bg-orange-100/60 dark:bg-orange-905/50 text-orange-600 dark:text-orange-400"
                           : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
@@ -1141,7 +1141,7 @@ export default function Navbar({ user }: NavbarProps) {
                           <User size={18} />
                         )}
                       </div>
-                      <span className="text-sm tracking-tight">{t("profile")}</span>
+                      <span className="text-sm tracking-tight font-semibold">{t("profile")}</span>
                     </div>
                     <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/profile" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
                   </Link>
@@ -1154,27 +1154,27 @@ export default function Navbar({ user }: NavbarProps) {
                       hidden: { opacity: 0, x: 25 },
                       show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
                     }}
-                    whileHover={{ x: 6 }} 
+                    whileHover={{ x: 6, scale: 1.01 }} 
                     whileTap={{ scale: 0.98 }}
                   >
                     <Link
                       to="/admin"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
                         location.pathname === "/admin"
-                          ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-extrabold shadow-sm"
-                          : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-900 dark:text-gray-100"
+                          ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm"
+                          : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium"
                       }`}
                     >
                       <div className="flex items-center space-x-3.5">
-                        <div className={`p-2 rounded-xl scale-110 ${
+                        <div className={`p-2 rounded-xl scale-110 transition-all ${
                           location.pathname === "/admin"
                             ? "bg-orange-100/60 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400"
                             : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
                         }`}>
                           <Award size={18} />
                         </div>
-                        <span className="text-sm tracking-tight">{t("admin")}</span>
+                        <span className="text-sm tracking-tight font-semibold">{t("admin")}</span>
                       </div>
                       <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/admin" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
                     </Link>

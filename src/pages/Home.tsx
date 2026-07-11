@@ -1,11 +1,11 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs, limit, query, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff, Search, Loader2, Check, GitCompare } from "lucide-react";
+import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff, Search, Loader2, Check, GitCompare, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -34,6 +34,24 @@ export default function Home({ user }: HomeProps) {
   const { language, t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [carouselUserInteraction, setCarouselUserInteraction] = useState(0);
+
+  const scrollCarousel = (direction: "left" | "right") => {
+    // Reset timer on manual button click or interaction
+    setCarouselUserInteraction(prev => prev + 1);
+
+    if (carouselRef.current) {
+      const { scrollLeft, clientWidth } = carouselRef.current;
+      const scrollAmount = clientWidth * 0.75;
+      const targetScroll = direction === "left" ? scrollLeft - scrollAmount : scrollLeft + scrollAmount;
+      carouselRef.current.scrollTo({
+        left: targetScroll,
+        behavior: "smooth"
+      });
+    }
+  };
 
   const activeCategories = useMemo(() => {
     const defaultCats = [
@@ -117,6 +135,33 @@ export default function Home({ user }: HomeProps) {
   const [recLoading, setRecLoading] = useState<boolean>(true);
   const [hasHistory, setHasHistory] = useState<boolean>(false);
 
+  // Animated Auto-scroll Effect for Recommended products
+  useEffect(() => {
+    if (recLoading || recommendedProducts.length <= 1 || isHovered) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (carouselRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
+        // If we are close to the end, wrap around smoothly
+        if (scrollLeft + clientWidth >= scrollWidth - 15) {
+          carouselRef.current.scrollTo({
+            left: 0,
+            behavior: "smooth"
+          });
+        } else {
+          carouselRef.current.scrollTo({
+            left: scrollLeft + clientWidth * 0.75,
+            behavior: "smooth"
+          });
+        }
+      }
+    }, 4500); // Trigger auto-scroll animation every 4.5 seconds
+
+    return () => clearInterval(interval);
+  }, [recLoading, recommendedProducts, isHovered, carouselUserInteraction]);
+
   // Product Comparison Selector State
   const [compareIds, setCompareIds] = useState<string[]>([]);
   useEffect(() => {
@@ -187,92 +232,81 @@ export default function Home({ user }: HomeProps) {
         const wishlistProducts = products.filter(p => wishlistIds.includes(p.id));
         const historyProducts = products.filter(p => browsingHistoryIds.includes(p.id));
 
-        console.log(`Generating home recommendations. Wishlist items: ${wishlistIds.length}, Browsing items: ${browsingHistoryIds.length}`);
-
-        if (!hasInteractions) {
-          // Select default popular products (trending/highly rated)
-          const trending = [...products]
-            .sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5))
-            .slice(0, 4);
-          if (isMounted) {
-            setRecommendedProducts(trending);
-            setRecLoading(false);
-          }
-          return;
-        }
-
-        // Call server-side recommendations endpoint
-        try {
-          const response = await axios.post("/api/recommendations", {
-            history: {
-              wishlist: wishlistProducts.map(p => ({ id: p.id, name: p.name, category: p.category })),
-              browsingHistory: historyProducts.map(p => ({ id: p.id, name: p.name, category: p.category }))
-            },
-            products: products.map(p => ({ id: p.id, name: p.name, category: p.category }))
-          });
-
-          const recIds = response.data?.recommendationIds || [];
-          if (Array.isArray(recIds) && recIds.length > 0) {
-            const recs = recIds
-              .map(id => products.find(p => p.id === id))
-              .filter((p): p is Product => !!p && p.active !== false)
-              .slice(0, 4);
-
-            if (recs.length > 0) {
-              if (isMounted) {
-                setRecommendedProducts(recs);
-                setRecLoading(false);
-              }
-              return;
-            }
-          }
-        } catch (apiErr) {
-          console.warn("Home recommendations API error, using smart client-side heuristic fallback:", apiErr);
-        }
-
-        // Local Heuristic Fallback
+        // Generate excellent smart client-side heuristic recommendations immediately
         const preferredCategories = Array.from(
           new Set(
             [...wishlistProducts, ...historyProducts].map(p => p.category).filter((c): c is string => !!c)
           )
         );
 
-        let fallbacks: Product[] = [];
-        if (preferredCategories.length > 0) {
-          // Find products in preferred categories that are NOT already saved/viewed (to promote discovery)
-          fallbacks = products.filter(
-            p => 
-              preferredCategories.includes(p.category) && 
-              !combinedIds.includes(p.id) && 
-              p.active !== false
-          );
-
-          if (fallbacks.length < 4) {
-            const alreadyInteractedInCat = products.filter(
+        let initialRecs: Product[] = [];
+        if (!hasInteractions) {
+          initialRecs = [...products]
+            .sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5))
+            .slice(0, 12);
+        } else {
+          if (preferredCategories.length > 0) {
+            initialRecs = products.filter(
               p => 
                 preferredCategories.includes(p.category) && 
-                combinedIds.includes(p.id) && 
+                !combinedIds.includes(p.id) && 
                 p.active !== false
             );
-            fallbacks = [...fallbacks, ...alreadyInteractedInCat];
+
+            if (initialRecs.length < 12) {
+              const alreadyInteractedInCat = products.filter(
+                p => 
+                  preferredCategories.includes(p.category) && 
+                  combinedIds.includes(p.id) && 
+                  p.active !== false
+              );
+              initialRecs = [...initialRecs, ...alreadyInteractedInCat];
+            }
           }
+
+          initialRecs = Array.from(new Set(initialRecs));
+
+          if (initialRecs.length < 12) {
+            const generalPopular = [...products]
+              .filter(p => !initialRecs.some(f => f.id === p.id) && p.active !== false)
+              .sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
+            initialRecs = [...initialRecs, ...generalPopular];
+          }
+          initialRecs = initialRecs.slice(0, 12);
         }
 
-        fallbacks = Array.from(new Set(fallbacks));
-
-        if (fallbacks.length < 4) {
-          const generalPopular = [...products]
-            .filter(p => !fallbacks.some(f => f.id === p.id) && p.active !== false)
-            .sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
-          fallbacks = [...fallbacks, ...generalPopular];
-        }
-
-        const finalRecs = fallbacks.slice(0, 4);
-        if (isMounted) {
-          setRecommendedProducts(finalRecs);
+        if (isMounted && initialRecs.length > 0) {
+          setRecommendedProducts(initialRecs);
           setRecLoading(false);
         }
 
+        // Fetch high-fidelity personalized AI recommendations in background (if online)
+        if (navigator.onLine && hasInteractions) {
+          try {
+            const response = await axios.post("/api/recommendations", {
+              history: {
+                wishlist: wishlistProducts.map(p => ({ id: p.id, name: p.name, category: p.category })),
+                browsingHistory: historyProducts.map(p => ({ id: p.id, name: p.name, category: p.category }))
+              },
+              products: products.map(p => ({ id: p.id, name: p.name, category: p.category }))
+            });
+
+            const recIds = response.data?.recommendationIds || [];
+            if (Array.isArray(recIds) && recIds.length > 0) {
+              const recs = recIds
+                .map(id => products.find(p => p.id === id))
+                .filter((p): p is Product => !!p && p.active !== false)
+                .slice(0, 12);
+
+              if (recs.length > 0 && isMounted) {
+                setRecommendedProducts(recs);
+                setRecLoading(false);
+              }
+            }
+          } catch (apiErr) {
+            console.warn("Home background recommendations API error:", apiErr);
+          }
+        }
       } catch (err) {
         console.error("Critical error generating home recommendations:", err);
         if (isMounted) {
@@ -534,9 +568,34 @@ export default function Home({ user }: HomeProps) {
     }
   }, [slides]);
 
+  // Hydrate products instantly from IndexedDB cache on mount
   useEffect(() => {
-    setLoading(isQueryLoading);
-  }, [isQueryLoading]);
+    let active = true;
+    async function loadFromOfflineCache() {
+      try {
+        const cached = await getCachedProducts();
+        if (active && cached && cached.length > 0) {
+          setProducts(cached);
+          setFilteredProducts(cached);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.warn("Error loading products from offline cache:", err);
+      }
+    }
+    loadFromOfflineCache();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isQueryLoading && products.length === 0) {
+      setLoading(true);
+    } else if (!isQueryLoading) {
+      setLoading(false);
+    }
+  }, [isQueryLoading, products.length]);
 
   useEffect(() => {
     const handleSync = () => {
@@ -782,10 +841,15 @@ export default function Home({ user }: HomeProps) {
 
       {/* Recommended for You Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-b border-gray-100 dark:border-gray-800 bg-orange-50/10 dark:bg-gray-900/10 rounded-3xl mt-12 mb-6">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
-            <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
-              {t("Recommended for You")}
+            <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
+              <span>{t("Recommended for You")}</span>
+              {recommendedProducts.length > 0 && (
+                <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100/60 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">
+                  {recommendedProducts.length} Items
+                </span>
+              )}
             </h2>
             <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium text-sm">
               {hasHistory 
@@ -793,201 +857,253 @@ export default function Home({ user }: HomeProps) {
                 : t("browse products or save to wishlist for personalized recommendations.")}
             </p>
           </div>
+
+          {/* Carousel Control Buttons */}
+          {recommendedProducts.length > 0 && (
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => scrollCarousel("left")}
+                className="p-2.5 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-orange-50 hover:border-orange-200 dark:hover:bg-orange-950/20 dark:hover:border-orange-900/40 hover:text-orange-600 dark:hover:text-orange-400 transition-all shadow-sm active:scale-95 cursor-pointer flex items-center justify-center focus:outline-none"
+                aria-label="Previous items"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollCarousel("right")}
+                className="p-2.5 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-orange-50 hover:border-orange-200 dark:hover:bg-orange-950/20 dark:hover:border-orange-900/40 hover:text-orange-600 dark:hover:text-orange-400 transition-all shadow-sm active:scale-95 cursor-pointer flex items-center justify-center focus:outline-none"
+                aria-label="Next items"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
         </div>
 
         {recLoading ? (
-          <ProductCardSkeleton />
-        ) : recommendedProducts.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
-            <Heart size={40} className="mx-auto text-gray-300 mb-2" />
-            <p className="text-gray-500 font-medium">{t("No recommendations found")}</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {recommendedProducts.map((p) => (
-              <motion.div 
-                whileHover={{ y: -5 }}
-                key={`rec-${p.id}`} 
-                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-4 shadow-sm transition-all premium-card-spotlight"
+          <div className="flex gap-6 overflow-hidden pb-4">
+            {[1, 2, 3, 4].map((n) => (
+              <div
+                key={n}
+                className="w-[245px] sm:w-[285px] shrink-0 bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-4 shadow-sm flex flex-col justify-between relative animate-pulse"
               >
-                <Link 
-                  to={`/product/${p.id}`} 
-                  state={{ product: p }}
-                  onMouseEnter={() => prefetchProductAssets(p)}
-                  onTouchStart={() => prefetchProductAssets(p)}
-                  className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-4 relative group"
-                >
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
-                  <FastImage 
-                    src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
-                    alt={p.name} 
-                    fallbackIconSize={48}
-                  />
-                  <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
-                    <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
-                      {p.category}
-                    </div>
-                    {p.originalPrice && p.originalPrice > p.price && (
-                      <div className="bg-red-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
-                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
-                      </div>
-                    )}
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.18 }}
-                    whileTap={{ scale: 0.8 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                    onClick={(e) => toggleWishlist(p.id, e)}
-                    className={`absolute top-2 left-2 p-2 rounded-full shadow-sm z-10 transition-colors ${
-                      user?.wishlist?.includes(p.id) 
-                        ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40" 
-                        : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800"
-                    }`}
-                  >
-                    <Heart size={16} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.18 }}
-                    whileTap={{ scale: 0.8 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                    onClick={(e) => handleToggleCompare(p, e)}
-                    className={`absolute top-2 left-12 p-2 rounded-full shadow-sm z-10 transition-colors ${
-                      compareIds.includes(p.id) 
-                        ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-450 hover:bg-orange-100 dark:hover:bg-orange-900/40" 
-                        : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-orange-600 hover:bg-white dark:hover:bg-gray-800"
-                    }`}
-                    title="Compare Product Specifications"
-                  >
-                    <GitCompare size={16} />
-                  </motion.button>
-                </Link>
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center text-yellow-400">
-                       <Star size={14} fill="currentColor" />
-                       <span className="text-gray-500 dark:text-gray-400 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
-                    </div>
-                    <div>
-                      {p.stock === 0 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400">
-                          {t("Out of Stock")}
-                        </span>
-                      ) : p.stock <= 5 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
-                          {t("Low Stock")} ({p.stock})
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
-                          {t("In Stock")}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <Link to={`/product/${p.id}`} state={{ product: p }} className="text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1">
-                    {p.name}
-                  </Link>
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex flex-col">
-                      <span className="text-xl font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
-                      {p.originalPrice && p.originalPrice > p.price && (
-                        <span className="text-xs text-gray-400 dark:text-gray-500 line-through mt-1 font-medium select-none">
-                          {formatPrice(p.originalPrice)}
-                        </span>
-                      )}
-                    </div>
-                    {(() => {
-                      const status = addingMap[p.id] || "idle";
-                      return (
-                        <motion.button 
-                          whileHover={p.stock === 0 || status === "loading" ? {} : { scale: 1.15, rotate: -3 }}
-                          whileTap={p.stock === 0 || status === "loading" ? {} : { scale: 0.85, rotate: 3 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                          disabled={p.stock === 0 || status === "loading" || status === "added"}
-                          onClick={() => {
-                            if (p.stock === 0) {
-                              toast.error("This product is out of stock!");
-                              return;
-                            }
-                            setAddingMap(prev => ({ ...prev, [p.id]: "loading" }));
-                            addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
-                            trackEvent("add_to_cart", {
-                              items: [{
-                                item_id: p.id,
-                                item_name: p.name,
-                                price: p.price,
-                                quantity: 1,
-                                item_category: p.category
-                              }]
-                            });
-                            
-                            setTimeout(() => {
-                              setAddingMap(prev => ({ ...prev, [p.id]: "added" }));
-                              toast.success(`${p.name} added to cart!`);
-                              setTimeout(() => {
-                                setAddingMap(prev => {
-                                  const updated = { ...prev };
-                                  delete updated[p.id];
-                                  return updated;
-                                });
-                              }, 1500);
-                            }, 850);
-                          }}
-                          className={`p-2.5 rounded-xl transition-all relative overflow-hidden flex items-center justify-center select-none ${
-                            p.stock === 0 
-                              ? "bg-gray-100 dark:bg-gray-805 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
-                              : status === "added"
-                              ? "bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-600/10"
-                              : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10 dark:shadow-none"
-                          }`}
-                          style={{ minWidth: "2.5rem", minHeight: "2.5rem" }}
-                        >
-                          <AnimatePresence mode="wait">
-                            {status === "idle" && (
-                              <motion.div
-                                key="idle"
-                                initial={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.6 }}
-                                transition={{ duration: 0.15 }}
-                                className="flex items-center justify-center"
-                              >
-                                <ShoppingBag size={18} />
-                              </motion.div>
-                            )}
-                            {status === "loading" && (
-                              <motion.div
-                                key="loading"
-                                initial={{ opacity: 0, scale: 0.6 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.6 }}
-                                transition={{ duration: 0.15 }}
-                                className="flex items-center justify-center"
-                              >
-                                <Loader2 className="animate-spin" size={18} />
-                              </motion.div>
-                            )}
-                            {status === "added" && (
-                              <motion.div
-                                key="added"
-                                initial={{ opacity: 0, scale: 0.5 }}
-                                animate={{ opacity: 1, scale: [1, 1.25, 1] }}
-                                exit={{ opacity: 0, scale: 0.5 }}
-                                transition={{ 
-                                  scale: { duration: 0.3, ease: "easeInOut" },
-                                  opacity: { type: "spring", stiffness: 400, damping: 10 }
-                                }}
-                                className="flex items-center justify-center"
-                              >
-                                <Check size={18} className="stroke-[3]" />
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </motion.button>
-                      );
-                    })()}
+                <div className="aspect-square bg-gray-150 dark:bg-gray-950 rounded-2xl overflow-hidden relative mb-4">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-200/40 dark:via-gray-800/40 to-transparent -translate-x-full animate-shimmer" />
+                </div>
+                <div className="space-y-3">
+                  <div className="w-12 h-3.5 bg-gray-200 dark:bg-gray-800 rounded-md" />
+                  <div className="w-11/12 h-5 bg-gray-200 dark:bg-gray-800 rounded-lg" />
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="w-16 h-6 bg-gray-200 dark:bg-gray-800 rounded-md" />
+                    <div className="w-9 h-9 bg-gray-200 dark:bg-gray-800 rounded-xl" />
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
+          </div>
+        ) : recommendedProducts.length === 0 ? (
+          <div className="text-center py-12 bg-white dark:bg-gray-900 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
+            <Heart size={40} className="mx-auto text-gray-300 dark:text-gray-700 mb-2" />
+            <p className="text-gray-500 dark:text-gray-400 font-medium">{t("No recommendations found")}</p>
+          </div>
+        ) : (
+          <div className="relative">
+            <div 
+              ref={carouselRef}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              onTouchStart={() => setIsHovered(true)}
+              onTouchEnd={() => setIsHovered(false)}
+              className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0"
+            >
+              {recommendedProducts.map((p) => (
+                <motion.div 
+                  whileHover={{ y: -5 }}
+                  key={`rec-${p.id}`} 
+                  className="w-[245px] sm:w-[285px] shrink-0 snap-start bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-4 shadow-sm transition-all premium-card-spotlight flex flex-col justify-between"
+                >
+                  <Link 
+                    to={`/product/${p.id}`} 
+                    state={{ product: p }}
+                    onMouseEnter={() => prefetchProductAssets(p)}
+                    onTouchStart={() => prefetchProductAssets(p)}
+                    className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-4 relative group"
+                  >
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
+                    <FastImage 
+                      src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
+                      alt={p.name} 
+                      fallbackIconSize={48}
+                    />
+                    <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
+                      <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
+                        {p.category}
+                      </div>
+                      {p.originalPrice && p.originalPrice > p.price && (
+                        <div className="bg-red-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
+                          -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
+                        </div>
+                      )}
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.18 }}
+                      whileTap={{ scale: 0.8 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                      onClick={(e) => toggleWishlist(p.id, e)}
+                      className={`absolute top-2 left-2 p-2 rounded-full shadow-sm z-10 transition-colors ${
+                        user?.wishlist?.includes(p.id) 
+                          ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40" 
+                          : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      <Heart size={16} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.18 }}
+                      whileTap={{ scale: 0.8 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                      onClick={(e) => handleToggleCompare(p, e)}
+                      className={`absolute top-2 left-12 p-2 rounded-full shadow-sm z-10 transition-colors ${
+                        compareIds.includes(p.id) 
+                          ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-450 hover:bg-orange-100 dark:hover:bg-orange-900/40" 
+                          : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-orange-600 hover:bg-white dark:hover:bg-gray-800"
+                      }`}
+                      title="Compare Product Specifications"
+                    >
+                      <GitCompare size={16} />
+                    </motion.button>
+                  </Link>
+                  <div className="space-y-1 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center text-yellow-400">
+                           <Star size={14} fill="currentColor" />
+                           <span className="text-gray-500 dark:text-gray-400 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
+                        </div>
+                        <div>
+                          {p.stock === 0 ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400">
+                              {t("Out of Stock")}
+                            </span>
+                          ) : p.stock <= 5 ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
+                              {t("Low Stock")} ({p.stock})
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
+                              {t("In Stock")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Link to={`/product/${p.id}`} state={{ product: p }} className="text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1">
+                        {p.name}
+                      </Link>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex flex-col">
+                        <span className="text-xl font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
+                        {p.originalPrice && p.originalPrice > p.price && (
+                          <span className="text-xs text-gray-400 dark:text-gray-500 line-through mt-1 font-medium select-none">
+                            {formatPrice(p.originalPrice)}
+                          </span>
+                        )}
+                      </div>
+                      {(() => {
+                        const status = addingMap[p.id] || "idle";
+                        return (
+                          <motion.button 
+                            whileHover={p.stock === 0 || status === "loading" ? {} : { scale: 1.15, rotate: -3 }}
+                            whileTap={p.stock === 0 || status === "loading" ? {} : { scale: 0.85, rotate: 3 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                            disabled={p.stock === 0 || status === "loading" || status === "added"}
+                            onClick={() => {
+                              if (p.stock === 0) {
+                                toast.error("This product is out of stock!");
+                                return;
+                              }
+                              setAddingMap(prev => ({ ...prev, [p.id]: "loading" }));
+                              addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
+                              trackEvent("add_to_cart", {
+                                items: [{
+                                  item_id: p.id,
+                                  item_name: p.name,
+                                  price: p.price,
+                                  quantity: 1,
+                                  item_category: p.category
+                                }]
+                              });
+                              
+                              setTimeout(() => {
+                                setAddingMap(prev => ({ ...prev, [p.id]: "added" }));
+                                toast.success(`${p.name} added to cart!`);
+                                setTimeout(() => {
+                                  setAddingMap(prev => {
+                                    const updated = { ...prev };
+                                    delete updated[p.id];
+                                    return updated;
+                                  });
+                                }, 1500);
+                              }, 850);
+                            }}
+                            className={`p-2.5 rounded-xl transition-all relative overflow-hidden flex items-center justify-center select-none ${
+                              p.stock === 0 
+                                ? "bg-gray-100 dark:bg-gray-805 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
+                                : status === "added"
+                                ? "bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-600/10"
+                                : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10 dark:shadow-none"
+                            }`}
+                            style={{ minWidth: "2.5rem", minHeight: "2.5rem" }}
+                          >
+                            <AnimatePresence mode="wait">
+                              {status === "idle" && (
+                                <motion.div
+                                  key="idle"
+                                  initial={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.6 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="flex items-center justify-center"
+                                >
+                                  <ShoppingBag size={18} />
+                                </motion.div>
+                              )}
+                              {status === "loading" && (
+                                <motion.div
+                                  key="loading"
+                                  initial={{ opacity: 0, scale: 0.6 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.6 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="flex items-center justify-center"
+                                >
+                                  <Loader2 className="animate-spin" size={18} />
+                                </motion.div>
+                              )}
+                              {status === "added" && (
+                                <motion.div
+                                  key="added"
+                                  initial={{ opacity: 0, scale: 0.5 }}
+                                  animate={{ opacity: 1, scale: [1, 1.25, 1] }}
+                                  exit={{ opacity: 0, scale: 0.5 }}
+                                  transition={{ 
+                                    scale: { duration: 0.3, ease: "easeInOut" },
+                                    opacity: { type: "spring", stiffness: 400, damping: 10 }
+                                  }}
+                                  className="flex items-center justify-center"
+                                >
+                                  <Check size={18} className="stroke-[3]" />
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </motion.button>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
         )}
       </section>

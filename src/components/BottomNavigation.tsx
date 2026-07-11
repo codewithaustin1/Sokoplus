@@ -85,7 +85,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
             <motion.button
               key={item.id}
               onClick={item.onClick}
-              whileTap={{ scale: 0.9 }}
+              whileTap={{ scale: 0.95 }}
               className="relative flex flex-col items-center justify-center flex-1 h-full py-1 text-center group cursor-pointer focus:outline-none bg-transparent border-none"
             >
               {/* Active Backing Pill */}
@@ -100,25 +100,32 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
               <div className="relative flex items-center justify-center p-1">
                 {/* Optional Custom User Avatar */}
                 {item.avatar ? (
-                  <img
+                  <motion.img
                     src={item.avatar}
                     alt="User profile"
+                    animate={item.isActive ? { scale: 1.1 } : { scale: 1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
                     className={`w-6 h-6 rounded-full object-cover border-2 transition-all duration-200 ${
                       item.isActive
-                        ? "border-orange-500 scale-110"
+                        ? "border-orange-500"
                         : "border-gray-200 dark:border-gray-800"
                     }`}
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <IconComponent
-                    size={20}
-                    className={`transition-all duration-250 ${
-                      item.isActive
-                        ? "text-orange-600 dark:text-orange-500 scale-110"
-                        : "text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200"
-                    }`}
-                  />
+                  <motion.div
+                    animate={item.isActive ? { scale: 1.12, y: -1 } : { scale: 1, y: 0 }}
+                    transition={{ type: "spring", stiffness: 450, damping: 22 }}
+                  >
+                    <IconComponent
+                      size={20}
+                      className={`transition-colors duration-250 ${
+                        item.isActive
+                          ? "text-orange-600 dark:text-orange-500"
+                          : "text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200"
+                      }`}
+                    />
+                  </motion.div>
                 )}
 
                 {/* Badge Indicator for Cart count */}
@@ -131,10 +138,10 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
 
               {/* Label text */}
               <span
-                className={`text-[10px] font-bold mt-1 tracking-tight transition-colors duration-200 ${
+                className={`text-[10px] font-medium mt-1 tracking-wide transition-all duration-300 ${
                   item.isActive
-                    ? "text-orange-600 dark:text-orange-500 font-extrabold"
-                    : "text-gray-500 dark:text-gray-400"
+                    ? "text-orange-600 dark:text-orange-500 font-bold"
+                    : "text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300"
                 }`}
               >
                 {item.label}
