@@ -6,6 +6,7 @@ import { Product } from "../types";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { Flame, Star, Sparkles, AlertCircle } from "lucide-react";
+import { getCachedProducts } from "../utils/offlineDb";
 
 enum OperationType {
   CREATE = "create",
@@ -49,6 +50,7 @@ export default function DailyDealsTicker() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [enabled, setEnabled] = useState<boolean>(true);
+  const [speed, setSpeed] = useState<number>(30);
   
   const { formatPrice } = useCurrency();
   const { t } = useLanguage();
@@ -59,6 +61,9 @@ export default function DailyDealsTicker() {
         const data = snapshot.data();
         if (data.showDailyDeals !== undefined) {
           setEnabled(data.showDailyDeals);
+        }
+        if (data.dailyDealsSpeed !== undefined) {
+          setSpeed(data.dailyDealsSpeed);
         }
       }
     }, (err) => {
@@ -71,6 +76,44 @@ export default function DailyDealsTicker() {
     const productsPath = "products";
     const q = query(collection(db, productsPath), limit(50));
 
+    const processAndSetProducts = (productList: Product[]) => {
+      // Filter for active and approved products
+      const activeApproved = productList.filter(
+        (p) => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved")
+      );
+
+      // Sort by rating (desc) then reviewCount (desc) to find top trending
+      const sorted = activeApproved.sort((a, b) => {
+        const ratingA = a.rating ?? 0;
+        const ratingB = b.rating ?? 0;
+        if (ratingB !== ratingA) {
+          return ratingB - ratingA;
+        }
+        const reviewsA = a.reviewCount ?? 0;
+        const reviewsB = b.reviewCount ?? 0;
+        return reviewsB - reviewsA;
+      });
+
+      // Top 5 trending products
+      setTrendingProducts(sorted.slice(0, 5));
+      setLoading(false);
+      setError(null);
+    };
+
+    const loadFromCache = async () => {
+      try {
+        const cached = await getCachedProducts();
+        if (cached && cached.length > 0) {
+          processAndSetProducts(cached);
+        } else {
+          setLoading(false);
+        }
+      } catch (cacheErr) {
+        console.error("Failed to load trending deals from IndexedDB cache:", cacheErr);
+        setLoading(false);
+      }
+    };
+
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -80,41 +123,19 @@ export default function DailyDealsTicker() {
             ...doc.data(),
           })) as Product[];
 
-          // Filter for active and approved products
-          const activeApproved = fetched.filter(
-            (p) => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved")
-          );
-
-          // Sort by rating (desc) then reviewCount (desc) to find top trending
-          const sorted = activeApproved.sort((a, b) => {
-            const ratingA = a.rating ?? 0;
-            const ratingB = b.rating ?? 0;
-            if (ratingB !== ratingA) {
-              return ratingB - ratingA;
-            }
-            const reviewsA = a.reviewCount ?? 0;
-            const reviewsB = b.reviewCount ?? 0;
-            return reviewsB - reviewsA;
-          });
-
-          // Top 5 trending products
-          setTrendingProducts(sorted.slice(0, 5));
-          setLoading(false);
-          setError(null);
+          if (fetched && fetched.length > 0) {
+            processAndSetProducts(fetched);
+          } else {
+            loadFromCache();
+          }
         } catch (err) {
-          setError("Failed to parse real-time deals");
-          setLoading(false);
+          console.warn("Failed to parse real-time snapshot, attempting cache fallback:", err);
+          loadFromCache();
         }
       },
       (firestoreErr) => {
-        setError("Unable to connect to real-time deals");
-        setLoading(false);
-        try {
-          handleFirestoreError(firestoreErr, OperationType.LIST, productsPath);
-        } catch (e) {
-          // Keep failure soft to prevent crashing entire page
-          console.error("Soft-caught Firestore error:", e);
-        }
+        console.warn("Firestore error in DailyDealsTicker onSnapshot, falling back to local cache:", firestoreErr);
+        loadFromCache();
       }
     );
 
@@ -139,7 +160,7 @@ export default function DailyDealsTicker() {
           100% { transform: translateX(-33.333%); }
         }
         .animate-ticker-marquee {
-          animation: ticker-marquee 30s linear infinite;
+          animation: ticker-marquee ${speed}s linear infinite;
         }
         .animate-ticker-marquee:hover {
           animation-play-state: paused;

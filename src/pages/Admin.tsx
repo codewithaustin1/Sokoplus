@@ -619,6 +619,7 @@ export default function Admin({ user }: AdminProps) {
   const [googleMapsLinks, setGoogleMapsLinks] = useState<{ name: string; url: string }[]>([]);
   const [showAudioBubble, setShowAudioBubble] = useState<boolean>(true);
   const [showDailyDeals, setShowDailyDeals] = useState<boolean>(true);
+  const [dailyDealsSpeed, setDailyDealsSpeed] = useState<number>(30);
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
@@ -861,6 +862,9 @@ export default function Admin({ user }: AdminProps) {
           if (settingsData.showDailyDeals !== undefined) {
             setShowDailyDeals(settingsData.showDailyDeals);
           }
+          if (settingsData.dailyDealsSpeed !== undefined) {
+            setDailyDealsSpeed(settingsData.dailyDealsSpeed);
+          }
         }
       } catch (settingsError) {
         console.warn("Could not retrieve hero image settings: ", settingsError);
@@ -1081,6 +1085,7 @@ export default function Admin({ user }: AdminProps) {
         googleMapsLinks: googleMapsLinks,
         showAudioBubble: showAudioBubble,
         showDailyDeals: showDailyDeals,
+        dailyDealsSpeed: dailyDealsSpeed,
         updatedAt: new Date(),
         updatedBy: user?.email || "Admin",
       }, { merge: true });
@@ -1109,6 +1114,7 @@ export default function Admin({ user }: AdminProps) {
           googleMapsLinks: [],
           showAudioBubble: true,
           showDailyDeals: true,
+          dailyDealsSpeed: 30,
           updatedAt: new Date(),
           updatedBy: user?.email || "Admin",
         }, { merge: true });
@@ -1118,6 +1124,7 @@ export default function Admin({ user }: AdminProps) {
         setGoogleMapsLinks([]);
         setShowAudioBubble(true);
         setShowDailyDeals(true);
+        setDailyDealsSpeed(30);
         toast.success("Successfully reset to default hero banner & texts!");
       } catch (error) {
         console.error("Error resetting settings:", error);
@@ -4681,6 +4688,32 @@ export default function Admin({ user }: AdminProps) {
                     />
                   </button>
                 </div>
+
+                {showDailyDeals && (
+                  <div className="pt-3 border-t border-orange-100/40 dark:border-orange-900/20 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-semibold text-orange-850 dark:text-orange-350">
+                      <span>Auto-Scroll Duration</span>
+                      <span className="bg-orange-100 dark:bg-orange-950/60 px-2.5 py-0.5 rounded text-orange-700 dark:text-orange-300 font-bold">
+                        {dailyDealsSpeed}s {dailyDealsSpeed <= 20 ? "(Fast)" : dailyDealsSpeed >= 45 ? "(Slow)" : "(Normal)"}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="60"
+                      step="5"
+                      value={dailyDealsSpeed}
+                      onChange={(e) => setDailyDealsSpeed(parseInt(e.target.value, 10))}
+                      className="w-full h-2 bg-orange-100 dark:bg-orange-950/40 rounded-lg appearance-none cursor-pointer accent-orange-600 focus:outline-none"
+                      id="daily-deals-speed-slider"
+                    />
+                    <div className="flex justify-between text-[10px] text-orange-650/70 dark:text-orange-400/50 font-medium">
+                      <span>10s (Fast)</span>
+                      <span>30s (Default)</span>
+                      <span>60s (Slow)</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Sizing, Aspect, and Placement safety guidance */}
