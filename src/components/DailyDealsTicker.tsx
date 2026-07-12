@@ -52,18 +52,56 @@ export default function DailyDealsTicker() {
   const [enabled, setEnabled] = useState<boolean>(true);
   const [speed, setSpeed] = useState<number>(30);
   const [hours, setHours] = useState<number>(24);
+  const [anchorTime, setAnchorTime] = useState<number | null>(null);
+  const [serverOffset, setServerOffset] = useState<number>(0);
   
   const { formatPrice } = useCurrency();
   const { t } = useLanguage();
 
   const [timeLeft, setTimeLeft] = useState({ hours: 24, minutes: 0, seconds: 0 });
 
+  // Sync client clock with server's time using HEAD requests
+  useEffect(() => {
+    let active = true;
+    const syncClock = async () => {
+      try {
+        const startTime = Date.now();
+        // Request the main page head to inspect response Date header (highly standard, fast, and light)
+        const response = await fetch("/", { method: "HEAD" });
+        if (!active) return;
+        const endTime = Date.now();
+        const serverDateStr = response.headers.get("date");
+        if (serverDateStr) {
+          const serverTime = new Date(serverDateStr).getTime();
+          const rtt = endTime - startTime;
+          const adjustedServerTime = serverTime + (rtt / 2);
+          setServerOffset(adjustedServerTime - endTime);
+        }
+      } catch (err) {
+        console.warn("Failed to sync clock with server, using local time:", err);
+      }
+    };
+
+    syncClock();
+    // Re-sync clock every 3 minutes to maintain high-precision synchrony across devices
+    const interval = setInterval(syncClock, 3 * 60 * 1000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   useEffect(() => {
     const updateTimer = () => {
-      const now = new Date();
+      const nowMs = Date.now() + serverOffset;
       const cycleMs = hours * 60 * 60 * 1000;
-      const elapsedSinceEpoch = now.getTime();
-      const currentCycleElapsed = elapsedSinceEpoch % cycleMs;
+      
+      // Align cycle start with when the admin last saved/updated settings in Firestore
+      const baseAnchor = anchorTime || 0;
+      const elapsed = nowMs - baseAnchor;
+      
+      // Standardize elapsed to start from 0 if anchor is slightly in the future
+      const currentCycleElapsed = elapsed > 0 ? (elapsed % cycleMs) : 0;
       const diff = cycleMs - currentCycleElapsed;
       
       if (diff > 0) {
@@ -80,7 +118,7 @@ export default function DailyDealsTicker() {
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [hours]);
+  }, [hours, anchorTime, serverOffset]);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(doc(db, "settings", "homepage"), (snapshot) => {
@@ -94,6 +132,21 @@ export default function DailyDealsTicker() {
         }
         if (data.dailyDealsHours !== undefined) {
           setHours(data.dailyDealsHours);
+        }
+        if (data.updatedAt) {
+          let tValue = 0;
+          if (typeof data.updatedAt.toMillis === "function") {
+            tValue = data.updatedAt.toMillis();
+          } else if (data.updatedAt instanceof Date) {
+            tValue = data.updatedAt.getTime();
+          } else if (typeof data.updatedAt.seconds === "number") {
+            tValue = data.updatedAt.seconds * 1000;
+          } else if (typeof data.updatedAt === "string" || typeof data.updatedAt === "number") {
+            tValue = new Date(data.updatedAt).getTime();
+          }
+          if (tValue > 0) {
+            setAnchorTime(tValue);
+          }
         }
       }
     }, (err) => {
