@@ -152,7 +152,7 @@ export default function DailyDealsTicker() {
   return (
     <div 
       id="daily-deals-ticker-container"
-      className="w-full bg-gradient-to-r from-orange-500/5 via-orange-500/10 to-orange-500/5 dark:from-orange-950/20 dark:via-orange-950/30 dark:to-orange-950/20 border-y border-orange-200/40 dark:border-orange-900/30 py-3 overflow-hidden relative flex items-center transition-all"
+      className="w-full bg-gradient-to-r from-orange-50/40 via-orange-100/20 to-orange-50/40 dark:from-orange-950/10 dark:via-orange-900/10 dark:to-orange-950/10 border-y border-orange-200/50 dark:border-orange-900/30 py-3.5 overflow-hidden relative flex items-center transition-all"
     >
       <style>{`
         @keyframes ticker-marquee {
@@ -170,11 +170,11 @@ export default function DailyDealsTicker() {
       {/* Static Badge on the left */}
       <div 
         id="daily-deals-ticker-badge"
-        className="flex items-center space-x-1.5 px-4 sm:px-6 bg-gradient-to-r from-orange-600 to-amber-600 dark:from-orange-500 dark:to-amber-500 text-white font-bold text-xs uppercase tracking-wider py-1.5 rounded-r-full shadow-md z-10 whitespace-nowrap select-none shrink-0"
+        className="flex items-center space-x-2 px-5 sm:px-6 bg-gradient-to-r from-orange-600 via-amber-600 to-red-600 dark:from-orange-500 dark:via-amber-500 dark:to-red-500 text-white font-bold text-xs uppercase tracking-wider py-2.5 rounded-r-full shadow-lg z-10 whitespace-nowrap select-none shrink-0"
       >
-        <Flame className="animate-bounce" size={14} fill="currentColor" />
-        <span>{t("dailyDeals")}</span>
-        <span className="hidden sm:inline-block w-1.5 h-1.5 bg-green-400 rounded-full animate-ping ml-1" />
+        <Flame className="animate-bounce text-yellow-300" size={15} fill="currentColor" />
+        <span className="font-extrabold">{t("dailyDeals")}</span>
+        <span className="hidden sm:inline-block w-2 h-2 bg-green-400 rounded-full animate-ping ml-1" />
       </div>
 
       {/* Scrolling Content Marquee Wrapper */}
@@ -184,7 +184,7 @@ export default function DailyDealsTicker() {
       >
         <div 
           id="daily-deals-ticker-marquee-track"
-          className="flex items-center space-x-12 animate-ticker-marquee whitespace-nowrap pl-6"
+          className="flex items-center space-x-6 animate-ticker-marquee whitespace-nowrap pl-6"
           style={{ width: "fit-content" }}
         >
           {marqueeItems.map((product, idx) => {
@@ -197,56 +197,65 @@ export default function DailyDealsTicker() {
                 key={`${product.id}-deal-${idx}`}
                 id={`daily-deals-ticker-item-${product.id}-${idx}`}
                 to={`/product/${product.id}`}
-                className="inline-flex items-center space-x-3.5 group cursor-pointer hover:opacity-95 transition-opacity"
+                className="inline-flex items-center space-x-3.5 bg-white/90 dark:bg-gray-900/90 hover:bg-white dark:hover:bg-gray-950 backdrop-blur-md px-4.5 py-2.5 rounded-2xl border border-orange-200/50 dark:border-orange-900/30 shadow-sm hover:shadow-md hover:border-orange-500 dark:hover:border-orange-600 transition-all duration-300 group shrink-0"
               >
-                {/* Product rank badge (only for first duplicate set for perfect consistency) */}
-                <div 
-                  id={`daily-deals-rank-${product.id}-${idx}`}
-                  className="flex items-center justify-center bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 font-bold text-[10px] w-5 h-5 rounded-full border border-orange-200/50 dark:border-orange-900/30"
-                >
-                  #{(idx % 5) + 1}
+                {/* Image and Rank container */}
+                <div className="relative shrink-0">
+                  {product.images && product.images.length > 0 && (
+                    <div className="w-11 h-11 rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-orange-100 dark:border-orange-900/20 shadow-inner relative">
+                      <img
+                        src={product.images[0]}
+                        alt={product.name}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    </div>
+                  )}
+                  <div className="absolute -top-1.5 -left-1.5 flex items-center justify-center bg-gradient-to-br from-orange-600 to-amber-600 text-white font-black text-[9px] w-4.5 h-4.5 rounded-full shadow-sm border border-white dark:border-gray-900">
+                    #{(idx % 5) + 1}
+                  </div>
                 </div>
 
-                {/* Thumbnail image */}
-                {product.images && product.images.length > 0 && (
-                  <div className="w-8 h-8 rounded-md overflow-hidden bg-white dark:bg-gray-800 border border-orange-100 dark:border-orange-900/20 shrink-0 shadow-sm relative">
-                    <img
-                      src={product.images[0]}
-                      alt={product.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                {/* Info Container */}
+                <div className="flex flex-col space-y-0.5">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="font-bold text-xs text-gray-800 dark:text-gray-150 truncate max-w-[120px] sm:max-w-[150px] group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                      {product.name}
+                    </span>
+                    <span className="inline-flex items-center space-x-0.5 text-[9px] text-amber-500 font-semibold bg-amber-500/5 px-1 rounded">
+                      <Star size={9} fill="currentColor" />
+                      <span>{product.rating?.toFixed(1) || "4.8"}</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-black text-orange-600 dark:text-orange-400">
+                      {formatPrice(product.price)}
+                    </span>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through font-medium">
+                      {formatPrice(originalPrice)}
+                    </span>
+                  </div>
+
+                  {/* Stock Bar Indicator to enhance graphical richness */}
+                  <div className="w-full bg-gray-100/80 dark:bg-gray-850/80 h-1 rounded-full overflow-hidden flex">
+                    <div 
+                      className="bg-gradient-to-r from-orange-500 to-red-500 h-full rounded-full animate-pulse"
+                      style={{ width: `${(parseInt(product.id.slice(-2), 16) % 35) + 40}%` }}
                     />
                   </div>
-                )}
+                </div>
 
-                {/* Product Info */}
-                <div className="flex items-baseline space-x-2">
-                  <span className="font-semibold text-xs text-gray-800 dark:text-gray-200 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
-                    {product.name}
-                  </span>
-                  
-                  {/* Localized Price and simulated original price */}
-                  <span className="text-xs font-bold text-orange-600 dark:text-orange-400">
-                    {formatPrice(product.price)}
-                  </span>
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through">
-                    {formatPrice(originalPrice)}
-                  </span>
-
-                  {/* Rating display */}
-                  <span className="inline-flex items-center space-x-0.5 text-[11px] text-amber-500 dark:text-amber-400 font-medium bg-amber-500/5 dark:bg-amber-400/5 px-1.5 py-0.5 rounded border border-amber-500/10">
-                    <Star size={10} fill="currentColor" />
-                    <span>{product.rating?.toFixed(1) || "4.8"}</span>
-                  </span>
-
-                  {/* Discount Percentage Badge */}
-                  <span className="inline-flex items-center text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 dark:bg-emerald-400/10 px-1.5 py-0.5 rounded">
-                    -{mockDiscountPercent}%
-                  </span>
+                {/* Discount Badge */}
+                <div className="pl-1 shrink-0">
+                  <div className="flex flex-col items-center justify-center bg-gradient-to-br from-red-500 to-orange-500 text-white font-black text-[10px] px-2 py-1.5 rounded-xl shadow-sm tracking-tighter uppercase leading-none">
+                    <span>-{mockDiscountPercent}%</span>
+                    <span className="text-[7px] font-medium tracking-normal text-orange-100 uppercase mt-0.5">off</span>
+                  </div>
                 </div>
 
                 {/* Divider bullet */}
-                <Sparkles size={10} className="text-orange-400/60 dark:text-orange-500/40 animate-pulse ml-4" />
+                <Sparkles size={11} className="text-orange-400/60 dark:text-orange-500/40 animate-pulse ml-2" />
               </Link>
             );
           })}
