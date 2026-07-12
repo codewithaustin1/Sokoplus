@@ -620,6 +620,7 @@ export default function Admin({ user }: AdminProps) {
   const [showAudioBubble, setShowAudioBubble] = useState<boolean>(true);
   const [showDailyDeals, setShowDailyDeals] = useState<boolean>(true);
   const [dailyDealsSpeed, setDailyDealsSpeed] = useState<number>(30);
+  const [dailyDealsHours, setDailyDealsHours] = useState<number>(24);
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
@@ -865,6 +866,9 @@ export default function Admin({ user }: AdminProps) {
           if (settingsData.dailyDealsSpeed !== undefined) {
             setDailyDealsSpeed(settingsData.dailyDealsSpeed);
           }
+          if (settingsData.dailyDealsHours !== undefined) {
+            setDailyDealsHours(settingsData.dailyDealsHours);
+          }
         }
       } catch (settingsError) {
         console.warn("Could not retrieve hero image settings: ", settingsError);
@@ -1086,6 +1090,7 @@ export default function Admin({ user }: AdminProps) {
         showAudioBubble: showAudioBubble,
         showDailyDeals: showDailyDeals,
         dailyDealsSpeed: dailyDealsSpeed,
+        dailyDealsHours: dailyDealsHours,
         updatedAt: new Date(),
         updatedBy: user?.email || "Admin",
       }, { merge: true });
@@ -1115,6 +1120,7 @@ export default function Admin({ user }: AdminProps) {
           showAudioBubble: true,
           showDailyDeals: true,
           dailyDealsSpeed: 30,
+          dailyDealsHours: 24,
           updatedAt: new Date(),
           updatedBy: user?.email || "Admin",
         }, { merge: true });
@@ -1125,6 +1131,7 @@ export default function Admin({ user }: AdminProps) {
         setShowAudioBubble(true);
         setShowDailyDeals(true);
         setDailyDealsSpeed(30);
+        setDailyDealsHours(24);
         toast.success("Successfully reset to default hero banner & texts!");
       } catch (error) {
         console.error("Error resetting settings:", error);
@@ -4662,15 +4669,15 @@ export default function Admin({ user }: AdminProps) {
                 </div>
               </div>
 
-              {/* Daily Deals Ticker Toggle Configuration */}
+              {/* Today's Deals Ticker Toggle Configuration */}
               <div className="p-6 bg-orange-50/20 dark:bg-orange-950/10 rounded-3xl border border-orange-100/50 dark:border-orange-900/30 space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-1">
                     <h3 className="text-sm font-bold text-orange-850 dark:text-orange-400 flex items-center">
-                      <Flame size={16} className="mr-2 text-orange-600 animate-pulse" /> Daily Deals Ticker Widget
+                      <Flame size={16} className="mr-2 text-orange-600 animate-pulse" /> Today's Deals Ticker Widget
                     </h3>
                     <p className="text-xs text-orange-705 dark:text-orange-300 leading-relaxed font-medium">
-                      Enable or disable the real-time top trending Daily Deals announcement ticker on the homepage.
+                      Enable or disable the real-time top trending Today's Deals announcement ticker on the homepage.
                     </p>
                   </div>
                   <button
@@ -4690,27 +4697,56 @@ export default function Admin({ user }: AdminProps) {
                 </div>
 
                 {showDailyDeals && (
-                  <div className="pt-3 border-t border-orange-100/40 dark:border-orange-900/20 space-y-2">
-                    <div className="flex items-center justify-between text-xs font-semibold text-orange-850 dark:text-orange-350">
-                      <span>Auto-Scroll Duration</span>
-                      <span className="bg-orange-100 dark:bg-orange-950/60 px-2.5 py-0.5 rounded text-orange-700 dark:text-orange-300 font-bold">
-                        {dailyDealsSpeed}s {dailyDealsSpeed <= 20 ? "(Fast)" : dailyDealsSpeed >= 45 ? "(Slow)" : "(Normal)"}
-                      </span>
+                  <div className="pt-3 border-t border-orange-100/40 dark:border-orange-900/20 space-y-4">
+                    {/* Auto-Scroll Speed Slider */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs font-semibold text-orange-850 dark:text-orange-350">
+                        <span>Auto-Scroll Duration</span>
+                        <span className="bg-orange-100 dark:bg-orange-950/60 px-2.5 py-0.5 rounded text-orange-700 dark:text-orange-300 font-bold">
+                          {dailyDealsSpeed}s {dailyDealsSpeed <= 20 ? "(Fast)" : dailyDealsSpeed >= 45 ? "(Slow)" : "(Normal)"}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="60"
+                        step="5"
+                        value={dailyDealsSpeed}
+                        onChange={(e) => setDailyDealsSpeed(parseInt(e.target.value, 10))}
+                        className="w-full h-2 bg-orange-100 dark:bg-orange-950/40 rounded-lg appearance-none cursor-pointer accent-orange-600 focus:outline-none"
+                        id="daily-deals-speed-slider"
+                      />
+                      <div className="flex justify-between text-[10px] text-orange-650/70 dark:text-orange-400/50 font-medium">
+                        <span>10s (Fast)</span>
+                        <span>30s (Default)</span>
+                        <span>60s (Slow)</span>
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="10"
-                      max="60"
-                      step="5"
-                      value={dailyDealsSpeed}
-                      onChange={(e) => setDailyDealsSpeed(parseInt(e.target.value, 10))}
-                      className="w-full h-2 bg-orange-100 dark:bg-orange-950/40 rounded-lg appearance-none cursor-pointer accent-orange-600 focus:outline-none"
-                      id="daily-deals-speed-slider"
-                    />
-                    <div className="flex justify-between text-[10px] text-orange-650/70 dark:text-orange-400/50 font-medium">
-                      <span>10s (Fast)</span>
-                      <span>30s (Default)</span>
-                      <span>60s (Slow)</span>
+
+                    {/* Countdown Timer Hours Slider */}
+                    <div className="pt-3 border-t border-orange-100/20 dark:border-orange-900/10 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-semibold text-orange-850 dark:text-orange-350">
+                        <span>Timer Countdown Duration</span>
+                        <span className="bg-orange-100 dark:bg-orange-950/60 px-2.5 py-0.5 rounded text-orange-700 dark:text-orange-300 font-bold">
+                          {dailyDealsHours} Hours
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="1"
+                        max="48"
+                        step="1"
+                        value={dailyDealsHours}
+                        onChange={(e) => setDailyDealsHours(parseInt(e.target.value, 10))}
+                        className="w-full h-2 bg-orange-100 dark:bg-orange-950/40 rounded-lg appearance-none cursor-pointer accent-orange-600 focus:outline-none"
+                        id="daily-deals-hours-slider"
+                      />
+                      <div className="flex justify-between text-[10px] text-orange-650/70 dark:text-orange-400/50 font-medium">
+                        <span>1 Hour</span>
+                        <span>12h</span>
+                        <span>24h (Default)</span>
+                        <span>48 Hours</span>
+                      </div>
                     </div>
                   </div>
                 )}

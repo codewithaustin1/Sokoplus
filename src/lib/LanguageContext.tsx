@@ -75,7 +75,7 @@ const translations: Record<Language, Record<string, string>> = {
     filterSpecific: "Specific Month",
     noOrders: "No orders found in this selection.",
     recommendedForYou: "Recommended for You",
-    dailyDeals: "Daily Deals",
+    dailyDeals: "Today's Deals",
     trendingToday: "Trending Today",
     dealActive: "Real-time Hot Deals",
 

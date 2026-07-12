@@ -5,7 +5,7 @@ import { db, auth } from "../lib/firebase";
 import { Product } from "../types";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
-import { Flame, Star, Sparkles, AlertCircle } from "lucide-react";
+import { Star, AlertCircle } from "lucide-react";
 import { getCachedProducts } from "../utils/offlineDb";
 
 enum OperationType {
@@ -51,9 +51,36 @@ export default function DailyDealsTicker() {
   const [error, setError] = useState<string | null>(null);
   const [enabled, setEnabled] = useState<boolean>(true);
   const [speed, setSpeed] = useState<number>(30);
+  const [hours, setHours] = useState<number>(24);
   
   const { formatPrice } = useCurrency();
   const { t } = useLanguage();
+
+  const [timeLeft, setTimeLeft] = useState({ hours: 24, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    const updateTimer = () => {
+      const now = new Date();
+      const cycleMs = hours * 60 * 60 * 1000;
+      const elapsedSinceEpoch = now.getTime();
+      const currentCycleElapsed = elapsedSinceEpoch % cycleMs;
+      const diff = cycleMs - currentCycleElapsed;
+      
+      if (diff > 0) {
+        const totalSeconds = Math.floor(diff / 1000);
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        setTimeLeft({ hours: h, minutes: m, seconds: s });
+      } else {
+        setTimeLeft({ hours: hours - 1, minutes: 59, seconds: 59 });
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [hours]);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(doc(db, "settings", "homepage"), (snapshot) => {
@@ -64,6 +91,9 @@ export default function DailyDealsTicker() {
         }
         if (data.dailyDealsSpeed !== undefined) {
           setSpeed(data.dailyDealsSpeed);
+        }
+        if (data.dailyDealsHours !== undefined) {
+          setHours(data.dailyDealsHours);
         }
       }
     }, (err) => {
@@ -152,7 +182,7 @@ export default function DailyDealsTicker() {
   return (
     <div 
       id="daily-deals-ticker-container"
-      className="w-full bg-gradient-to-r from-orange-50/40 via-orange-100/20 to-orange-50/40 dark:from-orange-950/10 dark:via-orange-900/10 dark:to-orange-950/10 border-y border-orange-200/50 dark:border-orange-900/30 py-3.5 overflow-hidden relative flex items-center transition-all"
+      className="w-full bg-[#fcfbfa] dark:bg-gray-900 border-y border-gray-200/50 dark:border-gray-800/50 h-[116px] overflow-hidden relative flex items-stretch transition-all select-none"
     >
       <style>{`
         @keyframes ticker-marquee {
@@ -167,24 +197,37 @@ export default function DailyDealsTicker() {
         }
       `}</style>
 
-      {/* Static Badge on the left */}
+      {/* Solid Orange Badge with integrated countdown timer taking full height on the left */}
       <div 
-        id="daily-deals-ticker-badge"
-        className="flex items-center space-x-2 px-5 sm:px-6 bg-gradient-to-r from-orange-600 via-amber-600 to-red-600 dark:from-orange-500 dark:via-amber-500 dark:to-red-500 text-white font-bold text-xs uppercase tracking-wider py-2.5 rounded-r-full shadow-lg z-10 whitespace-nowrap select-none shrink-0"
+        id="daily-deals-ticker-badge-container"
+        className="flex flex-col justify-center items-center px-6 sm:px-8 bg-gradient-to-b from-[#ff5700] to-[#e64a00] dark:from-[#e64a00] dark:to-[#cc4100] text-white z-10 shrink-0 shadow-lg relative border-r border-orange-600/30"
       >
-        <Flame className="animate-bounce text-yellow-300" size={15} fill="currentColor" />
-        <span className="font-extrabold">{t("dailyDeals")}</span>
-        <span className="hidden sm:inline-block w-2 h-2 bg-green-400 rounded-full animate-ping ml-1" />
+        <span className="font-sans font-black text-lg sm:text-xl tracking-tight uppercase leading-none mb-2 text-center text-white drop-shadow-sm">
+          {t("dailyDeals")}
+        </span>
+        <div className="flex items-center space-x-1 text-xs font-bold">
+          <div className="bg-[#e9ecef] dark:bg-gray-800 text-[#212529] dark:text-gray-100 font-mono font-black px-2 py-0.5 rounded shadow-sm text-sm min-w-[28px] text-center border border-gray-300/20">
+            {String(timeLeft.hours).padStart(2, "0")}
+          </div>
+          <span className="text-white font-extrabold animate-pulse">:</span>
+          <div className="bg-[#e9ecef] dark:bg-gray-800 text-[#212529] dark:text-gray-100 font-mono font-black px-2 py-0.5 rounded shadow-sm text-sm min-w-[28px] text-center border border-gray-300/20">
+            {String(timeLeft.minutes).padStart(2, "0")}
+          </div>
+          <span className="text-white font-extrabold animate-pulse">:</span>
+          <div className="bg-[#e9ecef] dark:bg-gray-800 text-[#212529] dark:text-gray-100 font-mono font-black px-2 py-0.5 rounded shadow-sm text-sm min-w-[28px] text-center border border-gray-300/20">
+            {String(timeLeft.seconds).padStart(2, "0")}
+          </div>
+        </div>
       </div>
 
       {/* Scrolling Content Marquee Wrapper */}
       <div 
         id="daily-deals-ticker-marquee-wrapper"
-        className="flex-1 overflow-hidden relative select-none"
+        className="flex-1 overflow-hidden relative flex items-center"
       >
         <div 
           id="daily-deals-ticker-marquee-track"
-          className="flex items-center space-x-6 animate-ticker-marquee whitespace-nowrap pl-6"
+          className="flex items-center space-x-5 animate-ticker-marquee whitespace-nowrap pl-5"
           style={{ width: "fit-content" }}
         >
           {marqueeItems.map((product, idx) => {
@@ -197,65 +240,48 @@ export default function DailyDealsTicker() {
                 key={`${product.id}-deal-${idx}`}
                 id={`daily-deals-ticker-item-${product.id}-${idx}`}
                 to={`/product/${product.id}`}
-                className="inline-flex items-center space-x-3.5 bg-white/90 dark:bg-gray-900/90 hover:bg-white dark:hover:bg-gray-950 backdrop-blur-md px-4.5 py-2.5 rounded-2xl border border-orange-200/50 dark:border-orange-900/30 shadow-sm hover:shadow-md hover:border-orange-500 dark:hover:border-orange-600 transition-all duration-300 group shrink-0"
+                className="inline-flex items-center space-x-4 bg-white dark:bg-gray-950 px-4.5 py-2.5 rounded-2xl border border-gray-150/80 dark:border-gray-800/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-orange-400 dark:hover:border-orange-500 transition-all duration-300 group shrink-0"
               >
-                {/* Image and Rank container */}
+                {/* Thumbnail Image container with discount badge overlay */}
                 <div className="relative shrink-0">
                   {product.images && product.images.length > 0 && (
-                    <div className="w-11 h-11 rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-orange-100 dark:border-orange-900/20 shadow-inner relative">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm relative">
                       <img
                         src={product.images[0]}
                         alt={product.name}
                         referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     </div>
                   )}
-                  <div className="absolute -top-1.5 -left-1.5 flex items-center justify-center bg-gradient-to-br from-orange-600 to-amber-600 text-white font-black text-[9px] w-4.5 h-4.5 rounded-full shadow-sm border border-white dark:border-gray-900">
-                    #{(idx % 5) + 1}
+                  {/* Floating Discount Badge at top-left corner */}
+                  <div className="absolute -top-1.5 -left-1.5 bg-[#ff4e00] text-white text-[9px] font-black px-2 py-0.5 rounded-lg shadow-sm z-10 whitespace-nowrap uppercase tracking-wider">
+                    -{mockDiscountPercent}% OFF
                   </div>
                 </div>
 
                 {/* Info Container */}
                 <div className="flex flex-col space-y-0.5">
-                  <div className="flex items-center space-x-1.5">
-                    <span className="font-bold text-xs text-gray-800 dark:text-gray-150 truncate max-w-[120px] sm:max-w-[150px] group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
-                      {product.name}
-                    </span>
-                    <span className="inline-flex items-center space-x-0.5 text-[9px] text-amber-500 font-semibold bg-amber-500/5 px-1 rounded">
-                      <Star size={9} fill="currentColor" />
-                      <span>{product.rating?.toFixed(1) || "4.8"}</span>
-                    </span>
-                  </div>
+                  <span className="font-bold text-sm text-gray-800 dark:text-gray-150 truncate max-w-[140px] sm:max-w-[180px] group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors leading-snug">
+                    {product.name}
+                  </span>
+                  
+                  {/* Rating Badge */}
+                  <span className="inline-flex items-center space-x-0.5 text-[10px] text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-200/40 w-fit">
+                    <Star size={10} fill="currentColor" className="text-amber-500" />
+                    <span>{product.rating?.toFixed(1) || "4.8"}</span>
+                  </span>
 
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs font-black text-orange-600 dark:text-orange-400">
+                  {/* Pricing Info */}
+                  <div className="flex items-center space-x-2 mt-1">
+                    <span className="text-sm font-extrabold text-orange-600 dark:text-orange-400">
                       {formatPrice(product.price)}
                     </span>
                     <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through font-medium">
                       {formatPrice(originalPrice)}
                     </span>
                   </div>
-
-                  {/* Stock Bar Indicator to enhance graphical richness */}
-                  <div className="w-full bg-gray-100/80 dark:bg-gray-850/80 h-1 rounded-full overflow-hidden flex">
-                    <div 
-                      className="bg-gradient-to-r from-orange-500 to-red-500 h-full rounded-full animate-pulse"
-                      style={{ width: `${(parseInt(product.id.slice(-2), 16) % 35) + 40}%` }}
-                    />
-                  </div>
                 </div>
-
-                {/* Discount Badge */}
-                <div className="pl-1 shrink-0">
-                  <div className="flex flex-col items-center justify-center bg-gradient-to-br from-red-500 to-orange-500 text-white font-black text-[10px] px-2 py-1.5 rounded-xl shadow-sm tracking-tighter uppercase leading-none">
-                    <span>-{mockDiscountPercent}%</span>
-                    <span className="text-[7px] font-medium tracking-normal text-orange-100 uppercase mt-0.5">off</span>
-                  </div>
-                </div>
-
-                {/* Divider bullet */}
-                <Sparkles size={11} className="text-orange-400/60 dark:text-orange-500/40 animate-pulse ml-2" />
               </Link>
             );
           })}
