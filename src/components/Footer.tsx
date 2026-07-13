@@ -3,8 +3,7 @@ import { Facebook, Twitter, Instagram, Linkedin, Send, Mail, MapPin, Phone, X, E
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../lib/LanguageContext";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { useSettings } from "../lib/SettingsContext";
 import { motion, AnimatePresence } from "motion/react";
 
 const MastercardLogo = () => (
@@ -87,39 +86,11 @@ const ApplePayLogo = () => (
 
 export default function Footer() {
   const [email, setEmail] = useState("");
-  const [googleMapsLink, setGoogleMapsLink] = useState("");
-  const [googleMapsLinks, setGoogleMapsLinks] = useState<{ name: string; url: string }[]>([]);
+  const { settings } = useSettings();
+  const googleMapsLink = settings.googleMapsLink;
+  const googleMapsLinks = settings.googleMapsLinks;
   const [showLocationsModal, setShowLocationsModal] = useState(false);
   const { t } = useLanguage();
-
-  useEffect(() => {
-    try {
-      const settingsRef = doc(db, "settings", "homepage");
-      const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.googleMapsLinks && Array.isArray(data.googleMapsLinks)) {
-            setGoogleMapsLinks(data.googleMapsLinks);
-          } else if (data.googleMapsLink) {
-            setGoogleMapsLinks([{ name: "Nairobi Store", url: data.googleMapsLink }]);
-          } else {
-            setGoogleMapsLinks([]);
-          }
-
-          if (data.googleMapsLink) {
-            setGoogleMapsLink(data.googleMapsLink);
-          } else {
-            setGoogleMapsLink("");
-          }
-        }
-      }, (error) => {
-        console.warn("Could not load maps link in footer:", error);
-      });
-      return () => unsubscribe();
-    } catch (err) {
-      console.warn("Error setting up snapshots for footer:", err);
-    }
-  }, []);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();

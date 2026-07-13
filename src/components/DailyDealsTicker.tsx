@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { collection, onSnapshot, query, limit, doc } from "firebase/firestore";
+import { collection, getDocs, query, limit, doc } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { Product } from "../types";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
+import { useSettings } from "../lib/SettingsContext";
 import { Star, AlertCircle } from "lucide-react";
 import { getCachedProducts } from "../utils/offlineDb";
 
@@ -49,12 +50,14 @@ export default function DailyDealsTicker() {
   const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [enabled, setEnabled] = useState<boolean>(true);
-  const [speed, setSpeed] = useState<number>(30);
-  const [hours, setHours] = useState<number>(24);
-  const [anchorTime, setAnchorTime] = useState<number | null>(null);
   const [serverOffset, setServerOffset] = useState<number>(0);
   
+  const { settings } = useSettings();
+  const enabled = settings.showDailyDeals;
+  const speed = settings.dailyDealsSpeed;
+  const hours = settings.dailyDealsHours;
+  const anchorTime = settings.anchorTime;
+
   const { formatPrice } = useCurrency();
   const { t } = useLanguage();
 
@@ -121,41 +124,6 @@ export default function DailyDealsTicker() {
   }, [hours, anchorTime, serverOffset]);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, "settings", "homepage"), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.showDailyDeals !== undefined) {
-          setEnabled(data.showDailyDeals);
-        }
-        if (data.dailyDealsSpeed !== undefined) {
-          setSpeed(data.dailyDealsSpeed);
-        }
-        if (data.dailyDealsHours !== undefined) {
-          setHours(data.dailyDealsHours);
-        }
-        if (data.updatedAt) {
-          let tValue = 0;
-          if (typeof data.updatedAt.toMillis === "function") {
-            tValue = data.updatedAt.toMillis();
-          } else if (data.updatedAt instanceof Date) {
-            tValue = data.updatedAt.getTime();
-          } else if (typeof data.updatedAt.seconds === "number") {
-            tValue = data.updatedAt.seconds * 1000;
-          } else if (typeof data.updatedAt === "string" || typeof data.updatedAt === "number") {
-            tValue = new Date(data.updatedAt).getTime();
-          }
-          if (tValue > 0) {
-            setAnchorTime(tValue);
-          }
-        }
-      }
-    }, (err) => {
-      console.warn("Failed to listen to homepage daily deals setting:", err);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
     const productsPath = "products";
     const q = query(collection(db, productsPath), limit(50));
 
@@ -197,32 +165,31 @@ export default function DailyDealsTicker() {
       }
     };
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        try {
-          const fetched = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as Product[];
+    const fetchOnline = async () => {
+      try {
+        const snapshot = await getDocs(q);
+        const fetched = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Product[];
 
-          if (fetched && fetched.length > 0) {
-            processAndSetProducts(fetched);
-          } else {
-            loadFromCache();
-          }
-        } catch (err) {
-          console.warn("Failed to parse real-time snapshot, attempting cache fallback:", err);
-          loadFromCache();
+        if (fetched && fetched.length > 0) {
+          processAndSetProducts(fetched);
+        } else {
+          await loadFromCache();
         }
-      },
-      (firestoreErr) => {
-        console.warn("Firestore error in DailyDealsTicker onSnapshot, falling back to local cache:", firestoreErr);
-        loadFromCache();
+      } catch (err) {
+        console.warn("Failed to fetch products online for DailyDealsTicker, using cache:", err);
+        await loadFromCache();
       }
-    );
+    };
 
-    return () => unsubscribe();
+    // Load from cache first for immediate render, then pull from network non-blockingly
+    loadFromCache().then(() => {
+      if (navigator.onLine) {
+        fetchOnline();
+      }
+    });
   }, []);
 
   if (!enabled || loading || error || trendingProducts.length === 0) {

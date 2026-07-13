@@ -4,6 +4,7 @@ import { HelmetProvider } from "react-helmet-async";
 import App from "./App.tsx";
 import "./index.css";
 import { registerServiceWorker } from "./serviceWorkerRegistration";
+import { SettingsProvider } from "./lib/SettingsContext.tsx";
 
 // Register SokoPlus offline assets cache service worker
 registerServiceWorker();
@@ -11,7 +12,9 @@ registerServiceWorker();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <HelmetProvider>
-      <App />
+      <SettingsProvider>
+        <App />
+      </SettingsProvider>
     </HelmetProvider>
   </StrictMode>,
 );

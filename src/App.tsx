@@ -39,6 +39,7 @@ import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from "firebase/firestore";
+import { useSettings } from "./lib/SettingsContext";
 import { UserProfile } from "./types";
 import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X } from "lucide-react";
 import toast from "react-hot-toast";
@@ -170,23 +171,9 @@ export default function App() {
   const [scrollTopBg, setScrollTopBg] = useState("rgb(234, 88, 12)"); // Dynamic background color
   const [unreadSupportCount, setUnreadSupportCount] = useState<number>(0);
   const [quotaExceededInfo, setQuotaExceededInfo] = useState<{ error: string; path: string | null } | null>(null);
-  const [showAudioBubble, setShowAudioBubble] = useState<boolean>(true);
+  const { settings } = useSettings();
+  const showAudioBubble = settings.showAudioBubble;
   const lastScrollYRef = useRef(0);
-
-  // Sync homepage settings (e.g., floating audio bubble visibility) from Firestore in real-time
-  useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, "settings", "homepage"), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.showAudioBubble !== undefined) {
-          setShowAudioBubble(data.showAudioBubble);
-        }
-      }
-    }, (error) => {
-      console.warn("Failed to listen to homepage settings:", error);
-    });
-    return () => unsubscribe();
-  }, []);
 
   // Monitor inactive user sessions globally to securely log them out after a period of idle status
   useInactivityLogout(user);

@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import React, { createContext, useContext } from "react";
+import { doc, setDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import toast from "react-hot-toast";
+import { useSettings } from "./SettingsContext";
 
 interface SellerStudioContextType {
   sellerStudioEnabled: boolean;
@@ -12,36 +13,13 @@ interface SellerStudioContextType {
 const SellerStudioContext = createContext<SellerStudioContextType | undefined>(undefined);
 
 export function SellerStudioProvider({ children }: { children: React.ReactNode }) {
-  const [sellerStudioEnabled, setSellerStudioEnabled] = useState<boolean>(true);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    const settingsRef = doc(db, "settings", "homepage");
-    const unsubscribe = onSnapshot(settingsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.sellerStudioEnabled !== undefined) {
-          setSellerStudioEnabled(data.sellerStudioEnabled);
-        } else {
-          setSellerStudioEnabled(true);
-        }
-      } else {
-        setSellerStudioEnabled(true);
-      }
-      setLoading(false);
-    }, (error) => {
-      console.warn("Failed to listen to seller studio settings:", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const { settings, loading } = useSettings();
+  const sellerStudioEnabled = settings.sellerStudioEnabled;
 
   const toggleSellerStudio = async (enabled: boolean) => {
     try {
       const settingsRef = doc(db, "settings", "homepage");
       await setDoc(settingsRef, { sellerStudioEnabled: enabled }, { merge: true });
-      setSellerStudioEnabled(enabled);
       toast.success(`Seller Studio feature toggled ${enabled ? "ON" : "OFF"}`);
     } catch (error) {
       console.error("Failed to toggle Seller Studio: ", error);
