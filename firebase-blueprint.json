@@ -149,6 +149,18 @@
         "seoTitle": { "type": "string" },
         "seoDescription": { "type": "string" },
         "seoImage": { "type": "string" },
+        "featuredCollections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "imageUrl": { "type": "string" },
+              "category": { "type": "string" }
+            },
+            "required": ["title", "imageUrl", "category"]
+          }
+        },
         "updatedAt": { "type": "string", "format": "date-time" },
         "updatedBy": { "type": "string" }
       }

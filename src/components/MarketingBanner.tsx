@@ -1,23 +1,7 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
-import { db } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronLeft, ChevronRight, X, Sparkles, Megaphone, Gift, Calendar } from "lucide-react";
-
-export interface MarketingBannerData {
-  id: string;
-  text: string;
-  backgroundColor: string;
-  textColor?: string;
-  startDate: string; // ISO String
-  endDate: string; // ISO String
-  active: boolean;
-  actionText?: string;
-  actionUrl?: string;
-  closable?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
+import { fetchMarketingBanners, MarketingBannerData } from "../utils/bannerCache";
 
 export default function MarketingBanner() {
   const [banners, setBanners] = useState<MarketingBannerData[]>([]);
@@ -42,25 +26,17 @@ export default function MarketingBanner() {
     let isMounted = true;
     const fetchBanners = async () => {
       try {
-        const bannersQuery = query(
-          collection(db, "marketing_banners"),
-          orderBy("createdAt", "desc")
-        );
-        const snapshot = await getDocs(bannersQuery);
+        const fetchedList = await fetchMarketingBanners();
         const fetchedBanners: MarketingBannerData[] = [];
         
         const now = new Date();
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
+        fetchedList.forEach((data) => {
           const start = new Date(data.startDate);
           const end = new Date(data.endDate);
           
           // Only show banners that are active and within the valid seasonal time frame
           if (data.active === true && start <= now && end >= now) {
-            fetchedBanners.push({
-              id: docSnap.id,
-              ...data,
-            } as MarketingBannerData);
+            fetchedBanners.push(data);
           }
         });
 

@@ -243,7 +243,8 @@ service cloud.firestore {
                (data.seoTitle == null || (data.seoTitle is string && data.seoTitle.size() <= 1000)) &&
                (data.seoDescription == null || (data.seoDescription is string && data.seoDescription.size() <= 2000)) &&
                (data.seoImage == null || (data.seoImage is string && data.seoImage.size() <= 2000000)) &&
-               (data.updatedBy == null || (data.updatedBy is string && data.updatedBy.size() <= 200));
+               (data.featuredCollections == null || (data.featuredCollections is list && data.featuredCollections.size() <= 20)) &&
+                (data.updatedBy == null || (data.updatedBy is string && data.updatedBy.size() <= 200));
       }
 
       allow read: if true;

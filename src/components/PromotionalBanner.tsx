@@ -1,23 +1,7 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
-import { db } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, ArrowRight, Gift, Percent, Tag, ShieldCheck } from "lucide-react";
-
-export interface PromoBannerData {
-  id: string;
-  text: string;
-  backgroundColor: string;
-  textColor?: string;
-  startDate: string;
-  endDate: string;
-  active: boolean;
-  actionText?: string;
-  actionUrl?: string;
-  closable?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
+import { fetchMarketingBanners, MarketingBannerData as PromoBannerData } from "../utils/bannerCache";
 
 export default function PromotionalBanner() {
   const [promos, setPromos] = useState<PromoBannerData[]>([]);
@@ -28,30 +12,22 @@ export default function PromotionalBanner() {
     let isMounted = true;
     const fetchPromos = async () => {
       try {
-        const promoQuery = query(
-          collection(db, "marketing_banners"),
-          orderBy("createdAt", "desc")
-        );
-        const snapshot = await getDocs(promoQuery);
-        const fetchedList: PromoBannerData[] = [];
+        const fetchedList = await fetchMarketingBanners();
+        const activePromos: PromoBannerData[] = [];
         const now = new Date();
 
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
+        fetchedList.forEach((data) => {
           const start = new Date(data.startDate);
           const end = new Date(data.endDate);
 
           if (data.active === true && start <= now && end >= now) {
-            fetchedList.push({
-              id: docSnap.id,
-              ...data,
-            } as PromoBannerData);
+            activePromos.push(data);
           }
         });
 
         // Filter out any that don't match or have expired
         if (isMounted) {
-          setPromos(fetchedList);
+          setPromos(activePromos);
           setLoading(false);
         }
       } catch (error) {

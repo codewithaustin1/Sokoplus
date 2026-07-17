@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs, limit, query, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff, Search, Loader2, Check, GitCompare, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCart } from "../lib/CartContext";
@@ -25,6 +25,7 @@ import { productCache } from "../utils/productCache";
 import { saveProductsToCache, getCachedProducts, saveHomepageSettings, getHomepageSettings } from "../utils/offlineDb";
 import { getCompareList, addToCompare, removeFromCompare } from "../utils/compare";
 import { useSellerStudio } from "../lib/SellerStudioContext";
+import { useSettings } from "../lib/SettingsContext";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -33,6 +34,7 @@ interface HomeProps {
 export default function Home({ user }: HomeProps) {
   const { sellerStudioEnabled } = useSellerStudio();
   const { language, t } = useLanguage();
+  const { settings } = useSettings();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -121,6 +123,7 @@ export default function Home({ user }: HomeProps) {
   const [isOfflineView, setIsOfflineView] = useState<boolean>(false);
   const [addingMap, setAddingMap] = useState<Record<string, "idle" | "loading" | "added">>({});
   const { addToCart } = useCart();
+  const navigate = useNavigate();
   const { currency, setCurrency, exchangeRate, formatPrice } = useCurrency();
 
   // Advanced Filters
@@ -797,43 +800,113 @@ export default function Home({ user }: HomeProps) {
         )}
       </section>
 
-      {/* Product categories */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-2xl font-bold mb-8 text-gray-900 dark:text-white">
-          {language === "sw" ? "Vitengo Maarufu Sokoni" : "Popular Categories"}
-        </h2>
-        <div 
-          className="grid grid-cols-2 gap-4"
-          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}
-        >
-          {activeCategories.map((cat) => (
-            <div 
-              key={cat} 
+      {/* Featured Collections Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" id="featured-collections-section">
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 dark:text-white font-sans">
+              {language === "sw" ? "Mikusanyiko Iliyoangaziwa" : "Featured Collections"}
+            </h2>
+          </div>
+          {/* Navigation Arrows */}
+          <div className="flex gap-2">
+            <button
               onClick={() => {
-                selectCategory(cat);
-                scrollToProducts();
+                const slider = document.getElementById("featured-collections-slider");
+                if (slider) {
+                  slider.scrollBy({ left: -280, behavior: "smooth" });
+                }
               }}
-              className={`h-24 md:h-32 border rounded-2xl flex items-center justify-center shadow-sm transition-all cursor-pointer group ${
-                selectedCategory === cat 
-                  ? "bg-orange-600 border-orange-600 text-white font-bold" 
-                  : "bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 hover:shadow-md"
-              }`}
+              className="p-2.5 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-880 dark:text-gray-200 hover:bg-orange-50 dark:hover:bg-orange-950/20 hover:text-orange-600 hover:border-orange-200 dark:hover:border-orange-900/40 transition-all cursor-pointer shadow-sm"
+              aria-label="Previous Collections"
             >
-               <span className={`text-sm md:text-lg font-semibold transition-colors uppercase tracking-tight ${
-                 selectedCategory === cat 
-                   ? "text-white" 
-                   : "text-gray-900 dark:text-gray-100 group-hover:text-orange-600 dark:group-hover:text-orange-400"
-               }`}>
-                 {cat === "All" ? t("allCategories") : 
-                  cat === "Local Crafts" ? (language === "sw" ? "Sanaa na Kazi za Mikono" : "Local Crafts") : 
-                  cat === "Fashion" ? (language === "sw" ? "Mitindo na Mavazi" : "Fashion") : 
-                  cat === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali" : "Electronics") : 
-                  cat === "Groceries" ? (language === "sw" ? "Bidhaa Safi na Vyakula" : "Groceries") : 
-                  cat === "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" ? (language === "sw" ? "Urembo na Vipodozi" : "Beauty & Personal Care") :
-                  cat === "Home & Office Décor (Small Scale & Gadgets)" ? (language === "sw" ? "Mapambo ya Nyumbani na Ofisini" : "Home & Office Décor") :
-                  cat === "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" ? (language === "sw" ? "Vifaa vya Wanyama" : "Pet Supplies") :
-                  cat}
-               </span>
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              onClick={() => {
+                const slider = document.getElementById("featured-collections-slider");
+                if (slider) {
+                  slider.scrollBy({ left: 280, behavior: "smooth" });
+                }
+              }}
+              className="p-2.5 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-880 dark:text-gray-200 hover:bg-orange-50 dark:hover:bg-orange-950/20 hover:text-orange-600 hover:border-orange-200 dark:hover:border-orange-900/40 transition-all cursor-pointer shadow-sm"
+              aria-label="Next Collections"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Collections Horizontal Scroll list */}
+        <div
+          id="featured-collections-slider"
+          className="flex gap-6 overflow-x-auto pb-4 pt-1 snap-x scroll-smooth no-scrollbar"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {((settings?.featuredCollections && settings.featuredCollections.length > 0)
+            ? settings.featuredCollections
+            : [
+                {
+                  title: language === "sw" ? "Sanaa ya Kienyeji" : "Artisan Spotlight",
+                  imageUrl: "https://images.unsplash.com/photo-1590736704728-f4730bb30770?q=80&w=600&auto=format&fit=crop",
+                  category: "Local Crafts"
+                },
+                {
+                  title: language === "sw" ? "Ofa za Kidijitali" : "Tech Deals",
+                  imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop",
+                  category: "Electronics"
+                },
+                {
+                  title: language === "sw" ? "Mavazi na Mitindo" : "Fashion",
+                  imageUrl: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600&auto=format&fit=crop",
+                  category: "Fashion"
+                },
+                {
+                  title: language === "sw" ? "Bidhaa za Kienyeji" : "Local Crafts",
+                  imageUrl: "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?q=80&w=600&auto=format&fit=crop",
+                  category: "Local Crafts"
+                }
+              ]
+          ).map((col, i) => (
+            <div
+              key={i}
+              onClick={() => {
+                selectCategory(col.category);
+                scrollToProducts();
+                trackEvent("click_featured_collection", { collection: col.title, category: col.category });
+              }}
+              className="min-w-[260px] sm:min-w-[290px] md:min-w-[310px] h-[340px] rounded-3xl overflow-hidden relative group cursor-pointer shadow-md hover:shadow-xl transition-all duration-300 snap-start border border-gray-100/50 dark:border-gray-900/50"
+            >
+              {/* Background Cover Image */}
+              <div className="absolute inset-0 bg-gray-900 overflow-hidden">
+                <img
+                  src={col.imageUrl || "https://images.unsplash.com/photo-1590736704728-f4730bb30770?q=80&w=600&auto=format&fit=crop"}
+                  alt={col.title}
+                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                />
+                {/* Visual Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/10 transition-opacity duration-300 group-hover:via-black/45" />
+              </div>
+
+              {/* Tag/Category marker on top left */}
+              <div className="absolute top-4 left-4 z-10">
+                <span className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-sm">
+                  {col.category}
+                </span>
+              </div>
+
+              {/* Content bottom details */}
+              <div className="absolute bottom-0 left-0 right-0 p-6 z-10 flex flex-col justify-end text-white h-[120px]">
+                <h3 className="text-lg sm:text-xl font-bold tracking-tight text-white mb-2 group-hover:text-orange-400 transition-colors duration-200">
+                  {col.title}
+                </h3>
+                <div className="flex items-center gap-1.5 text-xs text-orange-200 font-bold uppercase tracking-wider opacity-90 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300">
+                  <span>{language === "sw" ? "Gundua Sasa" : "Explore Collection"}</span>
+                  <ArrowRight size={14} className="group-hover:text-white" />
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -1003,104 +1076,122 @@ export default function Home({ user }: HomeProps) {
                         {p.name}
                       </Link>
                     </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="flex flex-col">
+                    <div className="flex flex-col mt-4">
+                      <div className="flex items-baseline gap-2 mb-3">
                         <span className="text-xl font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
                         {p.originalPrice && p.originalPrice > p.price && (
-                          <span className="text-xs text-gray-400 dark:text-gray-500 line-through mt-1 font-medium select-none">
+                          <span className="text-xs text-gray-400 dark:text-gray-500 line-through font-medium select-none">
                             {formatPrice(p.originalPrice)}
                           </span>
                         )}
                       </div>
-                      {(() => {
-                        const status = addingMap[p.id] || "idle";
-                        return (
-                          <motion.button 
-                            whileHover={p.stock === 0 || status === "loading" ? {} : { scale: 1.15, rotate: -3 }}
-                            whileTap={p.stock === 0 || status === "loading" ? {} : { scale: 0.85, rotate: 3 }}
-                            transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                            disabled={p.stock === 0 || status === "loading" || status === "added"}
-                            onClick={() => {
-                              if (p.stock === 0) {
-                                toast.error("This product is out of stock!");
-                                return;
-                              }
-                              setAddingMap(prev => ({ ...prev, [p.id]: "loading" }));
-                              addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
-                              trackEvent("add_to_cart", {
-                                items: [{
-                                  item_id: p.id,
-                                  item_name: p.name,
-                                  price: p.price,
-                                  quantity: 1,
-                                  item_category: p.category
-                                }]
-                              });
-                              
-                              setTimeout(() => {
-                                setAddingMap(prev => ({ ...prev, [p.id]: "added" }));
-                                toast.success(`${p.name} added to cart!`);
+                      <div className="flex flex-col gap-2 w-[90%] mx-auto">
+                        {(() => {
+                          const status = addingMap[p.id] || "idle";
+                          return (
+                            <motion.button 
+                              whileHover={p.stock === 0 || status === "loading" ? {} : { scale: 1.02 }}
+                              whileTap={p.stock === 0 || status === "loading" ? {} : { scale: 0.98 }}
+                              disabled={p.stock === 0 || status === "loading" || status === "added"}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (p.stock === 0) {
+                                  toast.error("This product is out of stock!");
+                                  return;
+                                }
+                                setAddingMap(prev => ({ ...prev, [p.id]: "loading" }));
+                                addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
+                                trackEvent("add_to_cart", {
+                                  items: [{
+                                    item_id: p.id,
+                                    item_name: p.name,
+                                    price: p.price,
+                                    quantity: 1,
+                                    item_category: p.category
+                                  }]
+                                });
+                                
                                 setTimeout(() => {
-                                  setAddingMap(prev => {
-                                    const updated = { ...prev };
-                                    delete updated[p.id];
-                                    return updated;
-                                  });
-                                }, 1500);
-                              }, 850);
-                            }}
-                            className={`p-2.5 rounded-xl transition-all relative overflow-hidden flex items-center justify-center select-none ${
-                              p.stock === 0 
-                                ? "bg-gray-100 dark:bg-gray-805 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
-                                : status === "added"
-                                ? "bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-600/10"
-                                : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10 dark:shadow-none"
-                            }`}
-                            style={{ minWidth: "2.5rem", minHeight: "2.5rem" }}
-                          >
-                            <AnimatePresence mode="wait">
+                                  setAddingMap(prev => ({ ...prev, [p.id]: "added" }));
+                                  toast.success(`${p.name} added to cart!`);
+                                  setTimeout(() => {
+                                    setAddingMap(prev => {
+                                      const updated = { ...prev };
+                                      delete updated[p.id];
+                                      return updated;
+                                    });
+                                  }, 1500);
+                                }, 850);
+                              }}
+                              className={`w-full py-2 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-transparent select-none ${
+                                p.stock === 0 
+                                  ? "bg-gray-100 dark:bg-gray-805 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
+                                  : status === "added"
+                                  ? "bg-green-600 text-white shadow-md shadow-green-600/10"
+                                  : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10 dark:shadow-none"
+                              }`}
+                            >
                               {status === "idle" && (
-                                <motion.div
-                                  key="idle"
-                                  initial={{ opacity: 1, scale: 1 }}
-                                  exit={{ opacity: 0, scale: 0.6 }}
-                                  transition={{ duration: 0.15 }}
-                                  className="flex items-center justify-center"
-                                >
-                                  <ShoppingBag size={18} />
-                                </motion.div>
+                                <>
+                                  <ShoppingBag size={13} />
+                                  <span>{language === "sw" ? "Weka Kwenye Kikapu" : "Add to cart"}</span>
+                                </>
                               )}
                               {status === "loading" && (
-                                <motion.div
-                                  key="loading"
-                                  initial={{ opacity: 0, scale: 0.6 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  exit={{ opacity: 0, scale: 0.6 }}
-                                  transition={{ duration: 0.15 }}
-                                  className="flex items-center justify-center"
-                                >
-                                  <Loader2 className="animate-spin" size={18} />
-                                </motion.div>
+                                <>
+                                  <Loader2 className="animate-spin" size={13} />
+                                  <span>{language === "sw" ? "Weka..." : "Adding..."}</span>
+                                </>
                               )}
                               {status === "added" && (
-                                <motion.div
-                                  key="added"
-                                  initial={{ opacity: 0, scale: 0.5 }}
-                                  animate={{ opacity: 1, scale: [1, 1.25, 1] }}
-                                  exit={{ opacity: 0, scale: 0.5 }}
-                                  transition={{ 
-                                    scale: { duration: 0.3, ease: "easeInOut" },
-                                    opacity: { type: "spring", stiffness: 400, damping: 10 }
-                                  }}
-                                  className="flex items-center justify-center"
-                                >
-                                  <Check size={18} className="stroke-[3]" />
-                                </motion.div>
+                                <>
+                                  <Check size={13} className="stroke-[3]" />
+                                  <span>{language === "sw" ? "Imewekwa!" : "Added!"}</span>
+                                </>
                               )}
-                            </AnimatePresence>
-                          </motion.button>
-                        );
-                      })()}
+                            </motion.button>
+                          );
+                        })()}
+
+                        <motion.button 
+                          whileHover={p.stock === 0 ? {} : { scale: 1.02 }}
+                          whileTap={p.stock === 0 ? {} : { scale: 0.98 }}
+                          disabled={p.stock === 0}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (p.stock === 0) {
+                              toast.error("This product is out of stock!");
+                              return;
+                            }
+                            addToCart({ 
+                              productId: p.id, 
+                              name: p.name, 
+                              price: p.price, 
+                              quantity: 1, 
+                              image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" 
+                            });
+                            trackEvent("begin_checkout", {
+                              items: [{
+                                item_id: p.id,
+                                item_name: p.name,
+                                price: p.price,
+                                quantity: 1,
+                                item_category: p.category
+                              }]
+                            });
+                            navigate("/checkout");
+                          }}
+                          className={`w-full py-2 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center select-none cursor-pointer ${
+                            p.stock === 0 
+                              ? "bg-gray-100 dark:bg-gray-850 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
+                              : "bg-gray-950 dark:bg-gray-800 text-white hover:bg-gray-800 dark:hover:bg-gray-700 border border-transparent"
+                          }`}
+                        >
+                          {language === "sw" ? "Lipia Sasa" : "Checkout Now"}
+                        </motion.button>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -1522,104 +1613,122 @@ export default function Home({ user }: HomeProps) {
                   <Link to={`/product/${p.id}`} state={{ product: p }} className="text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1">
                     {p.name}
                   </Link>
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex flex-col">
+                  <div className="flex flex-col mt-2">
+                    <div className="flex items-baseline gap-2 mb-3">
                       <span className="text-xl font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
                       {p.originalPrice && p.originalPrice > p.price && (
-                        <span className="text-xs text-gray-400 dark:text-gray-500 line-through mt-1 font-medium select-none">
+                        <span className="text-xs text-gray-400 dark:text-gray-500 line-through font-medium select-none">
                           {formatPrice(p.originalPrice)}
                         </span>
                       )}
                     </div>
-                    {(() => {
-                      const status = addingMap[p.id] || "idle";
-                      return (
-                        <motion.button 
-                          whileHover={p.stock === 0 || status === "loading" ? {} : { scale: 1.15, rotate: -3 }}
-                          whileTap={p.stock === 0 || status === "loading" ? {} : { scale: 0.85, rotate: 3 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                          disabled={p.stock === 0 || status === "loading" || status === "added"}
-                          onClick={() => {
-                            if (p.stock === 0) {
-                              toast.error("This product is out of stock!");
-                              return;
-                            }
-                            setAddingMap(prev => ({ ...prev, [p.id]: "loading" }));
-                            addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
-                            trackEvent("add_to_cart", {
-                              items: [{
-                                item_id: p.id,
-                                item_name: p.name,
-                                price: p.price,
-                                quantity: 1,
-                                item_category: p.category
-                              }]
-                            });
-                            
-                            setTimeout(() => {
-                              setAddingMap(prev => ({ ...prev, [p.id]: "added" }));
-                              toast.success("Added to cart!");
+                    <div className="flex flex-col gap-2 w-[90%] mx-auto">
+                      {(() => {
+                        const status = addingMap[p.id] || "idle";
+                        return (
+                          <motion.button 
+                            whileHover={p.stock === 0 || status === "loading" ? {} : { scale: 1.02 }}
+                            whileTap={p.stock === 0 || status === "loading" ? {} : { scale: 0.98 }}
+                            disabled={p.stock === 0 || status === "loading" || status === "added"}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (p.stock === 0) {
+                                toast.error("This product is out of stock!");
+                                return;
+                              }
+                              setAddingMap(prev => ({ ...prev, [p.id]: "loading" }));
+                              addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
+                              trackEvent("add_to_cart", {
+                                items: [{
+                                  item_id: p.id,
+                                  item_name: p.name,
+                                  price: p.price,
+                                  quantity: 1,
+                                  item_category: p.category
+                                }]
+                              });
+                              
                               setTimeout(() => {
-                                setAddingMap(prev => {
-                                  const updated = { ...prev };
-                                  delete updated[p.id];
-                                  return updated;
-                                });
-                              }, 1500);
-                            }, 850);
-                          }}
-                          className={`p-2 rounded-lg transition-colors relative overflow-hidden flex items-center justify-center select-none ${
-                            p.stock === 0 
-                              ? "bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
-                              : status === "added"
-                              ? "bg-green-600 text-white hover:bg-green-700"
-                              : "bg-gray-900 dark:bg-gray-800 text-white hover:bg-orange-600 cursor-pointer"
-                          }`}
-                          style={{ minWidth: "2.5rem", minHeight: "2.5rem" }}
-                        >
-                          <AnimatePresence mode="wait">
+                                setAddingMap(prev => ({ ...prev, [p.id]: "added" }));
+                                toast.success("Added to cart!");
+                                setTimeout(() => {
+                                  setAddingMap(prev => {
+                                    const updated = { ...prev };
+                                    delete updated[p.id];
+                                    return updated;
+                                  });
+                                }, 1500);
+                              }, 850);
+                            }}
+                            className={`w-full py-2 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-transparent select-none ${
+                              p.stock === 0 
+                                ? "bg-gray-100 dark:bg-gray-805 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
+                                : status === "added"
+                                ? "bg-green-600 text-white shadow-md shadow-green-600/10"
+                                : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10 dark:shadow-none"
+                            }`}
+                          >
                             {status === "idle" && (
-                              <motion.div
-                                key="idle"
-                                initial={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.6 }}
-                                transition={{ duration: 0.15 }}
-                                className="flex items-center justify-center"
-                              >
-                                <ShoppingBag size={18} />
-                              </motion.div>
+                              <>
+                                <ShoppingBag size={13} />
+                                <span>{language === "sw" ? "Weka Kwenye Kikapu" : "Add to cart"}</span>
+                              </>
                             )}
                             {status === "loading" && (
-                              <motion.div
-                                key="loading"
-                                initial={{ opacity: 0, scale: 0.6 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.6 }}
-                                transition={{ duration: 0.15 }}
-                                className="flex items-center justify-center"
-                              >
-                                <Loader2 className="animate-spin" size={18} />
-                              </motion.div>
+                              <>
+                                <Loader2 className="animate-spin" size={13} />
+                                <span>{language === "sw" ? "Weka..." : "Adding..."}</span>
+                              </>
                             )}
                             {status === "added" && (
-                              <motion.div
-                                key="added"
-                                initial={{ opacity: 0, scale: 0.5 }}
-                                animate={{ opacity: 1, scale: [1, 1.25, 1] }}
-                                exit={{ opacity: 0, scale: 0.5 }}
-                                transition={{ 
-                                  scale: { duration: 0.3, ease: "easeInOut" },
-                                  opacity: { type: "spring", stiffness: 400, damping: 10 }
-                                }}
-                                className="flex items-center justify-center"
-                              >
-                                <Check size={18} className="stroke-[3]" />
-                              </motion.div>
+                              <>
+                                <Check size={13} className="stroke-[3]" />
+                                <span>{language === "sw" ? "Imewekwa!" : "Added!"}</span>
+                              </>
                             )}
-                          </AnimatePresence>
-                        </motion.button>
-                      );
-                    })()}
+                          </motion.button>
+                        );
+                      })()}
+
+                      <motion.button 
+                        whileHover={p.stock === 0 ? {} : { scale: 1.02 }}
+                        whileTap={p.stock === 0 ? {} : { scale: 0.98 }}
+                        disabled={p.stock === 0}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (p.stock === 0) {
+                            toast.error("This product is out of stock!");
+                            return;
+                          }
+                          addToCart({ 
+                            productId: p.id, 
+                            name: p.name, 
+                            price: p.price, 
+                            quantity: 1, 
+                            image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" 
+                          });
+                          trackEvent("begin_checkout", {
+                            items: [{
+                              item_id: p.id,
+                              item_name: p.name,
+                              price: p.price,
+                              quantity: 1,
+                              item_category: p.category
+                            }]
+                          });
+                          navigate("/checkout");
+                        }}
+                        className={`w-full py-2 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center select-none cursor-pointer ${
+                          p.stock === 0 
+                            ? "bg-gray-100 dark:bg-gray-850 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
+                            : "bg-gray-950 dark:bg-gray-800 text-white hover:bg-gray-800 dark:hover:bg-gray-700 border border-transparent"
+                        }`}
+                      >
+                        {language === "sw" ? "Lipia Sasa" : "Checkout Now"}
+                      </motion.button>
+                    </div>
                   </div>
                 </div>
               </motion.div>

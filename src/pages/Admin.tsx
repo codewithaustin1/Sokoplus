@@ -628,6 +628,7 @@ export default function Admin({ user }: AdminProps) {
   const [seoTitle, setSeoTitle] = useState<string>("");
   const [seoDescription, setSeoDescription] = useState<string>("");
   const [seoImage, setSeoImage] = useState<string>("");
+  const [featuredCollections, setFeaturedCollections] = useState<{ title: string; imageUrl: string; category: string }[]>([]);
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
@@ -642,6 +643,12 @@ export default function Admin({ user }: AdminProps) {
   const [confirmingApproveProductId, setConfirmingApproveProductId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [trendsPeriod, setTrendsPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
+  
+  // Custom states for admin metric report CSV downloads
+  const [usersList, setUsersList] = useState<UserProfile[]>([]);
+  const [showReportDropdown, setShowReportDropdown] = useState(false);
+  const [isExportingUsers, setIsExportingUsers] = useState(false);
+  const [isExportingOrders, setIsExportingOrders] = useState(false);
   
   // Marketing Campaigns & CRM Automation States
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -891,6 +898,9 @@ export default function Admin({ user }: AdminProps) {
           if (settingsData.seoImage) {
             setSeoImage(settingsData.seoImage);
           }
+          if (settingsData.featuredCollections) {
+            setFeaturedCollections(settingsData.featuredCollections);
+          }
         }
       } catch (settingsError) {
         console.warn("Could not retrieve hero image settings: ", settingsError);
@@ -968,6 +978,28 @@ export default function Admin({ user }: AdminProps) {
         );
       } catch (pendingError) {
         console.warn("Could not load SokoPlus pending products: ", pendingError);
+      }
+
+      try {
+        const uSnap = await getDocs(collection(db, "users"));
+        setUsersList(
+          uSnap.docs.map((d) => {
+            const data = d.data();
+            return {
+              uid: d.id,
+              email: data.email || "",
+              displayName: data.displayName || "",
+              phoneNumber: data.phoneNumber || "",
+              loyaltyPoints: data.loyaltyPoints || 0,
+              isAdmin: !!data.isAdmin,
+              emailVerified: !!data.emailVerified,
+              photoURL: data.photoURL || "",
+              createdAt: data.createdAt || ""
+            } as UserProfile;
+          })
+        );
+      } catch (usersError) {
+        console.warn("Could not load users database for reports: ", usersError);
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, "products/orders");
@@ -1262,6 +1294,11 @@ export default function Admin({ user }: AdminProps) {
       if (seoImage && seoImage.startsWith("data:")) {
         totalLength += seoImage.length;
       }
+      featuredCollections.forEach(fc => {
+        if (fc.imageUrl && fc.imageUrl.startsWith("data:")) {
+          totalLength += fc.imageUrl.length;
+        }
+      });
 
       if (totalLength > 1.2 * 1024 * 1024) {
         toast.error("Total size of uploaded base64 images is too large! Please use image URLs/links or upload smaller files.");
@@ -1284,6 +1321,7 @@ export default function Admin({ user }: AdminProps) {
         seoTitle: seoTitle,
         seoDescription: seoDescription,
         seoImage: seoImage,
+        featuredCollections: featuredCollections,
         updatedAt: new Date(),
         updatedBy: user?.email || "Admin",
       }, { merge: true });
@@ -1319,6 +1357,7 @@ export default function Admin({ user }: AdminProps) {
           seoTitle: "",
           seoDescription: "",
           seoImage: "",
+          featuredCollections: [],
           updatedAt: new Date(),
           updatedBy: user?.email || "Admin",
         }, { merge: true });
@@ -1335,6 +1374,7 @@ export default function Admin({ user }: AdminProps) {
         setSeoTitle("");
         setSeoDescription("");
         setSeoImage("");
+        setFeaturedCollections([]);
         toast.success("Successfully reset settings back to default!");
       } catch (error) {
         console.error("Error resetting settings:", error);
@@ -2635,6 +2675,135 @@ export default function Admin({ user }: AdminProps) {
     toast.success("CSV report downloaded successfully!");
   };
 
+  const handleDownloadUsersCSV = () => {
+    setIsExportingUsers(true);
+    try {
+      const headers = ["User UID", "Display Name", "Email Address", "Phone Number", "Loyalty Points", "Is Admin", "Email Verified", "Created At"];
+      
+      const escapeCSV = (val: any) => {
+        if (val === null || val === undefined) return "";
+        const str = String(val);
+        if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const rows = usersList.map((u) => {
+        let dateStr = "";
+        if (u.createdAt) {
+          const dateObj = new Date(u.createdAt);
+          dateStr = isNaN(dateObj.getTime()) ? String(u.createdAt) : dateObj.toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" });
+        } else {
+          dateStr = "N/A";
+        }
+        return [
+          u.uid,
+          u.displayName || "Anonymous User",
+          u.email || "N/A",
+          u.phoneNumber || "N/A",
+          u.loyaltyPoints || 0,
+          u.isAdmin ? "Yes" : "No",
+          u.emailVerified ? "Yes" : "No",
+          dateStr
+        ];
+      });
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map(escapeCSV).join(","))
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `sokoplus_users_report_${new Date().toISOString().split("T")[0]}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Users database report downloaded!");
+    } catch (err: any) {
+      toast.error("Failed to generate users report: " + err.message);
+    } finally {
+      setIsExportingUsers(false);
+      setShowReportDropdown(false);
+    }
+  };
+
+  const handleDownloadAllOrdersCSV = () => {
+    setIsExportingOrders(true);
+    try {
+      const headers = [
+        "Order ID", 
+        "Customer Email / ID", 
+        "Date", 
+        "Order Status", 
+        "Payment Status", 
+        "Total Amount (KES)", 
+        "Items Count", 
+        "Items Details",
+        "Payment Reference"
+      ];
+      
+      const escapeCSV = (val: any) => {
+        if (val === null || val === undefined) return "";
+        const str = String(val);
+        if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const rows = orders.map((o) => {
+        let dateStr = "";
+        if (o.createdAt) {
+          const dateObj = o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt);
+          dateStr = dateObj.toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" });
+        } else {
+          dateStr = "N/A";
+        }
+        
+        const itemsDetails = o.items.map((it: any) => `${it.name} (x${it.quantity})`).join(" | ");
+        const itemsCount = o.items.reduce((sum: number, it: any) => sum + (it.quantity || 0), 0);
+
+        return [
+          o.id,
+          o.userEmail || o.userId,
+          dateStr,
+          o.status,
+          o.paymentStatus,
+          o.totalAmount,
+          itemsCount,
+          itemsDetails,
+          o.paymentReference || "N/A"
+        ];
+      });
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map(escapeCSV).join(","))
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `sokoplus_all_orders_report_${new Date().toISOString().split("T")[0]}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("All-time Orders metric report downloaded!");
+    } catch (err: any) {
+      toast.error("Failed to generate orders report: " + err.message);
+    } finally {
+      setIsExportingOrders(false);
+      setShowReportDropdown(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 space-y-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -2667,6 +2836,64 @@ export default function Admin({ user }: AdminProps) {
           >
             Seed Sample Data
           </button>
+          
+          <div className="relative">
+            <button
+              id="admin-download-report-btn"
+              onClick={() => setShowReportDropdown(!showReportDropdown)}
+              className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 transition-all self-start shadow-sm hover:shadow border-none cursor-pointer"
+            >
+              <Download size={18} />
+              <span>Download Report</span>
+              <ChevronDown size={14} className={`transition-transform duration-250 ${showReportDropdown ? 'rotate-180' : ''}`} />
+            </button>
+            <AnimatePresence>
+              {showReportDropdown && (
+                <>
+                  {/* Backdrop click closer */}
+                  <div className="fixed inset-0 z-40" onClick={() => setShowReportDropdown(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl shadow-xl p-3 z-50 space-y-1.5"
+                  >
+                    <div className="px-3 py-1.5 border-b border-gray-100 dark:border-gray-800 mb-1">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Available Reports</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadAllOrdersCSV}
+                      disabled={isExportingOrders}
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-850 flex items-center gap-3 transition-colors text-xs font-bold text-gray-750 dark:text-gray-200 border-none cursor-pointer bg-transparent"
+                    >
+                      <div className="bg-orange-50 dark:bg-orange-950/40 p-2 rounded-lg text-orange-600">
+                        <ShoppingBag size={14} />
+                      </div>
+                      <div className="flex-1">
+                        <p>Orders Metric Report</p>
+                        <p className="text-[9px] text-gray-400 font-medium">{orders.length} orders loaded</p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadUsersCSV}
+                      disabled={isExportingUsers}
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-850 flex items-center gap-3 transition-colors text-xs font-bold text-gray-750 dark:text-gray-200 border-none cursor-pointer bg-transparent"
+                    >
+                      <div className="bg-blue-50 dark:bg-blue-950/40 p-2 rounded-lg text-blue-600">
+                        <Users size={14} />
+                      </div>
+                      <div className="flex-1">
+                        <p>Users Database Report</p>
+                        <p className="text-[9px] text-gray-400 font-medium">{usersList.length} users registered</p>
+                      </div>
+                    </button>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
           {activeTab === "blogs" ? (
             <button
               onClick={() => setShowBlogAddModal(true)}
@@ -4749,6 +4976,201 @@ export default function Admin({ user }: AdminProps) {
                       <Image className="mx-auto mb-2 opacity-50" size={32} />
                       <p className="text-xs font-semibold">No carousel slides defined yet.</p>
                       <p className="text-[10px] mt-1 text-gray-400">Upload or add slots above to construct your animated slider.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+
+
+              {/* Featured Collections Manager Configuration */}
+              <div className="p-6 bg-white dark:bg-gray-900 rounded-3xl border border-gray-150 dark:border-gray-800 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center">
+                      <Store size={16} className="mr-2 text-orange-600" /> Featured Homepage Collections
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium font-sans">
+                      Configure high-resolution custom collection banners. These replace the popular categories and link directly to filtered collections.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFeaturedCollections([
+                        ...featuredCollections,
+                        { title: "New Featured Collection", imageUrl: "", category: "Local Crafts" }
+                      ]);
+                    }}
+                    className="text-xs font-extrabold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950 dark:hover:bg-orange-900 px-3 py-1.5 rounded-xl transition-all border-none cursor-pointer self-start sm:self-auto"
+                  >
+                    + Add Collection
+                  </button>
+                </div>
+
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {featuredCollections.map((fc, idx) => {
+                    const isValidUrl = fc.imageUrl && fc.imageUrl.trim().length > 0;
+                    return (
+                      <div
+                        key={idx}
+                        className="flex flex-col sm:flex-row gap-4 p-4 border border-gray-150 dark:border-gray-800 bg-white dark:bg-gray-950/20 rounded-2xl relative transition-all hover:border-gray-350 dark:hover:border-gray-700"
+                      >
+                        <div className="w-16 h-16 rounded-xl border border-gray-150 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {isValidUrl ? (
+                            <img
+                              src={fc.imageUrl}
+                              alt={fc.title}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src =
+                                  "https://images.unsplash.com/photo-1590736704728-f4730bb30770?auto=format&fit=crop&q=80&w=200";
+                              }}
+                            />
+                          ) : (
+                            <Image className="text-gray-300 dark:text-gray-600" size={24} />
+                          )}
+                        </div>
+
+                        <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block">
+                              Collection Title
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Artisan Spotlight"
+                              className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-850 dark:text-gray-200"
+                              value={fc.title}
+                              onChange={(e) => {
+                                const updated = [...featuredCollections];
+                                updated[idx].title = e.target.value;
+                                setFeaturedCollections(updated);
+                              }}
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block">
+                              Target Category
+                            </label>
+                            <select
+                              className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-850 dark:text-gray-200"
+                              value={fc.category}
+                              onChange={(e) => {
+                                const updated = [...featuredCollections];
+                                updated[idx].category = e.target.value;
+                                setFeaturedCollections(updated);
+                              }}
+                            >
+                              <option value="Fashion">Fashion</option>
+                              <option value="Electronics">Electronics</option>
+                              <option value="Local Crafts">Local Crafts</option>
+                              <option value="Groceries">Groceries</option>
+                              <option value="Beauty & Personal Care (Skincare, Haircare, Cosmetics)">Beauty &amp; Personal Care</option>
+                              <option value="Home & Office Décor (Small Scale & Gadgets)">Home &amp; Office Décor</option>
+                              <option value="Pet Supplies (Toys, Collars, Accessories, Dry Kibble)">Pet Supplies</option>
+                            </select>
+                          </div>
+
+                          <div className="md:col-span-2 space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block">
+                              High-Resolution Image URL (or upload below)
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                placeholder="Paste image URL address..."
+                                className="flex-grow px-3 py-2 text-xs bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-850 dark:text-gray-200"
+                                value={fc.imageUrl}
+                                onChange={(e) => {
+                                  const updated = [...featuredCollections];
+                                  updated[idx].imageUrl = e.target.value;
+                                  setFeaturedCollections(updated);
+                                }}
+                              />
+                              <label className="text-[10px] text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/40 px-3 py-2 rounded-xl border border-orange-100 dark:border-orange-900/40 transition-all font-bold cursor-pointer flex items-center gap-1 shrink-0">
+                                <Upload size={12} />
+                                <span>Upload File</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      try {
+                                        const optimized = await compressImageFile(file);
+                                        const updated = [...featuredCollections];
+                                        updated[idx].imageUrl = optimized;
+                                        setFeaturedCollections(updated);
+                                        toast.success("Collection image optimized!");
+                                      } catch (err: any) {
+                                        toast.error(`Upload failed: ${err.message}`);
+                                      }
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex sm:flex-col items-center justify-center gap-1.5 self-center sm:self-stretch">
+                          <div className="flex sm:flex-col gap-1">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => {
+                                const updated = [...featuredCollections];
+                                const temp = updated[idx];
+                                updated[idx] = updated[idx - 1];
+                                updated[idx - 1] = temp;
+                                setFeaturedCollections(updated);
+                              }}
+                              className="p-1 text-gray-400 hover:text-gray-950 hover:bg-gray-100 rounded disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer border-none bg-transparent"
+                              title="Move Collection Up"
+                            >
+                              <ChevronUp size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === featuredCollections.length - 1}
+                              onClick={() => {
+                                const updated = [...featuredCollections];
+                                const temp = updated[idx];
+                                updated[idx] = updated[idx + 1];
+                                updated[idx + 1] = temp;
+                                setFeaturedCollections(updated);
+                              }}
+                              className="p-1 text-gray-400 hover:text-gray-950 hover:bg-gray-100 rounded disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer border-none bg-transparent"
+                              title="Move Collection Down"
+                            >
+                              <ChevronDown size={16} />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = featuredCollections.filter((_, i) => i !== idx);
+                              setFeaturedCollections(updated);
+                            }}
+                            className="p-2 text-red-500 hover:bg-red-50 hover:text-red-700 rounded-xl transition-all cursor-pointer border-none bg-transparent"
+                            title="Remove Collection"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {featuredCollections.length === 0 && (
+                    <div className="p-8 border border-dashed border-gray-200 dark:border-gray-800 rounded-3xl text-center text-gray-400">
+                      <Store className="mx-auto mb-2 opacity-50 text-orange-600 animate-pulse" size={32} />
+                      <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">No Custom Featured Collections configured.</p>
+                      <p className="text-[10px] mt-1 text-gray-400">The website will beautifully fall back to standard default collections automatically.</p>
                     </div>
                   )}
                 </div>

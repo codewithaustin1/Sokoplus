@@ -17,6 +17,7 @@ export interface HomepageSettings {
   seoTitle?: string;
   seoDescription?: string;
   seoImage?: string;
+  featuredCollections?: { title: string; imageUrl: string; category: string }[];
 }
 
 interface SettingsContextType {
@@ -39,6 +40,7 @@ const defaultSettings: HomepageSettings = {
   seoTitle: "",
   seoDescription: "",
   seoImage: "",
+  featuredCollections: [],
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -90,6 +92,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           seoTitle: data.seoTitle || "",
           seoDescription: data.seoDescription || "",
           seoImage: data.seoImage || "",
+          featuredCollections: data.featuredCollections || [],
         });
       } else {
         setSettings(defaultSettings);
