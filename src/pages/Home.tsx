@@ -1129,12 +1129,11 @@ export default function Home({ user }: HomeProps) {
                                   ? "bg-gray-100 dark:bg-gray-805 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
                                   : status === "added"
                                   ? "bg-green-600 text-white shadow-md shadow-green-600/10"
-                                  : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10 dark:shadow-none"
+                                  : "bg-[#FFD814] text-gray-900 hover:bg-[#F7CA18] shadow-md shadow-yellow-500/10"
                               }`}
                             >
                               {status === "idle" && (
                                 <>
-                                  <ShoppingBag size={13} />
                                   <span>{language === "sw" ? "Weka Kwenye Kikapu" : "Add to cart"}</span>
                                 </>
                               )}
@@ -1666,12 +1665,11 @@ export default function Home({ user }: HomeProps) {
                                 ? "bg-gray-100 dark:bg-gray-805 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
                                 : status === "added"
                                 ? "bg-green-600 text-white shadow-md shadow-green-600/10"
-                                : "bg-orange-600 text-white hover:bg-orange-700 shadow-md shadow-orange-600/10 dark:shadow-none"
+                                : "bg-[#FFD814] text-gray-900 hover:bg-[#F7CA18] shadow-md shadow-yellow-500/10"
                             }`}
                           >
                             {status === "idle" && (
                               <>
-                                <ShoppingBag size={13} />
                                 <span>{language === "sw" ? "Weka Kwenye Kikapu" : "Add to cart"}</span>
                               </>
                             )}
