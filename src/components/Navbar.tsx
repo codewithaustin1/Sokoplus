@@ -6,6 +6,7 @@ import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useTheme } from "../lib/ThemeContext";
+import { useSettings } from "../lib/SettingsContext";
 import { auth, db } from "../lib/firebase";
 import { UserProfile, Product } from "../types";
 import { motion, AnimatePresence } from "motion/react";
@@ -43,6 +44,7 @@ export default function Navbar({ user }: NavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { items } = useCart();
+  const { settings } = useSettings();
   const { language, setLanguage, t } = useLanguage();
   const { currency, setCurrency, exchangeRate, formatPrice } = useCurrency();
   const { theme, setTheme } = useTheme();
@@ -477,8 +479,12 @@ export default function Navbar({ user }: NavbarProps) {
               >
                 <Menu size={22} />
               </button>
-              <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-bold tracking-tighter text-orange-600 select-none cursor-pointer hover:opacity-90">
-                Sokoplus<span className="text-white">.</span>
+              <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-bold tracking-tighter text-orange-600 select-none cursor-pointer hover:opacity-90 flex items-center">
+                {settings.brandLogoUrl ? (
+                  <img src={settings.brandLogoUrl} alt="Sokoplus" className="h-8 md:h-10 w-auto object-contain" referrerPolicy="no-referrer" />
+                ) : (
+                  <>Sokoplus<span className="text-white">.</span></>
+                )}
               </Link>
             </div>
 

@@ -106,9 +106,13 @@ export default function Footer() {
           {/* Brand & Newsletter Column */}
           <div className="lg:col-span-4 space-y-8">
             <div className="space-y-4">
-              <h2 className="text-2xl font-black tracking-tighter text-gray-900 dark:text-white uppercase animate-fade-in">
-                Soko<span className="text-orange-600">plus.</span>
-              </h2>
+              {settings.brandLogoUrl ? (
+                <img src={settings.brandLogoUrl} alt="SokoPlus" className="h-10 w-auto object-contain animate-fade-in" referrerPolicy="no-referrer" />
+              ) : (
+                <h2 className="text-2xl font-black tracking-tighter text-gray-900 dark:text-white uppercase animate-fade-in">
+                  Soko<span className="text-orange-600">plus.</span>
+                </h2>
+              )}
               <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-xs">
                 {t("Bridging the gap between Kenya's finest local artisans and global quality standards. Discover the heart of Nairobi.")}
               </p>

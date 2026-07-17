@@ -12,6 +12,11 @@ export interface HomepageSettings {
   googleMapsLinks: { name: string; url: string }[];
   updatedAt: any;
   anchorTime: number | null;
+  brandLogoUrl?: string;
+  faviconUrl?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoImage?: string;
 }
 
 interface SettingsContextType {
@@ -29,6 +34,11 @@ const defaultSettings: HomepageSettings = {
   googleMapsLinks: [],
   updatedAt: null,
   anchorTime: null,
+  brandLogoUrl: "",
+  faviconUrl: "",
+  seoTitle: "",
+  seoDescription: "",
+  seoImage: "",
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -75,6 +85,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           googleMapsLinks: mapsLinks,
           updatedAt: data.updatedAt || null,
           anchorTime: anchor,
+          brandLogoUrl: data.brandLogoUrl || "",
+          faviconUrl: data.faviconUrl || "",
+          seoTitle: data.seoTitle || "",
+          seoDescription: data.seoDescription || "",
+          seoImage: data.seoImage || "",
         });
       } else {
         setSettings(defaultSettings);
@@ -87,6 +102,20 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (settings.faviconUrl) {
+      const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (link) {
+        link.href = settings.faviconUrl;
+      } else {
+        const newLink = document.createElement("link");
+        newLink.rel = "icon";
+        newLink.href = settings.faviconUrl;
+        document.head.appendChild(newLink);
+      }
+    }
+  }, [settings.faviconUrl]);
 
   return (
     <SettingsContext.Provider value={{ settings, loading }}>

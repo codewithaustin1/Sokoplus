@@ -46,6 +46,7 @@ import {
   Settings,
   Upload,
   Image,
+  Globe,
   Download,
   ChevronUp,
   ChevronDown,
@@ -56,6 +57,7 @@ import {
   Check,
   CheckCheck,
   Sparkles,
+  Award,
   Megaphone,
   Calendar,
   Music,
@@ -621,6 +623,11 @@ export default function Admin({ user }: AdminProps) {
   const [showDailyDeals, setShowDailyDeals] = useState<boolean>(true);
   const [dailyDealsSpeed, setDailyDealsSpeed] = useState<number>(30);
   const [dailyDealsHours, setDailyDealsHours] = useState<number>(24);
+  const [brandLogoUrl, setBrandLogoUrl] = useState<string>("");
+  const [faviconUrl, setFaviconUrl] = useState<string>("");
+  const [seoTitle, setSeoTitle] = useState<string>("");
+  const [seoDescription, setSeoDescription] = useState<string>("");
+  const [seoImage, setSeoImage] = useState<string>("");
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
@@ -869,6 +876,21 @@ export default function Admin({ user }: AdminProps) {
           if (settingsData.dailyDealsHours !== undefined) {
             setDailyDealsHours(settingsData.dailyDealsHours);
           }
+          if (settingsData.brandLogoUrl) {
+            setBrandLogoUrl(settingsData.brandLogoUrl);
+          }
+          if (settingsData.faviconUrl) {
+            setFaviconUrl(settingsData.faviconUrl);
+          }
+          if (settingsData.seoTitle) {
+            setSeoTitle(settingsData.seoTitle);
+          }
+          if (settingsData.seoDescription) {
+            setSeoDescription(settingsData.seoDescription);
+          }
+          if (settingsData.seoImage) {
+            setSeoImage(settingsData.seoImage);
+          }
         }
       } catch (settingsError) {
         console.warn("Could not retrieve hero image settings: ", settingsError);
@@ -1060,6 +1082,163 @@ export default function Admin({ user }: AdminProps) {
     }
   };
 
+  const compressFaviconFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const maxDim = 48; // Recommended standard size for high-res favicon
+          const canvas = document.createElement("canvas");
+          canvas.width = maxDim;
+          canvas.height = maxDim;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, maxDim, maxDim);
+            let srcX = 0, srcY = 0, srcW = img.width, srcH = img.height;
+            if (img.width > img.height) {
+              srcW = img.height;
+              srcX = (img.width - img.height) / 2;
+            } else {
+              srcH = img.width;
+              srcY = (img.height - img.width) / 2;
+            }
+            ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, maxDim, maxDim);
+            try {
+              const compressedDataUrl = canvas.toDataURL("image/png");
+              resolve(compressedDataUrl);
+            } catch (compressErr) {
+              reject(compressErr);
+            }
+          } else {
+            reject(new Error("Could not initialize browser canvas."));
+          }
+        };
+        img.onerror = () => reject(new Error("Failed to parse upload as a valid image."));
+        if (typeof event.target?.result === "string") {
+          img.src = event.target.result;
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to process file."));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const compressBrandLogoFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const maxH = 120; // brand logo height is usually small
+          let width = img.width;
+          let height = img.height;
+          if (height > maxH) {
+            width = Math.round((width * maxH) / height);
+            height = maxH;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            try {
+              const compressedDataUrl = canvas.toDataURL("image/png");
+              resolve(compressedDataUrl);
+            } catch (compressErr) {
+              reject(compressErr);
+            }
+          } else {
+            reject(new Error("Could not initialize browser canvas."));
+          }
+        };
+        img.onerror = () => reject(new Error("Failed to parse upload as a valid image."));
+        if (typeof event.target?.result === "string") {
+          img.src = event.target.result;
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to process file."));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const optimized = await compressFaviconFile(file);
+      setFaviconUrl(optimized);
+      toast.success("Favicon successfully optimized! Click 'Save Settings' below to apply.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to compress and optimize the favicon file.");
+    }
+  };
+
+  const handleBrandLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const optimized = await compressBrandLogoFile(file);
+      setBrandLogoUrl(optimized);
+      toast.success("Brand logo successfully optimized! Click 'Save Settings' below to apply.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to compress and optimize the brand logo file.");
+    }
+  };
+
+  const compressSeoImageFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const maxW = 600; // Keep compact for Firestore storage
+          let width = img.width;
+          let height = img.height;
+          if (width > maxW) {
+            height = Math.round((height * maxW) / width);
+            width = maxW;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            try {
+              const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.75); // space-efficient
+              resolve(compressedDataUrl);
+            } catch (compressErr) {
+              reject(compressErr);
+            }
+          } else {
+            reject(new Error("Could not initialize browser canvas."));
+          }
+        };
+        img.onerror = () => reject(new Error("Failed to parse upload as a valid image."));
+        if (typeof event.target?.result === "string") {
+          img.src = event.target.result;
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to process file."));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSeoImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const optimized = await compressSeoImageFile(file);
+      setSeoImage(optimized);
+      toast.success("SEO social preview image successfully optimized! Click 'Save Settings' to apply.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to compress the SEO social preview image.");
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingSettings(true);
@@ -1073,6 +1252,15 @@ export default function Admin({ user }: AdminProps) {
       });
       if (homepageHeroUrl && homepageHeroUrl.startsWith("data:")) {
         totalLength += homepageHeroUrl.length;
+      }
+      if (brandLogoUrl && brandLogoUrl.startsWith("data:")) {
+        totalLength += brandLogoUrl.length;
+      }
+      if (faviconUrl && faviconUrl.startsWith("data:")) {
+        totalLength += faviconUrl.length;
+      }
+      if (seoImage && seoImage.startsWith("data:")) {
+        totalLength += seoImage.length;
       }
 
       if (totalLength > 1.2 * 1024 * 1024) {
@@ -1091,6 +1279,11 @@ export default function Admin({ user }: AdminProps) {
         showDailyDeals: showDailyDeals,
         dailyDealsSpeed: dailyDealsSpeed,
         dailyDealsHours: dailyDealsHours,
+        brandLogoUrl: brandLogoUrl,
+        faviconUrl: faviconUrl,
+        seoTitle: seoTitle,
+        seoDescription: seoDescription,
+        seoImage: seoImage,
         updatedAt: new Date(),
         updatedBy: user?.email || "Admin",
       }, { merge: true });
@@ -1121,6 +1314,11 @@ export default function Admin({ user }: AdminProps) {
           showDailyDeals: true,
           dailyDealsSpeed: 30,
           dailyDealsHours: 24,
+          brandLogoUrl: "",
+          faviconUrl: "",
+          seoTitle: "",
+          seoDescription: "",
+          seoImage: "",
           updatedAt: new Date(),
           updatedBy: user?.email || "Admin",
         }, { merge: true });
@@ -1132,7 +1330,12 @@ export default function Admin({ user }: AdminProps) {
         setShowDailyDeals(true);
         setDailyDealsSpeed(30);
         setDailyDealsHours(24);
-        toast.success("Successfully reset to default hero banner & texts!");
+        setBrandLogoUrl("");
+        setFaviconUrl("");
+        setSeoTitle("");
+        setSeoDescription("");
+        setSeoImage("");
+        toast.success("Successfully reset settings back to default!");
       } catch (error) {
         console.error("Error resetting settings:", error);
         toast.error("Failed to reset settings.");
@@ -4548,6 +4751,260 @@ export default function Admin({ user }: AdminProps) {
                       <p className="text-[10px] mt-1 text-gray-400">Upload or add slots above to construct your animated slider.</p>
                     </div>
                   )}
+                </div>
+              </div>
+
+
+
+              {/* Brand Visual Identity Configuration */}
+              <div className="p-6 bg-white dark:bg-gray-900 rounded-3xl border border-gray-150 dark:border-gray-800 space-y-6">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center">
+                    <Award size={16} className="mr-2 text-orange-600" /> Brand Visual Identity Settings
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                    Customize your shop logo image and page favicon to align with your brand's unique design language.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Brand Logo Card */}
+                  <div className="p-4 bg-gray-50/50 dark:bg-gray-950/20 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4">
+                    <div>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-450 block mb-1">
+                        Brand Logo Image
+                      </label>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-550 font-medium">
+                        Replaces the text-based 'Sokoplus.' logo. Transparency (PNG format) is highly recommended. Max height: 120px.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      {brandLogoUrl ? (
+                        <div className="relative w-16 h-16 bg-gray-900 rounded-xl border border-gray-150 dark:border-gray-800 flex items-center justify-center p-2 group overflow-hidden">
+                          <img
+                            src={brandLogoUrl}
+                            alt="Brand Logo"
+                            className="w-full h-full object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setBrandLogoUrl("")}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity font-bold text-[10px] border-none"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-900 rounded-xl border border-dashed border-gray-200 dark:border-gray-800 flex flex-col items-center justify-center text-gray-400">
+                          <Award size={20} className="opacity-40" />
+                          <span className="text-[9px] font-bold mt-1">Fallback</span>
+                        </div>
+                      )}
+
+                      <div className="flex-1 space-y-2">
+                        <input
+                          type="text"
+                          placeholder="Paste image URL address..."
+                          className="w-full px-3 py-2 text-xs bg-white dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-850 dark:text-gray-200"
+                          value={brandLogoUrl}
+                          onChange={(e) => setBrandLogoUrl(e.target.value)}
+                        />
+                        <label className="text-[10px] text-orange-600 hover:text-orange-700 font-extrabold uppercase cursor-pointer flex items-center gap-1 w-fit bg-orange-50 dark:bg-orange-950/40 px-2.5 py-1.5 rounded-lg border border-orange-100 dark:border-orange-900/40 hover:bg-orange-100/50 transition-all">
+                          <Upload size={11} />
+                          <span>Upload File</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleBrandLogoUpload}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Favicon Card */}
+                  <div className="p-4 bg-gray-50/50 dark:bg-gray-950/20 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4">
+                    <div>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-450 block mb-1">
+                        Favicon (Browser Icon)
+                      </label>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-550 font-medium">
+                        Recommended size: 32x32px or 48x48px (square ratio, PNG/ICO/SVG format). Keeps tab crisp.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      {faviconUrl ? (
+                        <div className="relative w-16 h-16 bg-white dark:bg-gray-900 rounded-xl border border-gray-150 dark:border-gray-800 flex items-center justify-center p-3 group overflow-hidden">
+                          <img
+                            src={faviconUrl}
+                            alt="Favicon"
+                            className="w-10 h-10 object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFaviconUrl("")}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity font-bold text-[10px] border-none"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-900 rounded-xl border border-dashed border-gray-200 dark:border-gray-800 flex flex-col items-center justify-center text-gray-400">
+                          <Image size={20} className="opacity-40" />
+                          <span className="text-[9px] font-bold mt-1">Default</span>
+                        </div>
+                      )}
+
+                      <div className="flex-1 space-y-2">
+                        <input
+                          type="text"
+                          placeholder="Paste favicon URL address..."
+                          className="w-full px-3 py-2 text-xs bg-white dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-850 dark:text-gray-200"
+                          value={faviconUrl}
+                          onChange={(e) => setFaviconUrl(e.target.value)}
+                        />
+                        <label className="text-[10px] text-orange-600 hover:text-orange-700 font-extrabold uppercase cursor-pointer flex items-center gap-1 w-fit bg-orange-50 dark:bg-orange-950/40 px-2.5 py-1.5 rounded-lg border border-orange-100 dark:border-orange-900/40 hover:bg-orange-100/50 transition-all">
+                          <Upload size={11} />
+                          <span>Upload File</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleFaviconUpload}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
+
+              {/* Site-Wide SEO Metadata Settings */}
+              <div className="p-6 bg-white dark:bg-gray-900 rounded-3xl border border-gray-150 dark:border-gray-800 space-y-6">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center">
+                    <Globe size={16} className="mr-2 text-orange-600" /> Site-Wide SEO & Social Metadata
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                    Configure default search engine metadata and social media preview cards (Open Graph/Twitter cards) across the entire platform.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Text Metadata Configuration */}
+                  <div className="space-y-4">
+                    {/* Default Title Tag */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-450 block">
+                          Default SEO Title Tag
+                        </label>
+                        <span className={`text-[10px] font-bold ${seoTitle.length > 60 ? "text-amber-500" : "text-gray-400"}`}>
+                          {seoTitle.length}/60 chars
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="e.g. SokoPlus - Premium Kenyan Handmade Crafts & Local Artisan Goods"
+                        className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-850 dark:text-gray-200"
+                        value={seoTitle}
+                        onChange={(e) => setSeoTitle(e.target.value)}
+                      />
+                      <p className="text-[10px] text-gray-400 dark:text-gray-550 font-medium">
+                        Ideally under 60 characters. This title is shown in browser tabs and search engine snippet results.
+                      </p>
+                    </div>
+
+                    {/* Default Site Description */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-450 block">
+                          Default Meta Description
+                        </label>
+                        <span className={`text-[10px] font-bold ${seoDescription.length > 160 ? "text-amber-500" : "text-gray-400"}`}>
+                          {seoDescription.length}/160 chars
+                        </span>
+                      </div>
+                      <textarea
+                        rows={4}
+                        placeholder="e.g. SokoPlus connects Kenyan artisans to global standards. Shop genuine handmade beaded bags, soapstone carvings, fine kiondos, and local coffee direct from Nairobi."
+                        className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-850 dark:text-gray-200 resize-none"
+                        value={seoDescription}
+                        onChange={(e) => setSeoDescription(e.target.value)}
+                      />
+                      <p className="text-[10px] text-gray-400 dark:text-gray-550 font-medium">
+                        Ideally 150-160 characters. A high-quality description increases click-through rates from search pages.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Social Media Sharing Image Card */}
+                  <div className="p-4 bg-gray-50/50 dark:bg-gray-950/20 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4">
+                    <div>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-450 block mb-1">
+                        Default Social Share Image (Open Graph Image)
+                      </label>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-550 font-medium">
+                        Recommended size: 1200x630px (landscape aspect ratio). Shown when your website link is shared on WhatsApp, Facebook, iMessage, Twitter, and Slack.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      {seoImage ? (
+                        <div className="relative w-full h-36 bg-gray-900 rounded-xl border border-gray-150 dark:border-gray-800 flex items-center justify-center group overflow-hidden">
+                          <img
+                            src={seoImage}
+                            alt="Social Share Preview"
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity font-bold gap-1">
+                            <span className="text-[10px] bg-white/20 px-2 py-1 rounded-md backdrop-blur-sm">Landscape Preview</span>
+                            <button
+                              type="button"
+                              onClick={() => setSeoImage("")}
+                              className="text-white hover:text-red-400 transition-colors font-extrabold text-xs uppercase bg-transparent border-none cursor-pointer mt-2"
+                            >
+                              Remove Image
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-36 bg-gray-100 dark:bg-gray-900 rounded-xl border border-dashed border-gray-200 dark:border-gray-800 flex flex-col items-center justify-center text-gray-400 text-center p-4">
+                          <Image size={24} className="opacity-40 mb-1" />
+                          <span className="text-[10px] font-bold">No custom social preview image</span>
+                          <span className="text-[9px] text-gray-450 mt-1">Falls back to site-wide og-image.jpg default</span>
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          placeholder="Paste image URL (Unsplash/Imgur etc.)"
+                          className="w-full px-3 py-2 text-xs bg-white dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-850 dark:text-gray-200"
+                          value={seoImage}
+                          onChange={(e) => setSeoImage(e.target.value)}
+                        />
+                        <label className="text-[10px] text-orange-600 hover:text-orange-700 font-extrabold uppercase cursor-pointer flex items-center gap-1 w-fit bg-orange-50 dark:bg-orange-950/40 px-2.5 py-1.5 rounded-lg border border-orange-100 dark:border-orange-900/40 hover:bg-orange-100/50 transition-all">
+                          <Upload size={11} />
+                          <span>Upload File & Optimize</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleSeoImageUpload}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

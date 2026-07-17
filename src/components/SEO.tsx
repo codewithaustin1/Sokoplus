@@ -1,5 +1,6 @@
 import React from "react";
 import { Helmet } from "react-helmet-async";
+import { useSettings } from "../lib/SettingsContext";
 
 interface SEOProps {
   title?: string;
@@ -23,8 +24,8 @@ interface SEOProps {
 
 export default function SEO({ 
   title, 
-  description = "Sokoplus - Kenya's premium marketplace for local artisans and global quality standards.", 
-  image = "/og-image.jpg", 
+  description, 
+  image, 
   url, 
   type = "website",
   schema,
@@ -37,17 +38,21 @@ export default function SEO({
   articleAuthor,
   articlePublishedTime
 }: SEOProps) {
+  const { settings } = useSettings();
   const siteTitle = "Sokoplus";
+  
+  const finalDescription = description || settings.seoDescription || "Sokoplus - Kenya's premium marketplace for local artisans and global quality standards.";
+  const finalImageProp = image || settings.seoImage || "/og-image.jpg";
   
   // Clean description: strip any Markdown / special formatting characters & truncate to safe 155-160 length
   const cleanDescription = React.useMemo(() => {
-    if (!description) return "";
-    const plainText = description
+    if (!finalDescription) return "";
+    const plainText = finalDescription
       .replace(/[#*_`~\n\r-]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
     return plainText.length > 155 ? `${plainText.substring(0, 152)}...` : plainText;
-  }, [description]);
+  }, [finalDescription]);
 
   // Clean title for SERPs (max 60 characters is ideal for search engine display)
   const cleanTitle = React.useMemo(() => {
@@ -55,7 +60,9 @@ export default function SEO({
     return title.length > 50 ? `${title.substring(0, 47)}...` : title;
   }, [title]);
 
-  const fullTitle = title ? `${cleanTitle} | ${siteTitle}` : `${siteTitle} - Premium Kenyan Marketplace`;
+  const fullTitle = title 
+    ? `${cleanTitle} | ${siteTitle}` 
+    : (settings.seoTitle || `${siteTitle} - Premium Kenyan Marketplace`);
 
   // Determine current absolute location if window is defined
   const currentUrl = React.useMemo(() => {
@@ -80,17 +87,17 @@ export default function SEO({
 
   // Handle image fallbacks elegantly
   const finalImage = React.useMemo(() => {
-    if (image && image.trim() !== "") {
-      if (image.startsWith("/") && typeof window !== "undefined") {
-        return `${window.location.origin}${image}`;
+    if (finalImageProp && finalImageProp.trim() !== "") {
+      if (finalImageProp.startsWith("/") && typeof window !== "undefined") {
+        return `${window.location.origin}${finalImageProp}`;
       }
-      return image;
+      return finalImageProp;
     }
     if (typeof window !== "undefined") {
       return `${window.location.origin}/og-image.jpg`;
     }
     return "https://www.sokoplus.co.ke/og-image.jpg";
-  }, [image]);
+  }, [finalImageProp]);
 
   return (
     <Helmet>

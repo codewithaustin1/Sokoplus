@@ -144,6 +144,11 @@
             "required": ["name", "url"]
           }
         },
+        "brandLogoUrl": { "type": "string" },
+        "faviconUrl": { "type": "string" },
+        "seoTitle": { "type": "string" },
+        "seoDescription": { "type": "string" },
+        "seoImage": { "type": "string" },
         "updatedAt": { "type": "string", "format": "date-time" },
         "updatedBy": { "type": "string" }
       }

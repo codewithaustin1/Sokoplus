@@ -238,6 +238,11 @@ service cloud.firestore {
                (data.heroHeadingText == null || (data.heroHeadingText is string && data.heroHeadingText.size() <= 150)) &&
                (data.googleMapsLink == null || (data.googleMapsLink is string && data.googleMapsLink.size() <= 2000)) &&
                (data.googleMapsLinks == null || (data.googleMapsLinks is list && data.googleMapsLinks.size() <= 30)) &&
+               (data.brandLogoUrl == null || (data.brandLogoUrl is string && data.brandLogoUrl.size() <= 2000000)) &&
+               (data.faviconUrl == null || (data.faviconUrl is string && data.faviconUrl.size() <= 2000000)) &&
+               (data.seoTitle == null || (data.seoTitle is string && data.seoTitle.size() <= 1000)) &&
+               (data.seoDescription == null || (data.seoDescription is string && data.seoDescription.size() <= 2000)) &&
+               (data.seoImage == null || (data.seoImage is string && data.seoImage.size() <= 2000000)) &&
                (data.updatedBy == null || (data.updatedBy is string && data.updatedBy.size() <= 200));
       }
 
