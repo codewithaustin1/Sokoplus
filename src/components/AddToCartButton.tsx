@@ -40,15 +40,45 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
     }, 850);
   };
 
+  // Clean up conflicting background/text/hover classes from parent files
+  const cleanClassName = className
+    .split(" ")
+    .filter((c) => {
+      const lower = c.toLowerCase().trim();
+      if (!lower) return false;
+      if (lower.includes("bg-") || lower.includes("text-white") || lower.includes("text-black")) {
+        return false;
+      }
+      if (lower.includes("text-") && !lower.includes("text-lg") && !lower.includes("text-sm") && !lower.includes("text-xs") && !lower.includes("text-xl") && !lower.includes("text-md") && !lower.includes("text-2xl") && !lower.includes("text-3xl")) {
+        return false;
+      }
+      if (lower.includes("hover:bg-") || lower.includes("hover:shadow-") || lower.includes("brand-success-")) {
+        return false;
+      }
+      return true;
+    })
+    .join(" ");
+
+  const getButtonStyles = () => {
+    if (disabled) {
+      return "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed";
+    }
+    if (status === "added") {
+      return "bg-green-600 text-white shadow-md shadow-green-600/10";
+    }
+    if (status === "loading") {
+      return "bg-[#FFD814] text-gray-900 shadow-md shadow-yellow-500/10 cursor-wait";
+    }
+    return "bg-[#FFD814] text-gray-900 hover:bg-[#F7CA18] shadow-md shadow-yellow-500/10 cursor-pointer";
+  };
+
   return (
     <motion.button
       onClick={handleClick}
       disabled={disabled || status === "loading"}
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 0.95 }}
-      className={`relative overflow-hidden transition-all duration-300 select-none flex items-center justify-center cursor-pointer ${className} ${
-        status === "added" ? "brand-success-bg text-white brand-success-glow" : ""
-      }`}
+      whileHover={disabled ? {} : { scale: 1.01 }}
+      whileTap={disabled ? {} : { scale: 0.95 }}
+      className={`relative overflow-hidden transition-all duration-300 select-none flex items-center justify-center ${cleanClassName} ${getButtonStyles()}`}
       style={{ minHeight: "2.75rem" }}
     >
       <AnimatePresence mode="wait">
@@ -61,7 +91,6 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
             className="flex items-center justify-center w-full h-full gap-2.5"
           >
             <span>{label}</span>
-            <ShoppingBag className="shrink-0" size={18} />
           </motion.div>
         )}
 
@@ -74,7 +103,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className="flex items-center justify-center w-full h-full"
           >
-            <Loader2 className="animate-spin text-white shrink-0" size={20} />
+            <Loader2 className="animate-spin text-gray-900 shrink-0" size={20} />
           </motion.div>
         )}
 
@@ -92,7 +121,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
               initial={{ scale: 0.2 }}
               animate={{ scale: [1, 1.3, 1] }}
               transition={{ delay: 0.1, duration: 0.25, type: "keyframes", ease: "easeInOut" }}
-              className="bg-white brand-success-text rounded-full p-0.5 shadow-sm flex items-center justify-center shrink-0"
+              className="bg-white text-green-600 rounded-full p-0.5 shadow-sm flex items-center justify-center shrink-0"
             >
               <Check size={12} className="stroke-[3.5]" />
             </motion.div>
