@@ -12,7 +12,7 @@ import {
 } from "firebase/auth";
 import { auth, db } from "../lib/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { ShoppingBag, Mail, Lock, ChevronRight, UserPlus, LogIn, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "motion/react";
@@ -253,29 +253,29 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full bg-white dark:bg-gray-900 p-8 md:p-12 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-800 space-y-10 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] dark:bg-gray-950 px-4 py-12">
+      <div className="max-w-md w-full bg-white dark:bg-gray-900 p-8 md:p-10 rounded-[2rem] shadow-[0_15px_50px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800 relative overflow-hidden">
         {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 dark:bg-orange-950/20 rounded-full -mr-16 -mt-16 opacity-50" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-50 dark:bg-orange-950/20 rounded-full -ml-12 -mb-12 opacity-50" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 dark:bg-orange-950/10 rounded-full -mr-16 -mt-16 opacity-50" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-50 dark:bg-orange-950/10 rounded-full -ml-12 -mb-12 opacity-50" />
 
-        <div className="text-center space-y-6 relative">
-          <div className="flex justify-center">
-            <div className="bg-orange-600 p-5 rounded-3xl shadow-xl shadow-orange-200 dark:shadow-none rotate-3">
-              <ShoppingBag className="text-white" size={40} />
+        <div className="text-center space-y-3 relative mb-8">
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 bg-[#E14D2A] rounded-2xl flex items-center justify-center shadow-lg shadow-orange-600/10">
+              <ShoppingBag className="text-white" size={32} />
             </div>
           </div>
-          <div className="space-y-2">
-            <h1 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white italic">Sokoplus</h1>
-            <p className="text-gray-500 dark:text-gray-450 font-medium">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white italic">Sokoplus</h1>
+            <p className="text-gray-400 dark:text-gray-500 font-medium text-sm">
               {isForgotPassword 
                 ? "Reset your password" 
-                : (isSignUp ? "Create your account" : "Welcome back")}
+                : "Welcome back"}
             </p>
           </div>
         </div>
 
-        <div className="space-y-8 relative min-h-[340px]">
+        <div className="relative min-h-[340px]">
           <AnimatePresence mode="wait">
             {isForgotPassword ? (
               <motion.div
@@ -287,19 +287,21 @@ export default function Login() {
                 className="space-y-6"
               >
                 <form onSubmit={handleForgotPasswordSubmit} className="space-y-6">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-semibold">
+                  <p className="text-sm text-gray-500 dark:text-gray-450 leading-relaxed font-medium">
                     Enter your email address below and we'll send a password reset link to your inbox.
                   </p>
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-gray-450 dark:text-gray-450 ml-1">Email Address</label>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-gray-900 dark:text-gray-200">
+                      EMAIL ADDRESS
+                    </label>
                     <div className="relative">
-                      <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
                       <input
                         type="email"
                         placeholder="name@example.com"
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
-                        className="w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border-2 border-transparent focus:border-orange-600 focus:bg-white dark:focus:bg-gray-900 rounded-2xl py-4 pl-14 pr-6 font-bold transition-all outline-none"
+                        className="w-full bg-white dark:bg-gray-950 text-gray-950 dark:text-white border border-gray-200 dark:border-gray-800 focus:border-orange-500 dark:focus:border-orange-500 rounded-xl py-3.5 pl-12 pr-4 text-sm transition-all outline-none"
                         required
                       />
                     </div>
@@ -308,17 +310,17 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-gray-900 dark:bg-orange-600 hover:bg-orange-600 dark:hover:bg-orange-700 text-white py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl hover:shadow-orange-200 dark:shadow-none disabled:opacity-50 flex items-center justify-center space-x-2 group cursor-pointer border-none"
+                    className="w-full bg-black dark:bg-white text-white dark:text-black py-3.5 rounded-xl font-bold text-sm transition-all hover:bg-gray-900 dark:hover:bg-gray-100 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border-none shadow-sm uppercase tracking-wider"
                   >
-                    <span>{loading ? "Sending..." : "Send Reset Link"}</span>
-                    {!loading && <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />}
+                    <span>{loading ? "SENDING..." : "SEND RESET LINK"}</span>
+                    {!loading && <ChevronRight size={16} />}
                   </button>
 
                   <div className="text-center">
                     <button 
                       type="button"
                       onClick={() => setIsForgotPassword(false)}
-                      className="text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer bg-transparent border-none outline-none"
+                      className="text-xs font-bold text-gray-500 dark:text-gray-450 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer bg-transparent border-none outline-none"
                     >
                       Back to Sign In
                     </button>
@@ -334,104 +336,146 @@ export default function Login() {
                 transition={{ duration: 0.25 }}
                 className="space-y-6"
               >
-                <form onSubmit={handleEmailAuth} className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-black uppercase tracking-widest text-gray-450 dark:text-gray-450 ml-1">Email Address</label>
-                      <div className="relative">
-                        <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
-                        <input
-                          type="email"
-                          placeholder="name@example.com"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border-2 border-transparent focus:border-orange-600 focus:bg-white dark:focus:bg-gray-900 rounded-2xl py-4 pl-14 pr-6 font-bold transition-all outline-none"
-                          required
-                        />
-                      </div>
-                    </div>
+                {/* Tabs */}
+                <div className="flex border-b border-gray-100 dark:border-gray-800 w-full mb-6">
+                  <button
+                    type="button"
+                    onClick={() => { setIsSignUp(false); }}
+                    className={`flex-1 pb-3 text-center font-bold text-sm transition-all relative cursor-pointer ${
+                      !isSignUp
+                        ? "text-gray-950 dark:text-white font-black"
+                        : "text-gray-400 hover:text-gray-600 dark:text-gray-500"
+                    }`}
+                  >
+                    Sign In
+                    {!isSignUp && (
+                      <motion.div 
+                        layoutId="activeTabUnderline"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E14D2A]"
+                      />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsSignUp(true); }}
+                    className={`flex-1 pb-3 text-center font-bold text-sm transition-all relative cursor-pointer ${
+                      isSignUp
+                        ? "text-gray-950 dark:text-white font-black"
+                        : "text-gray-400 hover:text-gray-600 dark:text-gray-500"
+                    }`}
+                  >
+                    New Account
+                    {isSignUp && (
+                      <motion.div 
+                        layoutId="activeTabUnderline"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E14D2A]"
+                      />
+                    )}
+                  </button>
+                </div>
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center ml-1">
-                        <label className="text-xs font-black uppercase tracking-widest text-gray-450 dark:text-gray-450">Password</label>
-                        {!isSignUp && (
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              setResetEmail(email);
-                              setIsForgotPassword(true);
-                            }}
-                            className="text-[10px] font-black text-orange-600 dark:text-orange-400 hover:underline uppercase tracking-tighter cursor-pointer bg-transparent border-none outline-none"
-                          >
-                            Forgot Password?
-                          </button>
-                        )}
-                      </div>
-                      <div className="relative">
-                        <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="••••••••"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border-2 border-transparent focus:border-orange-600 focus:bg-white dark:focus:bg-gray-900 rounded-2xl py-4 pl-14 pr-14 font-bold transition-all outline-none"
-                          required
-                        />
-                        <button
+                {/* Google Sign In */}
+                <button
+                  onClick={handleGoogleLogin}
+                  disabled={loading}
+                  type="button"
+                  className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 py-3.5 px-4 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 transition-all cursor-pointer select-none"
+                >
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5 shrink-0" />
+                  <span>Sign In with Google Account</span>
+                </button>
+
+                {/* Divider */}
+                <div className="relative my-6 flex items-center justify-center">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-100 dark:border-gray-800"></div>
+                  </div>
+                  <div className="relative bg-white dark:bg-gray-900 px-4 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 select-none">
+                    OR USE NATIVE LOGIN
+                  </div>
+                </div>
+
+                {/* Native Login Form */}
+                <form onSubmit={handleEmailAuth} className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-gray-900 dark:text-gray-200">
+                      EMAIL ADDRESS
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
+                      <input
+                        type="email"
+                        placeholder="name@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-white dark:bg-gray-950 text-gray-950 dark:text-white border border-gray-200 dark:border-gray-800 focus:border-orange-500 dark:focus:border-orange-500 rounded-xl py-3.5 pl-12 pr-4 text-sm transition-all outline-none"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-900 dark:text-gray-200">
+                        PASSWORD
+                      </label>
+                      {!isSignUp && (
+                        <button 
                           type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-white focus:outline-none transition-colors"
+                          onClick={() => {
+                            setResetEmail(email);
+                            setIsForgotPassword(true);
+                          }}
+                          className="text-[11px] font-bold text-[#E14D2A] hover:underline cursor-pointer bg-transparent border-none outline-none"
                         >
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          Forgot Password?
                         </button>
-                      </div>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        placeholder=""
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-white dark:bg-gray-950 text-gray-950 dark:text-white border border-gray-200 dark:border-gray-800 focus:border-orange-500 dark:focus:border-orange-500 rounded-xl py-3.5 pl-12 pr-12 text-sm transition-all outline-none"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-white focus:outline-none transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
                     </div>
                   </div>
 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-gray-900 dark:bg-orange-600 hover:bg-orange-600 dark:hover:bg-orange-700 text-white py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl hover:shadow-orange-200 dark:shadow-none disabled:opacity-50 flex items-center justify-center space-x-2 group border-none"
+                    className="w-full bg-black dark:bg-white text-white dark:text-black py-3.5 rounded-xl font-bold text-sm transition-all hover:bg-gray-900 dark:hover:bg-gray-100 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border-none shadow-sm uppercase tracking-wider"
                   >
-                    <span>{loading ? "Processing..." : (isSignUp ? "Join Sokoplus" : "Sign In")}</span>
-                    {!loading && (isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />)}
+                    <span>{loading ? "PROCESSING..." : (isSignUp ? "CREATE ACCOUNT" : "SIGN IN")}</span>
+                    {!loading && (isSignUp ? <UserPlus size={15} /> : <LogIn size={15} className="stroke-[2.5]" />)}
                   </button>
                 </form>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-100 dark:border-gray-800"></div>
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase tracking-widest">
-                    <span className="bg-white dark:bg-gray-900 px-4 text-gray-400 dark:text-gray-500 font-bold">Or continue with</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleGoogleLogin}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center space-x-4 bg-white dark:bg-gray-950 border-2 border-gray-100 dark:border-gray-800 py-4 px-6 rounded-2xl font-black text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900 hover:border-gray-200 dark:hover:border-gray-700 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
-                >
-                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
-                  <span>Google Account</span>
-                </button>
-
-                <div className="text-center">
-                  <button 
-                    onClick={() => setIsSignUp(!isSignUp)}
-                    className="text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer bg-transparent border-none outline-none"
-                  >
-                    {isSignUp ? "Already have an account? Sign In" : "New to Sokoplus? Create an account"}
-                  </button>
-                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center leading-relaxed font-medium">
-          By continuing, you agree to Sokoplus's <br />
-          <span className="underline decoration-gray-250 dark:decoration-gray-800 hover:text-gray-900 dark:hover:text-white cursor-pointer transition-colors">Terms of Service</span> and <span className="underline decoration-gray-250 dark:decoration-gray-800 hover:text-gray-900 dark:hover:text-white cursor-pointer transition-colors">Privacy Policy</span>.
+        <p className="text-[11px] text-gray-500 dark:text-gray-450 text-center leading-relaxed mt-8">
+          By continuing, you agree to the updated{" "}
+          <Link to="/terms" className="underline font-semibold text-gray-700 dark:text-gray-350 hover:text-gray-950 dark:hover:text-white transition-colors">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link to="/privacy" className="underline font-semibold text-gray-700 dark:text-gray-350 hover:text-gray-950 dark:hover:text-white transition-colors">
+            Privacy Policy
+          </Link>
+          .
         </p>
       </div>
     </div>
