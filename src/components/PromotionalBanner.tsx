@@ -2,13 +2,19 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, ArrowRight, Gift, Percent, Tag, ShieldCheck } from "lucide-react";
 import { fetchMarketingBanners, MarketingBannerData as PromoBannerData } from "../utils/bannerCache";
+import { useSettings } from "../lib/SettingsContext";
 
 export default function PromotionalBanner() {
+  const { settings } = useSettings();
   const [promos, setPromos] = useState<PromoBannerData[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
+    if (!settings.promotionalBannersEnabled) {
+      setLoading(false);
+      return;
+    }
     let isMounted = true;
     const fetchPromos = async () => {
       try {
@@ -53,7 +59,7 @@ export default function PromotionalBanner() {
     return () => clearInterval(interval);
   }, [promos.length]);
 
-  if (loading || promos.length === 0) {
+  if (!settings.promotionalBannersEnabled || loading || promos.length === 0) {
     return null;
   }
 

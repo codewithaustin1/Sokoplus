@@ -1097,7 +1097,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                        </span>
                      ) : (
                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#32ba78]/10 text-[#32ba78] border-[#32ba78]/30 shadow-sm font-extrabold uppercase tracking-wide">
-                         In Stock
+                         {p.stock} In Stock
                        </span>
                      )}
                    </span>

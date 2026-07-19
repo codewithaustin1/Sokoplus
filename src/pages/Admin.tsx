@@ -621,6 +621,7 @@ export default function Admin({ user }: AdminProps) {
   const [googleMapsLinks, setGoogleMapsLinks] = useState<{ name: string; url: string }[]>([]);
   const [showAudioBubble, setShowAudioBubble] = useState<boolean>(true);
   const [showDailyDeals, setShowDailyDeals] = useState<boolean>(true);
+  const [promotionalBannersEnabled, setPromotionalBannersEnabled] = useState<boolean>(true);
   const [dailyDealsSpeed, setDailyDealsSpeed] = useState<number>(30);
   const [dailyDealsHours, setDailyDealsHours] = useState<number>(24);
   const [brandLogoUrl, setBrandLogoUrl] = useState<string>("");
@@ -876,6 +877,9 @@ export default function Admin({ user }: AdminProps) {
           }
           if (settingsData.showDailyDeals !== undefined) {
             setShowDailyDeals(settingsData.showDailyDeals);
+          }
+          if (settingsData.promotionalBannersEnabled !== undefined) {
+            setPromotionalBannersEnabled(settingsData.promotionalBannersEnabled);
           }
           if (settingsData.dailyDealsSpeed !== undefined) {
             setDailyDealsSpeed(settingsData.dailyDealsSpeed);
@@ -1314,6 +1318,7 @@ export default function Admin({ user }: AdminProps) {
         googleMapsLinks: googleMapsLinks,
         showAudioBubble: showAudioBubble,
         showDailyDeals: showDailyDeals,
+        promotionalBannersEnabled: promotionalBannersEnabled,
         dailyDealsSpeed: dailyDealsSpeed,
         dailyDealsHours: dailyDealsHours,
         brandLogoUrl: brandLogoUrl,
@@ -5542,6 +5547,34 @@ export default function Admin({ user }: AdminProps) {
                     <span
                       className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                         showAudioBubble ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Homepage Promotional Banners Toggle Configuration */}
+              <div className="p-6 bg-orange-50/20 dark:bg-orange-950/10 rounded-3xl border border-orange-100/50 dark:border-orange-900/30 space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-orange-850 dark:text-orange-400 flex items-center">
+                      <Megaphone size={16} className="mr-2 text-orange-600" /> Homepage Promotional Banners
+                    </h3>
+                    <p className="text-xs text-orange-705 dark:text-orange-300 leading-relaxed font-medium">
+                      Enable or disable seasonal top alerts and inline marketing promotional banners across the store.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPromotionalBannersEnabled(!promotionalBannersEnabled)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      promotionalBannersEnabled ? "bg-orange-650" : "bg-gray-200 dark:bg-gray-800"
+                    }`}
+                    id="promotional-banners-toggle"
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        promotionalBannersEnabled ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
                   </button>

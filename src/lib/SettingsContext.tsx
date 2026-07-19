@@ -6,6 +6,7 @@ export interface HomepageSettings {
   sellerStudioEnabled: boolean;
   showAudioBubble: boolean;
   showDailyDeals: boolean;
+  promotionalBannersEnabled: boolean;
   dailyDealsSpeed: number;
   dailyDealsHours: number;
   googleMapsLink: string;
@@ -29,6 +30,7 @@ const defaultSettings: HomepageSettings = {
   sellerStudioEnabled: true,
   showAudioBubble: true,
   showDailyDeals: true,
+  promotionalBannersEnabled: true,
   dailyDealsSpeed: 30,
   dailyDealsHours: 24,
   googleMapsLink: "",
@@ -81,6 +83,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           sellerStudioEnabled: data.sellerStudioEnabled !== undefined ? data.sellerStudioEnabled : true,
           showAudioBubble: data.showAudioBubble !== undefined ? data.showAudioBubble : true,
           showDailyDeals: data.showDailyDeals !== undefined ? data.showDailyDeals : true,
+          promotionalBannersEnabled: data.promotionalBannersEnabled !== undefined ? data.promotionalBannersEnabled : true,
           dailyDealsSpeed: data.dailyDealsSpeed !== undefined ? data.dailyDealsSpeed : 30,
           dailyDealsHours: data.dailyDealsHours !== undefined ? data.dailyDealsHours : 24,
           googleMapsLink: data.googleMapsLink || "",

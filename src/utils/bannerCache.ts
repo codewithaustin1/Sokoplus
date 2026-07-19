@@ -1,4 +1,4 @@
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocsFromServer, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 export interface MarketingBannerData {
@@ -34,7 +34,8 @@ export async function fetchMarketingBanners(): Promise<MarketingBannerData[]> {
         collection(db, "marketing_banners"),
         orderBy("createdAt", "desc")
       );
-      const snapshot = await getDocs(bannersQuery);
+      // Use getDocsFromServer to bypass the local persistent cache and ensure fresh data
+      const snapshot = await getDocsFromServer(bannersQuery);
       const fetchedBanners: MarketingBannerData[] = [];
       
       snapshot.forEach((docSnap) => {

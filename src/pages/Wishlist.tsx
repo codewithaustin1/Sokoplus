@@ -403,7 +403,7 @@ export default function Wishlist({ user }: WishlistProps) {
                     </span>
                   ) : (
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-700 shadow-sm border border-green-200/50">
-                      {t("In Stock")}
+                      {product.stock} {t("In Stock")}
                     </span>
                   )}
                 </span>

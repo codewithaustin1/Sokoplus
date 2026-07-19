@@ -270,7 +270,7 @@ export const ProductCompareDrawer: React.FC = () => {
                                 </span>
                               ) : (
                                 <span className="text-[9px] sm:text-[10px] font-extrabold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
-                                  In Stock
+                                  {product.stock} In Stock
                                 </span>
                               )}
                             </div>

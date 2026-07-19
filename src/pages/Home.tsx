@@ -1067,7 +1067,7 @@ export default function Home({ user }: HomeProps) {
                             </span>
                           ) : (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
-                              {t("In Stock")}
+                              {p.stock} {t("In Stock")}
                             </span>
                           )}
                         </div>
@@ -1604,7 +1604,7 @@ export default function Home({ user }: HomeProps) {
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
-                          In Stock
+                          {p.stock} In Stock
                         </span>
                       )}
                     </div>

@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronLeft, ChevronRight, X, Sparkles, Megaphone, Gift, Calendar } from "lucide-react";
 import { fetchMarketingBanners, MarketingBannerData } from "../utils/bannerCache";
+import { useSettings } from "../lib/SettingsContext";
 
 export default function MarketingBanner() {
+  const { settings } = useSettings();
   const [banners, setBanners] = useState<MarketingBannerData[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dismissedBannerIds, setDismissedBannerIds] = useState<string[]>([]);
@@ -23,6 +25,10 @@ export default function MarketingBanner() {
 
   // Fetch marketing banners from Firestore
   useEffect(() => {
+    if (!settings.promotionalBannersEnabled) {
+      setLoading(false);
+      return;
+    }
     let isMounted = true;
     const fetchBanners = async () => {
       try {
@@ -74,7 +80,7 @@ export default function MarketingBanner() {
     return () => clearInterval(interval);
   }, [activeAndVisibleBanners.length]);
 
-  if (loading || activeAndVisibleBanners.length === 0) {
+  if (!settings.promotionalBannersEnabled || loading || activeAndVisibleBanners.length === 0) {
     return null;
   }
 
