@@ -36,12 +36,13 @@ import Shipping from "./pages/Shipping";
 import Careers from "./pages/Careers";
 import { useEffect, useState, useRef } from "react";
 import { auth, db } from "./lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { useSettings } from "./lib/SettingsContext";
 import { UserProfile } from "./types";
-import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X } from "lucide-react";
+import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X, Key, LogOut, ShieldCheck } from "lucide-react";
+import { verifyTOTP } from "./utils/totp";
 import toast from "react-hot-toast";
 import SupportChat from "./components/SupportChat";
 import VerificationBanner from "./components/VerificationBanner";
@@ -174,6 +175,55 @@ export default function App() {
   const { settings } = useSettings();
   const showAudioBubble = settings.showAudioBubble;
   const lastScrollYRef = useRef(0);
+
+  const [is2FAVerified, setIs2FAVerified] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [is2FAVerifying, setIs2FAVerifying] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      if (user.twoFactorEnabled) {
+        const verified = sessionStorage.getItem("sokoplus_2fa_verified_" + user.uid) === "true";
+        setIs2FAVerified(verified);
+      } else {
+        setIs2FAVerified(true);
+      }
+    } else {
+      setIs2FAVerified(false);
+    }
+    setTwoFactorCode("");
+  }, [user]);
+
+  const handleVerifyGlobal2FA = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!user || !user.twoFactorSecret) return;
+    setIs2FAVerifying(true);
+    try {
+      const isValid = await verifyTOTP(user.twoFactorSecret, twoFactorCode);
+      if (isValid) {
+        sessionStorage.setItem("sokoplus_2fa_verified_" + user.uid, "true");
+        setIs2FAVerified(true);
+        toast.success("Security verification successful! Welcome back.");
+      } else {
+        toast.error("Invalid verification code. Please try again.");
+      }
+    } catch (err) {
+      console.error("2FA global verification failed:", err);
+      toast.error("Verification error occurred. Please try again.");
+    } finally {
+      setIs2FAVerifying(false);
+    }
+  };
+
+  const handleGlobalLogout = async () => {
+    try {
+      await signOut(auth);
+      toast.success("Logged out successfully.");
+    } catch (err) {
+      console.error("Logout failed:", err);
+      toast.error("Failed to sign out.");
+    }
+  };
 
   // Monitor inactive user sessions globally to securely log them out after a period of idle status
   useInactivityLogout(user);
@@ -354,6 +404,8 @@ export default function App() {
               isAdmin,
               emailVerified: fbUser.emailVerified,
               photoURL: data.photoURL || fbUser.photoURL || null,
+              twoFactorEnabled: data.twoFactorEnabled || false,
+              twoFactorSecret: data.twoFactorSecret || null,
               vouchers: (data.vouchers || []).filter((v: any) => {
                 if (!v.unlockedAt) return true;
                 const unlockedTime = new Date(v.unlockedAt).getTime();
@@ -421,6 +473,76 @@ export default function App() {
   }, []);
 
   if (loading) return <div className="h-screen flex items-center justify-center font-sans">Loading Soplus...</div>;
+
+  if (user && user.twoFactorEnabled && !is2FAVerified) {
+    return (
+      <ThemeProvider>
+        <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] dark:bg-gray-950 px-4 py-12 font-sans">
+          <div className="max-w-md w-full bg-white dark:bg-gray-900 p-8 md:p-10 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-850 relative overflow-hidden text-center space-y-6">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 dark:bg-orange-950/10 rounded-full -mr-16 -mt-16 opacity-50" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-50 dark:bg-orange-950/10 rounded-full -ml-12 -mb-12 opacity-50" />
+
+            <div className="flex justify-center">
+              <div className="w-16 h-16 bg-[#E14D2A] rounded-2xl flex items-center justify-center shadow-lg shadow-orange-600/10 animate-bounce">
+                <ShieldCheck className="text-white" size={32} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-2xl font-black text-gray-900 dark:text-white">Two-Factor Verification</h1>
+              <p className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">Secure Portal Access</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
+                This account is protected with Two-Factor Authentication (2FA). Please enter the 6-digit verification code from your authenticator app to proceed.
+              </p>
+            </div>
+
+            <form onSubmit={handleVerifyGlobal2FA} className="space-y-4">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
+                  <Key size={18} />
+                </div>
+                <input
+                  type="text"
+                  maxLength={6}
+                  required
+                  placeholder="000000"
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ""))}
+                  className="w-full pl-11 pr-4 py-4 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 focus:border-orange-500 rounded-2xl text-center text-lg font-black tracking-widest text-gray-850 dark:text-gray-100 placeholder-gray-300 animate-pulse"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleGlobalLogout}
+                  className="flex-1 px-5 py-3.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 font-black rounded-2xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <LogOut size={14} />
+                  <span>Logout</span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={twoFactorCode.length !== 6 || is2FAVerifying}
+                  className="flex-1 px-5 py-3.5 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 dark:disabled:bg-gray-800 text-white font-black rounded-2xl text-xs transition-all shadow-md shadow-orange-600/10 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  {is2FAVerifying ? (
+                    <span>Verifying...</span>
+                  ) : (
+                    <>
+                      <ShieldCheck size={14} />
+                      <span>Verify Code</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+          <Toaster position="bottom-right" />
+        </div>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

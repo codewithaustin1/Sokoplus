@@ -117,7 +117,9 @@ service cloud.firestore {
     // Users
     match /users/{userId} {
       function isValidProfile(data) {
-        return data.email == null || (data.email is string && data.email.size() > 0);
+        return (data.email == null || (data.email is string && data.email.size() > 0)) &&
+               (!('twoFactorEnabled' in data) || data.twoFactorEnabled is bool) &&
+               (!('twoFactorSecret' in data) || (data.twoFactorSecret is string && data.twoFactorSecret.size() <= 64));
       }
 
       allow read: if isOwner(userId) || isAdmin();

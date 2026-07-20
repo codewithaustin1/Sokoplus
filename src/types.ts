@@ -63,6 +63,8 @@ export interface UserProfile {
   emailVerified: boolean;
   photoURL?: string | null;
   vouchers?: Voucher[];
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string;
   createdAt?: string;
 }
 

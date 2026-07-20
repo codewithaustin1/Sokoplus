@@ -3,7 +3,7 @@ import { Navigate, Link } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order, Voucher } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload, Settings, Sun, Moon, Globe, Coins, Gift, Copy, Check } from "lucide-react";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload, Settings, Sun, Moon, Globe, Coins, Gift, Copy, Check, Shield, ShieldCheck, ShieldAlert, QrCode, Key } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
@@ -15,6 +15,7 @@ import { useCurrency } from "../lib/CurrencyContext";
 import toast from "react-hot-toast";
 import SellerStudio from "../components/SellerStudio";
 import { useSellerStudio } from "../lib/SellerStudioContext";
+import { generateSecret, verifyTOTP } from "../utils/totp";
 
 function getVoucherBgImage(voucherId: string, code: string): string {
   const id = (voucherId || "").toLowerCase();
@@ -161,6 +162,13 @@ export default function Profile({ user }: ProfileProps) {
   }, [sellerStudioEnabled, profileTab]);
   const { theme, setTheme } = useTheme();
   const { currency, setCurrency } = useCurrency();
+
+  const [isConfiguring2FA, setIsConfiguring2FA] = useState(false);
+  const [totpSecret, setTotpSecret] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [is2FAVerifying, setIs2FAVerifying] = useState(false);
+  const [showDisable2FAModal, setShowDisable2FAModal] = useState(false);
+  const [disable2FACode, setDisable2FACode] = useState("");
   
   const [showClearModal, setShowClearModal] = useState(false);
   const [selectedClearLimit, setSelectedClearLimit] = useState<number | "all" | null>(null);
@@ -278,6 +286,66 @@ export default function Profile({ user }: ProfileProps) {
     const file = e.target.files?.[0];
     if (file) {
       await uploadProfileImage(file);
+    }
+  };
+
+  const handleStart2FASetup = () => {
+    const secret = generateSecret();
+    setTotpSecret(secret);
+    setTotpCode("");
+    setIsConfiguring2FA(true);
+  };
+
+  const handleVerifyAndEnable2FA = async () => {
+    if (!user?.uid || !user?.email) return;
+    setIs2FAVerifying(true);
+    try {
+      const isValid = await verifyTOTP(totpSecret, totpCode);
+      if (!isValid) {
+        toast.error(language === "sw" ? "Msimbo si sahihi au umeisha muda wake. Tafadhali jaribu tena." : "Invalid or expired verification code. Please try again.");
+        setIs2FAVerifying(false);
+        return;
+      }
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        twoFactorEnabled: true,
+        twoFactorSecret: totpSecret,
+      });
+      toast.success(language === "sw" ? "Ulinzi wa 2FA umewezeshwa kikamilifu!" : "Two-Factor Authentication fully enabled successfully!");
+      setIsConfiguring2FA(false);
+      setTotpSecret("");
+      setTotpCode("");
+    } catch (error) {
+      console.error("Failed to enable 2FA:", error);
+      toast.error(language === "sw" ? "Hitilafu imetokea wakati wa kuwezesha 2FA." : "An error occurred while enabling 2FA.");
+    } finally {
+      setIs2FAVerifying(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!user?.uid || !user?.twoFactorSecret) return;
+    setIs2FAVerifying(true);
+    try {
+      const isValid = await verifyTOTP(user.twoFactorSecret, disable2FACode);
+      if (!isValid) {
+        toast.error(language === "sw" ? "Msimbo si sahihi au umeisha muda wake. Tafadhali jaribu tena." : "Invalid or expired verification code. Please try again.");
+        setIs2FAVerifying(false);
+        return;
+      }
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+      });
+      toast.success(language === "sw" ? "Ulinzi wa 2FA umezimwa kikamilifu." : "Two-Factor Authentication successfully disabled.");
+      setShowDisable2FAModal(false);
+      setDisable2FACode("");
+    } catch (error) {
+      console.error("Failed to disable 2FA:", error);
+      toast.error(language === "sw" ? "Hitilafu imetokea wakati wa kuzima 2FA." : "An error occurred while disabling 2FA.");
+    } finally {
+      setIs2FAVerifying(false);
     }
   };
 
@@ -1123,6 +1191,59 @@ export default function Profile({ user }: ProfileProps) {
                 </button>
               </div>
             </div>
+
+            {/* Two-Factor Authentication (2FA) Card */}
+            <div className="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 p-6 rounded-2xl flex flex-col justify-between space-y-4 md:col-span-2 lg:col-span-1">
+              <div className="space-y-1">
+                <div className={`w-10 h-10 ${user?.twoFactorEnabled ? "bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400" : "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400"} rounded-xl flex items-center justify-center font-bold`}>
+                  {user?.twoFactorEnabled ? <ShieldCheck size={20} /> : <ShieldAlert size={20} />}
+                </div>
+                <div className="flex items-center gap-2 pt-2">
+                  <h3 className="text-base font-black text-gray-900 dark:text-gray-100">
+                    {language === "sw" ? "Uthibitishaji wa 2FA" : "Two-Factor Auth (2FA)"}
+                  </h3>
+                  {user?.twoFactorEnabled ? (
+                    <span className="text-[10px] uppercase font-black tracking-wider bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">
+                      {language === "sw" ? "Imewezeshwa" : "Enabled"}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] uppercase font-black tracking-wider bg-gray-200 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full">
+                      {language === "sw" ? "Imezimwa" : "Disabled"}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 font-medium leading-relaxed">
+                  {language === "sw" 
+                    ? "Ongeza ulinzi wa ziada kwenye akaunti yako kwa kuhitaji nambari maalum ya usalama kutoka kwenye simu yako wakati wa kuingia." 
+                    : "Add an extra layer of security to your account by requiring a temporary verification code from your Authenticator app during sign-in."}
+                </p>
+              </div>
+
+              <div>
+                {user?.twoFactorEnabled ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDisable2FACode("");
+                      setShowDisable2FAModal(true);
+                    }}
+                    className="w-full px-4 py-3 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border border-red-100/50 dark:border-red-900/30 text-red-700 dark:text-red-400 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Shield size={14} />
+                    <span>{language === "sw" ? "Zima Ulinzi wa 2FA" : "Disable Two-Factor Auth"}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleStart2FASetup}
+                    className="w-full px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md shadow-orange-600/10 flex items-center justify-center gap-1.5"
+                  >
+                    <ShieldCheck size={14} />
+                    <span>{language === "sw" ? "Washa Ulinzi wa 2FA" : "Enable Two-Factor Auth"}</span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1319,6 +1440,232 @@ export default function Profile({ user }: ProfileProps) {
                   </div>
                 </>
               )}
+            </motion.div>
+          </>
+        )}
+
+        {/* 2FA Setup Modal */}
+        {isConfiguring2FA && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setIsConfiguring2FA(false);
+                setTotpSecret("");
+                setTotpCode("");
+              }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 p-6 rounded-3xl shadow-xl z-[101] space-y-6 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
+                <div className="w-12 h-12 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-2xl flex items-center justify-center shrink-0 border border-orange-100 dark:border-orange-900/30">
+                  <QrCode size={24} />
+                </div>
+                <div className="space-y-1 flex-1">
+                  <h3 className="text-xl font-black text-gray-900 dark:text-gray-100 leading-tight">
+                    {language === "sw" ? "Sanidi Ulinzi wa 2FA" : "Configure Two-Factor Auth"}
+                  </h3>
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
+                    {language === "sw" ? "Hatua ya 2 ya Ulinzi" : "Step 2 Account Protection"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                <p className="leading-relaxed">
+                  {language === "sw" 
+                    ? "1. Skena msimbo huu wa QR ukitumia programu yako ya uthibitishaji (kama Google Authenticator, Microsoft Authenticator, au Authy)." 
+                    : "1. Scan this QR code with your authenticator app (such as Google Authenticator, Microsoft Authenticator, or Authy)."}
+                </p>
+
+                {/* QR Code Container */}
+                <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950 p-4 rounded-2xl border border-gray-100 dark:border-gray-800/50">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+                      `otpauth://totp/SokoPlus:${user?.email || "user"}?secret=${totpSecret}&issuer=SokoPlus`
+                    )}`}
+                    alt="2FA QR Code"
+                    referrerPolicy="no-referrer"
+                    className="w-40 h-40 object-contain rounded-lg border border-gray-150 dark:border-gray-850 bg-white"
+                  />
+                  <span className="text-[10px] text-gray-400 mt-2 font-mono">SokoPlus ({user?.email})</span>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="leading-relaxed">
+                    {language === "sw" 
+                      ? "Ikiwa huwezi kuskena, unaweza kuweka siri hii ya usalama kwa mkono kwenye programu yako ya uthibitishaji:" 
+                      : "If you cannot scan the QR code, you can manually enter this secret key into your authenticator app:"}
+                  </p>
+                  <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-4 py-3 rounded-xl font-mono text-xs select-all text-gray-800 dark:text-gray-200 justify-between">
+                    <span>{totpSecret}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(totpSecret);
+                        toast.success(language === "sw" ? "Msimbo ulinakiliwa!" : "Secret key copied!");
+                      }}
+                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-750 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <p className="leading-relaxed">
+                    {language === "sw" 
+                      ? "2. Baada ya kuongeza akaunti, weka msimbo wa nambari 6 unaoonyeshwa kwenye programu yako ili kuhakiki na kuwezesha:" 
+                      : "2. After adding the account, enter the temporary 6-digit verification code shown in your app to verify and activate:"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                        <Key size={14} />
+                      </div>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        placeholder="000000"
+                        value={totpCode}
+                        onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+                        className="w-full pl-9 pr-4 py-3 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 focus:border-orange-500 rounded-xl text-center text-sm font-black tracking-widest text-gray-800 dark:text-gray-100"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsConfiguring2FA(false);
+                    setTotpSecret("");
+                    setTotpCode("");
+                  }}
+                  className="px-5 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 font-black rounded-2xl text-xs cursor-pointer border-none transition-colors"
+                >
+                  {language === "sw" ? "Ghairi" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  disabled={totpCode.length !== 6 || is2FAVerifying}
+                  onClick={handleVerifyAndEnable2FA}
+                  className="px-5 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 dark:disabled:bg-gray-800 text-white font-black rounded-2xl text-xs cursor-pointer border-none transition-all shadow-md shadow-orange-600/10 flex items-center gap-1.5"
+                >
+                  {is2FAVerifying ? (
+                    <span>{language === "sw" ? "Inahakiki..." : "Verifying..."}</span>
+                  ) : (
+                    <>
+                      <ShieldCheck size={14} />
+                      <span>{language === "sw" ? "Hakiki & Wezesha" : "Verify & Enable"}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+
+        {/* 2FA Disable Modal */}
+        {showDisable2FAModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowDisable2FAModal(false);
+                setDisable2FACode("");
+              }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 p-6 rounded-3xl shadow-xl z-[101] space-y-6"
+            >
+              <div className="flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
+                <div className="w-12 h-12 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center shrink-0 border border-red-100 dark:border-red-900/30">
+                  <ShieldAlert size={24} />
+                </div>
+                <div className="space-y-1 flex-1">
+                  <h3 className="text-xl font-black text-gray-900 dark:text-gray-100 leading-tight">
+                    {language === "sw" ? "Zima Ulinzi wa 2FA" : "Disable Two-Factor Auth"}
+                  </h3>
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
+                    {language === "sw" ? "Thibitisha Kitendo Hiki" : "Confirm Secure Action"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-red-50/30 dark:bg-red-950/10 border border-red-100/50 dark:border-red-900/20 p-4 rounded-2xl">
+                  <p className="text-xs text-gray-700 dark:text-gray-300 font-bold leading-relaxed">
+                    {language === "sw"
+                      ? "Je, una uhakika unataka kuzima ulinzi wa mambo mawili? Kiwango cha usalama wa akaunti yako kitapungua sana, kikirudi tu kwenye nenosiri lako la kawaida."
+                      : "Are you absolutely sure you want to disable two-factor authentication? The security level of your account will be reduced back to password-only access."}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 leading-relaxed">
+                    {language === "sw" 
+                      ? "Ili kuendelea, weka msimbo wa sasa wa nambari 6 kutoka kwenye programu yako ya uthibitishaji:" 
+                      : "To proceed, enter the current 6-digit verification code from your authenticator app:"}
+                  </p>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                      <Key size={14} />
+                    </div>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={disable2FACode}
+                      onChange={(e) => setDisable2FACode(e.target.value.replace(/\D/g, ""))}
+                      className="w-full pl-9 pr-4 py-3 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 focus:border-orange-500 rounded-xl text-center text-sm font-black tracking-widest text-gray-800 dark:text-gray-100"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDisable2FAModal(false);
+                    setDisable2FACode("");
+                  }}
+                  className="px-5 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 font-black rounded-2xl text-xs cursor-pointer border-none transition-colors"
+                >
+                  {language === "sw" ? "Ghairi" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  disabled={disable2FACode.length !== 6 || is2FAVerifying}
+                  onClick={handleDisable2FA}
+                  className="px-5 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 dark:disabled:bg-gray-800 text-white font-black rounded-2xl text-xs cursor-pointer border-none transition-all shadow-md shadow-red-600/10 flex items-center gap-1.5"
+                >
+                  {is2FAVerifying ? (
+                    <span>{language === "sw" ? "Inapunguza..." : "Disabling..."}</span>
+                  ) : (
+                    <>
+                      <Shield size={14} />
+                      <span>{language === "sw" ? "Thibitisha & Zima" : "Confirm & Disable"}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </motion.div>
           </>
         )}

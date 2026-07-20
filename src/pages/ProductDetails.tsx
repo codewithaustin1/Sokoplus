@@ -1093,7 +1093,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                        </span>
                      ) : p.stock <= 5 ? (
                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-450 border border-amber-200/20 dark:border-amber-900/30 shadow-sm">
-                         Low Stock
+                         Low Stock ({p.stock})
                        </span>
                      ) : (
                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#32ba78]/10 text-[#32ba78] border-[#32ba78]/30 shadow-sm font-extrabold uppercase tracking-wide">

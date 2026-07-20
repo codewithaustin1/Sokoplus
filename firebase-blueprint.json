@@ -56,6 +56,8 @@
         "wishlist": { "type": "array" },
         "theme": { "type": "string", "enum": ["light", "dark"] },
         "photoURL": { "type": "string", "description": "Base64 encoded or URL path to user profile and avatar image" },
+        "twoFactorEnabled": { "type": "boolean", "description": "Whether multi-factor TOTP authentication is enabled" },
+        "twoFactorSecret": { "type": "string", "description": "The Base32 secret key used to generate/verify TOTP codes" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["email"]
