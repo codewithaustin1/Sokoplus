@@ -802,23 +802,7 @@ export default function Navbar({ user }: NavbarProps) {
             </div>
           </div>
 
-          <div className="flex items-center h-full">
-            {/* Special highlight RED New Releases link */}
-            <div 
-              onClick={() => {
-                navigate("/?sortBy=newest");
-                if (location.pathname === "/") {
-                  setTimeout(() => {
-                    document.getElementById("products-section")?.scrollIntoView({ behavior: "smooth" });
-                  }, 100);
-                }
-              }}
-              className="bg-[#e51a1a] hover:bg-red-700 text-white font-black px-6 h-full flex items-center transition-all cursor-pointer shadow-inner select-none gap-1.5"
-            >
-              <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping shrink-0" />
-              NEW RELEASES
-            </div>
-          </div>
+
         </div>
       </div>
 

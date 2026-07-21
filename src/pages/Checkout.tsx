@@ -64,7 +64,7 @@ export default function Checkout({ user }: CheckoutProps) {
   const [redirecting, setRedirecting] = useState(false);
   const [redirectStage, setRedirectStage] = useState("Securing Connection");
   const [redirectDescription, setRedirectDescription] = useState("We are connecting you securely to Paystack to finalize your payment options.");
-  const [paymentMethod, setPaymentMethod] = useState<"mpesa" | "card">("mpesa");
+  const [paymentMethod, setPaymentMethod] = useState<"mpesa" | "card" | "cod">("mpesa");
   const [showMobilSummaryDrawer, setShowMobilSummaryDrawer] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   
@@ -347,14 +347,18 @@ export default function Checkout({ user }: CheckoutProps) {
       setRedirectDescription("Drafting Paystack billing configuration securely for instant payment validation...");
 
       // 2. Initialize Paystack
+      const payAmount = paymentMethod === "cod" ? Math.round(overallTotal * 0.1) : overallTotal;
       const response = await axios.post("/api/paystack/initialize", {
         email: address.email,
-        amount: overallTotal,
+        amount: payAmount,
         callback_url: window.location.origin + "/payment-success",
         metadata: {
           userId: user.uid,
           items: items.map(i => ({ id: i.productId, qty: i.quantity, customs: i.customizations })),
-          preferredPaymentMethod: paymentMethod
+          preferredPaymentMethod: paymentMethod,
+          isDepositOnly: paymentMethod === "cod",
+          depositAmount: paymentMethod === "cod" ? Math.round(overallTotal * 0.1) : 0,
+          fullAmount: overallTotal
         }
       });
 
@@ -420,6 +424,7 @@ export default function Checkout({ user }: CheckoutProps) {
         items,
         sellerIds: sellerIdsList,
         totalAmount: overallTotal,
+        depositAmount: paymentMethod === "cod" ? Math.round(overallTotal * 0.1) : 0,
         discountAmount: appliedDiscount,
         appliedVoucherCode: appliedVoucher ? appliedVoucher.code : null,
         status: "pending",
@@ -984,63 +989,144 @@ export default function Checkout({ user }: CheckoutProps) {
               </div>
               <div className="space-y-1">
                 <h3 className="text-lg font-black tracking-tight text-gray-955 dark:text-white">4. Preferred Payment Method</h3>
-                <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider">
-                  Both channels processed automatically & securely through Paystack
+                <p className="text-xs text-gray-400 dark:text-gray-550 font-semibold uppercase tracking-wider">
+                  BOTH CHANNELS PROCESSED AUTOMATICALLY & SECURELY THROUGH PAYSTACK
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
               
-              {/* Option Cards: Mpesa */}
+              {/* Option Card: Mpesa */}
               <div 
                 onClick={() => setPaymentMethod("mpesa")}
-                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative flex flex-col justify-between h-32 ${
+                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative flex flex-col justify-between h-36 ${
                   paymentMethod === "mpesa" 
-                    ? "border-orange-600 bg-orange-50/15 dark:bg-orange-950/10 ring-2 ring-orange-100 dark:ring-orange-900/30" 
-                    : "border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 bg-white dark:bg-gray-900"
+                    ? "border-orange-500 bg-orange-50/10 dark:bg-orange-950/5 ring-2 ring-orange-100 dark:ring-orange-900/20 shadow-lg shadow-orange-100/40 dark:shadow-none" 
+                    : "border-gray-150 dark:border-gray-855 hover:border-gray-300 dark:hover:border-gray-750 bg-white dark:bg-gray-900"
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-black text-sm tracking-tight text-gray-900 dark:text-white uppercase">M-PESA / Mobile Money</span>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    paymentMethod === "mpesa" ? "border-orange-600 bg-orange-600" : "border-gray-300 dark:border-gray-700"
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-extrabold text-xs tracking-tight text-gray-950 dark:text-white uppercase leading-snug">M-Pesa / Mobile Money</span>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    paymentMethod === "mpesa" ? "border-orange-500 bg-orange-500" : "border-gray-300 dark:border-gray-700"
                   }`}>
-                    {paymentMethod === "mpesa" && <Check className="text-white" size={12} />}
+                    {paymentMethod === "mpesa" && <Check className="text-white stroke-[3.5]" size={11} />}
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-[11px] text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider">Supported Telcos</p>
-                  <p className="text-xs text-gray-800 dark:text-gray-200 font-extrabold flex items-center gap-1.5">
-                    <Smartphone size={14} className="text-orange-600" />
-                    <span>Safaricom M-Pesa instant checkout STK Push</span>
-                  </p>
+                
+                <div className="space-y-1 mt-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[9px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-widest leading-none">Supported Telcos</p>
+                    <div className="flex items-center gap-1">
+                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-600 border border-white dark:border-gray-800 flex items-center justify-center text-[7px] text-white font-black scale-90">S</span>
+                      <span className="w-3.5 h-3.5 rounded-full bg-red-600 border border-white dark:border-gray-800 flex items-center justify-center text-[7px] text-white font-black scale-90">A</span>
+                      <span className="w-3.5 h-3.5 rounded-full bg-sky-500 border border-white dark:border-gray-800 flex items-center justify-center text-[7px] text-white font-black scale-90">T</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 pt-1">
+                    <div className="p-2 bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 rounded-xl shrink-0">
+                      <Smartphone size={14} />
+                    </div>
+                    <p className="text-[10px] text-gray-600 dark:text-gray-450 font-bold leading-tight">
+                      Safaricom M-Pesa instant checkout STK Push
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {/* Option Cards: Card */}
+              {/* Option Card: Card */}
               <div 
                 onClick={() => setPaymentMethod("card")}
-                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative flex flex-col justify-between h-32 ${
+                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative flex flex-col justify-between h-36 ${
                   paymentMethod === "card" 
-                    ? "border-orange-600 bg-orange-50/15 dark:bg-orange-950/10 ring-2 ring-orange-100 dark:ring-orange-900/30" 
-                    : "border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 bg-white dark:bg-gray-900"
+                    ? "border-orange-500 bg-orange-50/10 dark:bg-orange-950/5 ring-2 ring-orange-100 dark:ring-orange-900/20 shadow-lg shadow-orange-100/40 dark:shadow-none" 
+                    : "border-gray-150 dark:border-gray-855 hover:border-gray-300 dark:hover:border-gray-750 bg-white dark:bg-gray-900"
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-black text-sm tracking-tight text-gray-900 dark:text-white uppercase">Credit / Debit Cards</span>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    paymentMethod === "card" ? "border-orange-600 bg-orange-600" : "border-gray-300 dark:border-gray-700"
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-extrabold text-xs tracking-tight text-gray-955 dark:text-white uppercase leading-snug">Credit / Debit Cards</span>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    paymentMethod === "card" ? "border-orange-500 bg-orange-500" : "border-gray-300 dark:border-gray-700"
                   }`}>
-                    {paymentMethod === "card" && <Check className="text-white" size={12} />}
+                    {paymentMethod === "card" && <Check className="text-white stroke-[3.5]" size={11} />}
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-[11px] text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider">Accepted Cards</p>
-                  <p className="text-xs text-gray-800 dark:text-gray-200 font-extrabold flex items-center gap-1.5">
-                    <CreditCard size={14} className="text-orange-600" />
-                    <span>Visa, Mastercard, & American Express secure transaction</span>
-                  </p>
+
+                <div className="space-y-1.5 mt-1.5">
+                  <p className="text-[9px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-widest leading-none">Accepted Cards</p>
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    {/* Visa badge */}
+                    <div className="w-9 h-5.5 bg-white border border-gray-150 rounded px-1 flex items-center justify-center select-none shadow-sm shrink-0">
+                      <span className="font-sans font-black italic text-[#1A1F71] text-[8px] tracking-tighter">VISA</span>
+                    </div>
+                    {/* Mastercard badge */}
+                    <div className="w-9 h-5.5 bg-[#141414] rounded px-1 flex items-center justify-center gap-[0.5px] select-none shadow-sm shrink-0">
+                      <div className="relative flex items-center">
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#EB001B] opacity-95"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#F79E1B] opacity-95 -ml-1 mix-blend-screen"></div>
+                      </div>
+                    </div>
+                    {/* AMEX badge */}
+                    <div className="w-9 h-5.5 bg-[#007BC1] rounded flex flex-col items-center justify-center select-none shadow-sm shrink-0 leading-none">
+                      <span className="font-sans font-black text-white text-[3.5px] uppercase tracking-tighter">Amex</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Option Card: Cash on Delivery (COD) */}
+              <div 
+                onClick={() => setPaymentMethod("cod")}
+                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative flex flex-col justify-between h-36 ${
+                  paymentMethod === "cod" 
+                    ? "border-orange-500 bg-orange-50/10 dark:bg-orange-950/5 ring-2 ring-orange-100 dark:ring-orange-900/20 shadow-lg shadow-orange-100/40 dark:shadow-none" 
+                    : "border-gray-150 dark:border-gray-855 hover:border-gray-300 dark:hover:border-gray-750 bg-white dark:bg-gray-900"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-extrabold text-xs tracking-tight text-gray-955 dark:text-white uppercase leading-snug">Cash on Delivery</span>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                    paymentMethod === "cod" ? "border-orange-500 bg-orange-500" : "border-gray-300 dark:border-gray-700"
+                  }`}>
+                    {paymentMethod === "cod" && <Check className="text-white stroke-[3.5]" size={11} />}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 mt-1.5">
+                  <div className="w-11 h-11 shrink-0 bg-orange-50/60 dark:bg-orange-950/20 rounded-full flex items-center justify-center overflow-hidden">
+                    <svg viewBox="0 0 64 64" className="w-10 h-10">
+                      {/* Courier cap */}
+                      <path d="M22 24c0-3 4-5 10-5s10 2 10 5v2H22v-2z" fill="#EB4E36" />
+                      <path d="M38 21h6v2h-6z" fill="#EB4E36" />
+                      {/* Courier Face */}
+                      <circle cx="32" cy="32" r="8" fill="#FDD2B5" />
+                      <path d="M29 32a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM35 32a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" fill="#333" />
+                      <path d="M30 35c1 1.5 3 1.5 4 0" stroke="#333" strokeWidth="1.2" strokeLinecap="round" fill="none" />
+                      {/* Shirt / Neck */}
+                      <path d="M28 40h8v4h-8z" fill="#FDD2B5" />
+                      <path d="M20 44c0-4 4-6 12-6s12 2 12 6v12H20V44z" fill="#EB4E36" />
+                      <path d="M28 44l4 4 4-4" fill="none" stroke="#fff" strokeWidth="1.2" />
+                      {/* Cash in hand */}
+                      <g transform="translate(6, 38)">
+                        <rect x="0" y="0" width="12" height="7" rx="1" fill="#32ba78" />
+                        <circle cx="6" cy="3.5" r="1.5" fill="#fff" opacity="0.5" />
+                      </g>
+                      {/* Parcel box in hand */}
+                      <g transform="translate(42, 38)">
+                        <rect x="0" y="0" width="14" height="12" rx="1.5" fill="#C68F65" />
+                        <line x1="0" y1="6" x2="14" y2="6" stroke="#99603D" strokeWidth="1" />
+                        <line x1="7" y1="0" x2="7" y2="12" stroke="#99603D" strokeWidth="1" />
+                      </g>
+                    </svg>
+                  </div>
+                  <div className="space-y-0.5 min-w-0">
+                    <p className="text-[8px] text-gray-400 dark:text-gray-550 font-black uppercase tracking-widest leading-none">Requires 10% deposit</p>
+                    <p className="text-[10px] text-gray-650 dark:text-gray-450 font-bold leading-tight">
+                      Requires 10% deposit of total cart value (KES {Math.round(overallTotal * 0.1).toLocaleString()})
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -1158,7 +1244,7 @@ export default function Checkout({ user }: CheckoutProps) {
               onClick={handleCheckout}
               disabled={loading || items.length === 0}
               type="button"
-              className="w-full bg-gray-900 dark:bg-orange-600 text-white py-5 rounded-3xl font-black text-md hover:bg-orange-600 dark:hover:bg-orange-700 focus:bg-orange-605 focus:bg-orange-600 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer group shadow-lg shadow-gray-100 dark:shadow-none"
+              className="w-full bg-gray-900 dark:bg-orange-600 text-white py-5 rounded-3xl font-black text-md hover:bg-orange-600 dark:hover:bg-orange-700 focus:bg-orange-650 focus:bg-orange-600 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer group shadow-lg shadow-gray-100 dark:shadow-none"
             >
               {loading ? (
                 <>
@@ -1167,7 +1253,10 @@ export default function Checkout({ user }: CheckoutProps) {
                 </>
               ) : (
                 <>
-                  Secure Payment with Paystack
+                  {paymentMethod === "cod" 
+                    ? `Pay 10% Deposit (KES ${Math.round(overallTotal * 0.1).toLocaleString()})`
+                    : "Secure Payment with Paystack"
+                  }
                   <ArrowRight className="ml-2.5 group-hover:translate-x-1 transition-transform" size={16} />
                 </>
               )}
@@ -1256,7 +1345,12 @@ export default function Checkout({ user }: CheckoutProps) {
             <Loader2 className="animate-spin" size={16} />
           ) : (
             <span className="flex items-center gap-1.5 uppercase tracking-wide text-xs">
-              <span>Checkout</span>
+              <span>
+                {paymentMethod === "cod" 
+                  ? `Pay Deposit (KES ${Math.round(overallTotal * 0.1).toLocaleString()})`
+                  : "Checkout"
+                }
+              </span>
               <ArrowRight size={14} />
             </span>
           )}
