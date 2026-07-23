@@ -702,34 +702,7 @@ export default function Navbar({ user }: NavbarProps) {
               </Link>
             </div>
 
-            {/* Mobile Actions block */}
-            <div className="flex md:hidden items-center gap-3">
-              <Link
-                to="/profile"
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-900 border border-gray-850 overflow-hidden cursor-pointer"
-                title={user ? "View Profile" : "Sign In"}
-              >
-                {user ? (
-                  user.photoURL ? (
-                    <img src={user.photoURL} alt={user.displayName || "User"} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-amber-500 text-black text-xs font-extrabold">
-                      {user.displayName?.[0] || "U"}
-                    </div>
-                  )
-                ) : (
-                  <User size={16} className="text-gray-300" />
-                )}
-              </Link>
-              <Link to="/cart" className="relative p-1">
-                <ShoppingCart size={20} className="text-gray-300" />
-                {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-amber-400 text-black text-[8px] font-black px-1 rounded-full min-w-[14px] text-center">
-                    {itemCount}
-                  </span>
-                )}
-              </Link>
-            </div>
+
           </div>
         </div>
       </div>
