@@ -60,6 +60,9 @@ interface CheckoutProps {
 export default function Checkout({ user }: CheckoutProps) {
   const { sellerStudioEnabled } = useSellerStudio();
   const { items, total, addToCart, removeFromCart } = useCart();
+  const [disabledCountries, setDisabledCountries] = useState<string[]>([]);
+  const [disabledCounties, setDisabledCounties] = useState<string[]>([]);
+  const [disabledCities, setDisabledCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [redirectStage, setRedirectStage] = useState("Securing Connection");
@@ -67,6 +70,13 @@ export default function Checkout({ user }: CheckoutProps) {
   const [paymentMethod, setPaymentMethod] = useState<"mpesa" | "card" | "cod">("mpesa");
   const [showMobilSummaryDrawer, setShowMobilSummaryDrawer] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
+  
+  // Interactive credit card mockup states
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [cardFocused, setCardFocused] = useState(false);
   
   const [address, setAddress] = useState(() => {
     const savedCountry = localStorage.getItem("sokoplus_delivery_country") || "Kenya";
@@ -122,19 +132,108 @@ export default function Checkout({ user }: CheckoutProps) {
     }
   }, [items, navigate, redirecting]);
 
+  useEffect(() => {
+    const fetchDeliverySettings = async () => {
+      try {
+        const docRef = doc(db, "settings", "homepage");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const disabledCountriesList = data.disabledCountries || [];
+          const disabledCountiesList = data.disabledCounties || [];
+          const disabledCitiesList = data.disabledCities || [];
+
+          setDisabledCountries(disabledCountriesList);
+          setDisabledCounties(disabledCountiesList);
+          setDisabledCities(disabledCitiesList);
+
+          // Address validation and adjustment
+          setAddress(prev => {
+            let nextCountry = prev.country;
+            let nextCounty = prev.county;
+            let nextCity = prev.city;
+            let changed = false;
+
+            // 1. If country is disabled
+            if (disabledCountriesList.includes(nextCountry)) {
+              // Pick first country that is not disabled
+              const enabledCountry = Object.keys(COUNTRY_FLAGS).find(c => !disabledCountriesList.includes(c));
+              if (enabledCountry) {
+                nextCountry = enabledCountry;
+                changed = true;
+              }
+            }
+
+            // 2. Adjust county if Kenya is selected
+            if (nextCountry === "Kenya") {
+              if (!nextCounty || disabledCountiesList.includes(nextCounty)) {
+                const firstEnabledCountyObj = counties.find(c => !disabledCountiesList.includes(c.name));
+                if (firstEnabledCountyObj) {
+                  nextCounty = firstEnabledCountyObj.name;
+                  changed = true;
+                }
+              }
+
+              // 3. Adjust city for Kenya county
+              const matchedCountyObj = counties.find(c => c.name === nextCounty);
+              if (matchedCountyObj) {
+                const firstEnabledCity = matchedCountyObj.cities.find(c => !disabledCitiesList.includes(c));
+                if (!nextCity || disabledCitiesList.includes(nextCity) || !matchedCountyObj.cities.includes(nextCity)) {
+                  if (firstEnabledCity) {
+                    nextCity = firstEnabledCity;
+                    changed = true;
+                  }
+                }
+              }
+            } else {
+              // 4. Adjust city for non-Kenya countries
+              const countryCities = CITIES_BY_COUNTRY[nextCountry] || [];
+              const firstEnabledCountryCity = countryCities.find(c => !disabledCitiesList.includes(c));
+              if (!nextCity || disabledCitiesList.includes(nextCity) || !countryCities.includes(nextCity)) {
+                if (firstEnabledCountryCity) {
+                  nextCity = firstEnabledCountryCity;
+                  changed = true;
+                }
+              }
+            }
+
+            if (changed) {
+              localStorage.setItem("sokoplus_delivery_country", nextCountry);
+              localStorage.setItem("sokoplus_delivery_county", nextCounty);
+              localStorage.setItem("sokoplus_delivery_city", nextCity);
+              return {
+                ...prev,
+                country: nextCountry,
+                county: nextCountry === "Kenya" ? nextCounty : "",
+                city: nextCity
+              };
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching delivery settings in checkout:", err);
+      }
+    };
+    fetchDeliverySettings();
+  }, []);
+
   const handleCountryChange = (countryName: string) => {
     if (countryName === "Kenya") {
+      const firstEnabledCountyObj = counties.find(c => !disabledCounties.includes(c.name)) || counties[0];
+      const firstEnabledCity = firstEnabledCountyObj.cities.find(c => !disabledCities.includes(c)) || firstEnabledCountyObj.cities[0];
       setAddress({
         ...address,
         country: "Kenya",
-        county: "Nairobi City County",
-        city: "Nairobi CBD"
+        county: firstEnabledCountyObj.name,
+        city: firstEnabledCity
       });
       localStorage.setItem("sokoplus_delivery_country", "Kenya");
-      localStorage.setItem("sokoplus_delivery_county", "Nairobi City County");
-      localStorage.setItem("sokoplus_delivery_city", "Nairobi CBD");
+      localStorage.setItem("sokoplus_delivery_county", firstEnabledCountyObj.name);
+      localStorage.setItem("sokoplus_delivery_city", firstEnabledCity);
     } else {
-      const defaultCity = CITIES_BY_COUNTRY[countryName]?.[0] || "";
+      const countryCities = CITIES_BY_COUNTRY[countryName] || [];
+      const defaultCity = countryCities.find(c => !disabledCities.includes(c)) || countryCities[0] || "";
       setAddress({
         ...address,
         country: countryName,
@@ -149,7 +248,8 @@ export default function Checkout({ user }: CheckoutProps) {
 
   const handleCountyChange = (countyName: string) => {
     const selectedCounty = counties.find(c => c.name === countyName);
-    const defaultCity = selectedCounty && selectedCounty.cities.length > 0 ? selectedCounty.cities[0] : "";
+    const countyCities = selectedCounty ? selectedCounty.cities : [];
+    const defaultCity = countyCities.find(c => !disabledCities.includes(c)) || countyCities[0] || "";
     setAddress({
       ...address,
       county: countyName,
@@ -160,7 +260,9 @@ export default function Checkout({ user }: CheckoutProps) {
   };
 
   const selectedCountyData = counties.find(c => c.name === address.county) || counties.find(c => c.name === "Nairobi City County") || counties[0];
-  const currentCities = selectedCountyData ? selectedCountyData.cities : [];
+  const currentCities = selectedCountyData 
+    ? selectedCountyData.cities.filter(city => !disabledCities.includes(city)) 
+    : [];
 
   const baseShippingFee = calculateShippingFee(address.county, address.city, total, address.country);
 
@@ -521,7 +623,7 @@ export default function Checkout({ user }: CheckoutProps) {
                     onChange={(e) => handleCountryChange(e.target.value)}
                     className="w-full p-4 bg-gray-50 dark:bg-gray-955 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
                   >
-                    {Object.keys(COUNTRY_FLAGS).map((cty) => (
+                    {Object.keys(COUNTRY_FLAGS).filter(cty => !disabledCountries.includes(cty)).map((cty) => (
                       <option key={cty} value={cty} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
                         {COUNTRY_FLAGS[cty]} {cty}
                       </option>
@@ -541,7 +643,7 @@ export default function Checkout({ user }: CheckoutProps) {
                         onChange={(e) => handleCountyChange(e.target.value)}
                         className="w-full p-4 bg-gray-50 dark:bg-gray-955 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
                       >
-                        {counties.map((c) => (
+                        {counties.filter(c => !disabledCounties.includes(c.name)).map((c) => (
                           <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
                             {c.name}
                           </option>
@@ -586,7 +688,7 @@ export default function Checkout({ user }: CheckoutProps) {
                       }}
                       className="w-full p-4 bg-gray-50 dark:bg-gray-955 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
                     >
-                      {CITIES_BY_COUNTRY[address.country]?.map((city) => (
+                      {CITIES_BY_COUNTRY[address.country]?.filter(city => !disabledCities.includes(city)).map((city) => (
                         <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
                           {city}
                         </option>
@@ -1131,6 +1233,180 @@ export default function Checkout({ user }: CheckoutProps) {
               </div>
 
             </div>
+
+            {/* EXPANDED INTERACTIVE CREDIT/DEBIT CARD SECTION */}
+            {paymentMethod === "card" && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-6"
+              >
+                <div className="bg-gray-50 dark:bg-gray-950/40 p-6 rounded-2xl border border-gray-100 dark:border-gray-850/80">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+                    
+                    {/* Left Column: Interactive 3D Card Mockup */}
+                    <div className="md:col-span-5 flex flex-col items-center justify-center">
+                      <div className="relative w-full max-w-[280px] h-44 [perspective:1000px] select-none">
+                        <div 
+                          className={`relative w-full h-full transition-transform duration-700 [transform-style:preserve-3d] ${
+                            cardFocused ? "[transform:rotateY(180deg)]" : ""
+                          }`}
+                        >
+                          {/* FRONT OF THE CARD */}
+                          <div className="absolute w-full h-full rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-orange-950 p-5 text-white flex flex-col justify-between shadow-xl border border-white/5 [backface-visibility:hidden] overflow-hidden">
+                            {/* Card Decorative Elements */}
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl -mr-6 -mt-6" />
+                            
+                            <div className="flex items-center justify-between relative z-10">
+                              {/* Chip & NFC symbol */}
+                              <div className="flex items-center gap-2">
+                                <div className="w-10 h-7 rounded bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-300 border border-amber-300 shadow-inner relative flex items-center justify-center">
+                                  {/* Chip grid lines */}
+                                  <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-amber-800/20" />
+                                  <div className="absolute inset-y-0 left-1/3 border-l border-amber-800/20" />
+                                  <div className="absolute inset-y-0 right-1/3 border-l border-amber-800/20" />
+                                </div>
+                                <svg className="w-5 h-5 text-white/50 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M4 12a8 8 0 0 1 8-8m-8 16a12 12 0 0 1 12-12M4 8a4 4 0 0 1 4-4" strokeLinecap="round" />
+                                </svg>
+                              </div>
+                              
+                              {/* Card Brand */}
+                              <div className="h-6 flex items-center">
+                                {cardNumber.startsWith("4") ? (
+                                  <span className="font-sans font-black italic text-white text-[16px] tracking-tight">VISA</span>
+                                ) : cardNumber.startsWith("5") ? (
+                                  <div className="relative flex items-center h-full">
+                                    <div className="w-4.5 h-4.5 rounded-full bg-[#EB001B] opacity-90" />
+                                    <div className="w-4.5 h-4.5 rounded-full bg-[#F79E1B] opacity-90 -ml-2" />
+                                  </div>
+                                ) : cardNumber.startsWith("3") ? (
+                                  <span className="font-sans font-black text-sky-400 text-[11px] uppercase tracking-widest bg-white/10 px-1.5 py-0.5 rounded">AMEX</span>
+                                ) : (
+                                  <span className="text-[10px] uppercase font-black tracking-widest text-orange-400/80 bg-orange-950/20 px-2 py-0.5 rounded border border-orange-500/25">SokoPay</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Card Number */}
+                            <div className="text-md sm:text-lg font-mono tracking-[0.18em] text-white/95 mt-4 text-center font-bold">
+                              {cardNumber 
+                                ? cardNumber.replace(/\s?/g, "").replace(/(\d{4})/g, "$1 ").trim() 
+                                : "•••• •••• •••• ••••"}
+                            </div>
+
+                            {/* Cardholder details and Expiry */}
+                            <div className="flex items-end justify-between relative z-10">
+                              <div className="max-w-[70%]">
+                                <span className="text-[7px] text-gray-400 font-extrabold uppercase tracking-widest block leading-none">Cardholder</span>
+                                <span className="text-[10px] font-bold text-white/90 truncate block mt-1 uppercase tracking-wider font-mono">
+                                  {cardName || "YOUR FULL NAME"}
+                                </span>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-[7px] text-gray-400 font-extrabold uppercase tracking-widest block leading-none">Expires</span>
+                                <span className="text-[10px] font-bold text-white/90 block mt-1 font-mono">
+                                  {cardExpiry || "MM/YY"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* BACK OF THE CARD */}
+                          <div className="absolute w-full h-full rounded-2xl bg-gradient-to-br from-slate-900 via-[#111827] to-slate-900 py-5 text-white flex flex-col justify-between shadow-xl border border-white/5 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                            <div className="w-full bg-black h-8 mt-1" />
+                            
+                            <div className="px-5 space-y-4">
+                              <div className="flex items-center justify-between gap-3">
+                                {/* Signature strip */}
+                                <div className="flex-1 h-7 bg-white/15 rounded flex items-center px-2">
+                                  <div className="w-full h-2 bg-stripe-pattern opacity-40" />
+                                </div>
+                                {/* CVV */}
+                                <div className="w-12 h-7 bg-white text-black font-mono font-bold text-xs flex items-center justify-center rounded">
+                                  {cardCvv || "•••"}
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center justify-between text-[7px] text-gray-500 font-bold uppercase tracking-wider">
+                                <span>Secured by SokoPlus SSL</span>
+                                <span>PCI-DSS Compliant</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Input Fields with validation */}
+                    <div className="md:col-span-7 grid grid-cols-2 gap-4 font-sans text-left">
+                      <div className="col-span-2 space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Card Number</label>
+                        <input
+                          type="text"
+                          maxLength={19}
+                          value={cardNumber}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "");
+                            setCardNumber(val);
+                          }}
+                          placeholder="4111 2222 3333 4444"
+                          className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-500"
+                        />
+                      </div>
+
+                      <div className="col-span-2 space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Cardholder Name</label>
+                        <input
+                          type="text"
+                          value={cardName}
+                          onChange={(e) => setCardName(e.target.value)}
+                          placeholder="e.g. Jane A. Doe"
+                          className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-500 uppercase"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Expiry Date</label>
+                        <input
+                          type="text"
+                          maxLength={5}
+                          value={cardExpiry}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/\D/g, "");
+                            if (val.length > 2) {
+                              val = `${val.substring(0, 2)}/${val.substring(2, 4)}`;
+                            }
+                            setCardExpiry(val);
+                          }}
+                          placeholder="MM/YY"
+                          className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-500"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">CVV Code</label>
+                        <input
+                          type="text"
+                          maxLength={3}
+                          value={cardCvv}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "");
+                            setCardCvv(val);
+                          }}
+                          onFocus={() => setCardFocused(true)}
+                          onBlur={() => setCardFocused(false)}
+                          placeholder="123"
+                          className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-500"
+                        />
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             <div className="bg-[#32ba78]/10 dark:bg-[#32ba78]/5 p-4 rounded-2xl border border-[#32ba78]/25 flex items-center gap-3 text-xs text-gray-700 dark:text-gray-300 font-semibold justify-between mt-2">
               <div className="flex items-center gap-2">

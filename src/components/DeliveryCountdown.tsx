@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { MapPin, Clock, Truck, ChevronDown, Check, Sparkles } from "lucide-react";
 import { counties } from "../data/counties";
 import { calculateDelivery, getCutoffCountdown, DeliveryPrediction } from "../utils/delivery";
+import { db } from "../lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 interface DeliveryCountdownProps {
   county?: string;
@@ -79,17 +81,102 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
     return () => clearInterval(timer);
   }, [prediction]);
 
+  const [disabledCountries, setDisabledCountries] = useState<string[]>([]);
+  const [disabledCounties, setDisabledCounties] = useState<string[]>([]);
+  const [disabledCities, setDisabledCities] = useState<string[]>([]);
+
+  // Fetch settings & adjust
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const docRef = doc(db, "settings", "homepage");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const disabledCo = data.disabledCounties || [];
+          const disabledCi = data.disabledCities || [];
+          const disabledCt = data.disabledCountries || [];
+          setDisabledCountries(disabledCt);
+          setDisabledCounties(disabledCo);
+          setDisabledCities(disabledCi);
+
+          // Validate current county selection
+          let nextCountry = selectedCountry;
+          let nextCounty = selectedCounty;
+          let nextCity = selectedCity;
+          let changed = false;
+
+          if (disabledCt.includes(nextCountry)) {
+            const firstEnabledCountry = ["Kenya", "Uganda", "Tanzania", "Rwanda"].find(c => !disabledCt.includes(c));
+            if (firstEnabledCountry) {
+              nextCountry = firstEnabledCountry;
+              changed = true;
+            }
+          }
+
+          if (nextCountry === "Kenya") {
+            if (disabledCo.includes(nextCounty)) {
+              const firstEnabled = counties.find(c => !disabledCo.includes(c.name));
+              if (firstEnabled) {
+                nextCounty = firstEnabled.name;
+                changed = true;
+              }
+            }
+
+            const matchedCountyObj = counties.find(c => c.name === nextCounty);
+            if (matchedCountyObj) {
+              if (disabledCi.includes(nextCity) || !matchedCountyObj.cities.includes(nextCity)) {
+                const firstEnabledCity = matchedCountyObj.cities.find(c => !disabledCi.includes(c));
+                if (firstEnabledCity) {
+                  nextCity = firstEnabledCity;
+                  changed = true;
+                }
+              }
+            }
+          } else {
+            const CITIES_MAP: Record<string, string[]> = {
+              "Uganda": ["Kampala", "Entebbe", "Jinja"],
+              "Tanzania": ["Dar es Salaam", "Arusha", "Zanzibar"],
+              "Rwanda": ["Kigali", "Gisenyi"],
+            };
+            const countryCities = CITIES_MAP[nextCountry] || [];
+            if (disabledCi.includes(nextCity) || !countryCities.includes(nextCity)) {
+              const firstEnabledCity = countryCities.find(c => !disabledCi.includes(c));
+              if (firstEnabledCity) {
+                nextCity = firstEnabledCity;
+                changed = true;
+              }
+            }
+          }
+
+          if (changed) {
+            if (country === undefined) setInternalCountry(nextCountry);
+            if (county === undefined) setInternalCounty(nextCounty);
+            if (city === undefined) setInternalCity(nextCity);
+          }
+        }
+      } catch (e) {
+        console.error("Error reading delivery settings in DeliveryCountdown:", e);
+      }
+    };
+    fetchSettings();
+  }, [country, county, city, selectedCountry, selectedCounty, selectedCity]);
+
   const selectedCountyData = counties.find((c) => c.name === selectedCounty) || counties[0];
-  const cities = selectedCountyData ? selectedCountyData.cities : [];
+  const cities = selectedCountyData 
+    ? selectedCountyData.cities.filter(city => !disabledCities.includes(city)) 
+    : [];
 
   const handleCountyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
+    const matchedCounty = counties.find((c) => c.name === val);
+    const matchedCities = matchedCounty ? matchedCounty.cities : [];
+    const firstCity = matchedCities.find(c => !disabledCities.includes(c)) || matchedCities[0] || "";
+
     if (county === undefined) {
       setInternalCounty(val);
-      const firstCity = counties.find((c) => c.name === val)?.cities[0] || "";
       setInternalCity(firstCity);
     } else if (onLocationChange) {
-      const firstCity = counties.find((c) => c.name === val)?.cities[0] || "";
       onLocationChange(val, firstCity);
     }
   };
@@ -200,7 +287,7 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
                       onChange={handleCountyChange}
                       className="w-full text-xs font-bold p-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-1.5 focus:ring-orange-500/30 focus:border-orange-500 transition-all cursor-pointer"
                     >
-                      {counties.map((c) => (
+                      {counties.filter(c => !disabledCounties.includes(c.name)).map((c) => (
                         <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
                           {c.name}
                         </option>

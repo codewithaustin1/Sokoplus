@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { trackEvent } from "../lib/analytics";
 import { counties } from "../data/counties";
 import { calculateShippingFee } from "../utils/delivery";
+import { db } from "../lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function Cart() {
   const { items, removeFromCart, addToCart, total } = useCart();
@@ -18,6 +20,8 @@ export default function Cart() {
   const [selectedCity, setSelectedCity] = useState<string>(() => {
     return localStorage.getItem("sokoplus_delivery_city") || "Nairobi CBD";
   });
+  const [disabledCounties, setDisabledCounties] = useState<string[]>([]);
+  const [disabledCities, setDisabledCities] = useState<string[]>([]);
   const [isChangingLocation, setIsChangingLocation] = useState(false);
 
   // Sync to local storage
@@ -26,12 +30,65 @@ export default function Cart() {
     localStorage.setItem("sokoplus_delivery_city", selectedCity);
   }, [selectedCounty, selectedCity]);
 
+  // Fetch settings & adjust
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const docRef = doc(db, "settings", "homepage");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const disabledCo = data.disabledCounties || [];
+          const disabledCi = data.disabledCities || [];
+          setDisabledCounties(disabledCo);
+          setDisabledCities(disabledCi);
+
+          // Validate current county selection
+          let nextCounty = selectedCounty;
+          let nextCity = selectedCity;
+          let changed = false;
+
+          if (disabledCo.includes(nextCounty)) {
+            const firstEnabled = counties.find(c => !disabledCo.includes(c.name));
+            if (firstEnabled) {
+              nextCounty = firstEnabled.name;
+              changed = true;
+            }
+          }
+
+          const matchedCountyObj = counties.find(c => c.name === nextCounty);
+          if (matchedCountyObj) {
+            if (disabledCi.includes(nextCity) || !matchedCountyObj.cities.includes(nextCity)) {
+              const firstEnabledCity = matchedCountyObj.cities.find(c => !disabledCi.includes(c));
+              if (firstEnabledCity) {
+                nextCity = firstEnabledCity;
+                changed = true;
+              }
+            }
+          }
+
+          if (changed) {
+            setSelectedCounty(nextCounty);
+            setSelectedCity(nextCity);
+          }
+        }
+      } catch (e) {
+        console.error("Error reading delivery settings in Cart:", e);
+      }
+    };
+    fetchSettings();
+  }, []);
+
   const selectedCountyData = counties.find((c) => c.name === selectedCounty) || counties[0];
-  const cities = selectedCountyData ? selectedCountyData.cities : [];
+  const cities = selectedCountyData 
+    ? selectedCountyData.cities.filter(city => !disabledCities.includes(city)) 
+    : [];
 
   const handleCountyChange = (val: string) => {
     setSelectedCounty(val);
-    const firstCity = counties.find((c) => c.name === val)?.cities[0] || "";
+    const matched = counties.find((c) => c.name === val);
+    const matchedCities = matched ? matched.cities : [];
+    const firstCity = matchedCities.find(c => !disabledCities.includes(c)) || matchedCities[0] || "";
     setSelectedCity(firstCity);
   };
 
@@ -209,7 +266,7 @@ export default function Cart() {
                           onChange={(e) => handleCountyChange(e.target.value)}
                           className="w-full text-xs font-bold p-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-150 dark:border-gray-800 rounded-lg outline-none focus:ring-1 focus:ring-orange-500 transition-all cursor-pointer"
                         >
-                          {counties.map((c) => (
+                          {counties.filter(c => !disabledCounties.includes(c.name)).map((c) => (
                             <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
                               {c.name}
                             </option>

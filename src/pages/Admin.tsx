@@ -147,6 +147,7 @@ import ArtisanColorPicker from "../components/ArtisanColorPicker";
 import { downloadReceipt } from "../utils/pdfGenerator";
 import SecurityManager from "../components/SecurityManager";
 import AdminReviewsManager from "../components/AdminReviewsManager";
+import { counties } from "../data/counties";
 import {
   ComposedChart,
   Area,
@@ -707,6 +708,13 @@ export default function Admin({ user }: AdminProps) {
   const [featuredCollections, setFeaturedCollections] = useState<{ title: string; imageUrl: string; category: string }[]>([]);
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
+  const [disabledCountries, setDisabledCountries] = useState<string[]>([]);
+  const [disabledCounties, setDisabledCounties] = useState<string[]>([]);
+  const [disabledCities, setDisabledCities] = useState<string[]>([]);
+  const [deliverySelectedTab, setDeliverySelectedTab] = useState<{ type: "country" | "county"; name: string }>({
+    type: "country",
+    name: "Kenya",
+  });
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [orderSortBy, setOrderSortBy] = useState<string>("newest");
   const [blogSearchTerm, setBlogSearchTerm] = useState("");
@@ -1023,6 +1031,15 @@ export default function Admin({ user }: AdminProps) {
           }
           if (settingsData.featuredCollections) {
             setFeaturedCollections(settingsData.featuredCollections);
+          }
+          if (settingsData.disabledCountries) {
+            setDisabledCountries(settingsData.disabledCountries);
+          }
+          if (settingsData.disabledCounties) {
+            setDisabledCounties(settingsData.disabledCounties);
+          }
+          if (settingsData.disabledCities) {
+            setDisabledCities(settingsData.disabledCities);
           }
         }
       } catch (settingsError) {
@@ -1446,6 +1463,9 @@ export default function Admin({ user }: AdminProps) {
         seoDescription: seoDescription,
         seoImage: seoImage,
         featuredCollections: featuredCollections,
+        disabledCountries: disabledCountries,
+        disabledCounties: disabledCounties,
+        disabledCities: disabledCities,
         updatedAt: new Date(),
         updatedBy: user?.email || "Admin",
       }, { merge: true });
@@ -6094,25 +6114,7 @@ export default function Admin({ user }: AdminProps) {
                 </ul>
               </div>
 
-              {/* Form Actions */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={isSavingSettings}
-                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white font-bold px-6 py-3.5 rounded-2xl text-xs transition-colors shadow-sm cursor-pointer"
-                >
-                  {isSavingSettings ? "Saving Settings..." : "Save Marketing Settings"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResetSettings}
-                  disabled={isSavingSettings}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-5 py-3.5 rounded-2xl text-xs transition-colors cursor-pointer"
-                >
-                  Clear &amp; Reset to Default
-                </button>
               </div>
-            </div>
 
             {/* Right Column: Hero Live Preview */}
             <div className="lg:col-span-5 space-y-4">
@@ -6130,6 +6132,10 @@ export default function Admin({ user }: AdminProps) {
                         alt="Hero Live Preview"
                         className="w-full h-full object-cover transition-all duration-700"
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            "https://images.unsplash.com/photo-1594122230689-45899d9e6f69?auto=format&fit=crop&q=80&w=200";
+                        }}
                       />
                       {homepageHeroUrls.length > 1 && (
                         <div className="absolute bottom-2 right-2 flex space-x-1 bg-black/40 px-2 py-1 rounded-full">
@@ -6170,6 +6176,268 @@ export default function Admin({ user }: AdminProps) {
                     This mimics the exact responsive layout container of the homepage main stage. Use it to check alignment, crop balance, and aesthetic color consistency.
                   </p>
                 </div>
+              </div>
+            </div>
+
+            {/* Full Width Section: Delivery Destinations Manager */}
+            <div className="col-span-12 lg:col-span-12 border-t border-gray-100 pt-8 space-y-6">
+              <div className="p-6 bg-orange-50/20 rounded-3xl border border-orange-100/50 space-y-3">
+                <div className="flex items-start gap-4">
+                  <div className="bg-orange-100 text-orange-600 p-2.5 rounded-2xl shrink-0">
+                    <Globe size={22} className="animate-spin-slow" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-black tracking-tight text-gray-950">Active Delivery Destinations Manager</h3>
+                    <p className="text-xs text-gray-500 leading-relaxed font-medium">
+                      Control which countries, Kenyan counties, and cities are enabled or disabled for deliveries across SokoPlus. Disabled locations will be hidden from the customer's selection at cart and checkout.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 bg-gray-55 p-6 rounded-3xl border border-gray-150">
+                {/* Left Side: Hierarchy Browser (Countries & Counties) */}
+                <div className="md:col-span-5 space-y-4">
+                  <div className="text-xs font-bold uppercase tracking-wider text-gray-450">
+                    Countries & Kenyan Counties
+                  </div>
+
+                  <div className="space-y-2 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
+                    {/* Kenya and other countries */}
+                    {["Kenya", "Uganda", "Tanzania", "Rwanda"].map((country) => {
+                      const isCountryDisabled = disabledCountries.includes(country);
+                      const isSelected = deliverySelectedTab.type === "country" && deliverySelectedTab.name === country;
+                      
+                      const toggleCountryLocal = (cName: string) => {
+                        setDisabledCountries(prev => 
+                          prev.includes(cName) ? prev.filter(c => c !== cName) : [...prev, cName]
+                        );
+                      };
+
+                      return (
+                        <div key={country} className="space-y-1">
+                          <div
+                            onClick={() => setDeliverySelectedTab({ type: "country", name: country })}
+                            className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                              isSelected 
+                                ? "border-orange-500 bg-orange-50/20 shadow-sm" 
+                                : "border-gray-150 bg-white hover:bg-gray-50/50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg">
+                                {country === "Kenya" ? "🇰🇪" : country === "Uganda" ? "🇺🇬" : country === "Tanzania" ? "🇹🇿" : "🇷🇼"}
+                              </span>
+                              <span className="text-sm font-bold text-gray-850">{country}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={() => toggleCountryLocal(country)}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                  !isCountryDisabled ? "bg-orange-650" : "bg-gray-200"
+                                }`}
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                    !isCountryDisabled ? "translate-x-4" : "translate-x-0"
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Counties List nested under Kenya if Kenya selected */}
+                          {country === "Kenya" && !isCountryDisabled && (
+                            <div className="pl-6 pt-1 space-y-1.5">
+                              {counties.map((countyObj) => {
+                                const isCountyDisabled = disabledCounties.includes(countyObj.name);
+                                const isCountySelected = deliverySelectedTab.type === "county" && deliverySelectedTab.name === countyObj.name;
+                                const enabledCitiesCount = countyObj.cities.filter(c => !disabledCities.includes(c)).length;
+                                
+                                const toggleCountyLocal = (coName: string) => {
+                                  setDisabledCounties(prev => 
+                                    prev.includes(coName) ? prev.filter(co => co !== coName) : [...prev, coName]
+                                  );
+                                };
+
+                                return (
+                                  <div
+                                    key={countyObj.name}
+                                    onClick={() => setDeliverySelectedTab({ type: "county", name: countyObj.name })}
+                                    className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all cursor-pointer ${
+                                      isCountySelected
+                                        ? "border-orange-400 bg-orange-50/10"
+                                        : "border-gray-100 bg-white/60 hover:bg-white"
+                                    }`}
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold text-gray-800">{countyObj.name}</span>
+                                      <span className="text-[10px] text-gray-400 font-medium mt-0.5">
+                                        {enabledCitiesCount}/{countyObj.cities.length} cities active
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleCountyLocal(countyObj.name)}
+                                        className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                          !isCountyDisabled ? "bg-orange-500" : "bg-gray-200"
+                                        }`}
+                                      >
+                                        <span
+                                          className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                            !isCountyDisabled ? "translate-x-3" : "translate-x-0"
+                                          }`}
+                                        />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Right Side: Cities Manager for selected option */}
+                <div className="md:col-span-7 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-bold uppercase tracking-wider text-gray-450">
+                      Manage Cities/Townships in: <span className="text-orange-650 font-black">{deliverySelectedTab.name}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-5 rounded-2xl border border-gray-150 h-[450px] overflow-y-auto custom-scrollbar">
+                    {(() => {
+                      const selectedName = deliverySelectedTab.name;
+                      const isSelectedCounty = deliverySelectedTab.type === "county";
+                      
+                      let citiesToRender: string[] = [];
+                      let isParentDisabled = false;
+
+                      if (isSelectedCounty) {
+                        const matched = counties.find(c => c.name === selectedName);
+                        citiesToRender = matched ? matched.cities : [];
+                        isParentDisabled = disabledCounties.includes(selectedName) || disabledCountries.includes("Kenya");
+                      } else {
+                        // Country selection
+                        isParentDisabled = disabledCountries.includes(selectedName);
+                        if (selectedName === "Kenya") {
+                          return (
+                            <div className="h-full flex flex-col items-center justify-center text-center text-gray-400 p-6">
+                              <MapPin size={32} className="opacity-40 mb-2 text-orange-600 animate-pulse" />
+                              <p className="text-xs font-extrabold uppercase text-gray-600">Kenya is structured by county</p>
+                              <p className="text-[11px] text-gray-400 max-w-xs mt-1 font-medium">
+                                Please select a specific County in the left pane (e.g., Nairobi City County) to manage its local townships and delivery cities.
+                              </p>
+                            </div>
+                          );
+                        } else {
+                          // Uganda, Tanzania, Rwanda
+                          const CITIES_MAP: Record<string, string[]> = {
+                            "Uganda": ["Kampala", "Entebbe", "Jinja"],
+                            "Tanzania": ["Dar es Salaam", "Arusha", "Zanzibar"],
+                            "Rwanda": ["Kigali", "Gisenyi"],
+                          };
+                          citiesToRender = CITIES_MAP[selectedName] || [];
+                        }
+                      }
+
+                      if (citiesToRender.length === 0) {
+                        return (
+                          <div className="h-full flex flex-col items-center justify-center text-center text-gray-400 p-6">
+                            <MapPin size={28} className="opacity-40 mb-1" />
+                            <p className="text-xs font-bold">No cities defined</p>
+                          </div>
+                        );
+                      }
+
+                      const toggleCityLocal = (cityName: string) => {
+                        setDisabledCities(prev => 
+                          prev.includes(cityName) ? prev.filter(c => c !== cityName) : [...prev, cityName]
+                        );
+                      };
+
+                      return (
+                        <div className="space-y-4">
+                          {isParentDisabled && (
+                            <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-semibold flex items-center">
+                              ⚠️ Note: This entire {isSelectedCounty ? "County" : "Country"} is currently turned OFF. Local cities are hidden automatically.
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {citiesToRender.map((city) => {
+                              const isCityDisabled = disabledCities.includes(city);
+                              const disabledByParent = isParentDisabled;
+                              
+                              return (
+                                <div
+                                  key={city}
+                                  onClick={() => {
+                                    if (!disabledByParent) toggleCityLocal(city);
+                                  }}
+                                  className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                                    disabledByParent 
+                                      ? "opacity-50 cursor-not-allowed bg-gray-50 border-gray-100"
+                                      : "cursor-pointer bg-gray-50/50 border-gray-150 hover:bg-white hover:shadow-sm"
+                                  }`}
+                                >
+                                  <span className="text-xs font-bold text-gray-800 truncate pr-2">
+                                    {city}
+                                  </span>
+
+                                  <button
+                                    type="button"
+                                    disabled={disabledByParent}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleCityLocal(city);
+                                    }}
+                                    className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                      !isCityDisabled && !disabledByParent ? "bg-orange-500" : "bg-gray-200"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                        !isCityDisabled && !disabledByParent ? "translate-x-3.5" : "translate-x-0"
+                                      }`}
+                                    />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Actions for all settings */}
+              <div className="flex gap-3 pt-4 border-t border-gray-100 justify-end">
+                <button
+                  type="button"
+                  onClick={handleResetSettings}
+                  disabled={isSavingSettings}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-4 rounded-2xl text-xs transition-colors cursor-pointer"
+                >
+                  Clear &amp; Reset to Default
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingSettings}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white font-bold px-8 py-4 rounded-2xl text-xs transition-colors shadow-sm cursor-pointer"
+                >
+                  {isSavingSettings ? "Saving Settings..." : "Save Marketing & Delivery Settings"}
+                </button>
               </div>
             </div>
           </form>
