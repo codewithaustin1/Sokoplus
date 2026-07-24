@@ -1141,7 +1141,7 @@ export default function Checkout({ user }: CheckoutProps) {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -8, scale: 0.98 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute z-30 left-0 right-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-2 divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden"
+                      className="absolute z-30 left-0 right-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-2 divide-y divide-gray-100 dark:divide-gray-800 max-h-56 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700"
                     >
                       {/* Option 1: M-Pesa */}
                       <button
