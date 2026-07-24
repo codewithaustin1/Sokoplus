@@ -29,7 +29,8 @@ import {
   ArrowRight,
   Gift,
   X,
-  RefreshCw
+  RefreshCw,
+  Banknote
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { counties } from "../data/counties";
@@ -68,6 +69,7 @@ export default function Checkout({ user }: CheckoutProps) {
   const [redirectStage, setRedirectStage] = useState("Securing Connection");
   const [redirectDescription, setRedirectDescription] = useState("We are connecting you securely to Paystack to finalize your payment options.");
   const [paymentMethod, setPaymentMethod] = useState<"mpesa" | "card" | "cod">("mpesa");
+  const [isPaymentDropdownOpen, setIsPaymentDropdownOpen] = useState(false);
   const [showMobilSummaryDrawer, setShowMobilSummaryDrawer] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   
@@ -555,7 +557,7 @@ export default function Checkout({ user }: CheckoutProps) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 md:py-12 relative font-sans text-gray-900 pb-28 md:pb-12">
+    <div className="max-w-6xl mx-auto px-4 py-8 md:py-12 relative font-sans text-gray-900 pb-52 md:pb-16">
       
       {/* Redirection Overlay */}
       <AnimatePresence>
@@ -596,7 +598,7 @@ export default function Checkout({ user }: CheckoutProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* LEFT COLUMN: Single Cohesive Scrolling Sheet */}
-        <div className="lg:col-span-8 space-y-8 max-h-[1400px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200">
+        <div className="lg:col-span-8 space-y-8 lg:max-h-[1400px] lg:overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200">
           
           {/* STEP 1: Delivery Location Card */}
           <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl dark:shadow-none space-y-6 relative overflow-hidden">
@@ -1097,7 +1099,132 @@ export default function Checkout({ user }: CheckoutProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            {/* MOBILE INTERACTIVE PAYMENT SELECTION DROPDOWN */}
+            <div className="md:hidden space-y-3">
+              <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Select Payment Gateway
+              </label>
+              
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsPaymentDropdownOpen(!isPaymentDropdownOpen)}
+                  className="w-full p-4 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-sm"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 font-bold">
+                      {paymentMethod === "mpesa" && <Smartphone size={20} />}
+                      {paymentMethod === "card" && <CreditCard size={20} />}
+                      {paymentMethod === "cod" && <Banknote size={20} />}
+                    </div>
+                    <div className="min-w-0 pr-2">
+                      <p className="font-extrabold text-sm text-gray-955 dark:text-white truncate">
+                        {paymentMethod === "mpesa" && "M-Pesa / Mobile Money"}
+                        {paymentMethod === "card" && "Credit / Debit Cards"}
+                        {paymentMethod === "cod" && "Cash on Delivery (COD)"}
+                      </p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold truncate">
+                        {paymentMethod === "mpesa" && "Instant STK Push (Safaricom / Airtel / Telkom)"}
+                        {paymentMethod === "card" && "Visa, Mastercard & American Express"}
+                        {paymentMethod === "cod" && `10% Deposit (KES ${Math.round(overallTotal * 0.1).toLocaleString()})`}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronDown size={20} className={`text-gray-400 shrink-0 transition-transform duration-200 ${isPaymentDropdownOpen ? "rotate-180 text-orange-500" : ""}`} />
+                </button>
+
+                {/* Dropdown Menu Options Overlay */}
+                <AnimatePresence>
+                  {isPaymentDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute z-30 left-0 right-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-2 divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden"
+                    >
+                      {/* Option 1: M-Pesa */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod("mpesa");
+                          setIsPaymentDropdownOpen(false);
+                        }}
+                        className={`w-full p-3.5 rounded-xl flex items-center justify-between transition-all text-left ${
+                          paymentMethod === "mpesa"
+                            ? "bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 font-extrabold"
+                            : "hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-800 dark:text-gray-200"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
+                            <Smartphone size={18} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-tight">M-Pesa / Mobile Money</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">Safaricom STK push to mobile</p>
+                          </div>
+                        </div>
+                        {paymentMethod === "mpesa" && <Check size={16} className="text-orange-500 stroke-[3]" />}
+                      </button>
+
+                      {/* Option 2: Credit / Debit Card */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod("card");
+                          setIsPaymentDropdownOpen(false);
+                        }}
+                        className={`w-full p-3.5 rounded-xl flex items-center justify-between transition-all text-left ${
+                          paymentMethod === "card"
+                            ? "bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 font-extrabold"
+                            : "hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-800 dark:text-gray-200"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
+                            <CreditCard size={18} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-tight">Credit / Debit Cards</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">Visa, Mastercard, Amex</p>
+                          </div>
+                        </div>
+                        {paymentMethod === "card" && <Check size={16} className="text-orange-500 stroke-[3]" />}
+                      </button>
+
+                      {/* Option 3: Cash on Delivery */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod("cod");
+                          setIsPaymentDropdownOpen(false);
+                        }}
+                        className={`w-full p-3.5 rounded-xl flex items-center justify-between transition-all text-left ${
+                          paymentMethod === "cod"
+                            ? "bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 font-extrabold"
+                            : "hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-800 dark:text-gray-200"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400">
+                            <Banknote size={18} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-tight">Cash on Delivery (COD)</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">10% Deposit (KES {Math.round(overallTotal * 0.1).toLocaleString()})</p>
+                          </div>
+                        </div>
+                        {paymentMethod === "cod" && <Check size={16} className="text-orange-500 stroke-[3]" />}
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* DESKTOP PAYMENT CARDS GRID */}
+            <div className="hidden md:grid grid-cols-3 gap-4 pt-2">
               
               {/* Option Card: Mpesa */}
               <div 

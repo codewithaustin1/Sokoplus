@@ -10,7 +10,7 @@ import { useSettings } from "../lib/SettingsContext";
 import { auth, db } from "../lib/firebase";
 import { UserProfile, Product } from "../types";
 import { motion, AnimatePresence } from "motion/react";
-import { collection, getDocs, query, limit } from "firebase/firestore";
+import { collection, getDocs, query, limit, doc, setDoc } from "firebase/firestore";
 import { FastImage } from "./FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
@@ -49,9 +49,20 @@ export default function Navbar({ user }: NavbarProps) {
   const { currency, setCurrency, exchangeRate, formatPrice } = useCurrency();
   const { theme, setTheme } = useTheme();
 
-  const [deliveryCountry, setDeliveryCountry] = useState(() => localStorage.getItem("sokoplus_delivery_country") || "Kenya");
-  const [deliveryCity, setDeliveryCity] = useState(() => localStorage.getItem("sokoplus_delivery_city") || "Nairobi");
+  const [deliveryCountry, setDeliveryCountry] = useState(() => localStorage.getItem("sokoplus_delivery_country") || user?.deliveryCountry || "Kenya");
+  const [deliveryCity, setDeliveryCity] = useState(() => localStorage.getItem("sokoplus_delivery_city") || user?.deliveryCity || "Nairobi");
   const [showLocationModal, setShowLocationModal] = useState(false);
+
+  useEffect(() => {
+    if (user?.deliveryCountry) {
+      setDeliveryCountry(user.deliveryCountry);
+      localStorage.setItem("sokoplus_delivery_country", user.deliveryCountry);
+    }
+    if (user?.deliveryCity) {
+      setDeliveryCity(user.deliveryCity);
+      localStorage.setItem("sokoplus_delivery_city", user.deliveryCity);
+    }
+  }, [user?.deliveryCountry, user?.deliveryCity]);
 
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
@@ -1366,9 +1377,24 @@ export default function Navbar({ user }: NavbarProps) {
 
               <div className="pt-2">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     localStorage.setItem("sokoplus_delivery_country", deliveryCountry);
                     localStorage.setItem("sokoplus_delivery_city", deliveryCity);
+
+                    const activeUid = auth.currentUser?.uid || user?.uid;
+                    if (activeUid) {
+                      try {
+                        const userRef = doc(db, "users", activeUid);
+                        await setDoc(userRef, {
+                          deliveryCountry,
+                          deliveryCity,
+                          updatedAt: new Date().toISOString()
+                        }, { merge: true });
+                      } catch (err) {
+                        console.warn("Could not sync delivery location to user profile:", err);
+                      }
+                    }
+
                     setShowLocationModal(false);
                     toast.success(`Delivery address configured to ${deliveryCity}, ${deliveryCountry}`, {
                       icon: COUNTRY_FLAGS[deliveryCountry]

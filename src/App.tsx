@@ -394,6 +394,16 @@ export default function App() {
         unsubscribeUser = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
+            if (data.deliveryCountry) {
+              localStorage.setItem("sokoplus_delivery_country", data.deliveryCountry);
+            }
+            if (data.deliveryCounty) {
+              localStorage.setItem("sokoplus_delivery_county", data.deliveryCounty);
+            }
+            if (data.deliveryCity) {
+              localStorage.setItem("sokoplus_delivery_city", data.deliveryCity);
+            }
+
             setUser({
               uid: fbUser.uid,
               email: fbUser.email || data.email || null,
@@ -406,6 +416,10 @@ export default function App() {
               photoURL: data.photoURL || fbUser.photoURL || null,
               twoFactorEnabled: data.twoFactorEnabled || false,
               twoFactorSecret: data.twoFactorSecret || null,
+              deliveryCountry: data.deliveryCountry || undefined,
+              deliveryCounty: data.deliveryCounty || undefined,
+              deliveryCity: data.deliveryCity || undefined,
+              deliveryAddress: data.deliveryAddress || undefined,
               vouchers: (data.vouchers || []).filter((v: any) => {
                 if (!v.unlockedAt) return true;
                 const unlockedTime = new Date(v.unlockedAt).getTime();

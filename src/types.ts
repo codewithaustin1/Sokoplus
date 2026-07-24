@@ -66,6 +66,10 @@ export interface UserProfile {
   twoFactorEnabled?: boolean;
   twoFactorSecret?: string;
   createdAt?: string;
+  deliveryCountry?: string;
+  deliveryCounty?: string;
+  deliveryCity?: string;
+  deliveryAddress?: string;
 }
 
 export interface Order {
