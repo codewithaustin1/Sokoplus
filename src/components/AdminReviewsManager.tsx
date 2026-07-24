@@ -10,6 +10,11 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
+  limit,
+  getCountFromServer,
+  getAggregateFromServer,
+  average,
+  count,
 } from "firebase/firestore";
 import {
   Star,
@@ -36,6 +41,10 @@ export default function AdminReviewsManager() {
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const [isSubmittingReply, setIsSubmittingReply] = useState<boolean>(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [serverStats, setServerStats] = useState<{ totalCount: number; avgRating: number }>({
+    totalCount: 0,
+    avgRating: 0,
+  });
 
   useEffect(() => {
     fetchReviews();
@@ -44,9 +53,27 @@ export default function AdminReviewsManager() {
   const fetchReviews = async () => {
     setLoading(true);
     try {
+      // Execute server aggregate query for total reviews count and average rating
+      try {
+        const aggRes = await getAggregateFromServer(collection(db, "reviews"), {
+          totalCount: count(),
+          avgRating: average("rating"),
+        });
+        if (aggRes) {
+          const data = aggRes.data();
+          setServerStats({
+            totalCount: data.totalCount || 0,
+            avgRating: Number(data.avgRating || 0),
+          });
+        }
+      } catch (aggErr) {
+        console.warn("Reviews server aggregate query warning:", aggErr);
+      }
+
       const q = query(
         collection(db, "reviews"),
-        orderBy("createdAt", "desc")
+        orderBy("createdAt", "desc"),
+        limit(50)
       );
       const snapshot = await getDocs(q);
       const reviewsList: Review[] = [];
@@ -152,9 +179,11 @@ export default function AdminReviewsManager() {
     return matchesSearch && matchesRating && matchesStatus;
   });
 
-  // KPI calculations
-  const totalCount = reviews.length;
-  const avgRating = totalCount > 0 ? (reviews.reduce((acc, r) => acc + r.rating, 0) / totalCount).toFixed(1) : "0.0";
+  // KPI calculations using server aggregate queries (count(), average())
+  const totalCount = serverStats.totalCount > 0 ? serverStats.totalCount : reviews.length;
+  const avgRating = serverStats.totalCount > 0 
+    ? serverStats.avgRating.toFixed(1) 
+    : (reviews.length > 0 ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1) : "0.0");
   const pendingReplyCount = reviews.filter((r) => !r.adminReply).length;
   const RepliedCount = reviews.filter((r) => r.adminReply).length;
 

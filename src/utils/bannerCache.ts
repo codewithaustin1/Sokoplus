@@ -1,4 +1,4 @@
-import { collection, getDocsFromServer, query, orderBy } from "firebase/firestore";
+import { collection, getDocsFromServer, getDocsFromCache, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 export interface MarketingBannerData {
@@ -29,12 +29,12 @@ export async function fetchMarketingBanners(): Promise<MarketingBannerData[]> {
 
   lastFetchTime = now;
   cachedBannersPromise = (async () => {
+    const bannersQuery = query(
+      collection(db, "marketing_banners"),
+      orderBy("createdAt", "desc")
+    );
     try {
-      const bannersQuery = query(
-        collection(db, "marketing_banners"),
-        orderBy("createdAt", "desc")
-      );
-      // Use getDocsFromServer to bypass the local persistent cache and ensure fresh data
+      // Attempt to fetch fresh data from server
       const snapshot = await getDocsFromServer(bannersQuery);
       const fetchedBanners: MarketingBannerData[] = [];
       
@@ -48,12 +48,28 @@ export async function fetchMarketingBanners(): Promise<MarketingBannerData[]> {
       
       return fetchedBanners;
     } catch (error) {
-      // Clear cache on failure so next attempt retries
+      console.warn("[bannerCache] Server fetch failed, attempting local cache fallback:", error);
+      try {
+        const cacheSnapshot = await getDocsFromCache(bannersQuery);
+        const cachedBanners: MarketingBannerData[] = [];
+        cacheSnapshot.forEach((docSnap) => {
+          cachedBanners.push({
+            id: docSnap.id,
+            ...docSnap.data(),
+          } as MarketingBannerData);
+        });
+        if (cachedBanners.length > 0) return cachedBanners;
+      } catch (cacheErr) {
+        console.warn("[bannerCache] Cache fallback also failed:", cacheErr);
+      }
+
+      // Reset cache promise on complete failure
       cachedBannersPromise = null;
       lastFetchTime = 0;
-      throw error;
+      return [];
     }
   })();
 
   return cachedBannersPromise;
 }
+

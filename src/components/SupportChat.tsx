@@ -45,7 +45,8 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
 
     const q = query(
       collection(db, "support_tickets"),
-      where("userId", "==", user.uid)
+      where("userId", "==", user.uid),
+      limit(30)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

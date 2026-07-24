@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import ReactMarkdown from "react-markdown";
 import { UserProfile, Product, Order, SupportTicket, BlogPost, JobOffer, JobApplication, Review } from "../types";
 import { db, auth } from "../lib/firebase";
@@ -7,8 +8,10 @@ import {
   collection,
   query,
   orderBy,
+  limit,
   doc,
   where,
+  writeBatch as realWriteBatch,
   addDoc as realAddDoc,
   getDocs as realGetDocs,
   deleteDoc as realDeleteDoc,
@@ -16,12 +19,54 @@ import {
   getDoc as realGetDoc,
   setDoc as realSetDoc,
   onSnapshot as realOnSnapshot,
+  getCountFromServer as realGetCountFromServer,
+  getAggregateFromServer as realGetAggregateFromServer,
+  sum,
+  count,
 } from "firebase/firestore";
 
 // Custom intercepted wrappers to monitor live Firestore traffic in the Admin Dashboard
 const globalFsLogListeners: ((op: "Read" | "Write" | "Delete", path: string, count: number) => void)[] = [];
 const notifyFsLog = (op: "Read" | "Write" | "Delete", path: string, count: number) => {
   globalFsLogListeners.forEach(l => l(op, path, count));
+};
+
+const getCountFromServer = async (q: any): Promise<number> => {
+  try {
+    const snap = await realGetCountFromServer(q);
+    let path = "unknown";
+    try {
+      if (q._query && q._query.path) {
+        path = q._query.path.segments.join("/");
+      } else if (q.path) {
+        path = q.path;
+      }
+    } catch (e) {}
+    notifyFsLog("Read", path, 1);
+    return snap.data().count;
+  } catch (err) {
+    console.warn("getCountFromServer aggregate query failed:", err);
+    return 0;
+  }
+};
+
+const getAggregateFromServer = async (q: any, spec: any): Promise<any> => {
+  try {
+    const snap = await realGetAggregateFromServer(q, spec);
+    let path = "unknown";
+    try {
+      if (q._query && q._query.path) {
+        path = q._query.path.segments.join("/");
+      } else if (q.path) {
+        path = q.path;
+      }
+    } catch (e) {}
+    notifyFsLog("Read", path, 1);
+    return snap.data();
+  } catch (err) {
+    console.warn("getAggregateFromServer aggregate query failed:", err);
+    return null;
+  }
 };
 
 const getDocs = async (q: any): Promise<any> => {
@@ -115,6 +160,7 @@ import {
   Quote,
   Link,
   Star,
+  CheckSquare,
   Eye,
   X,
   Send,
@@ -132,21 +178,37 @@ import {
   Check,
   CheckCheck,
   Sparkles,
+  Zap,
   Award,
   Megaphone,
   Calendar,
   Music,
   Store,
   Flame,
+  Share2,
+  Facebook,
+  Twitter,
+  Instagram,
+  Linkedin,
+  Youtube,
+  MessageCircle,
+  ExternalLink,
+  RefreshCw,
+  Radio,
+  Gauge,
+  Activity,
+  ShieldAlert,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSellerStudio } from "../lib/SellerStudioContext";
+import { SocialLinks } from "../lib/SettingsContext";
 import axios from "axios";
 import RichTextEditor from "../components/RichTextEditor";
 import ArtisanColorPicker from "../components/ArtisanColorPicker";
 import { downloadReceipt } from "../utils/pdfGenerator";
 import SecurityManager from "../components/SecurityManager";
 import AdminReviewsManager from "../components/AdminReviewsManager";
+import { clearAllOfflineCache } from "../utils/offlineDb";
 import { counties } from "../data/counties";
 import {
   ComposedChart,
@@ -642,6 +704,864 @@ const CustomCategoryTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+interface AdminProductsTableProps {
+  products: Product[];
+  minRatingFilter: number;
+  setMinRatingFilter: (v: number) => void;
+  productApprovalFilter: "all" | "pending" | "approved" | "rejected";
+  setProductApprovalFilter: (v: "all" | "pending" | "approved" | "rejected") => void;
+  productSortBy: string;
+  setProductSortBy: (v: string) => void;
+  productSearchTerm: string;
+  setProductSearchTerm: (v: string) => void;
+  selectedProductIds: string[];
+  setSelectedProductIds: React.Dispatch<React.SetStateAction<string[]>>;
+  handleBatchDeleteProducts: () => Promise<void>;
+  isBatchDeletingProducts: boolean;
+  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+  setEditingProduct: (p: Product) => void;
+  setHasColorsEdit: (b: boolean) => void;
+  setSelectedColorsEdit: (c: string[]) => void;
+  setShowEditModal: (b: boolean) => void;
+  deleteProduct: (id: string, name: string) => void;
+  setSelectedProductForRejection: (p: Product) => void;
+  setProductRejectionReasonInput: (s: string) => void;
+  confirmingApproveProductId: string | null;
+  setConfirmingApproveProductId: (s: string | null) => void;
+}
+
+function AdminProductsTable({
+  products,
+  minRatingFilter,
+  setMinRatingFilter,
+  productApprovalFilter,
+  setProductApprovalFilter,
+  productSortBy,
+  setProductSortBy,
+  productSearchTerm,
+  setProductSearchTerm,
+  selectedProductIds,
+  setSelectedProductIds,
+  handleBatchDeleteProducts,
+  isBatchDeletingProducts,
+  setProducts,
+  setEditingProduct,
+  setHasColorsEdit,
+  setSelectedColorsEdit,
+  setShowEditModal,
+  deleteProduct,
+  setSelectedProductForRejection,
+  setProductRejectionReasonInput,
+  confirmingApproveProductId,
+  setConfirmingApproveProductId,
+}: AdminProductsTableProps) {
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const filteredProductsList = products
+    .filter((p) => {
+      const rating = p.rating || 0;
+      if (rating < minRatingFilter) return false;
+
+      const approval = p.approvalStatus || "approved";
+      if (productApprovalFilter !== "all" && approval !== productApprovalFilter) return false;
+
+      if (
+        productSearchTerm.trim() !== "" &&
+        !p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
+        !p.category.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
+        !(p.artisan || "").toLowerCase().includes(productSearchTerm.toLowerCase())
+      ) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      if (productSortBy === "created-asc") {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateA - dateB;
+      }
+      if (productSortBy === "created-desc") {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      }
+      if (productSortBy === "rating-desc") {
+        return (b.rating || 0) - (a.rating || 0);
+      }
+      if (productSortBy === "rating-asc") {
+        return (a.rating || 0) - (b.rating || 0);
+      }
+      if (productSortBy === "price-desc") {
+        return b.price - a.price;
+      }
+      if (productSortBy === "price-asc") {
+        return a.price - b.price;
+      }
+      if (productSortBy === "stock-asc") {
+        return a.stock - b.stock;
+      }
+      if (productSortBy === "stock-desc") {
+        return b.stock - a.stock;
+      }
+      return 0;
+    });
+
+  const rowVirtualizer = useVirtualizer({
+    count: filteredProductsList.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 82,
+    overscan: 6,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const paddingBottom =
+    virtualItems.length > 0
+      ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
+      : 0;
+
+  const isAllProductsSelected =
+    filteredProductsList.length > 0 &&
+    filteredProductsList.every((p) => selectedProductIds.includes(p.id));
+
+  const toggleSelectAllProducts = () => {
+    if (isAllProductsSelected) {
+      const filteredSet = new Set(filteredProductsList.map((p) => p.id));
+      setSelectedProductIds((prev) => prev.filter((id) => !filteredSet.has(id)));
+    } else {
+      const allFilteredIds = filteredProductsList.map((p) => p.id);
+      setSelectedProductIds((prev) => Array.from(new Set([...prev, ...allFilteredIds])));
+    }
+  };
+
+  const toggleSelectProduct = (id: string) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  return (
+    <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-50 pb-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Inventory Management</h2>
+          <p className="text-xs text-gray-400 font-semibold mt-0.5">
+            Manage store catalog, batch delete listings, and review artisan clearance status.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 bg-orange-50 text-orange-800 text-[11px] font-extrabold px-3.5 py-1.5 rounded-full border border-orange-200/70 shadow-2xs">
+          <Zap size={14} className="text-orange-600 fill-orange-500" />
+          <span>
+            Virtualization Active ({virtualItems.length} active of {filteredProductsList.length} rows rendered)
+          </span>
+        </div>
+      </div>
+
+      {/* Batch Action Banner for Products */}
+      {selectedProductIds.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-600 text-white rounded-xl">
+              <CheckSquare size={18} />
+            </div>
+            <div>
+              <p className="text-xs font-black text-orange-950 uppercase tracking-wide">
+                {selectedProductIds.length} {selectedProductIds.length === 1 ? "Product" : "Products"} Selected
+              </p>
+              <p className="text-[11px] font-semibold text-orange-700">
+                Executes via a single Firestore writeBatch operation to minimize document write requests.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedProductIds([])}
+              className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:text-gray-800 bg-white border border-gray-200 rounded-xl transition-all cursor-pointer"
+            >
+              Clear Selection
+            </button>
+            <button
+              type="button"
+              onClick={handleBatchDeleteProducts}
+              disabled={isBatchDeletingProducts}
+              className="px-4 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+            >
+              <Trash2 size={14} />
+              <span>{isBatchDeletingProducts ? "Processing Batch Delete..." : `Batch Delete Selected (${selectedProductIds.length})`}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Filter controls */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-50">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Minimum Rating Selector */}
+          <div className="flex flex-col space-y-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Minimum Rating</span>
+            <select
+              value={minRatingFilter}
+              onChange={(e) => setMinRatingFilter(Number(e.target.value))}
+              className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[140px]"
+            >
+              <option value={0}>All Ratings</option>
+              <option value={1}>1.0+ Stars</option>
+              <option value={2}>2.0+ Stars</option>
+              <option value={3}>3.0+ Stars</option>
+              <option value={4}>4.0+ Stars</option>
+              <option value={4.5}>4.5+ Stars</option>
+              <option value={5}>5.0 Stars</option>
+            </select>
+          </div>
+
+          {/* Sort dropdown */}
+          <div className="flex flex-col space-y-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Sort By</span>
+            <select
+              value={productSortBy}
+              onChange={(e) => setProductSortBy(e.target.value)}
+              className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[180px]"
+            >
+              <option value="default">Default</option>
+              <option value="created-asc">Earliest Added to Last Added</option>
+              <option value="created-desc">Last Added to Earliest Added</option>
+              <option value="rating-desc">Rating: High to Low</option>
+              <option value="rating-asc">Rating: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="stock-asc">Stock: Low to High</option>
+              <option value="stock-desc">Stock: High to Low</option>
+            </select>
+          </div>
+
+          {/* Clearance approval status selector */}
+          <div className="flex flex-col space-y-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Clearance Status</span>
+            <select
+              value={productApprovalFilter}
+              onChange={(e) => setProductApprovalFilter(e.target.value as any)}
+              className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[180px]"
+            >
+              <option value="all">All listings</option>
+              <option value="pending">Pending Clearance ({products.filter(p => p.approvalStatus === "pending").length})</option>
+              <option value="approved">Approved & Live</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Product search input */}
+        <div className="flex flex-col space-y-1 w-full md:max-w-xs">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Search Directory</span>
+          <div className="relative group">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors"
+              size={16}
+            />
+            <input
+              type="text"
+              placeholder="Search product name or category..."
+              value={productSearchTerm}
+              onChange={(e) => setProductSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm text-gray-900"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* VIRTUALIZED PRODUCT TABLE SCROLL CONTAINER */}
+      <div ref={tableContainerRef} className="overflow-y-auto max-h-[620px] rounded-2xl border border-gray-100 shadow-inner">
+        <table className="w-full text-left border-collapse">
+          <thead className="sticky top-0 bg-white z-20 shadow-xs">
+            <tr className="text-xs font-bold text-gray-400 border-b border-gray-100 bg-gray-50/90 backdrop-blur-xs">
+              <th className="py-3.5 w-12 text-center">
+                <input
+                  type="checkbox"
+                  checked={isAllProductsSelected}
+                  onChange={toggleSelectAllProducts}
+                  className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+                  title="Select All Filtered Products"
+                />
+              </th>
+              <th className="py-3.5 uppercase">Product</th>
+              <th className="py-3.5 uppercase">Category</th>
+              <th className="py-3.5 uppercase text-center">Rating</th>
+              <th className="py-3.5 uppercase text-center">Status</th>
+              <th className="py-3.5 uppercase text-center">Stock</th>
+              <th className="py-3.5 uppercase text-right">Price</th>
+              <th className="py-3.5 uppercase text-center pr-4">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {filteredProductsList.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-12 text-center text-gray-400 font-semibold text-xs">
+                  No products found matching filters.
+                </td>
+              </tr>
+            ) : (
+              <>
+                {paddingTop > 0 && (
+                  <tr>
+                    <td style={{ height: `${paddingTop}px` }} colSpan={8} />
+                  </tr>
+                )}
+                {virtualItems.map((virtualRow) => {
+                  const p = filteredProductsList[virtualRow.index];
+                  return (
+                    <tr
+                      key={p.id}
+                      className={`text-sm hover:bg-gray-50/50 transition-all ${
+                        p.active === false ? "opacity-60 bg-gray-50/20" : ""
+                      } ${selectedProductIds.includes(p.id) ? "bg-orange-50/30" : ""}`}
+                    >
+                      <td className="py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedProductIds.includes(p.id)}
+                          onChange={() => toggleSelectProduct(p.id)}
+                          className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+                        />
+                      </td>
+                      <td className="py-4">
+                        <div className="flex flex-col space-y-1">
+                          <div className="font-bold flex items-center gap-2 flex-wrap">
+                            <span>{p.name}</span>
+                            {(!p.approvalStatus || p.approvalStatus === "approved") ? (
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-100">
+                                Approved
+                              </span>
+                            ) : p.approvalStatus === "pending" ? (
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 animate-pulse">
+                                Pending Clearance
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100">
+                                Rejected
+                              </span>
+                            )}
+                          </div>
+                          {p.artisan && (
+                            <div className="text-[11px] font-semibold text-orange-600">by {p.artisan}</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 text-gray-500">{p.category}</td>
+                      <td className="py-4 text-center">
+                        <div className="flex items-center justify-center space-x-1 font-bold text-gray-700 bg-amber-50/50 py-1 px-2.5 rounded-full border border-amber-100/30 w-fit mx-auto">
+                          <Star size={12} className="text-amber-400 fill-amber-400" />
+                          <span>{p.rating?.toFixed(1) || "N/A"}</span>
+                          {p.reviewCount !== undefined && p.reviewCount > 0 && (
+                            <span className="text-[10px] text-gray-400 font-medium">({p.reviewCount})</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 text-center">
+                        {p.approvalStatus === "pending" ? (
+                          <div className="flex flex-col items-center space-y-1.5 bg-amber-50/45 p-2 rounded-2xl border border-amber-105">
+                            <span className="text-[10px] b-fit uppercase font-black tracking-wider text-amber-700 flex items-center justify-center gap-1">
+                              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>
+                              Pending Review
+                            </span>
+                            <div className="flex items-center gap-1 pt-0.5">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (confirmingApproveProductId !== p.id) {
+                                    setConfirmingApproveProductId(p.id);
+                                    return;
+                                  }
+                                  try {
+                                    await updateDoc(doc(db, "products", p.id), {
+                                      approvalStatus: "approved",
+                                      active: true,
+                                      rejectionReason: ""
+                                    });
+                                    setProducts((prev) =>
+                                      prev.map((prod) =>
+                                        prod.id === p.id
+                                          ? { ...prod, approvalStatus: "approved", active: true, rejectionReason: "" }
+                                          : prod,
+                                      ),
+                                    );
+                                    toast.success(`"${p.name}" cleared and live on catalog!`);
+                                    setConfirmingApproveProductId(null);
+                                  } catch (error) {
+                                    console.error(error);
+                                    toast.error("Failed to approve product listing");
+                                  }
+                                }}
+                                className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border-none cursor-pointer ${
+                                  confirmingApproveProductId === p.id
+                                    ? "bg-amber-600 hover:bg-amber-700 text-white animate-pulse"
+                                    : "bg-green-600 hover:bg-green-700 text-white shadow-xs"
+                                }`}
+                              >
+                                {confirmingApproveProductId === p.id ? "Confirm?" : "Approve"}
+                              </button>
+                              {confirmingApproveProductId === p.id && (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmingApproveProductId(null)}
+                                  className="px-2 py-1 bg-gray-150 hover:bg-gray-200 text-gray-700 rounded-lg text-[9px] font-black uppercase border-none cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedProductForRejection(p);
+                                  setProductRejectionReasonInput("");
+                                  setConfirmingApproveProductId(null);
+                                }}
+                                className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase transition-all border-none cursor-pointer"
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </div>
+                        ) : p.approvalStatus === "rejected" ? (
+                          <div className="flex flex-col items-center space-y-1 bg-red-50/40 p-2 rounded-2xl border border-red-100">
+                            <span className="text-[10px] uppercase font-black tracking-wider text-red-700">
+                              Rejected
+                            </span>
+                            {p.rejectionReason && (
+                              <p className="text-[9px] text-gray-400 italic max-w-[150px] line-clamp-2 text-center" title={p.rejectionReason}>
+                                "{p.rejectionReason}"
+                              </p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await updateDoc(doc(db, "products", p.id), {
+                                    approvalStatus: "approved",
+                                    active: true,
+                                    rejectionReason: ""
+                                  });
+                                  setProducts((prev) =>
+                                    prev.map((prod) =>
+                                      prod.id === p.id
+                                        ? { ...prod, approvalStatus: "approved", active: true, rejectionReason: "" }
+                                        : prod,
+                                    ),
+                                  );
+                                  toast.success(`"${p.name}" cleared from rejection to Approved & Live!`);
+                                } catch (error) {
+                                  console.error(error);
+                                  toast.error("Failed to approve product");
+                                }
+                              }}
+                              className="px-2 py-1 mt-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg text-[9px] font-black uppercase transition-all border-none cursor-pointer"
+                            >
+                              Clear Listing
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center space-x-2">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const newStatus = p.active === false;
+                                try {
+                                  await updateDoc(doc(db, "products", p.id), {
+                                    active: newStatus,
+                                  });
+                                  setProducts((prev) =>
+                                    prev.map((prod) =>
+                                      prod.id === p.id
+                                        ? { ...prod, active: newStatus }
+                                        : prod,
+                                    ),
+                                  );
+                                  toast.success(
+                                    `"${p.name}" is now ${newStatus ? "Active" : "Inactive"}`
+                                  );
+                                } catch (error) {
+                                  handleFirestoreError(
+                                    error,
+                                    OperationType.UPDATE,
+                                    `products/${p.id}`,
+                                  );
+                                }
+                              }}
+                              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                p.active !== false ? "bg-orange-600" : "bg-gray-200"
+                              }`}
+                              title={p.active !== false ? "Switch to Inactive" : "Switch to Active"}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                  p.active !== false ? "translate-x-4" : "translate-x-0"
+                                }`}
+                              />
+                            </button>
+                            <span className={`text-[10px] uppercase tracking-wider font-extrabold select-none ${p.active !== false ? "text-green-600" : "text-gray-400"}`}>
+                              {p.active !== false ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-4 text-center">
+                        <div className="flex items-center justify-center space-x-2">
+                          <input
+                            type="number"
+                            className="w-16 bg-gray-50 border border-gray-100 rounded-lg text-center font-bold outline-none focus:ring-1 focus:ring-orange-600 transition-all py-1"
+                            value={p.stock}
+                            onChange={async (e) => {
+                              const newStock = Number(e.target.value);
+                              try {
+                                await updateDoc(doc(db, "products", p.id), {
+                                  stock: newStock,
+                                });
+                                setProducts((prev) =>
+                                  prev.map((prod) =>
+                                    prod.id === p.id
+                                      ? { ...prod, stock: newStock }
+                                      : prod,
+                                  ),
+                                );
+                              } catch (error) {
+                                handleFirestoreError(
+                                  error,
+                                  OperationType.UPDATE,
+                                  `products/${p.id}`,
+                                );
+                              }
+                            }}
+                          />
+                        </div>
+                      </td>
+                      <td className="py-4 text-right font-black">
+                        KES {p.price.toLocaleString()}
+                      </td>
+                      <td className="py-4 text-center pr-4">
+                        <div className="flex items-center justify-center space-x-1">
+                          <button
+                            onClick={() => {
+                              setEditingProduct(p);
+                              setHasColorsEdit(!!(p.availableColors && p.availableColors.length > 0));
+                              setSelectedColorsEdit(p.availableColors || []);
+                              setShowEditModal(true);
+                            }}
+                            className="text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-all"
+                            title="Edit Product"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteProduct(p.id, p.name)}
+                            className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition-all"
+                            title="Delete Product"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {paddingBottom > 0 && (
+                  <tr>
+                    <td style={{ height: `${paddingBottom}px` }} colSpan={8} />
+                  </tr>
+                )}
+              </>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+interface AdminUsersTableProps {
+  usersList: UserProfile[];
+  userSearchTerm: string;
+  setUserSearchTerm: (s: string) => void;
+  selectedUserUids: string[];
+  setSelectedUserUids: React.Dispatch<React.SetStateAction<string[]>>;
+  handleBatchDeleteUsers: () => Promise<void>;
+  isBatchDeletingUsers: boolean;
+  handleDownloadUsersCSV: () => void;
+  isExportingUsers: boolean;
+  deleteUserDoc: (uid: string, email: string) => void;
+}
+
+function AdminUsersTable({
+  usersList,
+  userSearchTerm,
+  setUserSearchTerm,
+  selectedUserUids,
+  setSelectedUserUids,
+  handleBatchDeleteUsers,
+  isBatchDeletingUsers,
+  handleDownloadUsersCSV,
+  isExportingUsers,
+  deleteUserDoc,
+}: AdminUsersTableProps) {
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const filteredUsersList = usersList.filter((u) => {
+    if (!userSearchTerm.trim()) return true;
+    const q = userSearchTerm.toLowerCase();
+    return (
+      u.email.toLowerCase().includes(q) ||
+      (u.displayName || "").toLowerCase().includes(q) ||
+      (u.phoneNumber || "").toLowerCase().includes(q) ||
+      (u.uid || "").toLowerCase().includes(q)
+    );
+  });
+
+  const rowVirtualizer = useVirtualizer({
+    count: filteredUsersList.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 68,
+    overscan: 6,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const paddingBottom =
+    virtualItems.length > 0
+      ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
+      : 0;
+
+  const isAllUsersSelected =
+    filteredUsersList.length > 0 &&
+    filteredUsersList.every((u) => selectedUserUids.includes(u.uid));
+
+  const toggleSelectAllUsers = () => {
+    if (isAllUsersSelected) {
+      const filteredSet = new Set(filteredUsersList.map((u) => u.uid));
+      setSelectedUserUids((prev) => prev.filter((id) => !filteredSet.has(id)));
+    } else {
+      const allFilteredIds = filteredUsersList.map((u) => u.uid);
+      setSelectedUserUids((prev) => Array.from(new Set([...prev, ...allFilteredIds])));
+    }
+  };
+
+  const toggleSelectUser = (uid: string) => {
+    setSelectedUserUids((prev) =>
+      prev.includes(uid) ? prev.filter((i) => i !== uid) : [...prev, uid]
+    );
+  };
+
+  return (
+    <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-50 pb-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="p-2.5 bg-orange-50 text-orange-600 rounded-2xl">
+              <Users size={22} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">User Accounts Directory</h2>
+              <p className="text-xs text-gray-400 font-semibold mt-0.5">
+                Manage registered customer profiles, view loyalty metrics, and execute batch delete operations.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-orange-50 text-orange-800 text-[11px] font-extrabold px-3.5 py-1.5 rounded-full border border-orange-200/70 shadow-2xs">
+            <Zap size={14} className="text-orange-600 fill-orange-500" />
+            <span>
+              Virtualization Active ({virtualItems.length} active of {filteredUsersList.length} rows rendered)
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleDownloadUsersCSV}
+            disabled={isExportingUsers}
+            className="px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-150 text-gray-700 font-extrabold text-xs rounded-2xl transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <Download size={14} />
+            <span>{isExportingUsers ? "Exporting..." : "Export CSV Report"}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Batch Action Banner for Users */}
+      {selectedUserUids.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-600 text-white rounded-xl">
+              <CheckSquare size={18} />
+            </div>
+            <div>
+              <p className="text-xs font-black text-orange-950 uppercase tracking-wide">
+                {selectedUserUids.length} {selectedUserUids.length === 1 ? "User Account" : "User Accounts"} Selected
+              </p>
+              <p className="text-[11px] font-semibold text-orange-700">
+                Executes via a single Firestore writeBatch operation to eliminate multiple individual write requests.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedUserUids([])}
+              className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:text-gray-800 bg-white border border-gray-200 rounded-xl transition-all cursor-pointer"
+            >
+              Clear Selection
+            </button>
+            <button
+              type="button"
+              onClick={handleBatchDeleteUsers}
+              disabled={isBatchDeletingUsers}
+              className="px-4 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+            >
+              <Trash2 size={14} />
+              <span>{isBatchDeletingUsers ? "Processing Batch Delete..." : `Batch Delete Selected (${selectedUserUids.length})`}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Search & Toolbar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="relative flex-grow max-w-md">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
+            <Search size={16} />
+          </span>
+          <input
+            type="text"
+            placeholder="Search by name, email, or UID..."
+            value={userSearchTerm}
+            onChange={(e) => setUserSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-xs font-semibold"
+          />
+          {userSearchTerm && (
+            <button
+              type="button"
+              onClick={() => setUserSearchTerm("")}
+              className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-gray-400 hover:text-gray-600 text-xs font-bold"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="text-xs font-bold text-gray-400">
+          Showing {filteredUsersList.length} of {usersList.length} registered user profiles
+        </div>
+      </div>
+
+      {/* VIRTUALIZED USER TABLE SCROLL CONTAINER */}
+      <div ref={tableContainerRef} className="overflow-y-auto max-h-[620px] rounded-2xl border border-gray-100 shadow-inner">
+        <table className="w-full text-left border-collapse">
+          <thead className="sticky top-0 bg-white z-20 shadow-xs">
+            <tr className="text-xs font-bold text-gray-400 border-b border-gray-100 bg-gray-50/90 backdrop-blur-xs">
+              <th className="py-3.5 w-12 text-center">
+                <input
+                  type="checkbox"
+                  checked={isAllUsersSelected}
+                  onChange={toggleSelectAllUsers}
+                  className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+                  title="Select All User Profiles"
+                />
+              </th>
+              <th className="py-3.5 uppercase">User Profile</th>
+              <th className="py-3.5 uppercase">Email Address</th>
+              <th className="py-3.5 uppercase text-center">Loyalty Points</th>
+              <th className="py-3.5 uppercase text-center">Role</th>
+              <th className="py-3.5 uppercase text-center">Registered Date</th>
+              <th className="py-3.5 uppercase text-center pr-4">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {filteredUsersList.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="py-12 text-center text-gray-400 font-semibold text-xs">
+                  No registered user accounts found matching query.
+                </td>
+              </tr>
+            ) : (
+              <>
+                {paddingTop > 0 && (
+                  <tr>
+                    <td style={{ height: `${paddingTop}px` }} colSpan={7} />
+                  </tr>
+                )}
+                {virtualItems.map((virtualRow) => {
+                  const u = filteredUsersList[virtualRow.index];
+                  return (
+                    <tr key={u.uid} className={`text-sm hover:bg-gray-50/50 transition-all ${selectedUserUids.includes(u.uid) ? "bg-orange-50/30" : ""}`}>
+                      <td className="py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedUserUids.includes(u.uid)}
+                          onChange={() => toggleSelectUser(u.uid)}
+                          className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+                        />
+                      </td>
+                      <td className="py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                            {u.photoURL ? (
+                              <img src={u.photoURL} alt={u.displayName || u.email} className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                              (u.displayName || u.email || "U").charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-bold text-gray-900">{u.displayName || "Anonymous User"}</div>
+                            <div className="text-[10px] font-mono text-gray-400">UID: {u.uid}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 text-xs font-medium text-gray-700">{u.email}</td>
+                      <td className="py-4 text-center">
+                        <span className="text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100">
+                          ⚡ {u.loyaltyPoints || 0} pts
+                        </span>
+                      </td>
+                      <td className="py-4 text-center">
+                        {u.isAdmin ? (
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-200">
+                            Administrator
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                            Customer
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 text-center text-xs text-gray-500 font-medium">
+                        {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="py-4 text-center pr-4">
+                        <button
+                          type="button"
+                          onClick={() => deleteUserDoc(u.uid, u.email)}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                          title="Delete User Account"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {paddingBottom > 0 && (
+                  <tr>
+                    <td style={{ height: `${paddingBottom}px` }} colSpan={7} />
+                  </tr>
+                )}
+              </>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin({ user }: AdminProps) {
   const { sellerStudioEnabled, toggleSellerStudio } = useSellerStudio();
   const [products, setProducts] = useState<Product[]>([]);
@@ -664,7 +1584,7 @@ export default function Admin({ user }: AdminProps) {
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue"
+    "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue"
   >("inventory");
 
   useEffect(() => {
@@ -706,6 +1626,15 @@ export default function Admin({ user }: AdminProps) {
   const [seoDescription, setSeoDescription] = useState<string>("");
   const [seoImage, setSeoImage] = useState<string>("");
   const [featuredCollections, setFeaturedCollections] = useState<{ title: string; imageUrl: string; category: string }[]>([]);
+  const [socialLinks, setSocialLinks] = useState<SocialLinks>({
+    facebook: "",
+    instagram: "",
+    twitter: "",
+    linkedin: "",
+    tiktok: "",
+    whatsapp: "",
+    youtube: "",
+  });
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [disabledCountries, setDisabledCountries] = useState<string[]>([]);
@@ -733,6 +1662,13 @@ export default function Admin({ user }: AdminProps) {
   const [showReportDropdown, setShowReportDropdown] = useState(false);
   const [isExportingUsers, setIsExportingUsers] = useState(false);
   const [isExportingOrders, setIsExportingOrders] = useState(false);
+
+  // Batch Operations Selection States
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [isBatchDeletingProducts, setIsBatchDeletingProducts] = useState<boolean>(false);
+  const [selectedUserUids, setSelectedUserUids] = useState<string[]>([]);
+  const [isBatchDeletingUsers, setIsBatchDeletingUsers] = useState<boolean>(false);
+  const [userSearchTerm, setUserSearchTerm] = useState<string>("");
 
   // Firestore Request Monitoring & Analytics
   const [firestoreLogs, setFirestoreLogs] = useState<any[]>([]);
@@ -832,6 +1768,94 @@ export default function Admin({ user }: AdminProps) {
   const [editBannerClosable, setEditBannerClosable] = useState(true);
   const [isUpdatingBanner, setIsUpdatingBanner] = useState(false);
 
+  // Server Aggregates & Pre-computed Summary States
+  const [serverAggregates, setServerAggregates] = useState<{
+    totalOrdersCount: number;
+    totalProductsCount: number;
+    totalUsersCount: number;
+    totalBlogsCount: number;
+    totalTicketsCount: number;
+    totalSalesSum: number;
+    lastUpdated: string;
+  }>({
+    totalOrdersCount: 0,
+    totalProductsCount: 0,
+    totalUsersCount: 0,
+    totalBlogsCount: 0,
+    totalTicketsCount: 0,
+    totalSalesSum: 0,
+    lastUpdated: "",
+  });
+
+  // Quick Actions States & Handlers
+  const [isRefetching, setIsRefetching] = useState(false);
+  const [isClearingCache, setIsClearingCache] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastTitle, setBroadcastTitle] = useState("System Advisory");
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [strictQuotaMode, setStrictQuotaMode] = useState(true);
+
+  const handleClearCache = async () => {
+    setIsClearingCache(true);
+    try {
+      await clearAllOfflineCache();
+      localStorage.removeItem("sokoplus_banners_cache");
+      localStorage.removeItem("sokoplus_banners_timestamp");
+      sessionStorage.clear();
+      toast.success("Cache Cleared! Memory, IndexedDB & session storage purged.", { duration: 4000 });
+    } catch (err: any) {
+      toast.error("Error clearing cache: " + err.message);
+    } finally {
+      setIsClearingCache(false);
+    }
+  };
+
+  const handleForceRefetch = async () => {
+    setIsRefetching(true);
+    try {
+      await fetchData();
+      toast.success("Data Refetched! Bounded collection snapshots updated from database.", { duration: 4000 });
+    } catch (err: any) {
+      toast.error("Refetch failed: " + err.message);
+    } finally {
+      setIsRefetching(false);
+    }
+  };
+
+  const handlePublishBroadcast = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!broadcastMessage.trim()) {
+      toast.error("Please provide a broadcast announcement message.");
+      return;
+    }
+    setIsBroadcasting(true);
+    try {
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 3);
+
+      await addDoc(collection(db, "marketing_banners"), {
+        text: `📢 [${broadcastTitle}] ${broadcastMessage}`,
+        backgroundColor: "sunset",
+        textColor: "text-white",
+        active: true,
+        closable: true,
+        startDate: new Date().toISOString().split("T")[0],
+        endDate: endDate.toISOString().split("T")[0],
+        createdAt: new Date().toISOString(),
+      });
+
+      toast.success("System announcement broadcasted to all visitors!", { duration: 5000 });
+      setShowBroadcastModal(false);
+      setBroadcastMessage("");
+      fetchData();
+    } catch (err: any) {
+      toast.error("Broadcast failed: " + err.message);
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -870,13 +1894,13 @@ export default function Admin({ user }: AdminProps) {
 
   const fetchData = async () => {
     try {
-      const pSnap = await getDocs(collection(db, "products"));
+      const pSnap = await getDocs(query(collection(db, "products"), limit(100)));
       setProducts(
         pSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as Product),
       );
 
       const oSnap = await getDocs(
-        query(collection(db, "orders"), orderBy("createdAt", "desc")),
+        query(collection(db, "orders"), orderBy("createdAt", "desc"), limit(50)),
       );
       let loadedOrders = oSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
 
@@ -946,14 +1970,14 @@ export default function Admin({ user }: AdminProps) {
       setOrders(loadedOrders);
 
       const tSnap = await getDocs(
-        query(collection(db, "support_tickets"), orderBy("createdAt", "desc")),
+        query(collection(db, "support_tickets"), orderBy("createdAt", "desc"), limit(50)),
       );
       setTickets(
         tSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as SupportTicket),
       );
 
       try {
-        const bSnap = await getDocs(collection(db, "blog"));
+        const bSnap = await getDocs(query(collection(db, "blog"), orderBy("publishedAt", "desc"), limit(30)));
         setBlogs(
           bSnap.docs.map((d) => {
             const data = d.data();
@@ -1032,6 +2056,17 @@ export default function Admin({ user }: AdminProps) {
           if (settingsData.featuredCollections) {
             setFeaturedCollections(settingsData.featuredCollections);
           }
+          if (settingsData.socialLinks) {
+            setSocialLinks({
+              facebook: settingsData.socialLinks.facebook || "",
+              instagram: settingsData.socialLinks.instagram || "",
+              twitter: settingsData.socialLinks.twitter || "",
+              linkedin: settingsData.socialLinks.linkedin || "",
+              tiktok: settingsData.socialLinks.tiktok || "",
+              whatsapp: settingsData.socialLinks.whatsapp || "",
+              youtube: settingsData.socialLinks.youtube || "",
+            });
+          }
           if (settingsData.disabledCountries) {
             setDisabledCountries(settingsData.disabledCountries);
           }
@@ -1048,14 +2083,14 @@ export default function Admin({ user }: AdminProps) {
 
       try {
         const jobsSnap = await getDocs(
-          query(collection(db, "job_offers"), orderBy("createdAt", "desc"))
+          query(collection(db, "job_offers"), orderBy("createdAt", "desc"), limit(50))
         );
         setJobOffers(
           jobsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as JobOffer)
         );
 
         const appsSnap = await getDocs(
-          query(collection(db, "job_applications"), orderBy("createdAt", "desc"))
+          query(collection(db, "job_applications"), orderBy("createdAt", "desc"), limit(50))
         );
         setJobApplications(
           appsSnap.docs.map((d) => {
@@ -1082,7 +2117,7 @@ export default function Admin({ user }: AdminProps) {
 
       try {
         const mcSnap = await getDocs(
-          query(collection(db, "marketing_campaigns"), orderBy("createdAt", "desc"))
+          query(collection(db, "marketing_campaigns"), orderBy("createdAt", "desc"), limit(50))
         );
         setCampaigns(
           mcSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
@@ -1093,7 +2128,7 @@ export default function Admin({ user }: AdminProps) {
 
       try {
         const mbSnap = await getDocs(
-          query(collection(db, "marketing_banners"), orderBy("createdAt", "desc"))
+          query(collection(db, "marketing_banners"), orderBy("createdAt", "desc"), limit(50))
         );
         setMarketingBanners(
           mbSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
@@ -1103,7 +2138,7 @@ export default function Admin({ user }: AdminProps) {
       }
 
       try {
-        const sSnap = await getDocs(collection(db, "sellers"));
+        const sSnap = await getDocs(query(collection(db, "sellers"), limit(50)));
         setSellers(
           sSnap.docs.map((d) => ({ uid: d.id, ...d.data() }))
         );
@@ -1112,7 +2147,7 @@ export default function Admin({ user }: AdminProps) {
       }
 
       try {
-        const pendingSnap = await getDocs(collection(db, "pending_products"));
+        const pendingSnap = await getDocs(query(collection(db, "pending_products"), limit(50)));
         setPendingProducts(
           pendingSnap.docs.map((d) => ({ id: d.id, ...d.data(), isPending: true }) as Product)
         );
@@ -1121,7 +2156,7 @@ export default function Admin({ user }: AdminProps) {
       }
 
       try {
-        const uSnap = await getDocs(collection(db, "users"));
+        const uSnap = await getDocs(query(collection(db, "users"), limit(100)));
         setUsersList(
           uSnap.docs.map((d) => {
             const data = d.data();
@@ -1141,6 +2176,40 @@ export default function Admin({ user }: AdminProps) {
       } catch (usersError) {
         console.warn("Could not load users database for reports: ", usersError);
       }
+
+      // High-Performance Server-Side Aggregate Queries & Pre-computed Summary Sync
+      try {
+        const [ordersAgg, productsCountVal, usersCountVal, blogsCountVal, ticketsCountVal] = await Promise.all([
+          getAggregateFromServer(collection(db, "orders"), {
+            totalSalesSum: sum("totalAmount"),
+            totalOrdersCount: count(),
+          }),
+          getCountFromServer(collection(db, "products")),
+          getCountFromServer(collection(db, "users")),
+          getCountFromServer(collection(db, "blog")),
+          getCountFromServer(collection(db, "support_tickets")),
+        ]);
+
+        const salesSum = ordersAgg?.totalSalesSum || 0;
+        const ordersCountVal = ordersAgg?.totalOrdersCount || 0;
+
+        const aggData = {
+          totalOrdersCount: ordersCountVal,
+          totalProductsCount: productsCountVal,
+          totalUsersCount: usersCountVal,
+          totalBlogsCount: blogsCountVal,
+          totalTicketsCount: ticketsCountVal,
+          totalSalesSum: salesSum,
+          lastUpdated: new Date().toISOString(),
+        };
+
+        setServerAggregates(aggData);
+
+        // Store pre-computed summary document for low-overhead summary reads
+        await setDoc(doc(db, "summaries", "dashboard"), aggData, { merge: true }).catch(() => {});
+      } catch (aggErr) {
+        console.warn("Server aggregate calculation failed, fallback to client calculations:", aggErr);
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, "products/orders");
     } finally {
@@ -1158,7 +2227,8 @@ export default function Admin({ user }: AdminProps) {
 
     const q = query(
       collection(db, "support_tickets"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -1463,6 +2533,7 @@ export default function Admin({ user }: AdminProps) {
         seoDescription: seoDescription,
         seoImage: seoImage,
         featuredCollections: featuredCollections,
+        socialLinks: socialLinks,
         disabledCountries: disabledCountries,
         disabledCounties: disabledCounties,
         disabledCities: disabledCities,
@@ -1687,6 +2758,7 @@ export default function Admin({ user }: AdminProps) {
     try {
       await deleteDoc(doc(db, "products", id));
       setProducts((prev) => prev.filter((p) => p.id !== id));
+      setSelectedProductIds((prev) => prev.filter((pid) => pid !== id));
       toast.success(`"${name}" has been deleted.`);
     } catch (error: any) {
       console.error("Delete error:", error);
@@ -1699,6 +2771,76 @@ export default function Admin({ user }: AdminProps) {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBatchDeleteProducts = async () => {
+    if (selectedProductIds.length === 0) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete ${selectedProductIds.length} selected products in a single batch write operation? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setIsBatchDeletingProducts(true);
+    try {
+      const batch = realWriteBatch(db);
+      selectedProductIds.forEach((id) => {
+        batch.delete(doc(db, "products", id));
+      });
+      await batch.commit();
+      notifyFsLog("Delete", "products", selectedProductIds.length);
+
+      setProducts((prev) => prev.filter((p) => !selectedProductIds.includes(p.id)));
+      toast.success(`Successfully batch deleted ${selectedProductIds.length} products in 1 write operation!`);
+      setSelectedProductIds([]);
+    } catch (error: any) {
+      console.error("Batch delete products error:", error);
+      toast.error("Failed to batch delete selected products.");
+    } finally {
+      setIsBatchDeletingProducts(false);
+    }
+  };
+
+  const deleteUserDoc = async (uid: string, email: string) => {
+    if (!uid) return;
+    const confirmed = window.confirm(`Are you sure you want to permanently delete user account "${email || uid}"?`);
+    if (!confirmed) return;
+
+    try {
+      await deleteDoc(doc(db, "users", uid));
+      setUsersList((prev) => prev.filter((u) => u.uid !== uid));
+      setSelectedUserUids((prev) => prev.filter((id) => id !== uid));
+      toast.success(`User profile "${email || uid}" deleted.`);
+    } catch (error: any) {
+      console.error("Delete user error:", error);
+      toast.error("Failed to delete user profile.");
+    }
+  };
+
+  const handleBatchDeleteUsers = async () => {
+    if (selectedUserUids.length === 0) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete ${selectedUserUids.length} selected user profiles in a single batch write operation? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setIsBatchDeletingUsers(true);
+    try {
+      const batch = realWriteBatch(db);
+      selectedUserUids.forEach((uid) => {
+        batch.delete(doc(db, "users", uid));
+      });
+      await batch.commit();
+      notifyFsLog("Delete", "users", selectedUserUids.length);
+
+      setUsersList((prev) => prev.filter((u) => !selectedUserUids.includes(u.uid)));
+      toast.success(`Successfully batch deleted ${selectedUserUids.length} user profiles in 1 write operation!`);
+      setSelectedUserUids([]);
+    } catch (error: any) {
+      console.error("Batch delete users error:", error);
+      toast.error("Failed to batch delete selected user profiles.");
+    } finally {
+      setIsBatchDeletingUsers(false);
     }
   };
 
@@ -3056,17 +4198,22 @@ export default function Admin({ user }: AdminProps) {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Powered by High-Efficiency Firestore Server Aggregates */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2 relative overflow-hidden">
           <div className="text-orange-600 bg-orange-50 w-10 h-10 rounded-xl flex items-center justify-center">
             <TrendingUp size={20} />
           </div>
-          <p className="text-sm font-bold text-gray-500 uppercase">
-            Total Sales
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-gray-500 uppercase">
+              Total Sales
+            </p>
+            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+              sum() aggregate
+            </span>
+          </div>
           <p className="text-2xl font-black">
-            KES {totalSales.toLocaleString()}
+            KES {(serverAggregates.totalSalesSum > 0 ? serverAggregates.totalSalesSum : totalSales).toLocaleString()}
           </p>
         </div>
         <div className="bg-orange-950/5 p-6 rounded-3xl border border-orange-100/50 shadow-sm space-y-2 relative overflow-hidden">
@@ -3090,30 +4237,314 @@ export default function Admin({ user }: AdminProps) {
           <div className="text-blue-600 bg-blue-50 w-10 h-10 rounded-xl flex items-center justify-center">
             <Package size={20} />
           </div>
-          <p className="text-sm font-bold text-gray-500 uppercase">
-            Total Orders
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-gray-500 uppercase">
+              Total Orders
+            </p>
+            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+              count() aggregate
+            </span>
+          </div>
+          <p className="text-2xl font-black">
+            {serverAggregates.totalOrdersCount > 0 ? serverAggregates.totalOrdersCount : orders.length}
           </p>
-          <p className="text-2xl font-black">{orders.length}</p>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
           <div className="text-green-600 bg-green-50 w-10 h-10 rounded-xl flex items-center justify-center">
             <ShoppingBag size={20} />
           </div>
-          <p className="text-sm font-bold text-gray-500 uppercase">
-            Unique Products
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-gray-500 uppercase">
+              Unique Products
+            </p>
+            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">
+              count() aggregate
+            </span>
+          </div>
+          <p className="text-2xl font-black">
+            {serverAggregates.totalProductsCount > 0 ? serverAggregates.totalProductsCount : products.length}
           </p>
-          <p className="text-2xl font-black">{products.length}</p>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
           <div className="text-purple-600 bg-purple-50 w-10 h-10 rounded-xl flex items-center justify-center">
             <BookOpen size={20} />
           </div>
-          <p className="text-sm font-bold text-gray-500 uppercase">
-            Blog Stories
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-gray-500 uppercase">
+              Blog Stories
+            </p>
+            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+              count() aggregate
+            </span>
+          </div>
+          <p className="text-2xl font-black">
+            {serverAggregates.totalBlogsCount > 0 ? serverAggregates.totalBlogsCount : blogs.length}
           </p>
-          <p className="text-2xl font-black">{blogs.length}</p>
         </div>
       </div>
+
+      {/* Quick Actions & Quota Safeguards Section */}
+      <div className="bg-gradient-to-r from-orange-950 via-amber-950 to-stone-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl space-y-6 relative overflow-hidden">
+        {/* Background glow accent */}
+        <div className="absolute -right-20 -top-20 w-80 h-80 bg-orange-500/20 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-orange-500/20 text-orange-400 p-3 rounded-2xl border border-orange-500/30">
+              <Zap size={24} className="animate-pulse" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                <span>Admin Quick Actions</span>
+                <span className="text-[10px] font-black uppercase tracking-wider bg-orange-500/30 text-orange-300 border border-orange-400/30 px-2.5 py-0.5 rounded-full">
+                  Quota Guard Active
+                </span>
+              </h2>
+              <p className="text-xs text-orange-200/80 font-medium">
+                One-click system tools designed for managing traffic bursts, purging stale caches, and broadcasting advisories.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 bg-black/40 border border-white/10 px-4 py-2 rounded-2xl">
+            <ShieldAlert size={16} className={strictQuotaMode ? "text-emerald-400" : "text-amber-400"} />
+            <span className="text-xs font-bold text-gray-200">Quota Safeguard:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setStrictQuotaMode(!strictQuotaMode);
+                toast.success(
+                  !strictQuotaMode
+                    ? "Strict Quota Mode Activated! Bounded collection queries enforced."
+                    : "Standard Mode Restored."
+                );
+              }}
+              className={`px-3 py-1 rounded-xl text-[11px] font-extrabold uppercase transition-all border cursor-pointer ${
+                strictQuotaMode
+                  ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30"
+                  : "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30"
+              }`}
+            >
+              {strictQuotaMode ? "STRICT ON" : "STANDARD"}
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Action Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          {/* Action 1: Cache Clear */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-all flex flex-col justify-between space-y-3">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-orange-300 uppercase tracking-wider">Storage & Memory</span>
+                <Trash2 size={16} className="text-orange-400" />
+              </div>
+              <h3 className="font-bold text-sm text-white">Cache Clear</h3>
+              <p className="text-[11px] text-gray-300 leading-snug">
+                Purges IndexedDB offline store & local memory cache to free RAM & reset client state.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearCache}
+              disabled={isClearingCache}
+              className="w-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 text-orange-200 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Trash2 size={14} className={isClearingCache ? "animate-spin" : ""} />
+              <span>{isClearingCache ? "Clearing..." : "Purge All Cache"}</span>
+            </button>
+          </div>
+
+          {/* Action 2: Force Data Re-fetch */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-all flex flex-col justify-between space-y-3">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-blue-300 uppercase tracking-wider">Database Sync</span>
+                <RefreshCw size={16} className="text-blue-400" />
+              </div>
+              <h3 className="font-bold text-sm text-white">Force Data Re-fetch</h3>
+              <p className="text-[11px] text-gray-300 leading-snug">
+                Re-queries Firestore collections with strict limits (50–100 items) to fetch fresh state.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleForceRefetch}
+              disabled={isRefetching}
+              className="w-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-blue-200 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={isRefetching ? "animate-spin" : ""} />
+              <span>{isRefetching ? "Fetching..." : "Fetch Fresh Data"}</span>
+            </button>
+          </div>
+
+          {/* Action 3: Broadcast System Message */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-all flex flex-col justify-between space-y-3">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-purple-300 uppercase tracking-wider">Audience Notice</span>
+                <Radio size={16} className="text-purple-400 animate-pulse" />
+              </div>
+              <h3 className="font-bold text-sm text-white">Broadcast System Message</h3>
+              <p className="text-[11px] text-gray-300 leading-snug">
+                Publish a live banner alert to all active shoppers for high traffic, sales, or advisories.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowBroadcastModal(true)}
+              className="w-full bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-200 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <Radio size={14} />
+              <span>Broadcast Alert</span>
+            </button>
+          </div>
+
+          {/* Action 4: Traffic & Quota Telemetry */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-all flex flex-col justify-between space-y-3">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">Live Metrics</span>
+                <Gauge size={16} className="text-emerald-400" />
+              </div>
+              <h3 className="font-bold text-sm text-white">Quota Health Guard</h3>
+              <p className="text-[11px] text-gray-300 leading-snug">
+                Query limits active across all collections. Bounded listeners prevent runaway reads.
+              </p>
+            </div>
+            <div className="bg-emerald-500/10 border border-emerald-500/30 p-2 rounded-xl flex items-center justify-between text-xs text-emerald-300 font-bold">
+              <span className="flex items-center gap-1.5">
+                <Activity size={12} className="animate-ping" />
+                <span>Status: Optimal</span>
+              </span>
+              <span className="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded-md">Bounded</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Broadcast System Message Modal */}
+      <AnimatePresence>
+        {showBroadcastModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-6 relative"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 p-2.5 rounded-2xl">
+                    <Radio size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                      Broadcast System Announcement
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Publish a sticky announcement banner visible to all live visitors.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowBroadcastModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full bg-gray-100 dark:bg-gray-800 border-none cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-500 uppercase">Quick Presets</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastTitle("High Traffic Notice");
+                      setBroadcastMessage("High visitor traffic detected! Orders & checkout process smoothly with instant validation.");
+                    }}
+                    className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200/60 dark:border-orange-900/40 text-left text-xs font-bold text-orange-800 dark:text-orange-300 hover:bg-orange-100/50 cursor-pointer transition-all"
+                  >
+                    ⚡ Traffic Notice
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastTitle("System Maintenance");
+                      setBroadcastMessage("Scheduled database maintenance in progress. All payment processing remains 100% secure.");
+                    }}
+                    className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-left text-xs font-bold text-blue-800 dark:text-blue-300 hover:bg-blue-100/50 cursor-pointer transition-all"
+                  >
+                    🛠️ Maintenance
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastTitle("Flash Advisory");
+                      setBroadcastMessage("Special artisan flash deals are now live across all categories! Free delivery in Nairobi.");
+                    }}
+                    className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 text-left text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100/50 cursor-pointer transition-all"
+                  >
+                    🎉 Flash Sale
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handlePublishBroadcast} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Announcement Title
+                  </label>
+                  <input
+                    type="text"
+                    value={broadcastTitle}
+                    onChange={(e) => setBroadcastTitle(e.target.value)}
+                    required
+                    placeholder="e.g. High Traffic Advisory"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-sm font-medium focus:ring-2 focus:ring-orange-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Message Body
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    required
+                    placeholder="Enter the announcement text to display on user screens..."
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-sm font-medium focus:ring-2 focus:ring-orange-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowBroadcastModal(false)}
+                    className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isBroadcasting}
+                    className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all cursor-pointer disabled:opacity-50 border-none"
+                  >
+                    <Radio size={14} className={isBroadcasting ? "animate-spin" : ""} />
+                    <span>{isBroadcasting ? "Publishing..." : "Publish Broadcast"}</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Analytics Chart Section */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
@@ -3464,6 +4895,13 @@ export default function Admin({ user }: AdminProps) {
           className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "inventory" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
         >
           Inventory
+        </button>
+        <button
+          onClick={() => setActiveTab("users")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-1.5 ${activeTab === "users" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          <Users size={16} />
+          <span>User Accounts</span>
         </button>
         <button
           onClick={() => setActiveTab("orders")}
@@ -4317,152 +5755,183 @@ export default function Admin({ user }: AdminProps) {
         )}
 
         {activeTab === "inventory" && (
-          /* Products Table */
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
-            <h2 className="text-xl font-bold mb-6">Inventory Management</h2>
-            
-            {/* Filter controls */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-6 border-b border-gray-50">
-              <div className="flex flex-wrap items-center gap-4">
-                {/* Minimum Rating Selector */}
-                <div className="flex flex-col space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Minimum Rating</span>
-                  <select
-                    value={minRatingFilter}
-                    onChange={(e) => setMinRatingFilter(Number(e.target.value))}
-                    className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[140px]"
-                  >
-                    <option value={0}>All Ratings</option>
-                    <option value={1}>1.0+ Stars</option>
-                    <option value={2}>2.0+ Stars</option>
-                    <option value={3}>3.0+ Stars</option>
-                    <option value={4}>4.0+ Stars</option>
-                    <option value={4.5}>4.5+ Stars</option>
-                    <option value={5}>5.0 Stars</option>
-                  </select>
+          <AdminProductsTable
+            products={products}
+            minRatingFilter={minRatingFilter}
+            setMinRatingFilter={setMinRatingFilter}
+            productApprovalFilter={productApprovalFilter}
+            setProductApprovalFilter={setProductApprovalFilter}
+            productSortBy={productSortBy}
+            setProductSortBy={setProductSortBy}
+            productSearchTerm={productSearchTerm}
+            setProductSearchTerm={setProductSearchTerm}
+            selectedProductIds={selectedProductIds}
+            setSelectedProductIds={setSelectedProductIds}
+            handleBatchDeleteProducts={handleBatchDeleteProducts}
+            isBatchDeletingProducts={isBatchDeletingProducts}
+            setProducts={setProducts}
+            setEditingProduct={setEditingProduct}
+            setHasColorsEdit={setHasColorsEdit}
+            setSelectedColorsEdit={setSelectedColorsEdit}
+            setShowEditModal={setShowEditModal}
+            deleteProduct={deleteProduct}
+            setSelectedProductForRejection={setSelectedProductForRejection}
+            setProductRejectionReasonInput={setProductRejectionReasonInput}
+            confirmingApproveProductId={confirmingApproveProductId}
+            setConfirmingApproveProductId={setConfirmingApproveProductId}
+          />
+        )}
+
+        {/* REPLACED_OLD_INVENTORY_TABLE */
+            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden space-y-6">
+              <h2 className="text-xl font-bold">Inventory Management</h2>
+
+              {/* Batch Action Banner for Products */}
+              {selectedProductIds.length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-600 text-white rounded-xl">
+                      <CheckSquare size={18} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-orange-950 uppercase tracking-wide">
+                        {selectedProductIds.length} {selectedProductIds.length === 1 ? "Product" : "Products"} Selected
+                      </p>
+                      <p className="text-[11px] font-semibold text-orange-700">
+                        Executes via a single Firestore writeBatch operation to minimize document write requests.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProductIds([])}
+                      className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:text-gray-800 bg-white border border-gray-200 rounded-xl transition-all cursor-pointer"
+                    >
+                      Clear Selection
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBatchDeleteProducts}
+                      disabled={isBatchDeletingProducts}
+                      className="px-4 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                    >
+                      <Trash2 size={14} />
+                      <span>{isBatchDeletingProducts ? "Processing Batch Delete..." : `Batch Delete Selected (${selectedProductIds.length})`}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Filter controls */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gray-50">
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Minimum Rating Selector */}
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Minimum Rating</span>
+                    <select
+                      value={minRatingFilter}
+                      onChange={(e) => setMinRatingFilter(Number(e.target.value))}
+                      className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[140px]"
+                    >
+                      <option value={0}>All Ratings</option>
+                      <option value={1}>1.0+ Stars</option>
+                      <option value={2}>2.0+ Stars</option>
+                      <option value={3}>3.0+ Stars</option>
+                      <option value={4}>4.0+ Stars</option>
+                      <option value={4.5}>4.5+ Stars</option>
+                      <option value={5}>5.0 Stars</option>
+                    </select>
+                  </div>
+
+                  {/* Sort dropdown */}
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Sort By</span>
+                    <select
+                      value={productSortBy}
+                      onChange={(e) => setProductSortBy(e.target.value)}
+                      className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[180px]"
+                    >
+                      <option value="default">Default</option>
+                      <option value="created-asc">Earliest Added to Last Added</option>
+                      <option value="created-desc">Last Added to Earliest Added</option>
+                      <option value="rating-desc">Rating: High to Low</option>
+                      <option value="rating-asc">Rating: Low to High</option>
+                      <option value="price-desc">Price: High to Low</option>
+                      <option value="price-asc">Price: Low to High</option>
+                      <option value="stock-asc">Stock: Low to High</option>
+                      <option value="stock-desc">Stock: High to Low</option>
+                    </select>
+                  </div>
+
+                  {/* Clearance approval status selector */}
+                  <div className="flex flex-col space-y-1">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Clearance Status</span>
+                    <select
+                      value={productApprovalFilter}
+                      onChange={(e) => setProductApprovalFilter(e.target.value as any)}
+                      className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[180px]"
+                    >
+                      <option value="all">All listings</option>
+                      <option value="pending">Pending Clearance ({products.filter(p => p.approvalStatus === "pending").length})</option>
+                      <option value="approved">Approved & Live</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
                 </div>
 
-                {/* Sort dropdown */}
-                <div className="flex flex-col space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Sort By</span>
-                  <select
-                    value={productSortBy}
-                    onChange={(e) => setProductSortBy(e.target.value)}
-                    className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[180px]"
-                  >
-                    <option value="default">Default</option>
-                    <option value="created-asc">Earliest Added to Last Added</option>
-                    <option value="created-desc">Last Added to Earliest Added</option>
-                    <option value="rating-desc">Rating: High to Low</option>
-                    <option value="rating-asc">Rating: Low to High</option>
-                    <option value="price-desc">Price: High to Low</option>
-                    <option value="price-asc">Price: Low to High</option>
-                    <option value="stock-asc">Stock: Low to High</option>
-                    <option value="stock-desc">Stock: High to Low</option>
-                  </select>
-                </div>
-
-                {/* Clearance approval status selector */}
-                <div className="flex flex-col space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Clearance Status</span>
-                  <select
-                    value={productApprovalFilter}
-                    onChange={(e) => setProductApprovalFilter(e.target.value as any)}
-                    className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[180px]"
-                  >
-                    <option value="all">All listings</option>
-                    <option value="pending">Pending Clearance ({products.filter(p => p.approvalStatus === "pending").length})</option>
-                    <option value="approved">Approved & Live</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
+                {/* Product search input */}
+                <div className="flex flex-col space-y-1 w-full md:max-w-xs">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Search Directory</span>
+                  <div className="relative group">
+                    <Search
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors"
+                      size={16}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Search product name or category..."
+                      value={productSearchTerm}
+                      onChange={(e) => setProductSearchTerm(e.target.value)}
+                      className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm text-gray-900"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Product search input */}
-              <div className="flex flex-col space-y-1 w-full md:max-w-xs">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Search Directory</span>
-                <div className="relative group">
-                  <Search
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors"
-                    size={16}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Search product name or category..."
-                    value={productSearchTerm}
-                    onChange={(e) => setProductSearchTerm(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm text-gray-900"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
-                    <th className="pb-4 uppercase">Product</th>
-                    <th className="pb-4 uppercase">Category</th>
-                    <th className="pb-4 uppercase text-center">Rating</th>
-                    <th className="pb-4 uppercase text-center">Status</th>
-                    <th className="pb-4 uppercase text-center">Stock</th>
-                    <th className="pb-4 uppercase text-right">Price</th>
-                    <th className="pb-4 uppercase text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {products
-                    .filter((p) => {
-                      const rating = p.rating || 0;
-                      if (rating < minRatingFilter) return false;
-                      
-                      const approval = p.approvalStatus || "approved";
-                      if (productApprovalFilter !== "all" && approval !== productApprovalFilter) return false;
-
-                      if (
-                        productSearchTerm.trim() !== "" &&
-                        !p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
-                        !p.category.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
-                        !(p.artisan || "").toLowerCase().includes(productSearchTerm.toLowerCase())
-                      ) {
-                        return false;
-                      }
-                      
-                      return true;
-                    })
-                    .sort((a, b) => {
-                      if (productSortBy === "created-asc") {
-                        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                        return dateA - dateB;
-                      }
-                      if (productSortBy === "created-desc") {
-                        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                        return dateB - dateA;
-                      }
-                      if (productSortBy === "rating-desc") {
-                        return (b.rating || 0) - (a.rating || 0);
-                      }
-                      if (productSortBy === "rating-asc") {
-                        return (a.rating || 0) - (b.rating || 0);
-                      }
-                      if (productSortBy === "price-desc") {
-                        return b.price - a.price;
-                      }
-                      if (productSortBy === "price-asc") {
-                        return a.price - b.price;
-                      }
-                      if (productSortBy === "stock-asc") {
-                        return a.stock - b.stock;
-                      }
-                      if (productSortBy === "stock-desc") {
-                        return b.stock - a.stock;
-                      }
-                      return 0;
-                    })
-                    .map((p) => (
-                      <tr key={p.id} className={`text-sm hover:bg-gray-50/50 transition-all ${p.active === false ? "opacity-60 bg-gray-50/20" : ""}`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
+                      <th className="pb-4 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isAllProductsSelected}
+                          onChange={toggleSelectAllProducts}
+                          className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+                          title="Select All Filtered Products"
+                        />
+                      </th>
+                      <th className="pb-4 uppercase">Product</th>
+                      <th className="pb-4 uppercase">Category</th>
+                      <th className="pb-4 uppercase text-center">Rating</th>
+                      <th className="pb-4 uppercase text-center">Status</th>
+                      <th className="pb-4 uppercase text-center">Stock</th>
+                      <th className="pb-4 uppercase text-right">Price</th>
+                      <th className="pb-4 uppercase text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredProductsList.map((p) => (
+                      <tr key={p.id} className={`text-sm hover:bg-gray-50/50 transition-all ${p.active === false ? "opacity-60 bg-gray-50/20" : ""} ${selectedProductIds.includes(p.id) ? "bg-orange-50/30" : ""}`}>
+                        <td className="py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedProductIds.includes(p.id)}
+                            onChange={() => toggleSelectProduct(p.id)}
+                            className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+                          />
+                        </td>
                         <td className="py-4">
                           <div className="flex flex-col space-y-1">
                             <div className="font-bold flex items-center gap-2 flex-wrap">
@@ -4706,7 +6175,227 @@ export default function Admin({ user }: AdminProps) {
               </table>
             </div>
           </div>
-        )}
+        );
+      })()}
+
+      {activeTab === "users" && (() => {
+        const filteredUsersList = usersList.filter((u) => {
+          if (!userSearchTerm.trim()) return true;
+          const q = userSearchTerm.toLowerCase();
+          return (
+            u.email.toLowerCase().includes(q) ||
+            (u.displayName || "").toLowerCase().includes(q) ||
+            (u.phoneNumber || "").toLowerCase().includes(q) ||
+            (u.uid || "").toLowerCase().includes(q)
+          );
+        });
+
+        const isAllUsersSelected = filteredUsersList.length > 0 && filteredUsersList.every((u) => selectedUserUids.includes(u.uid));
+
+        const toggleSelectAllUsers = () => {
+          if (isAllUsersSelected) {
+            const filteredSet = new Set(filteredUsersList.map((u) => u.uid));
+            setSelectedUserUids((prev) => prev.filter((id) => !filteredSet.has(id)));
+          } else {
+            const allFilteredIds = filteredUsersList.map((u) => u.uid);
+            setSelectedUserUids((prev) => Array.from(new Set([...prev, ...allFilteredIds])));
+          }
+        };
+
+        const toggleSelectUser = (uid: string) => {
+          setSelectedUserUids((prev) =>
+            prev.includes(uid) ? prev.filter((i) => i !== uid) : [...prev, uid]
+          );
+        };
+
+        return (
+          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-50 pb-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="p-2.5 bg-orange-50 text-orange-600 rounded-2xl">
+                    <Users size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">User Accounts Directory</h2>
+                    <p className="text-xs text-gray-400 font-semibold mt-0.5">
+                      Manage registered customer profiles, view loyalty metrics, and execute batch delete operations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleDownloadUsersCSV}
+                  disabled={isExportingUsers}
+                  className="px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-150 text-gray-700 font-extrabold text-xs rounded-2xl transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Download size={14} />
+                  <span>{isExportingUsers ? "Exporting..." : "Export CSV Report"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Batch Action Banner for Users */}
+            {selectedUserUids.length > 0 && (
+              <div className="bg-orange-50 border border-orange-200 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xs">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-600 text-white rounded-xl">
+                    <CheckSquare size={18} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-orange-950 uppercase tracking-wide">
+                      {selectedUserUids.length} {selectedUserUids.length === 1 ? "User Account" : "User Accounts"} Selected
+                    </p>
+                    <p className="text-[11px] font-semibold text-orange-700">
+                      Executes via a single Firestore writeBatch operation to eliminate multiple individual write requests.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedUserUids([])}
+                    className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:text-gray-800 bg-white border border-gray-200 rounded-xl transition-all cursor-pointer"
+                  >
+                    Clear Selection
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBatchDeleteUsers}
+                    disabled={isBatchDeletingUsers}
+                    className="px-4 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    <Trash2 size={14} />
+                    <span>{isBatchDeletingUsers ? "Processing Batch Delete..." : `Batch Delete Selected (${selectedUserUids.length})`}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Search & Toolbar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="relative flex-grow max-w-md">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
+                  <Search size={16} />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search by name, email, or UID..."
+                  value={userSearchTerm}
+                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-xs font-semibold"
+                />
+                {userSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setUserSearchTerm("")}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-gray-400 hover:text-gray-600 text-xs font-bold"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="text-xs font-bold text-gray-400">
+                Showing {filteredUsersList.length} of {usersList.length} registered user profiles
+              </div>
+            </div>
+
+            {/* Users Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
+                    <th className="pb-4 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isAllUsersSelected}
+                        onChange={toggleSelectAllUsers}
+                        className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+                        title="Select All User Profiles"
+                      />
+                    </th>
+                    <th className="pb-4 uppercase">User Profile</th>
+                    <th className="pb-4 uppercase">Email Address</th>
+                    <th className="pb-4 uppercase text-center">Loyalty Points</th>
+                    <th className="pb-4 uppercase text-center">Role</th>
+                    <th className="pb-4 uppercase text-center">Registered Date</th>
+                    <th className="pb-4 uppercase text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filteredUsersList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-gray-400 font-semibold text-xs">
+                        No registered user accounts found matching query.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsersList.map((u) => (
+                      <tr key={u.uid} className={`text-sm hover:bg-gray-50/50 transition-all ${selectedUserUids.includes(u.uid) ? "bg-orange-50/30" : ""}`}>
+                        <td className="py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedUserUids.includes(u.uid)}
+                            onChange={() => toggleSelectUser(u.uid)}
+                            className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
+                          />
+                        </td>
+                        <td className="py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                              {u.photoURL ? (
+                                <img src={u.photoURL} alt={u.displayName || u.email} className="w-full h-full rounded-full object-cover" />
+                              ) : (
+                                (u.displayName || u.email || "U").charAt(0).toUpperCase()
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-bold text-gray-900">{u.displayName || "Anonymous User"}</div>
+                              <div className="text-[10px] font-mono text-gray-400">UID: {u.uid}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 text-xs font-medium text-gray-700">{u.email}</td>
+                        <td className="py-4 text-center">
+                          <span className="text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100">
+                            ⚡ {u.loyaltyPoints || 0} pts
+                          </span>
+                        </td>
+                        <td className="py-4 text-center">
+                          {u.isAdmin ? (
+                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-200">
+                              Administrator
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                              Customer
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 text-center text-xs text-gray-500 font-medium">
+                          {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}
+                        </td>
+                        <td className="py-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => deleteUserDoc(u.uid, u.email)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                            title="Delete User Account"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
         {activeTab === "orders" && (
           /* Orders Table */
@@ -5962,6 +7651,202 @@ export default function Admin({ user }: AdminProps) {
                       <Plus size={14} className="text-orange-600" /> Add Another Store Location
                     </button>
                   )}
+                </div>
+              </div>
+
+              {/* Official Social Media Pages Configuration */}
+              <div className="p-6 bg-white dark:bg-gray-900 rounded-3xl border border-gray-150 dark:border-gray-800 space-y-6">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center">
+                    <Share2 size={16} className="mr-2 text-orange-600" /> Official Social Media Pages
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                    Provide links to your official social media pages and contact channels. Configured links will automatically appear in the website footer and social widgets.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Instagram */}
+                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <Instagram size={16} className="text-pink-600" /> Instagram Page
+                      </label>
+                      {socialLinks.instagram && (
+                        <a
+                          href={socialLinks.instagram}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
+                        >
+                          <span>Test Link</span> <ExternalLink size={10} />
+                        </a>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://instagram.com/sokoplus_ke"
+                      value={socialLinks.instagram || ""}
+                      onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })}
+                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  {/* Facebook */}
+                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <Facebook size={16} className="text-blue-600" fill="currentColor" /> Facebook Page
+                      </label>
+                      {socialLinks.facebook && (
+                        <a
+                          href={socialLinks.facebook}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
+                        >
+                          <span>Test Link</span> <ExternalLink size={10} />
+                        </a>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://facebook.com/sokoplus.official"
+                      value={socialLinks.facebook || ""}
+                      onChange={(e) => setSocialLinks({ ...socialLinks, facebook: e.target.value })}
+                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  {/* Twitter / X */}
+                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <Twitter size={16} className="text-sky-500" /> Twitter / X Profile
+                      </label>
+                      {socialLinks.twitter && (
+                        <a
+                          href={socialLinks.twitter}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
+                        >
+                          <span>Test Link</span> <ExternalLink size={10} />
+                        </a>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://x.com/sokoplus"
+                      value={socialLinks.twitter || ""}
+                      onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })}
+                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  {/* LinkedIn */}
+                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <Linkedin size={16} className="text-blue-700" fill="currentColor" /> LinkedIn Company Page
+                      </label>
+                      {socialLinks.linkedin && (
+                        <a
+                          href={socialLinks.linkedin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
+                        >
+                          <span>Test Link</span> <ExternalLink size={10} />
+                        </a>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://linkedin.com/company/sokoplus"
+                      value={socialLinks.linkedin || ""}
+                      onChange={(e) => setSocialLinks({ ...socialLinks, linkedin: e.target.value })}
+                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  {/* TikTok */}
+                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <Music size={16} className="text-black dark:text-white" /> TikTok Profile
+                      </label>
+                      {socialLinks.tiktok && (
+                        <a
+                          href={socialLinks.tiktok}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
+                        >
+                          <span>Test Link</span> <ExternalLink size={10} />
+                        </a>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://tiktok.com/@sokoplus"
+                      value={socialLinks.tiktok || ""}
+                      onChange={(e) => setSocialLinks({ ...socialLinks, tiktok: e.target.value })}
+                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  {/* WhatsApp */}
+                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <MessageCircle size={16} className="text-emerald-600" /> WhatsApp Direct / Channel
+                      </label>
+                      {socialLinks.whatsapp && (
+                        <a
+                          href={socialLinks.whatsapp}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
+                        >
+                          <span>Test Link</span> <ExternalLink size={10} />
+                        </a>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://wa.me/254740463021"
+                      value={socialLinks.whatsapp || ""}
+                      onChange={(e) => setSocialLinks({ ...socialLinks, whatsapp: e.target.value })}
+                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
+                    />
+                  </div>
+
+                  {/* YouTube */}
+                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2 md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <Youtube size={16} className="text-red-600" /> YouTube Channel
+                      </label>
+                      {socialLinks.youtube && (
+                        <a
+                          href={socialLinks.youtube}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
+                        >
+                          <span>Test Link</span> <ExternalLink size={10} />
+                        </a>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://youtube.com/@sokoplus"
+                      value={socialLinks.youtube || ""}
+                      onChange={(e) => setSocialLinks({ ...socialLinks, youtube: e.target.value })}
+                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -8664,8 +10549,8 @@ export default function Admin({ user }: AdminProps) {
                         
                         // Fetch all users & carts client-side with full admin entitlements
                         const [usersSnap, cartsSnap] = await Promise.all([
-                          getDocs(collection(db, "users")),
-                          getDocs(collection(db, "carts"))
+                          getDocs(query(collection(db, "users"), limit(100))),
+                          getDocs(query(collection(db, "carts"), limit(100)))
                         ]);
                         
                         const allUsers: any[] = [];

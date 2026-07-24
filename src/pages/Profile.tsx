@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Navigate, Link } from "react-router-dom";
-import { collection, query, where, orderBy, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, doc, deleteDoc, updateDoc, limit } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order, Voucher } from "../types";
 import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload, Settings, Sun, Moon, Globe, Coins, Gift, Copy, Check, Shield, ShieldCheck, ShieldAlert, QrCode, Key } from "lucide-react";
@@ -488,7 +488,7 @@ export default function Profile({ user }: ProfileProps) {
             q = query(q, where("createdAt", ">=", startOfMonth), where("createdAt", "<", endOfMonth));
           }
 
-          q = query(q, orderBy("createdAt", "desc"));
+          q = query(q, orderBy("createdAt", "desc"), limit(50));
           snap = await getDocs(q);
         } catch (indexError: any) {
           console.warn("[Profile] Date-bounded index not ready, falling back to client-side filtering:", indexError.message);
@@ -496,7 +496,8 @@ export default function Profile({ user }: ProfileProps) {
           const fallbackQ = query(
             collection(db, "orders"),
             where("userId", "==", user.uid),
-            orderBy("createdAt", "desc")
+            orderBy("createdAt", "desc"),
+            limit(50)
           );
           snap = await getDocs(fallbackQ);
         }

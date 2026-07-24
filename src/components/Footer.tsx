@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Facebook, Twitter, Instagram, Linkedin, Send, Mail, MapPin, Phone, X, ExternalLink } from "lucide-react";
+import { Facebook, Twitter, Instagram, Linkedin, Send, Mail, MapPin, Phone, X, ExternalLink, Youtube, MessageCircle, Music } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useLanguage } from "../lib/LanguageContext";
@@ -256,19 +256,78 @@ export default function Footer() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <a href="#" className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl text-gray-400 dark:text-gray-500 hover:bg-orange-50 dark:hover:bg-orange-950/20 hover:text-orange-600 dark:hover:text-orange-400 transition-all shadow-sm border border-gray-100 dark:border-gray-800">
-              <Instagram size={20} />
-            </a>
-            <a href="#" className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl text-gray-400 dark:text-gray-500 hover:bg-orange-50 dark:hover:bg-orange-950/20 hover:text-orange-600 dark:hover:text-orange-400 transition-all shadow-sm border border-gray-100 dark:border-gray-800">
-              <Twitter size={20} />
-            </a>
-            <a href="#" className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl text-gray-400 dark:text-gray-500 hover:bg-orange-50 dark:hover:bg-orange-950/20 hover:text-orange-600 dark:hover:text-orange-400 transition-all shadow-sm border border-gray-100 dark:border-gray-800 text-blue-600">
-              <Facebook size={20} fill="currentColor" />
-            </a>
-            <a href="#" className="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl text-gray-400 dark:text-gray-500 hover:bg-orange-50 dark:hover:bg-orange-950/20 hover:text-orange-600 dark:hover:text-orange-400 transition-all shadow-sm border border-gray-100 dark:border-gray-800 text-blue-800">
-              <Linkedin size={20} fill="currentColor" />
-            </a>
+          <div className="flex flex-wrap items-center gap-3">
+            {(() => {
+              const social = settings.socialLinks || {};
+              const hasCustomSocial = Object.values(social).some((url) => url && url.trim().length > 0);
+
+              const allPlatforms = [
+                {
+                  key: "instagram",
+                  label: "Instagram",
+                  url: social.instagram || (hasCustomSocial ? "" : "#"),
+                  icon: <Instagram size={18} />,
+                  activeClass: "hover:bg-pink-50 dark:hover:bg-pink-950/20 hover:text-pink-600 dark:hover:text-pink-400",
+                },
+                {
+                  key: "facebook",
+                  label: "Facebook",
+                  url: social.facebook || (hasCustomSocial ? "" : "#"),
+                  icon: <Facebook size={18} fill="currentColor" />,
+                  activeClass: "hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:text-blue-600 dark:hover:text-blue-400",
+                },
+                {
+                  key: "twitter",
+                  label: "Twitter / X",
+                  url: social.twitter || (hasCustomSocial ? "" : "#"),
+                  icon: <Twitter size={18} />,
+                  activeClass: "hover:bg-sky-50 dark:hover:bg-sky-950/20 hover:text-sky-500 dark:hover:text-sky-400",
+                },
+                {
+                  key: "linkedin",
+                  label: "LinkedIn",
+                  url: social.linkedin || (hasCustomSocial ? "" : "#"),
+                  icon: <Linkedin size={18} fill="currentColor" />,
+                  activeClass: "hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:text-blue-700 dark:hover:text-blue-400",
+                },
+                {
+                  key: "tiktok",
+                  label: "TikTok",
+                  url: social.tiktok || "",
+                  icon: <Music size={18} />,
+                  activeClass: "hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-black dark:hover:text-white",
+                },
+                {
+                  key: "whatsapp",
+                  label: "WhatsApp",
+                  url: social.whatsapp || "",
+                  icon: <MessageCircle size={18} />,
+                  activeClass: "hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-600 dark:hover:text-emerald-400",
+                },
+                {
+                  key: "youtube",
+                  label: "YouTube",
+                  url: social.youtube || "",
+                  icon: <Youtube size={18} />,
+                  activeClass: "hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600 dark:hover:text-red-400",
+                },
+              ];
+
+              const visiblePlatforms = allPlatforms.filter((p) => p.url && p.url.trim().length > 0);
+
+              return visiblePlatforms.map((p) => (
+                <a
+                  key={p.key}
+                  href={p.url === "#" ? "#" : p.url}
+                  target={p.url === "#" ? undefined : "_blank"}
+                  rel={p.url === "#" ? undefined : "noopener noreferrer"}
+                  title={`Follow us on ${p.label}`}
+                  className={`bg-gray-50 dark:bg-gray-900 p-2.5 sm:p-3 rounded-xl text-gray-400 dark:text-gray-500 transition-all shadow-xs border border-gray-100 dark:border-gray-800 flex items-center justify-center ${p.activeClass}`}
+                >
+                  {p.icon}
+                </a>
+              ));
+            })()}
           </div>
         </div>
       </div>

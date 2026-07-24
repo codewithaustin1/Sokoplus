@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { UserProfile, Order } from "../types";
 import { Bell, BellOff, X, Sparkles, CheckCircle } from "lucide-react";
@@ -176,7 +176,8 @@ export function NotificationManager({ user }: NotificationManagerProps) {
     const pathForOrders = "orders";
     const q = query(
       collection(db, pathForOrders),
-      where("userId", "==", user.uid)
+      where("userId", "==", user.uid),
+      limit(20)
     );
 
     const unsubscribe = onSnapshot(
@@ -248,7 +249,8 @@ export function NotificationManager({ user }: NotificationManagerProps) {
 
     const q = query(
       collection(db, "users", user.uid, "notifications"),
-      where("read", "==", false)
+      where("read", "==", false),
+      limit(20)
     );
 
     const unsubscribe = onSnapshot(

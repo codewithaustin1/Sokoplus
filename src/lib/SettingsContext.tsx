@@ -2,6 +2,16 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
 
+export interface SocialLinks {
+  facebook?: string;
+  instagram?: string;
+  twitter?: string;
+  linkedin?: string;
+  tiktok?: string;
+  whatsapp?: string;
+  youtube?: string;
+}
+
 export interface HomepageSettings {
   sellerStudioEnabled: boolean;
   showAudioBubble: boolean;
@@ -19,6 +29,7 @@ export interface HomepageSettings {
   seoDescription?: string;
   seoImage?: string;
   featuredCollections?: { title: string; imageUrl: string; category: string }[];
+  socialLinks?: SocialLinks;
 }
 
 interface SettingsContextType {
@@ -43,6 +54,15 @@ const defaultSettings: HomepageSettings = {
   seoDescription: "",
   seoImage: "",
   featuredCollections: [],
+  socialLinks: {
+    facebook: "",
+    instagram: "",
+    twitter: "",
+    linkedin: "",
+    tiktok: "",
+    whatsapp: "",
+    youtube: "",
+  },
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -96,6 +116,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           seoDescription: data.seoDescription || "",
           seoImage: data.seoImage || "",
           featuredCollections: data.featuredCollections || [],
+          socialLinks: data.socialLinks ? {
+            facebook: data.socialLinks.facebook || "",
+            instagram: data.socialLinks.instagram || "",
+            twitter: data.socialLinks.twitter || "",
+            linkedin: data.socialLinks.linkedin || "",
+            tiktok: data.socialLinks.tiktok || "",
+            whatsapp: data.socialLinks.whatsapp || "",
+            youtube: data.socialLinks.youtube || "",
+          } : defaultSettings.socialLinks,
         });
       } else {
         setSettings(defaultSettings);

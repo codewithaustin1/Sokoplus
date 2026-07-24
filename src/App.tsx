@@ -38,10 +38,10 @@ import { useEffect, useState, useRef } from "react";
 import { auth, db } from "./lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useInactivityLogout } from "./hooks/useInactivityLogout";
-import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where, limit } from "firebase/firestore";
 import { useSettings } from "./lib/SettingsContext";
 import { UserProfile } from "./types";
-import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X, Key, LogOut, ShieldCheck } from "lucide-react";
+import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X, Key, LogOut, ShieldCheck, Clock } from "lucide-react";
 import { verifyTOTP } from "./utils/totp";
 import toast from "react-hot-toast";
 import SupportChat from "./components/SupportChat";
@@ -109,6 +109,22 @@ function QuotaBannerWrapper({ quotaExceededInfo, onClear }: QuotaBannerWrapperPr
 
   if (!quotaExceededInfo || !isAdminPath) return null;
 
+  const getLastSyncDisplay = () => {
+    const stored = localStorage.getItem("sokoplus_last_sync_time") || localStorage.getItem("sokoplus_last_successful_sync");
+    if (stored) {
+      try {
+        const d = new Date(stored);
+        if (!isNaN(d.getTime())) {
+          return `${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} on ${d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        }
+      } catch (err) {
+        console.error("Failed to parse sync timestamp:", err);
+      }
+    }
+    const fallback = new Date();
+    return `${fallback.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} on ${fallback.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  };
+
   return (
     <div id="firestore-quota-warning-banner" className="bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/50 px-4 py-3 select-none">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -127,6 +143,12 @@ function QuotaBannerWrapper({ quotaExceededInfo, onClear }: QuotaBannerWrapperPr
               The Firestore daily free-tier read quota metric for this project has been fully exhausted because of high usage. 
               SokoPlus is operating seamlessly via local database queries and IndexedDB offline cache fallbacks.
             </p>
+            <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100/90 dark:bg-amber-900/50 border border-amber-300/60 dark:border-amber-800/80 text-xs font-semibold text-amber-950 dark:text-amber-200">
+              <Clock size={13} className="text-amber-700 dark:text-amber-400 shrink-0" />
+              <span>
+                <strong>Last successful sync:</strong> {getLastSyncDisplay()}
+              </span>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
@@ -274,7 +296,8 @@ export default function App() {
 
     const q = query(
       collection(db, "support_tickets"),
-      where("userId", "==", user.uid)
+      where("userId", "==", user.uid),
+      limit(30)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

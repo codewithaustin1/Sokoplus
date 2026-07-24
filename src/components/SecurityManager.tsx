@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { db, auth } from "../lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, limit } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Shield, Plus, Trash2, Users, Check, X, AlertTriangle, 
@@ -221,7 +221,7 @@ export default function SecurityManager({ user }: SecurityManagerProps) {
       // 3. Fetch Registered Users directory to assist with direct lookup mappings
       let userSnap;
       try {
-        userSnap = await getDocs(collection(db, "users"));
+        userSnap = await getDocs(query(collection(db, "users"), limit(100)));
       } catch (firestoreErr: any) {
         handleFirestoreError(firestoreErr, OperationType.LIST, "users");
       }

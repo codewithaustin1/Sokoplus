@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy, onSnapshot, where, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, onSnapshot, where, addDoc, updateDoc, deleteDoc, doc, limit } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { 
   ShoppingBag, ArrowRight, Search, Calendar, User, Clock, X, ArrowLeft, 
@@ -155,7 +155,8 @@ export default function Blog({ user }: { user: UserProfile | null }) {
     setLoadingComments(true);
     const q = query(
       collection(db, "comments"),
-      where("postId", "==", selectedPost.id)
+      where("postId", "==", selectedPost.id),
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(
@@ -323,7 +324,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
   useEffect(() => {
     async function fetchPosts() {
       try {
-        const snap = await getDocs(query(collection(db, "blog"), orderBy("publishedAt", "desc")));
+        const snap = await getDocs(query(collection(db, "blog"), orderBy("publishedAt", "desc"), limit(20)));
         const fetched: BlogPost[] = snap.docs.map(d => {
           const data = d.data();
           return {

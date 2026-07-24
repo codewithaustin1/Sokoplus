@@ -8,11 +8,16 @@ import {
   collection,
   query,
   where,
+  limit,
   getDocs,
   addDoc,
   deleteDoc,
   updateDoc,
   serverTimestamp,
+  getCountFromServer,
+  getAggregateFromServer,
+  sum,
+  count,
 } from "firebase/firestore";
 import {
   ShoppingBag,
@@ -158,7 +163,8 @@ export default function SellerStudio({ user }: SellerStudioProps) {
       // 1. Fetch seller products (both approved and pending)
       const pQuery = query(
         collection(db, "products"),
-        where("sellerId", "==", sellerProfile.uid)
+        where("sellerId", "==", sellerProfile.uid),
+        limit(100)
       );
       const pSnap = await getDocs(pQuery);
       const pList: Product[] = [];
@@ -170,7 +176,8 @@ export default function SellerStudio({ user }: SellerStudioProps) {
       try {
         const pendingQuery = query(
           collection(db, "pending_products"),
-          where("sellerId", "==", sellerProfile.uid)
+          where("sellerId", "==", sellerProfile.uid),
+          limit(100)
         );
         const pendingSnap = await getDocs(pendingQuery);
         pendingSnap.forEach((docSnap) => {
@@ -189,7 +196,8 @@ export default function SellerStudio({ user }: SellerStudioProps) {
       // 2. Fetch sales from orders where this seller's products are purchased
       const oQuery = query(
         collection(db, "orders"),
-        where("sellerIds", "array-contains", sellerProfile.uid)
+        where("sellerIds", "array-contains", sellerProfile.uid),
+        limit(50)
       );
       const oSnap = await getDocs(oQuery);
       const sellerOrders: Order[] = [];
@@ -223,6 +231,36 @@ export default function SellerStudio({ user }: SellerStudioProps) {
         netEarnings: net,
         unitsSold: totalUnits
       });
+
+      // Execute high-efficiency server-side aggregate query for count of seller orders & products
+      try {
+        const [ordersCountAgg, sellerProductsCountSnap] = await Promise.all([
+          getAggregateFromServer(
+            query(collection(db, "orders"), where("sellerIds", "array-contains", sellerProfile.uid)),
+            { totalOrdersCount: count() }
+          ),
+          getCountFromServer(
+            query(collection(db, "products"), where("sellerId", "==", sellerProfile.uid))
+          )
+        ]);
+
+        const totalOrders = ordersCountAgg?.data()?.totalOrdersCount || sellerOrders.length;
+        const sellerProductsCount = sellerProductsCountSnap?.data()?.count || 0;
+
+        // Persist pre-computed seller summary metrics to seller profile document
+        await updateDoc(doc(db, "sellers", sellerProfile.uid), {
+          summaryMetrics: {
+            grossSales: totalGross,
+            netEarnings: net,
+            unitsSold: totalUnits,
+            totalOrders,
+            totalProducts: sellerProductsCount,
+            lastCalculatedAt: new Date().toISOString()
+          }
+        }).catch(() => {});
+      } catch (aggErr) {
+        console.warn("Seller aggregate server query issue:", aggErr);
+      }
     } catch (err) {
       console.error("Error parsing sales records:", err);
     } finally {

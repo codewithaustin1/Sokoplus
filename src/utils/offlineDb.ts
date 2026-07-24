@@ -121,3 +121,21 @@ export async function getHomepageSettings(key: string): Promise<any | null> {
     return null;
   }
 }
+
+/**
+ * Clears all cached products and settings from IndexedDB.
+ */
+export async function clearAllOfflineCache(): Promise<void> {
+  try {
+    const db = await openOfflineDB();
+    const tx = db.transaction([PRODUCTS_STORE, SETTINGS_STORE], "readwrite");
+    tx.objectStore(PRODUCTS_STORE).clear();
+    tx.objectStore(SETTINGS_STORE).clear();
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.error("Failed to clear IndexedDB offline store:", err);
+  }
+}
