@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { UserProfile, Product, Order, SupportTicket, BlogPost, JobOffer, JobApplication, Review } from "../types";
 import { db, auth } from "../lib/firebase";
@@ -178,7 +177,6 @@ import {
   Check,
   CheckCheck,
   Sparkles,
-  Zap,
   Award,
   Megaphone,
   Calendar,
@@ -194,6 +192,7 @@ import {
   MessageCircle,
   ExternalLink,
   RefreshCw,
+  Zap,
   Radio,
   Gauge,
   Activity,
@@ -703,864 +702,6 @@ const CustomCategoryTooltip = ({ active, payload }: any) => {
   }
   return null;
 };
-
-interface AdminProductsTableProps {
-  products: Product[];
-  minRatingFilter: number;
-  setMinRatingFilter: (v: number) => void;
-  productApprovalFilter: "all" | "pending" | "approved" | "rejected";
-  setProductApprovalFilter: (v: "all" | "pending" | "approved" | "rejected") => void;
-  productSortBy: string;
-  setProductSortBy: (v: string) => void;
-  productSearchTerm: string;
-  setProductSearchTerm: (v: string) => void;
-  selectedProductIds: string[];
-  setSelectedProductIds: React.Dispatch<React.SetStateAction<string[]>>;
-  handleBatchDeleteProducts: () => Promise<void>;
-  isBatchDeletingProducts: boolean;
-  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
-  setEditingProduct: (p: Product) => void;
-  setHasColorsEdit: (b: boolean) => void;
-  setSelectedColorsEdit: (c: string[]) => void;
-  setShowEditModal: (b: boolean) => void;
-  deleteProduct: (id: string, name: string) => void;
-  setSelectedProductForRejection: (p: Product) => void;
-  setProductRejectionReasonInput: (s: string) => void;
-  confirmingApproveProductId: string | null;
-  setConfirmingApproveProductId: (s: string | null) => void;
-}
-
-function AdminProductsTable({
-  products,
-  minRatingFilter,
-  setMinRatingFilter,
-  productApprovalFilter,
-  setProductApprovalFilter,
-  productSortBy,
-  setProductSortBy,
-  productSearchTerm,
-  setProductSearchTerm,
-  selectedProductIds,
-  setSelectedProductIds,
-  handleBatchDeleteProducts,
-  isBatchDeletingProducts,
-  setProducts,
-  setEditingProduct,
-  setHasColorsEdit,
-  setSelectedColorsEdit,
-  setShowEditModal,
-  deleteProduct,
-  setSelectedProductForRejection,
-  setProductRejectionReasonInput,
-  confirmingApproveProductId,
-  setConfirmingApproveProductId,
-}: AdminProductsTableProps) {
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-
-  const filteredProductsList = products
-    .filter((p) => {
-      const rating = p.rating || 0;
-      if (rating < minRatingFilter) return false;
-
-      const approval = p.approvalStatus || "approved";
-      if (productApprovalFilter !== "all" && approval !== productApprovalFilter) return false;
-
-      if (
-        productSearchTerm.trim() !== "" &&
-        !p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
-        !p.category.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
-        !(p.artisan || "").toLowerCase().includes(productSearchTerm.toLowerCase())
-      ) {
-        return false;
-      }
-
-      return true;
-    })
-    .sort((a, b) => {
-      if (productSortBy === "created-asc") {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateA - dateB;
-      }
-      if (productSortBy === "created-desc") {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
-      }
-      if (productSortBy === "rating-desc") {
-        return (b.rating || 0) - (a.rating || 0);
-      }
-      if (productSortBy === "rating-asc") {
-        return (a.rating || 0) - (b.rating || 0);
-      }
-      if (productSortBy === "price-desc") {
-        return b.price - a.price;
-      }
-      if (productSortBy === "price-asc") {
-        return a.price - b.price;
-      }
-      if (productSortBy === "stock-asc") {
-        return a.stock - b.stock;
-      }
-      if (productSortBy === "stock-desc") {
-        return b.stock - a.stock;
-      }
-      return 0;
-    });
-
-  const rowVirtualizer = useVirtualizer({
-    count: filteredProductsList.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 82,
-    overscan: 6,
-  });
-
-  const virtualItems = rowVirtualizer.getVirtualItems();
-  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
-  const paddingBottom =
-    virtualItems.length > 0
-      ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
-      : 0;
-
-  const isAllProductsSelected =
-    filteredProductsList.length > 0 &&
-    filteredProductsList.every((p) => selectedProductIds.includes(p.id));
-
-  const toggleSelectAllProducts = () => {
-    if (isAllProductsSelected) {
-      const filteredSet = new Set(filteredProductsList.map((p) => p.id));
-      setSelectedProductIds((prev) => prev.filter((id) => !filteredSet.has(id)));
-    } else {
-      const allFilteredIds = filteredProductsList.map((p) => p.id);
-      setSelectedProductIds((prev) => Array.from(new Set([...prev, ...allFilteredIds])));
-    }
-  };
-
-  const toggleSelectProduct = (id: string) => {
-    setSelectedProductIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
-
-  return (
-    <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-50 pb-4">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Inventory Management</h2>
-          <p className="text-xs text-gray-400 font-semibold mt-0.5">
-            Manage store catalog, batch delete listings, and review artisan clearance status.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 bg-orange-50 text-orange-800 text-[11px] font-extrabold px-3.5 py-1.5 rounded-full border border-orange-200/70 shadow-2xs">
-          <Zap size={14} className="text-orange-600 fill-orange-500" />
-          <span>
-            Virtualization Active ({virtualItems.length} active of {filteredProductsList.length} rows rendered)
-          </span>
-        </div>
-      </div>
-
-      {/* Batch Action Banner for Products */}
-      {selectedProductIds.length > 0 && (
-        <div className="bg-orange-50 border border-orange-200 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-600 text-white rounded-xl">
-              <CheckSquare size={18} />
-            </div>
-            <div>
-              <p className="text-xs font-black text-orange-950 uppercase tracking-wide">
-                {selectedProductIds.length} {selectedProductIds.length === 1 ? "Product" : "Products"} Selected
-              </p>
-              <p className="text-[11px] font-semibold text-orange-700">
-                Executes via a single Firestore writeBatch operation to minimize document write requests.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedProductIds([])}
-              className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:text-gray-800 bg-white border border-gray-200 rounded-xl transition-all cursor-pointer"
-            >
-              Clear Selection
-            </button>
-            <button
-              type="button"
-              onClick={handleBatchDeleteProducts}
-              disabled={isBatchDeletingProducts}
-              className="px-4 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
-            >
-              <Trash2 size={14} />
-              <span>{isBatchDeletingProducts ? "Processing Batch Delete..." : `Batch Delete Selected (${selectedProductIds.length})`}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Filter controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-50">
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Minimum Rating Selector */}
-          <div className="flex flex-col space-y-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Minimum Rating</span>
-            <select
-              value={minRatingFilter}
-              onChange={(e) => setMinRatingFilter(Number(e.target.value))}
-              className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[140px]"
-            >
-              <option value={0}>All Ratings</option>
-              <option value={1}>1.0+ Stars</option>
-              <option value={2}>2.0+ Stars</option>
-              <option value={3}>3.0+ Stars</option>
-              <option value={4}>4.0+ Stars</option>
-              <option value={4.5}>4.5+ Stars</option>
-              <option value={5}>5.0 Stars</option>
-            </select>
-          </div>
-
-          {/* Sort dropdown */}
-          <div className="flex flex-col space-y-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Sort By</span>
-            <select
-              value={productSortBy}
-              onChange={(e) => setProductSortBy(e.target.value)}
-              className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[180px]"
-            >
-              <option value="default">Default</option>
-              <option value="created-asc">Earliest Added to Last Added</option>
-              <option value="created-desc">Last Added to Earliest Added</option>
-              <option value="rating-desc">Rating: High to Low</option>
-              <option value="rating-asc">Rating: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="stock-asc">Stock: Low to High</option>
-              <option value="stock-desc">Stock: High to Low</option>
-            </select>
-          </div>
-
-          {/* Clearance approval status selector */}
-          <div className="flex flex-col space-y-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Clearance Status</span>
-            <select
-              value={productApprovalFilter}
-              onChange={(e) => setProductApprovalFilter(e.target.value as any)}
-              className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer min-w-[180px]"
-            >
-              <option value="all">All listings</option>
-              <option value="pending">Pending Clearance ({products.filter(p => p.approvalStatus === "pending").length})</option>
-              <option value="approved">Approved & Live</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Product search input */}
-        <div className="flex flex-col space-y-1 w-full md:max-w-xs">
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Search Directory</span>
-          <div className="relative group">
-            <Search
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors"
-              size={16}
-            />
-            <input
-              type="text"
-              placeholder="Search product name or category..."
-              value={productSearchTerm}
-              onChange={(e) => setProductSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm text-gray-900"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* VIRTUALIZED PRODUCT TABLE SCROLL CONTAINER */}
-      <div ref={tableContainerRef} className="overflow-y-auto max-h-[620px] rounded-2xl border border-gray-100 shadow-inner">
-        <table className="w-full text-left border-collapse">
-          <thead className="sticky top-0 bg-white z-20 shadow-xs">
-            <tr className="text-xs font-bold text-gray-400 border-b border-gray-100 bg-gray-50/90 backdrop-blur-xs">
-              <th className="py-3.5 w-12 text-center">
-                <input
-                  type="checkbox"
-                  checked={isAllProductsSelected}
-                  onChange={toggleSelectAllProducts}
-                  className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
-                  title="Select All Filtered Products"
-                />
-              </th>
-              <th className="py-3.5 uppercase">Product</th>
-              <th className="py-3.5 uppercase">Category</th>
-              <th className="py-3.5 uppercase text-center">Rating</th>
-              <th className="py-3.5 uppercase text-center">Status</th>
-              <th className="py-3.5 uppercase text-center">Stock</th>
-              <th className="py-3.5 uppercase text-right">Price</th>
-              <th className="py-3.5 uppercase text-center pr-4">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filteredProductsList.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="py-12 text-center text-gray-400 font-semibold text-xs">
-                  No products found matching filters.
-                </td>
-              </tr>
-            ) : (
-              <>
-                {paddingTop > 0 && (
-                  <tr>
-                    <td style={{ height: `${paddingTop}px` }} colSpan={8} />
-                  </tr>
-                )}
-                {virtualItems.map((virtualRow) => {
-                  const p = filteredProductsList[virtualRow.index];
-                  return (
-                    <tr
-                      key={p.id}
-                      className={`text-sm hover:bg-gray-50/50 transition-all ${
-                        p.active === false ? "opacity-60 bg-gray-50/20" : ""
-                      } ${selectedProductIds.includes(p.id) ? "bg-orange-50/30" : ""}`}
-                    >
-                      <td className="py-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedProductIds.includes(p.id)}
-                          onChange={() => toggleSelectProduct(p.id)}
-                          className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
-                        />
-                      </td>
-                      <td className="py-4">
-                        <div className="flex flex-col space-y-1">
-                          <div className="font-bold flex items-center gap-2 flex-wrap">
-                            <span>{p.name}</span>
-                            {(!p.approvalStatus || p.approvalStatus === "approved") ? (
-                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-100">
-                                Approved
-                              </span>
-                            ) : p.approvalStatus === "pending" ? (
-                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 animate-pulse">
-                                Pending Clearance
-                              </span>
-                            ) : (
-                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100">
-                                Rejected
-                              </span>
-                            )}
-                          </div>
-                          {p.artisan && (
-                            <div className="text-[11px] font-semibold text-orange-600">by {p.artisan}</div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 text-gray-500">{p.category}</td>
-                      <td className="py-4 text-center">
-                        <div className="flex items-center justify-center space-x-1 font-bold text-gray-700 bg-amber-50/50 py-1 px-2.5 rounded-full border border-amber-100/30 w-fit mx-auto">
-                          <Star size={12} className="text-amber-400 fill-amber-400" />
-                          <span>{p.rating?.toFixed(1) || "N/A"}</span>
-                          {p.reviewCount !== undefined && p.reviewCount > 0 && (
-                            <span className="text-[10px] text-gray-400 font-medium">({p.reviewCount})</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 text-center">
-                        {p.approvalStatus === "pending" ? (
-                          <div className="flex flex-col items-center space-y-1.5 bg-amber-50/45 p-2 rounded-2xl border border-amber-105">
-                            <span className="text-[10px] b-fit uppercase font-black tracking-wider text-amber-700 flex items-center justify-center gap-1">
-                              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>
-                              Pending Review
-                            </span>
-                            <div className="flex items-center gap-1 pt-0.5">
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  if (confirmingApproveProductId !== p.id) {
-                                    setConfirmingApproveProductId(p.id);
-                                    return;
-                                  }
-                                  try {
-                                    await updateDoc(doc(db, "products", p.id), {
-                                      approvalStatus: "approved",
-                                      active: true,
-                                      rejectionReason: ""
-                                    });
-                                    setProducts((prev) =>
-                                      prev.map((prod) =>
-                                        prod.id === p.id
-                                          ? { ...prod, approvalStatus: "approved", active: true, rejectionReason: "" }
-                                          : prod,
-                                      ),
-                                    );
-                                    toast.success(`"${p.name}" cleared and live on catalog!`);
-                                    setConfirmingApproveProductId(null);
-                                  } catch (error) {
-                                    console.error(error);
-                                    toast.error("Failed to approve product listing");
-                                  }
-                                }}
-                                className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border-none cursor-pointer ${
-                                  confirmingApproveProductId === p.id
-                                    ? "bg-amber-600 hover:bg-amber-700 text-white animate-pulse"
-                                    : "bg-green-600 hover:bg-green-700 text-white shadow-xs"
-                                }`}
-                              >
-                                {confirmingApproveProductId === p.id ? "Confirm?" : "Approve"}
-                              </button>
-                              {confirmingApproveProductId === p.id && (
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmingApproveProductId(null)}
-                                  className="px-2 py-1 bg-gray-150 hover:bg-gray-200 text-gray-700 rounded-lg text-[9px] font-black uppercase border-none cursor-pointer"
-                                >
-                                  Cancel
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedProductForRejection(p);
-                                  setProductRejectionReasonInput("");
-                                  setConfirmingApproveProductId(null);
-                                }}
-                                className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase transition-all border-none cursor-pointer"
-                              >
-                                Decline
-                              </button>
-                            </div>
-                          </div>
-                        ) : p.approvalStatus === "rejected" ? (
-                          <div className="flex flex-col items-center space-y-1 bg-red-50/40 p-2 rounded-2xl border border-red-100">
-                            <span className="text-[10px] uppercase font-black tracking-wider text-red-700">
-                              Rejected
-                            </span>
-                            {p.rejectionReason && (
-                              <p className="text-[9px] text-gray-400 italic max-w-[150px] line-clamp-2 text-center" title={p.rejectionReason}>
-                                "{p.rejectionReason}"
-                              </p>
-                            )}
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                try {
-                                  await updateDoc(doc(db, "products", p.id), {
-                                    approvalStatus: "approved",
-                                    active: true,
-                                    rejectionReason: ""
-                                  });
-                                  setProducts((prev) =>
-                                    prev.map((prod) =>
-                                      prod.id === p.id
-                                        ? { ...prod, approvalStatus: "approved", active: true, rejectionReason: "" }
-                                        : prod,
-                                    ),
-                                  );
-                                  toast.success(`"${p.name}" cleared from rejection to Approved & Live!`);
-                                } catch (error) {
-                                  console.error(error);
-                                  toast.error("Failed to approve product");
-                                }
-                              }}
-                              className="px-2 py-1 mt-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg text-[9px] font-black uppercase transition-all border-none cursor-pointer"
-                            >
-                              Clear Listing
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center space-x-2">
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                const newStatus = p.active === false;
-                                try {
-                                  await updateDoc(doc(db, "products", p.id), {
-                                    active: newStatus,
-                                  });
-                                  setProducts((prev) =>
-                                    prev.map((prod) =>
-                                      prod.id === p.id
-                                        ? { ...prod, active: newStatus }
-                                        : prod,
-                                    ),
-                                  );
-                                  toast.success(
-                                    `"${p.name}" is now ${newStatus ? "Active" : "Inactive"}`
-                                  );
-                                } catch (error) {
-                                  handleFirestoreError(
-                                    error,
-                                    OperationType.UPDATE,
-                                    `products/${p.id}`,
-                                  );
-                                }
-                              }}
-                              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                p.active !== false ? "bg-orange-600" : "bg-gray-200"
-                              }`}
-                              title={p.active !== false ? "Switch to Inactive" : "Switch to Active"}
-                            >
-                              <span
-                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                                  p.active !== false ? "translate-x-4" : "translate-x-0"
-                                }`}
-                              />
-                            </button>
-                            <span className={`text-[10px] uppercase tracking-wider font-extrabold select-none ${p.active !== false ? "text-green-600" : "text-gray-400"}`}>
-                              {p.active !== false ? "Active" : "Inactive"}
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-4 text-center">
-                        <div className="flex items-center justify-center space-x-2">
-                          <input
-                            type="number"
-                            className="w-16 bg-gray-50 border border-gray-100 rounded-lg text-center font-bold outline-none focus:ring-1 focus:ring-orange-600 transition-all py-1"
-                            value={p.stock}
-                            onChange={async (e) => {
-                              const newStock = Number(e.target.value);
-                              try {
-                                await updateDoc(doc(db, "products", p.id), {
-                                  stock: newStock,
-                                });
-                                setProducts((prev) =>
-                                  prev.map((prod) =>
-                                    prod.id === p.id
-                                      ? { ...prod, stock: newStock }
-                                      : prod,
-                                  ),
-                                );
-                              } catch (error) {
-                                handleFirestoreError(
-                                  error,
-                                  OperationType.UPDATE,
-                                  `products/${p.id}`,
-                                );
-                              }
-                            }}
-                          />
-                        </div>
-                      </td>
-                      <td className="py-4 text-right font-black">
-                        KES {p.price.toLocaleString()}
-                      </td>
-                      <td className="py-4 text-center pr-4">
-                        <div className="flex items-center justify-center space-x-1">
-                          <button
-                            onClick={() => {
-                              setEditingProduct(p);
-                              setHasColorsEdit(!!(p.availableColors && p.availableColors.length > 0));
-                              setSelectedColorsEdit(p.availableColors || []);
-                              setShowEditModal(true);
-                            }}
-                            className="text-blue-500 p-2 hover:bg-blue-50 rounded-lg transition-all"
-                            title="Edit Product"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteProduct(p.id, p.name)}
-                            className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition-all"
-                            title="Delete Product"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {paddingBottom > 0 && (
-                  <tr>
-                    <td style={{ height: `${paddingBottom}px` }} colSpan={8} />
-                  </tr>
-                )}
-              </>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-interface AdminUsersTableProps {
-  usersList: UserProfile[];
-  userSearchTerm: string;
-  setUserSearchTerm: (s: string) => void;
-  selectedUserUids: string[];
-  setSelectedUserUids: React.Dispatch<React.SetStateAction<string[]>>;
-  handleBatchDeleteUsers: () => Promise<void>;
-  isBatchDeletingUsers: boolean;
-  handleDownloadUsersCSV: () => void;
-  isExportingUsers: boolean;
-  deleteUserDoc: (uid: string, email: string) => void;
-}
-
-function AdminUsersTable({
-  usersList,
-  userSearchTerm,
-  setUserSearchTerm,
-  selectedUserUids,
-  setSelectedUserUids,
-  handleBatchDeleteUsers,
-  isBatchDeletingUsers,
-  handleDownloadUsersCSV,
-  isExportingUsers,
-  deleteUserDoc,
-}: AdminUsersTableProps) {
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-
-  const filteredUsersList = usersList.filter((u) => {
-    if (!userSearchTerm.trim()) return true;
-    const q = userSearchTerm.toLowerCase();
-    return (
-      u.email.toLowerCase().includes(q) ||
-      (u.displayName || "").toLowerCase().includes(q) ||
-      (u.phoneNumber || "").toLowerCase().includes(q) ||
-      (u.uid || "").toLowerCase().includes(q)
-    );
-  });
-
-  const rowVirtualizer = useVirtualizer({
-    count: filteredUsersList.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 68,
-    overscan: 6,
-  });
-
-  const virtualItems = rowVirtualizer.getVirtualItems();
-  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
-  const paddingBottom =
-    virtualItems.length > 0
-      ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
-      : 0;
-
-  const isAllUsersSelected =
-    filteredUsersList.length > 0 &&
-    filteredUsersList.every((u) => selectedUserUids.includes(u.uid));
-
-  const toggleSelectAllUsers = () => {
-    if (isAllUsersSelected) {
-      const filteredSet = new Set(filteredUsersList.map((u) => u.uid));
-      setSelectedUserUids((prev) => prev.filter((id) => !filteredSet.has(id)));
-    } else {
-      const allFilteredIds = filteredUsersList.map((u) => u.uid);
-      setSelectedUserUids((prev) => Array.from(new Set([...prev, ...allFilteredIds])));
-    }
-  };
-
-  const toggleSelectUser = (uid: string) => {
-    setSelectedUserUids((prev) =>
-      prev.includes(uid) ? prev.filter((i) => i !== uid) : [...prev, uid]
-    );
-  };
-
-  return (
-    <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-50 pb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="p-2.5 bg-orange-50 text-orange-600 rounded-2xl">
-              <Users size={22} />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">User Accounts Directory</h2>
-              <p className="text-xs text-gray-400 font-semibold mt-0.5">
-                Manage registered customer profiles, view loyalty metrics, and execute batch delete operations.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-orange-50 text-orange-800 text-[11px] font-extrabold px-3.5 py-1.5 rounded-full border border-orange-200/70 shadow-2xs">
-            <Zap size={14} className="text-orange-600 fill-orange-500" />
-            <span>
-              Virtualization Active ({virtualItems.length} active of {filteredUsersList.length} rows rendered)
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={handleDownloadUsersCSV}
-            disabled={isExportingUsers}
-            className="px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-150 text-gray-700 font-extrabold text-xs rounded-2xl transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <Download size={14} />
-            <span>{isExportingUsers ? "Exporting..." : "Export CSV Report"}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Batch Action Banner for Users */}
-      {selectedUserUids.length > 0 && (
-        <div className="bg-orange-50 border border-orange-200 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-600 text-white rounded-xl">
-              <CheckSquare size={18} />
-            </div>
-            <div>
-              <p className="text-xs font-black text-orange-950 uppercase tracking-wide">
-                {selectedUserUids.length} {selectedUserUids.length === 1 ? "User Account" : "User Accounts"} Selected
-              </p>
-              <p className="text-[11px] font-semibold text-orange-700">
-                Executes via a single Firestore writeBatch operation to eliminate multiple individual write requests.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedUserUids([])}
-              className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:text-gray-800 bg-white border border-gray-200 rounded-xl transition-all cursor-pointer"
-            >
-              Clear Selection
-            </button>
-            <button
-              type="button"
-              onClick={handleBatchDeleteUsers}
-              disabled={isBatchDeletingUsers}
-              className="px-4 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
-            >
-              <Trash2 size={14} />
-              <span>{isBatchDeletingUsers ? "Processing Batch Delete..." : `Batch Delete Selected (${selectedUserUids.length})`}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Search & Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="relative flex-grow max-w-md">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
-            <Search size={16} />
-          </span>
-          <input
-            type="text"
-            placeholder="Search by name, email, or UID..."
-            value={userSearchTerm}
-            onChange={(e) => setUserSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-xs font-semibold"
-          />
-          {userSearchTerm && (
-            <button
-              type="button"
-              onClick={() => setUserSearchTerm("")}
-              className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-gray-400 hover:text-gray-600 text-xs font-bold"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-        <div className="text-xs font-bold text-gray-400">
-          Showing {filteredUsersList.length} of {usersList.length} registered user profiles
-        </div>
-      </div>
-
-      {/* VIRTUALIZED USER TABLE SCROLL CONTAINER */}
-      <div ref={tableContainerRef} className="overflow-y-auto max-h-[620px] rounded-2xl border border-gray-100 shadow-inner">
-        <table className="w-full text-left border-collapse">
-          <thead className="sticky top-0 bg-white z-20 shadow-xs">
-            <tr className="text-xs font-bold text-gray-400 border-b border-gray-100 bg-gray-50/90 backdrop-blur-xs">
-              <th className="py-3.5 w-12 text-center">
-                <input
-                  type="checkbox"
-                  checked={isAllUsersSelected}
-                  onChange={toggleSelectAllUsers}
-                  className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
-                  title="Select All User Profiles"
-                />
-              </th>
-              <th className="py-3.5 uppercase">User Profile</th>
-              <th className="py-3.5 uppercase">Email Address</th>
-              <th className="py-3.5 uppercase text-center">Loyalty Points</th>
-              <th className="py-3.5 uppercase text-center">Role</th>
-              <th className="py-3.5 uppercase text-center">Registered Date</th>
-              <th className="py-3.5 uppercase text-center pr-4">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filteredUsersList.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-12 text-center text-gray-400 font-semibold text-xs">
-                  No registered user accounts found matching query.
-                </td>
-              </tr>
-            ) : (
-              <>
-                {paddingTop > 0 && (
-                  <tr>
-                    <td style={{ height: `${paddingTop}px` }} colSpan={7} />
-                  </tr>
-                )}
-                {virtualItems.map((virtualRow) => {
-                  const u = filteredUsersList[virtualRow.index];
-                  return (
-                    <tr key={u.uid} className={`text-sm hover:bg-gray-50/50 transition-all ${selectedUserUids.includes(u.uid) ? "bg-orange-50/30" : ""}`}>
-                      <td className="py-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedUserUids.includes(u.uid)}
-                          onChange={() => toggleSelectUser(u.uid)}
-                          className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 cursor-pointer"
-                        />
-                      </td>
-                      <td className="py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
-                            {u.photoURL ? (
-                              <img src={u.photoURL} alt={u.displayName || u.email} className="w-full h-full rounded-full object-cover" />
-                            ) : (
-                              (u.displayName || u.email || "U").charAt(0).toUpperCase()
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-bold text-gray-900">{u.displayName || "Anonymous User"}</div>
-                            <div className="text-[10px] font-mono text-gray-400">UID: {u.uid}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 text-xs font-medium text-gray-700">{u.email}</td>
-                      <td className="py-4 text-center">
-                        <span className="text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100">
-                          ⚡ {u.loyaltyPoints || 0} pts
-                        </span>
-                      </td>
-                      <td className="py-4 text-center">
-                        {u.isAdmin ? (
-                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-200">
-                            Administrator
-                          </span>
-                        ) : (
-                          <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-                            Customer
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-4 text-center text-xs text-gray-500 font-medium">
-                        {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}
-                      </td>
-                      <td className="py-4 text-center pr-4">
-                        <button
-                          type="button"
-                          onClick={() => deleteUserDoc(u.uid, u.email)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-                          title="Delete User Account"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {paddingBottom > 0 && (
-                  <tr>
-                    <td style={{ height: `${paddingBottom}px` }} colSpan={7} />
-                  </tr>
-                )}
-              </>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
 
 export default function Admin({ user }: AdminProps) {
   const { sellerStudioEnabled, toggleSellerStudio } = useSellerStudio();
@@ -5754,35 +4895,78 @@ export default function Admin({ user }: AdminProps) {
           </div>
         )}
 
-        {activeTab === "inventory" && (
-          <AdminProductsTable
-            products={products}
-            minRatingFilter={minRatingFilter}
-            setMinRatingFilter={setMinRatingFilter}
-            productApprovalFilter={productApprovalFilter}
-            setProductApprovalFilter={setProductApprovalFilter}
-            productSortBy={productSortBy}
-            setProductSortBy={setProductSortBy}
-            productSearchTerm={productSearchTerm}
-            setProductSearchTerm={setProductSearchTerm}
-            selectedProductIds={selectedProductIds}
-            setSelectedProductIds={setSelectedProductIds}
-            handleBatchDeleteProducts={handleBatchDeleteProducts}
-            isBatchDeletingProducts={isBatchDeletingProducts}
-            setProducts={setProducts}
-            setEditingProduct={setEditingProduct}
-            setHasColorsEdit={setHasColorsEdit}
-            setSelectedColorsEdit={setSelectedColorsEdit}
-            setShowEditModal={setShowEditModal}
-            deleteProduct={deleteProduct}
-            setSelectedProductForRejection={setSelectedProductForRejection}
-            setProductRejectionReasonInput={setProductRejectionReasonInput}
-            confirmingApproveProductId={confirmingApproveProductId}
-            setConfirmingApproveProductId={setConfirmingApproveProductId}
-          />
-        )}
+        {activeTab === "inventory" && (() => {
+          const filteredProductsList = products
+            .filter((p) => {
+              const rating = p.rating || 0;
+              if (rating < minRatingFilter) return false;
+              
+              const approval = p.approvalStatus || "approved";
+              if (productApprovalFilter !== "all" && approval !== productApprovalFilter) return false;
 
-        {/* REPLACED_OLD_INVENTORY_TABLE */
+              if (
+                productSearchTerm.trim() !== "" &&
+                !p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
+                !p.category.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
+                !(p.artisan || "").toLowerCase().includes(productSearchTerm.toLowerCase())
+              ) {
+                return false;
+              }
+              
+              return true;
+            })
+            .sort((a, b) => {
+              if (productSortBy === "created-asc") {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateA - dateB;
+              }
+              if (productSortBy === "created-desc") {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateB - dateA;
+              }
+              if (productSortBy === "rating-desc") {
+                return (b.rating || 0) - (a.rating || 0);
+              }
+              if (productSortBy === "rating-asc") {
+                return (a.rating || 0) - (b.rating || 0);
+              }
+              if (productSortBy === "price-desc") {
+                return b.price - a.price;
+              }
+              if (productSortBy === "price-asc") {
+                return a.price - b.price;
+              }
+              if (productSortBy === "stock-asc") {
+                return a.stock - b.stock;
+              }
+              if (productSortBy === "stock-desc") {
+                return b.stock - a.stock;
+              }
+              return 0;
+            });
+
+          const isAllProductsSelected = filteredProductsList.length > 0 && filteredProductsList.every((p) => selectedProductIds.includes(p.id));
+
+          const toggleSelectAllProducts = () => {
+            if (isAllProductsSelected) {
+              const filteredSet = new Set(filteredProductsList.map((p) => p.id));
+              setSelectedProductIds((prev) => prev.filter((id) => !filteredSet.has(id)));
+            } else {
+              const allFilteredIds = filteredProductsList.map((p) => p.id);
+              setSelectedProductIds((prev) => Array.from(new Set([...prev, ...allFilteredIds])));
+            }
+          };
+
+          const toggleSelectProduct = (id: string) => {
+            setSelectedProductIds((prev) =>
+              prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+            );
+          };
+
+          return (
+            /* Products Table */
             <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden space-y-6">
               <h2 className="text-xl font-bold">Inventory Management</h2>
 
