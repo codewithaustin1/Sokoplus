@@ -214,7 +214,7 @@ export default function Checkout({ user }: CheckoutProps) {
           });
         }
       } catch (err) {
-        console.error("Error fetching delivery settings in checkout:", err);
+        console.warn("Delivery settings fetch bypassed in Checkout (using defaults):", err);
       }
     };
     fetchDeliverySettings();

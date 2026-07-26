@@ -914,35 +914,14 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
 
           <div className="flex space-x-3">
             <AddToCartButton
-              label={product.stock > 0 ? t("addToCart") : t("outOfStock")}
-              successLabel={t("added")}
-              disabled={product.stock <= 0}
-              onClick={() => {
-                addToCart({ 
-                  productId: product.id, 
-                  name: product.name, 
-                  price: product.price, 
-                  quantity: 1, 
-                  image: product.images?.[0] || "", 
-                  sellerId: product.sellerId, 
-                  sellerName: product.sellerName,
-                  customizations: selectedColor ? {
-                    color: selectedColor.split("|")[1],
-                    colorName: selectedColor.split("|")[0]
-                  } : undefined
-                });
-                trackEvent("add_to_cart", {
-                  items: [{
-                    item_id: product.id,
-                    item_name: product.name,
-                    price: product.price,
-                    quantity: 1,
-                    item_category: product.category
-                  }]
-                });
-                toast.success("Added to cart!");
-              }}
-              className="flex-grow bg-gray-900 text-white py-5 rounded-2xl font-black text-lg sm:text-xl hover:bg-orange-600 transition-all shadow-lg cursor-pointer"
+              productId={product.id}
+              product={product}
+              size="lg"
+              customizations={selectedColor ? {
+                color: selectedColor.split("|")[1],
+                colorName: selectedColor.split("|")[0]
+              } : undefined}
+              className="flex-grow font-black text-lg sm:text-xl shadow-lg cursor-pointer"
             />
             <motion.button 
               whileHover={{ scale: 1.08 }}

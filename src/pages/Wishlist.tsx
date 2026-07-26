@@ -448,33 +448,9 @@ export default function Wishlist({ user }: WishlistProps) {
                     {t("Details")}
                   </Link>
                   <AddToCartButton
-                    label={product.stock > 0 ? t("addToCart") : t("outOfStock")}
-                    successLabel={t("added")}
-                    disabled={product.stock === 0}
-                    onClick={() => {
-                      addToCart({
-                        productId: product.id,
-                        name: product.name,
-                        price: product.price,
-                        quantity: 1,
-                        image: product.images?.filter((img) => !!img && img.trim() !== "")[0] || "",
-                      });
-                      trackEvent("add_to_cart", {
-                        items: [{
-                          item_id: product.id,
-                          item_name: product.name,
-                          price: product.price,
-                          quantity: 1,
-                          item_category: product.category
-                        }]
-                      });
-                      toast.success("Added to cart!");
-                    }}
-                    className={`col-span-3 py-3 rounded-xl font-black text-xs transition-colors flex items-center justify-center ${
-                      product.stock === 0
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-gray-900 text-white hover:bg-orange-600 hover:shadow-md hover:shadow-orange-100 cursor-pointer"
-                    }`}
+                    product={product}
+                    productId={product.id}
+                    className="col-span-3 py-3 rounded-xl font-black text-xs"
                   />
                 </div>
               </div>

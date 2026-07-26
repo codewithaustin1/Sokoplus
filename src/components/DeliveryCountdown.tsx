@@ -156,7 +156,7 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
           }
         }
       } catch (e) {
-        console.error("Error reading delivery settings in DeliveryCountdown:", e);
+        console.warn("Delivery settings fetch bypassed in DeliveryCountdown (using defaults):", e);
       }
     };
     fetchSettings();

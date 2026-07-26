@@ -293,7 +293,7 @@ ${JSON.stringify(products.map(p => ({
           }));
 
           const fallbackResponse = await aiInstance.models.generateContent({
-            model: "gemini-3.5-flash",
+            model: "gemini-3.6-flash",
             contents: contents,
             config: {
               systemInstruction,

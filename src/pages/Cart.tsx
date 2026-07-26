@@ -11,7 +11,7 @@ import { db } from "../lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
 export default function Cart() {
-  const { items, removeFromCart, addToCart, total } = useCart();
+  const { items, removeFromCart, updateQuantity, addToCart, total } = useCart();
   const { t } = useLanguage();
 
   const [selectedCounty, setSelectedCounty] = useState<string>(() => {
@@ -73,7 +73,7 @@ export default function Cart() {
           }
         }
       } catch (e) {
-        console.error("Error reading delivery settings in Cart:", e);
+        console.warn("Delivery settings fetch bypassed in Cart (using defaults):", e);
       }
     };
     fetchSettings();
@@ -182,7 +182,7 @@ export default function Cart() {
                     {/* Quantity selectors */}
                     <div className="flex items-center border border-gray-100 dark:border-gray-800 rounded-lg p-0.5 bg-gray-50 dark:bg-gray-950">
                       <button 
-                        onClick={() => removeFromCart(item.productId, item.customizations)}
+                        onClick={() => updateQuantity(item.productId, item.quantity - 1, item.customizations)}
                         className="p-1 text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-500 transition-colors cursor-pointer"
                         title="Decrease"
                       >

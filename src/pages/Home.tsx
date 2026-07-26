@@ -19,6 +19,7 @@ import PromotionalBanner from "../components/PromotionalBanner";
 import { trackEvent } from "../lib/analytics";
 import heroImage from "../assets/images/sokoplus_hero_bg_1782815259030.jpg";
 import { FastImage } from "../components/FastImage";
+import { AddToCartButton } from "../components/AddToCartButton";
 import ProductCardSkeleton from "../components/ProductCardSkeleton";
 import { prefetchProductAssets, prefetchImageUrl } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
@@ -1086,72 +1087,7 @@ export default function Home({ user }: HomeProps) {
                         )}
                       </div>
                       <div className="flex flex-col gap-2 w-[90%] mx-auto">
-                        {(() => {
-                          const status = addingMap[p.id] || "idle";
-                          return (
-                            <motion.button 
-                              whileHover={p.stock === 0 || status === "loading" ? {} : { scale: 1.02 }}
-                              whileTap={p.stock === 0 || status === "loading" ? {} : { scale: 0.98 }}
-                              disabled={p.stock === 0 || status === "loading" || status === "added"}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (p.stock === 0) {
-                                  toast.error("This product is out of stock!");
-                                  return;
-                                }
-                                setAddingMap(prev => ({ ...prev, [p.id]: "loading" }));
-                                addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
-                                trackEvent("add_to_cart", {
-                                  items: [{
-                                    item_id: p.id,
-                                    item_name: p.name,
-                                    price: p.price,
-                                    quantity: 1,
-                                    item_category: p.category
-                                  }]
-                                });
-                                
-                                setTimeout(() => {
-                                  setAddingMap(prev => ({ ...prev, [p.id]: "added" }));
-                                  toast.success(`${p.name} added to cart!`);
-                                  setTimeout(() => {
-                                    setAddingMap(prev => {
-                                      const updated = { ...prev };
-                                      delete updated[p.id];
-                                      return updated;
-                                    });
-                                  }, 1500);
-                                }, 850);
-                              }}
-                              className={`w-full py-2 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-transparent select-none ${
-                                p.stock === 0 
-                                  ? "bg-gray-100 dark:bg-gray-805 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
-                                  : status === "added"
-                                  ? "bg-green-600 text-white shadow-md shadow-green-600/10"
-                                  : "bg-[#FFD814] text-gray-900 hover:bg-[#F7CA18] shadow-md shadow-yellow-500/10"
-                              }`}
-                            >
-                              {status === "idle" && (
-                                <>
-                                  <span>{language === "sw" ? "Weka Kwenye Kikapu" : "Add to cart"}</span>
-                                </>
-                              )}
-                              {status === "loading" && (
-                                <>
-                                  <Loader2 className="animate-spin" size={13} />
-                                  <span>{language === "sw" ? "Weka..." : "Adding..."}</span>
-                                </>
-                              )}
-                              {status === "added" && (
-                                <>
-                                  <Check size={13} className="stroke-[3]" />
-                                  <span>{language === "sw" ? "Imewekwa!" : "Added!"}</span>
-                                </>
-                              )}
-                            </motion.button>
-                          );
-                        })()}
+                        <AddToCartButton product={p} className="w-full" />
 
                         <motion.button 
                           whileHover={p.stock === 0 ? {} : { scale: 1.02 }}
@@ -1622,72 +1558,7 @@ export default function Home({ user }: HomeProps) {
                       )}
                     </div>
                     <div className="flex flex-col gap-2 w-[90%] mx-auto">
-                      {(() => {
-                        const status = addingMap[p.id] || "idle";
-                        return (
-                          <motion.button 
-                            whileHover={p.stock === 0 || status === "loading" ? {} : { scale: 1.02 }}
-                            whileTap={p.stock === 0 || status === "loading" ? {} : { scale: 0.98 }}
-                            disabled={p.stock === 0 || status === "loading" || status === "added"}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (p.stock === 0) {
-                                toast.error("This product is out of stock!");
-                                return;
-                              }
-                              setAddingMap(prev => ({ ...prev, [p.id]: "loading" }));
-                              addToCart({ productId: p.id, name: p.name, price: p.price, quantity: 1, image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" });
-                              trackEvent("add_to_cart", {
-                                items: [{
-                                  item_id: p.id,
-                                  item_name: p.name,
-                                  price: p.price,
-                                  quantity: 1,
-                                  item_category: p.category
-                                }]
-                              });
-                              
-                              setTimeout(() => {
-                                setAddingMap(prev => ({ ...prev, [p.id]: "added" }));
-                                toast.success("Added to cart!");
-                                setTimeout(() => {
-                                  setAddingMap(prev => {
-                                    const updated = { ...prev };
-                                    delete updated[p.id];
-                                    return updated;
-                                  });
-                                }, 1500);
-                              }, 850);
-                            }}
-                            className={`w-full py-2 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-transparent select-none ${
-                              p.stock === 0 
-                                ? "bg-gray-100 dark:bg-gray-805 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
-                                : status === "added"
-                                ? "bg-green-600 text-white shadow-md shadow-green-600/10"
-                                : "bg-[#FFD814] text-gray-900 hover:bg-[#F7CA18] shadow-md shadow-yellow-500/10"
-                            }`}
-                          >
-                            {status === "idle" && (
-                              <>
-                                <span>{language === "sw" ? "Weka Kwenye Kikapu" : "Add to cart"}</span>
-                              </>
-                            )}
-                            {status === "loading" && (
-                              <>
-                                <Loader2 className="animate-spin" size={13} />
-                                <span>{language === "sw" ? "Weka..." : "Adding..."}</span>
-                              </>
-                            )}
-                            {status === "added" && (
-                              <>
-                                <Check size={13} className="stroke-[3]" />
-                                <span>{language === "sw" ? "Imewekwa!" : "Added!"}</span>
-                              </>
-                            )}
-                          </motion.button>
-                        );
-                      })()}
+                      <AddToCartButton product={p} className="w-full" />
 
                       <motion.button 
                         whileHover={p.stock === 0 ? {} : { scale: 1.02 }}
