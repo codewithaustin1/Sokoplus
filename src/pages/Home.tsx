@@ -1206,7 +1206,7 @@ export default function Home({ user }: HomeProps) {
           <div>
              <h2 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">
               {selectedCategory === "All" 
-                ? (language === "sw" ? "Mkusanyiko Mpya wa Bidhaa" : "Latest Arrivals") 
+                ? (language === "sw" ? "Mkusanyiko Mpya wa Bidhaa" : "New Arrivals.") 
                 : (selectedCategory === "Local Crafts" ? (language === "sw" ? "Sanaa Maalum za Mikono" : "Local Crafts Collection") : 
                    selectedCategory === "Fashion" ? (language === "sw" ? "Mavazi na Mitindo ya Kisasa" : "Fashion Collection") : 
                    selectedCategory === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali na Kielektroniki" : "Electronics Collection") : 

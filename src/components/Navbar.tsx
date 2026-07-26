@@ -375,27 +375,34 @@ export default function Navbar({ user }: NavbarProps) {
             <span className="text-gray-700">|</span>
 
             {/* Currency selector */}
-            <div className="relative">
+            <div 
+              className="relative py-1 group"
+              onMouseEnter={() => {
+                setShowCurrencyDropdown(true);
+                setShowLanguageDropdown(false);
+              }}
+              onMouseLeave={() => setShowCurrencyDropdown(false)}
+            >
               <div 
                 onClick={() => {
                   setShowCurrencyDropdown(!showCurrencyDropdown);
                   setShowLanguageDropdown(false);
                 }}
-                className="flex items-center gap-1 cursor-pointer select-none text-gray-400 hover:text-white transition-colors uppercase font-black"
+                className="flex items-center gap-1 cursor-pointer select-none text-gray-400 hover:text-white transition-colors uppercase font-black py-0.5 px-1 rounded hover:bg-white/10"
               >
                 <span>{currency}</span>
-                <ChevronDown size={11} className="text-gray-400" />
+                <ChevronDown size={11} className={`text-gray-400 transition-transform duration-200 ${showCurrencyDropdown ? "rotate-180 text-amber-400" : ""}`} />
               </div>
               <AnimatePresence>
                 {showCurrencyDropdown && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowCurrencyDropdown(false)} />
-                    <motion.div 
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 5 }}
-                      className="absolute right-0 mt-2 bg-[#222222] border border-gray-800 text-white rounded-lg shadow-2xl py-1 w-24 z-50 overflow-hidden font-extrabold text-left"
-                    >
+                  <motion.div 
+                    initial={{ opacity: 0, y: 3 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 3 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full pt-1 z-50"
+                  >
+                    <div className="bg-[#222222] border border-gray-800 text-white rounded-xl shadow-2xl py-1 w-32 overflow-hidden font-extrabold text-left backdrop-blur-md">
                       {(["KES", "USD"] as const).map((curr) => (
                         <div 
                           key={curr}
@@ -404,16 +411,16 @@ export default function Navbar({ user }: NavbarProps) {
                             setShowCurrencyDropdown(false);
                             toast.success(`Currency changed to ${curr}`);
                           }}
-                          className={`px-3 py-1.5 hover:bg-amber-400 hover:text-black transition-colors cursor-pointer flex items-center justify-between text-xs ${
-                            currency === curr ? "text-amber-400" : "text-gray-300"
+                          className={`px-3 py-2 hover:bg-amber-400 hover:text-black transition-all cursor-pointer flex items-center justify-between text-xs font-bold ${
+                            currency === curr ? "text-amber-400 bg-white/5" : "text-gray-300"
                           }`}
                         >
-                          {curr}
-                          {currency === curr && <Check size={10} />}
+                          <span>{curr} ({curr === "KES" ? "KSh" : "$"})</span>
+                          {currency === curr && <Check size={12} className="text-amber-400" />}
                         </div>
                       ))}
-                    </motion.div>
-                  </>
+                    </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
@@ -421,40 +428,47 @@ export default function Navbar({ user }: NavbarProps) {
             <span className="text-gray-700">|</span>
 
             {/* Language Selector */}
-            <div className="relative">
+            <div 
+              className="relative py-1 group"
+              onMouseEnter={() => {
+                setShowLanguageDropdown(true);
+                setShowCurrencyDropdown(false);
+              }}
+              onMouseLeave={() => setShowLanguageDropdown(false)}
+            >
               <div 
                 onClick={() => {
                   setShowLanguageDropdown(!showLanguageDropdown);
                   setShowCurrencyDropdown(false);
                 }}
-                className="flex items-center gap-1 cursor-pointer select-none text-gray-400 hover:text-white transition-colors uppercase font-black"
+                className="flex items-center gap-1 cursor-pointer select-none text-gray-400 hover:text-white transition-colors uppercase font-black py-0.5 px-1 rounded hover:bg-white/10"
               >
-                <Globe size={11} />
+                <Globe size={11} className="text-gray-400 group-hover:text-amber-400 transition-colors" />
                 <span>{language === "sw" ? "Kiswahili" : "English"}</span>
-                <ChevronDown size={11} className="text-gray-400" />
+                <ChevronDown size={11} className={`text-gray-400 transition-transform duration-200 ${showLanguageDropdown ? "rotate-180 text-amber-400" : ""}`} />
               </div>
               <AnimatePresence>
                 {showLanguageDropdown && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowLanguageDropdown(false)} />
-                    <motion.div 
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 5 }}
-                      className="absolute right-0 mt-2 bg-[#222222] border border-gray-800 text-white rounded-lg shadow-2xl py-1 w-28 z-50 overflow-hidden font-extrabold text-left"
-                    >
+                  <motion.div 
+                    initial={{ opacity: 0, y: 3 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 3 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full pt-1 z-50"
+                  >
+                    <div className="bg-[#222222] border border-gray-800 text-white rounded-xl shadow-2xl py-1 w-36 overflow-hidden font-extrabold text-left backdrop-blur-md">
                       <div 
                         onClick={() => {
                           setLanguage("en");
                           setShowLanguageDropdown(false);
                           toast.success("Language changed to English");
                         }}
-                        className={`px-3 py-1.5 hover:bg-amber-400 hover:text-black transition-colors cursor-pointer flex items-center justify-between text-xs ${
-                          language === "en" ? "text-amber-400" : "text-gray-300"
+                        className={`px-3 py-2 hover:bg-amber-400 hover:text-black transition-all cursor-pointer flex items-center justify-between text-xs font-bold ${
+                          language === "en" ? "text-amber-400 bg-white/5" : "text-gray-300"
                         }`}
                       >
-                        English
-                        {language === "en" && <Check size={10} />}
+                        <span>English (US)</span>
+                        {language === "en" && <Check size={12} className="text-amber-400" />}
                       </div>
                       <div 
                         onClick={() => {
@@ -462,15 +476,15 @@ export default function Navbar({ user }: NavbarProps) {
                           setShowLanguageDropdown(false);
                           toast.success("Lugha imebadilishwa kuwa Kiswahili");
                         }}
-                        className={`px-3 py-1.5 hover:bg-amber-400 hover:text-black transition-colors cursor-pointer flex items-center justify-between text-xs ${
-                          language === "sw" ? "text-amber-400" : "text-gray-300"
+                        className={`px-3 py-2 hover:bg-amber-400 hover:text-black transition-all cursor-pointer flex items-center justify-between text-xs font-bold ${
+                          language === "sw" ? "text-amber-400 bg-white/5" : "text-gray-300"
                         }`}
                       >
-                        Kiswahili
-                        {language === "sw" && <Check size={10} />}
+                        <span>Kiswahili (KE)</span>
+                        {language === "sw" && <Check size={12} className="text-amber-400" />}
                       </div>
-                    </motion.div>
-                  </>
+                    </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
@@ -731,7 +745,7 @@ export default function Navbar({ user }: NavbarProps) {
               <div className="bg-amber-500 hover:bg-amber-600 h-full px-5 flex items-center gap-2 cursor-pointer transition-all border-r border-amber-600/20 select-none text-black">
                 <Menu size={14} className="stroke-[2.5]" />
                 <span>ALL CATEGORIES</span>
-                <ChevronDown size={11} className="stroke-[2.5]" />
+                <ChevronDown size={11} className={`stroke-[2.5] transition-transform duration-200 ${showAllCategoriesMenu ? "rotate-180" : ""}`} />
               </div>
               
               <AnimatePresence>
