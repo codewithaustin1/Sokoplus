@@ -75,17 +75,62 @@ export default function Navbar({ user }: NavbarProps) {
   const [isNavCompact, setIsNavCompact] = useState(false);
   const [isMobileSearchFocused, setIsMobileSearchFocused] = useState(false);
 
+  const isNavCompactRef = useRef(isNavCompact);
+  isNavCompactRef.current = isNavCompact;
+
+  const scrollStateRef = useRef({
+    anchorScrollY: 0,
+    lastToggleTime: 0,
+  });
+
   useEffect(() => {
-    let lastScrollY = window.scrollY;
+    let ticking = false;
+
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY > 60 && currentScrollY > lastScrollY) {
-        setIsNavCompact(true);
-      } else if (currentScrollY < lastScrollY || currentScrollY <= 30) {
-        setIsNavCompact(false);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = Math.max(0, window.scrollY);
+          const now = Date.now();
+          const { anchorScrollY, lastToggleTime } = scrollStateRef.current;
+          const timeSinceToggle = now - lastToggleTime;
+          const compact = isNavCompactRef.current;
+
+          // Always expand when near top of viewport
+          if (currentScrollY <= 40) {
+            if (compact) {
+              setIsNavCompact(false);
+              scrollStateRef.current.lastToggleTime = now;
+            }
+            scrollStateRef.current.anchorScrollY = currentScrollY;
+          } else if (timeSinceToggle > 350) {
+            // Prevent rapid toggling during CSS transitions
+            if (!compact) {
+              // Expand -> Compact: must scroll down > 60px past anchor and past 100px total scroll
+              if (currentScrollY > 100 && currentScrollY - anchorScrollY > 60) {
+                setIsNavCompact(true);
+                scrollStateRef.current.lastToggleTime = now;
+                scrollStateRef.current.anchorScrollY = currentScrollY;
+              } else if (currentScrollY < anchorScrollY) {
+                scrollStateRef.current.anchorScrollY = currentScrollY;
+              }
+            } else {
+              // Compact -> Expand: must scroll up > 70px from peak scroll depth
+              if (anchorScrollY - currentScrollY > 70) {
+                setIsNavCompact(false);
+                scrollStateRef.current.lastToggleTime = now;
+                scrollStateRef.current.anchorScrollY = currentScrollY;
+              } else if (currentScrollY > anchorScrollY) {
+                scrollStateRef.current.anchorScrollY = currentScrollY;
+              }
+            }
+          }
+
+          ticking = false;
+        });
+        ticking = true;
       }
-      lastScrollY = currentScrollY;
     };
+
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -338,8 +383,8 @@ export default function Navbar({ user }: NavbarProps) {
   return (
     <nav id="main-nav" className="sticky top-0 z-50 bg-[#000000] text-white transition-all duration-300">
       {/* 1. Top Bar Utility (Hidden on Mobile, Scroll-Aware Collapsing) */}
-      <div className={`hidden md:block bg-[#151515] dark:bg-[#0a0a0a] text-gray-300 text-[11px] px-4 border-b border-gray-900 transition-all duration-300 ease-in-out overflow-hidden ${
-        isNavCompact ? "max-h-0 py-0 opacity-0 border-none pointer-events-none" : "max-h-12 py-2 opacity-100"
+      <div className={`hidden md:block bg-[#151515] dark:bg-[#0a0a0a] text-gray-300 text-[11px] px-4 border-b border-gray-900 transition-all duration-300 ease-in-out ${
+        isNavCompact ? "max-h-0 py-0 opacity-0 border-none pointer-events-none overflow-hidden" : "max-h-12 py-2 opacity-100 overflow-visible"
       }`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between font-bold">
           <div className="flex items-center gap-3">
@@ -753,8 +798,8 @@ export default function Navbar({ user }: NavbarProps) {
       </div>
 
       {/* 3. Sub-Navbar Navigation Bar (Desktop only, gold/yellow background, Scroll-Aware Collapsing) */}
-      <div className={`hidden md:block bg-[#f5c105] text-black border-b border-amber-500 shadow-md relative z-20 transition-all duration-300 ease-in-out overflow-hidden ${
-        isNavCompact ? "max-h-0 border-none opacity-0 pointer-events-none h-0" : "max-h-12 opacity-100 h-10"
+      <div className={`hidden md:block bg-[#f5c105] text-black border-b border-amber-500 shadow-md relative z-20 transition-all duration-300 ease-in-out ${
+        isNavCompact ? "max-h-0 border-none opacity-0 pointer-events-none h-0 overflow-hidden" : "max-h-12 opacity-100 h-10 overflow-visible"
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between w-full h-full text-xs font-black uppercase tracking-wider relative">
           <div className="flex items-center h-full">
