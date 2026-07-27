@@ -198,7 +198,6 @@ import {
   Gauge,
   Activity,
   ShieldAlert,
-  Type,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSellerStudio } from "../lib/SellerStudioContext";
@@ -209,7 +208,6 @@ import ArtisanColorPicker from "../components/ArtisanColorPicker";
 import { downloadReceipt } from "../utils/pdfGenerator";
 import SecurityManager from "../components/SecurityManager";
 import AdminReviewsManager from "../components/AdminReviewsManager";
-import { AdminTypographyManager } from "../components/AdminTypographyManager";
 import { clearAllOfflineCache } from "../utils/offlineDb";
 import { counties } from "../data/counties";
 import {
@@ -1586,7 +1584,7 @@ export default function Admin({ user }: AdminProps) {
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "typography" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue"
+    "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue"
   >("inventory");
 
   useEffect(() => {
@@ -4935,13 +4933,6 @@ export default function Admin({ user }: AdminProps) {
           Admin Settings
         </button>
         <button
-          onClick={() => setActiveTab("typography")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-1.5 ${activeTab === "typography" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
-        >
-          <Type size={16} />
-          <span>Typography & Fonts</span>
-        </button>
-        <button
           onClick={() => setActiveTab("marketing")}
           className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "marketing" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
         >
@@ -6849,28 +6840,6 @@ export default function Admin({ user }: AdminProps) {
                 </div>
               </div>
 
-              {/* Platform Typography Quick Action Card */}
-              <div className="p-6 bg-gradient-to-r from-orange-900/10 via-amber-900/10 to-transparent dark:bg-gray-900 rounded-3xl border border-orange-200/60 dark:border-orange-900/30 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center">
-                      <Type size={18} className="mr-2 text-orange-600" /> Platform Typography & Font Combinations
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                      Select, rename, and assign typography pairings for headlines, body text, and store UI controls across all pages.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("typography")}
-                    className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-2xl shadow-md shadow-orange-600/20 transition-all cursor-pointer flex items-center gap-2 shrink-0 border-none"
-                  >
-                    <Type size={14} />
-                    <span>Manage Platform Typographies →</span>
-                  </button>
-                </div>
-              </div>
-
               {/* Site-Wide SEO Metadata Settings */}
               <div className="p-6 bg-white dark:bg-gray-900 rounded-3xl border border-gray-150 dark:border-gray-800 space-y-6">
                 <div className="space-y-1">
@@ -7757,8 +7726,6 @@ export default function Admin({ user }: AdminProps) {
           </form>
         </div>
       )}
-
-      {activeTab === "typography" && <AdminTypographyManager />}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 invisible hidden">
         {/* Old Tables Removed for Tabbed View */}

@@ -72,6 +72,24 @@ export default function Navbar({ user }: NavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isNavCompact, setIsNavCompact] = useState(false);
+  const [isMobileSearchFocused, setIsMobileSearchFocused] = useState(false);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > 60 && currentScrollY > lastScrollY) {
+        setIsNavCompact(true);
+      } else if (currentScrollY < lastScrollY || currentScrollY <= 30) {
+        setIsNavCompact(false);
+      }
+      lastScrollY = currentScrollY;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const activeCategories = useMemo(() => {
     const defaultCats = [
@@ -318,9 +336,11 @@ export default function Navbar({ user }: NavbarProps) {
   ];
 
   return (
-    <nav id="main-nav" className="sticky top-0 z-50 bg-[#000000] text-white transition-colors duration-200">
-      {/* 1. Top Bar Utility (Hidden on Mobile) */}
-      <div className="hidden md:block bg-[#151515] dark:bg-[#0a0a0a] text-gray-300 text-[11px] py-2 px-4 border-b border-gray-900 transition-colors duration-200">
+    <nav id="main-nav" className="sticky top-0 z-50 bg-[#000000] text-white transition-all duration-300">
+      {/* 1. Top Bar Utility (Hidden on Mobile, Scroll-Aware Collapsing) */}
+      <div className={`hidden md:block bg-[#151515] dark:bg-[#0a0a0a] text-gray-300 text-[11px] px-4 border-b border-gray-900 transition-all duration-300 ease-in-out overflow-hidden ${
+        isNavCompact ? "max-h-0 py-0 opacity-0 border-none pointer-events-none" : "max-h-12 py-2 opacity-100"
+      }`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between font-bold">
           <div className="flex items-center gap-3">
             <div 
@@ -493,9 +513,9 @@ export default function Navbar({ user }: NavbarProps) {
       </div>
 
       {/* 2. Main Header (Black background) */}
-      <div className="bg-[#000000] border-b border-gray-900 relative z-30">
+      <div className="bg-[#000000] border-b border-gray-900 relative z-30 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 gap-4">
+          <div className={`flex justify-between items-center gap-4 transition-all duration-300 ${isNavCompact ? "h-12" : "h-16"}`}>
             {/* Logo */}
             <div className="flex items-center gap-3">
               <button 
@@ -504,9 +524,9 @@ export default function Navbar({ user }: NavbarProps) {
               >
                 <Menu size={22} />
               </button>
-              <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-bold tracking-tighter text-orange-600 select-none cursor-pointer hover:opacity-90 flex items-center">
+              <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="text-xl sm:text-2xl font-bold tracking-tighter text-orange-600 select-none cursor-pointer hover:opacity-90 flex items-center">
                 {settings.brandLogoUrl ? (
-                  <img src={settings.brandLogoUrl} alt="Sokoplus" className="h-8 md:h-10 w-auto object-contain" referrerPolicy="no-referrer" />
+                  <img src={settings.brandLogoUrl} alt="Sokoplus" className={`${isNavCompact ? "h-7" : "h-8 md:h-10"} w-auto object-contain transition-all`} referrerPolicy="no-referrer" />
                 ) : (
                   <>Sokoplus<span className="text-white">.</span></>
                 )}
@@ -732,8 +752,10 @@ export default function Navbar({ user }: NavbarProps) {
         </div>
       </div>
 
-      {/* 3. Sub-Navbar Navigation Bar (Desktop only, gold/yellow background) */}
-      <div className="hidden md:block bg-[#f5c105] text-black h-10 border-b border-amber-500 shadow-md relative z-20">
+      {/* 3. Sub-Navbar Navigation Bar (Desktop only, gold/yellow background, Scroll-Aware Collapsing) */}
+      <div className={`hidden md:block bg-[#f5c105] text-black border-b border-amber-500 shadow-md relative z-20 transition-all duration-300 ease-in-out overflow-hidden ${
+        isNavCompact ? "max-h-0 border-none opacity-0 pointer-events-none h-0" : "max-h-12 opacity-100 h-10"
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between w-full h-full text-xs font-black uppercase tracking-wider relative">
           <div className="flex items-center h-full">
             {/* ALL CATEGORIES Megamenu toggle */}
@@ -804,19 +826,29 @@ export default function Navbar({ user }: NavbarProps) {
         </div>
       </div>
 
-      {/* Modern, Neutral, High-Visibility Mobile Search Bar (Always handy, no micro-icon triggers needed) */}
-      <div className="md:hidden px-4 pb-3 pt-0.5 border-b border-gray-50 dark:border-gray-850 bg-white/95 dark:bg-gray-950/95 relative transition-colors duration-200">
+      {/* Modern, Neutral, High-Visibility Mobile Search Bar (Scroll-Aware Collapsing & Smooth Focus Expansion) */}
+      <div className={`md:hidden px-4 border-b border-gray-100 dark:border-gray-850 bg-white/95 dark:bg-gray-950/95 relative transition-all duration-300 ease-in-out overflow-hidden ${
+        isNavCompact && !isMobileSearchFocused && !search 
+          ? "max-h-0 py-0 opacity-0 border-none pointer-events-none" 
+          : isMobileSearchFocused 
+          ? "max-h-20 py-2.5 opacity-100 shadow-xl border-amber-500" 
+          : "max-h-14 py-2 opacity-100"
+      }`}>
         <form onSubmit={handleSearch} className="relative w-full">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-450 dark:text-gray-400">
-            <Search size={16} />
+            <Search size={isMobileSearchFocused ? 17 : 15} className={`transition-all ${isMobileSearchFocused ? "text-amber-500" : ""}`} />
           </span>
           <input
             id="mobile-search-input"
             type="text"
             value={search}
+            onFocus={() => setIsMobileSearchFocused(true)}
+            onBlur={() => setTimeout(() => setIsMobileSearchFocused(false), 200)}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={language === "sw" ? "Tafuta bidhaa bora za Kenya..." : "Search products in Kenya..."}
-            className="block w-full pl-9 pr-14 py-2 border border-gray-200/80 dark:border-gray-800 rounded-xl leading-5 bg-gray-50/80 dark:bg-gray-900/80 placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-100 text-xs font-medium focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all shadow-inner-sm"
+            className={`block w-full pl-9 pr-14 border border-gray-200/80 dark:border-gray-800 rounded-xl leading-5 bg-gray-50/80 dark:bg-gray-900/80 placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-100 font-medium focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all shadow-inner-sm ${
+              isMobileSearchFocused ? "py-2.5 text-sm ring-2 ring-amber-500/50" : "py-1.5 text-xs"
+            }`}
           />
           <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center space-x-1">
             {search && (

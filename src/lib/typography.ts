@@ -11,20 +11,20 @@ export interface TypographyPreset {
   tags: string[];
 }
 
-export const DEFAULT_TYPOGRAPHY_ID = "modern-african-craft";
+export const DEFAULT_TYPOGRAPHY_ID = "original";
 
 export const TYPOGRAPHY_PRESETS: TypographyPreset[] = [
   {
-    id: "modern-african-craft",
-    name: "Modern African Craft (Plus Jakarta Sans & Playfair Display)",
+    id: "original",
+    name: "Original (Plus Jakarta Sans & Playfair Display)",
     headingFont: "'Playfair Display', serif",
     bodyFont: "'Plus Jakarta Sans', sans-serif",
     headingFontName: "Playfair Display",
     bodyFontName: "Plus Jakarta Sans",
     googleFontsUrl: "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap",
     category: "Artisan & Heritage",
-    description: "The signature SokoPlus typography pairing elegant high-contrast serif headlines with crystal-clear geometric body text.",
-    tags: ["Signature", "Heritage", "Serif Headlines", "High Legibility"]
+    description: "The original signature SokoPlus typography pairing elegant high-contrast serif headlines with crystal-clear geometric body text.",
+    tags: ["Original", "Signature", "Heritage", "Serif Headlines", "High Legibility"]
   },
   {
     id: "clean-minimalist-sans",
@@ -113,7 +113,7 @@ export const TYPOGRAPHY_PRESETS: TypographyPreset[] = [
 ];
 
 export function getTypographyById(id: string): TypographyPreset {
-  return TYPOGRAPHY_PRESETS.find((p) => p.id === id) || TYPOGRAPHY_PRESETS[0];
+  return TYPOGRAPHY_PRESETS.find((p) => p.id === id || (id === "modern-african-craft" && p.id === "original")) || TYPOGRAPHY_PRESETS[0];
 }
 
 /**
