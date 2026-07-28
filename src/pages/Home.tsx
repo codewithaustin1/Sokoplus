@@ -1238,153 +1238,232 @@ export default function Home({ user }: HomeProps) {
 
           <AnimatePresence>
             {showFilters && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2rem] p-8 md:p-10 grid grid-cols-1 md:grid-cols-4 gap-10 shadow-xl shadow-gray-100/50 dark:shadow-none">
-                  {/* Price Range */}
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 block">Price Range ({currency})</label>
-                      <span className="text-xs font-black text-orange-600 dark:text-orange-500 bg-orange-50 dark:bg-orange-950/40 px-2.5 py-1 rounded-lg">
-                        {currency === "USD" ? "$" : "KES "}
-                        {Math.round(tempMin).toLocaleString()} - {currency === "USD" ? "$" : "KES "}
-                        {Math.round(tempMax).toLocaleString()}
-                      </span>
+              <>
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowFilters(false)}
+                  className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 cursor-pointer"
+                />
+
+                {/* Side Drawer Panel */}
+                <motion.div
+                  initial={{ x: "100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "100%" }}
+                  transition={{ type: "spring", damping: 25, stiffness: 220 }}
+                  className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-gray-900 shadow-2xl border-l border-gray-100 dark:border-gray-800 flex flex-col justify-between overflow-hidden"
+                >
+                  {/* Drawer Header */}
+                  <div className="p-6 border-b border-gray-150 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-950/40">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-orange-100 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 rounded-xl">
+                        <Filter size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-gray-900 dark:text-gray-100 text-lg flex items-center gap-2">
+                          Filter Catalog
+                          {(minPrice !== "" || maxPrice !== "" || minRating > 0 || onlyInStock) && (
+                            <span className="bg-orange-600 text-white rounded-full text-[10px] font-extrabold px-2 py-0.5">
+                              Active
+                            </span>
+                          )}
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                          Found {filteredProducts.length} matching items
+                        </p>
+                      </div>
                     </div>
-
-                    <div className="relative h-6 flex items-center select-none pt-2">
-                      {/* Underlay Track */}
-                      <div className="absolute left-0 right-0 h-2 bg-gray-100 dark:bg-gray-800 rounded-full"></div>
-                      
-                      {/* Active highlighted range strip */}
-                      <div 
-                        className="absolute h-2 bg-orange-600 dark:bg-orange-500 rounded-full"
-                        style={{
-                          left: `${sliderMax > 0 ? (tempMin / sliderMax) * 100 : 0}%`,
-                          right: `${sliderMax > 0 ? 100 - (tempMax / sliderMax) * 100 : 0}%`
-                        }}
-                      ></div>
-
-                      {/* Absolute Range sliders overlaid */}
-                      <input 
-                        type="range"
-                        min={0}
-                        max={sliderMax}
-                        value={tempMin}
-                        onChange={(e) => {
-                          const val = Math.min(Number(e.target.value), tempMax - (sliderMax * 0.05));
-                          setMinPrice(val);
-                        }}
-                        className="absolute left-0 right-0 w-full appearance-none bg-transparent pointer-events-none focus:outline-none [-webkit-appearance:none] h-2 cursor-pointer"
-                        style={{
-                          zIndex: tempMin > sliderMax / 2 ? 15 : 14
-                        }}
-                      />
-                      <input 
-                        type="range"
-                        min={0}
-                        max={sliderMax}
-                        value={tempMax}
-                        onChange={(e) => {
-                          const val = Math.max(Number(e.target.value), tempMin + (sliderMax * 0.05));
-                          setMaxPrice(val);
-                        }}
-                        className="absolute left-0 right-0 w-full appearance-none bg-transparent pointer-events-none focus:outline-none [-webkit-appearance:none] h-2 cursor-pointer"
-                        style={{
-                          zIndex: tempMin > sliderMax / 2 ? 14 : 15
-                        }}
-                      />
-                    </div>
-                    
-                    <style>{`
-                      input[type="range"]::-webkit-slider-thumb {
-                        pointer-events: auto;
-                        width: 20px;
-                        height: 20px;
-                        border-radius: 50%;
-                        background: #ea580c;
-                        border: 2px solid #ffffff;
-                        cursor: pointer;
-                        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-                        -webkit-appearance: none;
-                        transition: transform 0.1s ease;
-                        margin-top: 0px;
-                      }
-                      input[type="range"]::-webkit-slider-thumb:hover {
-                        transform: scale(1.18);
-                      }
-                      input[type="range"]::-webkit-slider-thumb:active {
-                        transform: scale(1.24);
-                      }
-                      input[type="range"]::-moz-range-thumb {
-                        pointer-events: auto;
-                        width: 20px;
-                        height: 20px;
-                        border-radius: 50%;
-                        background: #ea580c;
-                        border: 2px solid #ffffff;
-                        cursor: pointer;
-                        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-                        transition: transform 0.1s ease;
-                      }
-                      input[type="range"]::-moz-range-thumb:hover {
-                        transform: scale(1.18);
-                      }
-                      input[type="range"]::-moz-range-thumb:active {
-                        transform: scale(1.24);
-                      }
-                    `}</style>
-                  </div>
-
-                  {/* Rating */}
-                  <div className="space-y-4">
-                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 block">Minimum Rating</label>
-                    <div className="flex space-x-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          onClick={() => setMinRating(minRating === star ? 0 : star)}
-                          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-                            minRating >= star 
-                              ? "bg-orange-600 text-white shadow-lg shadow-orange-200 dark:shadow-none" 
-                              : "bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-650 hover:text-orange-400 dark:hover:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          }`}
-                        >
-                          <Star size={18} fill={minRating >= star ? "currentColor" : "none"} />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Availability */}
-                  <div className="space-y-4">
-                    <label className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 block">Availability</label>
-                    <button 
-                      onClick={() => setOnlyInStock(!onlyInStock)}
-                      className={`flex items-center space-x-4 w-full px-5 py-4 rounded-xl border transition-all group ${
-                        onlyInStock 
-                          ? "bg-orange-50 dark:bg-orange-950/20 border-orange-100 dark:border-orange-900/40 text-orange-700 dark:text-orange-400 shadow-inner" 
-                          : "bg-gray-50 dark:bg-gray-800 border-transparent dark:border-transparent text-gray-400 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }`}
+                    <button
+                      type="button"
+                      onClick={() => setShowFilters(false)}
+                      className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     >
-                       <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
-                         onlyInStock 
-                           ? "bg-orange-600 border-orange-600 text-white" 
-                           : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 group-hover:border-orange-300 dark:group-hover:border-orange-500"
-                       }`}>
-                         {onlyInStock && <ArrowRight size={14} className="rotate-0 animate-in fade-in zoom-in" />}
-                       </div>
-                       <span className="text-sm font-black uppercase tracking-tight">In Stock Only</span>
+                      <X size={20} />
                     </button>
                   </div>
 
-                  {/* Clear All */}
-                  <div className="flex flex-col justify-end">
+                  {/* Drawer Content */}
+                  <div className="p-6 overflow-y-auto space-y-7 flex-1">
+                    {/* Category Selector */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500 block">
+                        Category
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {activeCategories.map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => selectCategory(cat)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              selectedCategory === cat
+                                ? "bg-orange-600 text-white shadow-sm"
+                                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Price Range */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500 block">
+                          Price Range ({currency})
+                        </label>
+                        <span className="text-xs font-black text-orange-600 dark:text-orange-500 bg-orange-50 dark:bg-orange-950/40 px-2.5 py-1 rounded-lg">
+                          {currency === "USD" ? "$" : "KES "}
+                          {Math.round(tempMin).toLocaleString()} - {currency === "USD" ? "$" : "KES "}
+                          {Math.round(tempMax).toLocaleString()}
+                        </span>
+                      </div>
+
+                      <div className="relative h-6 flex items-center select-none pt-2">
+                        {/* Underlay Track */}
+                        <div className="absolute left-0 right-0 h-2 bg-gray-100 dark:bg-gray-800 rounded-full"></div>
+                        
+                        {/* Active highlighted range strip */}
+                        <div 
+                          className="absolute h-2 bg-orange-600 dark:bg-orange-500 rounded-full"
+                          style={{
+                            left: `${sliderMax > 0 ? (tempMin / sliderMax) * 100 : 0}%`,
+                            right: `${sliderMax > 0 ? 100 - (tempMax / sliderMax) * 100 : 0}%`
+                          }}
+                        ></div>
+
+                        {/* Absolute Range sliders overlaid */}
+                        <input 
+                          type="range"
+                          min={0}
+                          max={sliderMax}
+                          value={tempMin}
+                          onChange={(e) => {
+                            const val = Math.min(Number(e.target.value), tempMax - (sliderMax * 0.05));
+                            setMinPrice(val);
+                          }}
+                          className="absolute left-0 right-0 w-full appearance-none bg-transparent pointer-events-none focus:outline-none [-webkit-appearance:none] h-2 cursor-pointer"
+                          style={{
+                            zIndex: tempMin > sliderMax / 2 ? 15 : 14
+                          }}
+                        />
+                        <input 
+                          type="range"
+                          min={0}
+                          max={sliderMax}
+                          value={tempMax}
+                          onChange={(e) => {
+                            const val = Math.max(Number(e.target.value), tempMin + (sliderMax * 0.05));
+                            setMaxPrice(val);
+                          }}
+                          className="absolute left-0 right-0 w-full appearance-none bg-transparent pointer-events-none focus:outline-none [-webkit-appearance:none] h-2 cursor-pointer"
+                          style={{
+                            zIndex: tempMin > sliderMax / 2 ? 14 : 15
+                          }}
+                        />
+                      </div>
+                      
+                      <style>{`
+                        input[type="range"]::-webkit-slider-thumb {
+                          pointer-events: auto;
+                          width: 20px;
+                          height: 20px;
+                          border-radius: 50%;
+                          background: #ea580c;
+                          border: 2px solid #ffffff;
+                          cursor: pointer;
+                          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+                          -webkit-appearance: none;
+                          transition: transform 0.1s ease;
+                          margin-top: 0px;
+                        }
+                        input[type="range"]::-webkit-slider-thumb:hover {
+                          transform: scale(1.18);
+                        }
+                        input[type="range"]::-webkit-slider-thumb:active {
+                          transform: scale(1.24);
+                        }
+                        input[type="range"]::-moz-range-thumb {
+                          pointer-events: auto;
+                          width: 20px;
+                          height: 20px;
+                          border-radius: 50%;
+                          background: #ea580c;
+                          border: 2px solid #ffffff;
+                          cursor: pointer;
+                          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+                          transition: transform 0.1s ease;
+                        }
+                        input[type="range"]::-moz-range-thumb:hover {
+                          transform: scale(1.18);
+                        }
+                        input[type="range"]::-moz-range-thumb:active {
+                          transform: scale(1.24);
+                        }
+                      `}</style>
+                    </div>
+
+                    {/* Minimum Rating */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500 block">
+                        Minimum Rating
+                      </label>
+                      <div className="flex space-x-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            onClick={() => setMinRating(minRating === star ? 0 : star)}
+                            className={`flex-1 h-10 rounded-xl flex items-center justify-center transition-all ${
+                              minRating >= star 
+                                ? "bg-orange-600 text-white shadow-md shadow-orange-500/20" 
+                                : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:text-orange-500 hover:bg-gray-200 dark:hover:bg-gray-700"
+                            }`}
+                          >
+                            <Star size={16} fill={minRating >= star ? "currentColor" : "none"} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Stock Availability */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500 block">
+                        Availability
+                      </label>
+                      <button 
+                        onClick={() => setOnlyInStock(!onlyInStock)}
+                        className={`flex items-center space-x-3 w-full px-4 py-3 rounded-xl border transition-all ${
+                          onlyInStock 
+                            ? "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400" 
+                            : "bg-gray-50 dark:bg-gray-800 border-gray-150 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                         <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                           onlyInStock 
+                             ? "bg-orange-600 border-orange-600 text-white" 
+                             : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600"
+                         }`}>
+                           {onlyInStock && <ArrowRight size={12} />}
+                         </div>
+                         <span className="text-xs font-extrabold uppercase tracking-tight">In Stock Items Only</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Drawer Footer */}
+                  <div className="p-6 border-t border-gray-150 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/40 flex flex-col gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowFilters(false)}
+                      className="w-full py-3 px-4 bg-orange-600 text-white rounded-xl font-bold text-sm hover:bg-orange-700 transition-colors shadow-lg shadow-orange-500/20"
+                    >
+                      Apply & View {filteredProducts.length} Products
+                    </button>
                     <button 
+                      type="button"
                       onClick={() => {
                         setMinPrice("");
                         setMaxPrice("");
@@ -1392,14 +1471,14 @@ export default function Home({ user }: HomeProps) {
                         setOnlyInStock(false);
                         selectCategory("All");
                       }}
-                      className="flex items-center justify-center space-x-2 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-600 dark:hover:bg-red-600 hover:text-white dark:hover:text-white px-6 py-4 rounded-xl font-black transition-all shadow-sm"
+                      className="w-full py-2.5 px-4 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl font-bold text-xs hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors flex items-center justify-center gap-1.5"
                     >
-                      <X size={18} />
-                      <span className="text-xs uppercase tracking-widest">Reset Filters</span>
+                      <X size={14} />
+                      <span>Reset All Filters</span>
                     </button>
                   </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         </div>

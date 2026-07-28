@@ -10,7 +10,7 @@ import { useLanguage } from "../lib/LanguageContext";
 import { AddToCartButton } from "../components/AddToCartButton";
 import { DeliveryCountdown } from "../components/DeliveryCountdown";
 import toast from "react-hot-toast";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import axios from "axios";
 import SEO from "../components/SEO";
 import { trackEvent } from "../lib/analytics";
@@ -76,6 +76,20 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   // Advanced Photo Capture & Review Attachment state
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const mainBuyButtonRef = useRef<HTMLDivElement | null>(null);
+  const [isMainBuyButtonVisible, setIsMainBuyButtonVisible] = useState(true);
+
+  useEffect(() => {
+    if (!mainBuyButtonRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsMainBuyButtonVisible(entry.isIntersecting);
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(mainBuyButtonRef.current);
+    return () => observer.disconnect();
+  }, [product]);
 
   useEffect(() => {
     if (product && product.availableColors && product.availableColors.length > 0) {
@@ -912,7 +926,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
 
           <DeliveryCountdown className="mb-6" />
 
-          <div className="flex space-x-3">
+          <div ref={mainBuyButtonRef} className="flex space-x-3">
             <AddToCartButton
               productId={product.id}
               product={product}
@@ -1346,6 +1360,61 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           )}
         </div>
       </section>
+
+      {/* Slim Sticky Bottom Bar when main buy button is scrolled out of view */}
+      <AnimatePresence>
+        {!isMainBuyButtonVisible && product && (
+          <motion.div
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 28 }}
+            className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200/80 dark:border-gray-800 shadow-2xl py-2.5 px-4 sm:px-8"
+          >
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                {product.images && product.images[0] && (
+                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0 border border-gray-200 dark:border-gray-700">
+                    <FastImage
+                      src={product.images[0]}
+                      alt={product.name}
+                      fallbackIconSize={20}
+                    />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-white truncate">
+                    {product.name}
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm sm:text-base font-black text-orange-600 dark:text-orange-500">
+                      {formatPrice(product.price)}
+                    </span>
+                    {product.originalPrice && product.originalPrice > product.price && (
+                      <span className="text-[10px] text-gray-400 line-through hidden sm:inline">
+                        {formatPrice(product.originalPrice)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 flex items-center gap-2">
+                <AddToCartButton
+                  productId={product.id}
+                  product={product}
+                  size="md"
+                  customizations={selectedColor ? {
+                    color: selectedColor.split("|")[1],
+                    colorName: selectedColor.split("|")[0]
+                  } : undefined}
+                  className="font-bold text-xs sm:text-sm px-4 py-2.5 shadow-md"
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
