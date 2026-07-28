@@ -12,6 +12,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { BlogPost, UserProfile } from "../types";
 import toast from "react-hot-toast";
 import { NewsletterSignup } from "../components/NewsletterSignup";
+import GoogleNewsWidget from "../components/GoogleNewsWidget";
 
 interface CommentReply {
   id: string;
@@ -622,6 +623,11 @@ export default function Blog({ user }: { user: UserProfile | null }) {
              <p className="text-gray-550 dark:text-gray-400 font-medium text-sm italic">Our writers are busy spinning new stories. Check back soon!</p>
           </div>
         )}
+      </div>
+
+      {/* Live Google News Stream */}
+      <div className="my-10">
+        <GoogleNewsWidget defaultQuery="Kenya Business Commerce Trade" />
       </div>
 
       {/* Newsletter Signup Section */}

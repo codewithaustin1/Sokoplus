@@ -16,6 +16,7 @@ import EmptyState from "../components/EmptyState";
 import MarketingBanner from "../components/MarketingBanner";
 import DailyDealsTicker from "../components/DailyDealsTicker";
 import PromotionalBanner from "../components/PromotionalBanner";
+import GoogleNewsWidget from "../components/GoogleNewsWidget";
 import { trackEvent } from "../lib/analytics";
 import heroImage from "../assets/images/sokoplus_hero_bg_1782815259030.jpg";
 import { FastImage } from "../components/FastImage";
@@ -1625,7 +1626,12 @@ export default function Home({ user }: HomeProps) {
               <p className="text-gray-400 text-sm">Integrated with Paystack & M-Pesa for seamless, secure transactions.</p>
            </div>
         </div>
-      </section>      {/* Mission Modal */}
+      </section>      {/* Live Market & Retail Google News Feed */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <GoogleNewsWidget defaultQuery="Kenya Retail E-commerce Market" />
+      </section>
+
+      {/* Mission Modal */}
       {showMission && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md">
           <motion.div 
