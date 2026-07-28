@@ -996,29 +996,29 @@ export default function Home({ user }: HomeProps) {
             >
               {recommendedProducts.map((p) => (
                 <motion.div 
-                  whileHover={{ y: -5 }}
+                  whileHover={{ y: -4 }}
                   key={`rec-${p.id}`} 
-                  className="w-[245px] sm:w-[285px] shrink-0 snap-start bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-4 shadow-sm transition-all premium-card-spotlight flex flex-col justify-between"
+                  className="w-[220px] sm:w-[250px] shrink-0 snap-start bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm transition-all premium-card-spotlight flex flex-col justify-between"
                 >
                   <Link 
                     to={`/product/${p.id}`} 
                     state={{ product: p }}
                     onMouseEnter={() => prefetchProductAssets(p)}
                     onTouchStart={() => prefetchProductAssets(p)}
-                    className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-4 relative group"
+                    className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-2.5 relative group shrink-0"
                   >
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
                     <FastImage 
                       src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
                       alt={p.name} 
-                      fallbackIconSize={48}
+                      fallbackIconSize={40}
                     />
                     <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
-                      <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
+                      <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[9px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
                         {p.category}
                       </div>
                       {p.originalPrice && p.originalPrice > p.price && (
-                        <div className="bg-red-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
+                        <div className="bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
                           -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
                         </div>
                       )}
@@ -1028,105 +1028,67 @@ export default function Home({ user }: HomeProps) {
                       whileTap={{ scale: 0.8 }}
                       transition={{ type: "spring", stiffness: 500, damping: 12 }}
                       onClick={(e) => toggleWishlist(p.id, e)}
-                      className={`absolute top-2 left-2 p-2 rounded-full shadow-sm z-10 transition-colors ${
+                      className={`absolute top-2 left-2 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
                         user?.wishlist?.includes(p.id) 
                           ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40" 
                           : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800"
                       }`}
                     >
-                      <Heart size={16} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
+                      <Heart size={14} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
                     </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.18 }}
                       whileTap={{ scale: 0.8 }}
                       transition={{ type: "spring", stiffness: 500, damping: 12 }}
                       onClick={(e) => handleToggleCompare(p, e)}
-                      className={`absolute top-2 left-12 p-2 rounded-full shadow-sm z-10 transition-colors ${
+                      className={`absolute top-2 left-10 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
                         compareIds.includes(p.id) 
                           ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-450 hover:bg-orange-100 dark:hover:bg-orange-900/40" 
                           : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-orange-600 hover:bg-white dark:hover:bg-gray-800"
                       }`}
                       title="Compare Product Specifications"
                     >
-                      <GitCompare size={16} />
+                      <GitCompare size={14} />
                     </motion.button>
                   </Link>
                   <div className="space-y-1 flex-1 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center text-yellow-400">
-                           <Star size={14} fill="currentColor" />
+                           <Star size={13} fill="currentColor" />
                            <span className="text-gray-500 dark:text-gray-400 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
                         </div>
                         <div>
                           {p.stock === 0 ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400">
                               {t("Out of Stock")}
                             </span>
                           ) : p.stock <= 5 ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
                               {t("Low Stock")} ({p.stock})
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
                               {p.stock} {t("In Stock")}
                             </span>
                           )}
                         </div>
                       </div>
-                      <Link to={`/product/${p.id}`} state={{ product: p }} className="text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1">
+                      <Link to={`/product/${p.id}`} state={{ product: p }} className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1 leading-snug">
                         {p.name}
                       </Link>
                     </div>
-                    <div className="flex flex-col mt-4">
-                      <div className="flex items-baseline gap-2 mb-3">
-                        <span className="text-xl font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
+                    <div className="flex flex-col mt-2">
+                      <div className="flex items-baseline gap-1.5 mb-2">
+                        <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
                         {p.originalPrice && p.originalPrice > p.price && (
-                          <span className="text-xs text-gray-400 dark:text-gray-500 line-through font-medium select-none">
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through font-medium select-none">
                             {formatPrice(p.originalPrice)}
                           </span>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2 w-[90%] mx-auto">
-                        <AddToCartButton product={p} className="w-full" />
-
-                        <motion.button 
-                          whileHover={p.stock === 0 ? {} : { scale: 1.02 }}
-                          whileTap={p.stock === 0 ? {} : { scale: 0.98 }}
-                          disabled={p.stock === 0}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (p.stock === 0) {
-                              toast.error("This product is out of stock!");
-                              return;
-                            }
-                            addToCart({ 
-                              productId: p.id, 
-                              name: p.name, 
-                              price: p.price, 
-                              quantity: 1, 
-                              image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" 
-                            });
-                            trackEvent("begin_checkout", {
-                              items: [{
-                                item_id: p.id,
-                                item_name: p.name,
-                                price: p.price,
-                                quantity: 1,
-                                item_category: p.category
-                              }]
-                            });
-                            navigate("/checkout");
-                          }}
-                          className={`w-full py-2 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center select-none cursor-pointer ${
-                            p.stock === 0 
-                              ? "bg-gray-100 dark:bg-gray-850 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
-                              : "bg-gray-950 dark:bg-gray-800 text-white hover:bg-gray-800 dark:hover:bg-gray-700 border border-transparent"
-                          }`}
-                        >
-                          {language === "sw" ? "Lipia Sasa" : "Checkout Now"}
-                        </motion.button>
+                      <div className="w-full">
+                        <AddToCartButton product={p} className="w-full" size="sm" />
                       </div>
                     </div>
                   </div>
@@ -1466,33 +1428,33 @@ export default function Home({ user }: HomeProps) {
             }}
           />
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-5">
             {filteredProducts.map((p) => (
               <motion.div 
-                whileHover={{ y: -5 }}
+                whileHover={{ y: -4 }}
                 key={p.id} 
-                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-4 shadow-sm transition-all premium-card-spotlight"
+                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm transition-all premium-card-spotlight flex flex-col justify-between"
               >
                 <Link 
                   to={`/product/${p.id}`} 
                   state={{ product: p }}
                   onMouseEnter={() => prefetchProductAssets(p)}
                   onTouchStart={() => prefetchProductAssets(p)}
-                  className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-4 relative group"
+                  className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-2.5 relative group"
                 >
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
                   <FastImage 
                     src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
                     alt={p.name} 
-                    fallbackIconSize={48}
+                    fallbackIconSize={40}
                   />
                   <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
-                    <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-2 py-0.5 rounded-md text-[10px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
+                    <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[9px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
                       {p.category}
                     </div>
                     {p.originalPrice && p.originalPrice > p.price && (
-                      <div className="bg-red-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
-                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 105)}%
+                      <div className="bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
+                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
                       </div>
                     )}
                   </div>
@@ -1501,103 +1463,67 @@ export default function Home({ user }: HomeProps) {
                     whileTap={{ scale: 0.8 }}
                     transition={{ type: "spring", stiffness: 500, damping: 12 }}
                     onClick={(e) => toggleWishlist(p.id, e)}
-                    className={`absolute top-2 left-2 p-2 rounded-full shadow-sm z-10 transition-colors ${
+                    className={`absolute top-2 left-2 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
                       user?.wishlist?.includes(p.id) 
                         ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40" 
                         : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800"
                     }`}
                   >
-                    <Heart size={16} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
+                    <Heart size={14} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.18 }}
                     whileTap={{ scale: 0.8 }}
                     transition={{ type: "spring", stiffness: 500, damping: 12 }}
                     onClick={(e) => handleToggleCompare(p, e)}
-                    className={`absolute top-2 left-12 p-2 rounded-full shadow-sm z-10 transition-colors ${
+                    className={`absolute top-2 left-10 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
                       compareIds.includes(p.id) 
                         ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-450 hover:bg-orange-100 dark:hover:bg-orange-900/40" 
                         : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-orange-600 hover:bg-white dark:hover:bg-gray-800"
                     }`}
                     title="Compare Product Specifications"
                   >
-                    <GitCompare size={16} />
+                    <GitCompare size={14} />
                   </motion.button>
                 </Link>
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center text-yellow-400">
-                       <Star size={14} fill="currentColor" />
-                       <span className="text-gray-500 dark:text-gray-400 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
+                <div className="space-y-1 flex-1 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center text-yellow-400">
+                         <Star size={13} fill="currentColor" />
+                         <span className="text-gray-500 dark:text-gray-400 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
+                      </div>
+                      <div>
+                        {p.stock === 0 ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400">
+                            Out of Stock
+                          </span>
+                        ) : p.stock <= 5 ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
+                            Low Stock ({p.stock})
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
+                            {p.stock} In Stock
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      {p.stock === 0 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400">
-                          Out of Stock
-                        </span>
-                      ) : p.stock <= 5 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
-                          Low Stock ({p.stock})
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
-                          {p.stock} In Stock
-                        </span>
-                      )}
-                    </div>
+                    <Link to={`/product/${p.id}`} state={{ product: p }} className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1 leading-snug">
+                      {p.name}
+                    </Link>
                   </div>
-                  <Link to={`/product/${p.id}`} state={{ product: p }} className="text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1">
-                    {p.name}
-                  </Link>
                   <div className="flex flex-col mt-2">
-                    <div className="flex items-baseline gap-2 mb-3">
-                      <span className="text-xl font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
+                    <div className="flex items-baseline gap-1.5 mb-2">
+                      <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
                       {p.originalPrice && p.originalPrice > p.price && (
-                        <span className="text-xs text-gray-400 dark:text-gray-500 line-through font-medium select-none">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through font-medium select-none">
                           {formatPrice(p.originalPrice)}
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-col gap-2 w-[90%] mx-auto">
-                      <AddToCartButton product={p} className="w-full" />
-
-                      <motion.button 
-                        whileHover={p.stock === 0 ? {} : { scale: 1.02 }}
-                        whileTap={p.stock === 0 ? {} : { scale: 0.98 }}
-                        disabled={p.stock === 0}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (p.stock === 0) {
-                            toast.error("This product is out of stock!");
-                            return;
-                          }
-                          addToCart({ 
-                            productId: p.id, 
-                            name: p.name, 
-                            price: p.price, 
-                            quantity: 1, 
-                            image: p.images?.filter(img => !!img && img.trim() !== "")[0] || "" 
-                          });
-                          trackEvent("begin_checkout", {
-                            items: [{
-                              item_id: p.id,
-                              item_name: p.name,
-                              price: p.price,
-                              quantity: 1,
-                              item_category: p.category
-                            }]
-                          });
-                          navigate("/checkout");
-                        }}
-                        className={`w-full py-2 px-4 rounded-full text-xs font-bold transition-all flex items-center justify-center select-none cursor-pointer ${
-                          p.stock === 0 
-                            ? "bg-gray-100 dark:bg-gray-850 text-gray-400 dark:text-gray-500 cursor-not-allowed" 
-                            : "bg-gray-950 dark:bg-gray-800 text-white hover:bg-gray-800 dark:hover:bg-gray-700 border border-transparent"
-                        }`}
-                      >
-                        {language === "sw" ? "Lipia Sasa" : "Checkout Now"}
-                      </motion.button>
+                    <div className="w-full">
+                      <AddToCartButton product={p} className="w-full" size="sm" />
                     </div>
                   </div>
                 </div>
