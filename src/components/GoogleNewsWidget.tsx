@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { Newspaper, ExternalLink, RefreshCw, Search, Clock, Globe, ArrowUpRight, ShieldCheck, Share2 } from "lucide-react";
+import { Newspaper, ExternalLink, RefreshCw, Search, Clock, Globe, ArrowUpRight, ShieldCheck, Share2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -37,6 +37,29 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isFallback, setIsFallback] = useState<boolean>(false);
+  const [highlightedTopic, setHighlightedTopic] = useState<string | null>(null);
+
+  // Check URL query parameters for deep-linked shared news item on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sharedTopic = urlParams.get("news_topic") || urlParams.get("news_id");
+      if (sharedTopic) {
+        const decodedTopic = decodeURIComponent(sharedTopic);
+        setHighlightedTopic(decodedTopic);
+        setCurrentQuery(decodedTopic);
+        setActivePreset("custom");
+
+        // Scroll smoothly to the news widget after rendering
+        setTimeout(() => {
+          const widgetElem = document.getElementById("google-news-live-widget");
+          if (widgetElem) {
+            widgetElem.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 600);
+      }
+    }
+  }, []);
 
   const fetchNews = useCallback(async (queryToFetch: string, forceRefresh = false) => {
     if (forceRefresh) {
@@ -75,6 +98,7 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
     setActivePreset(preset.id);
     setSearchQuery("");
     setCurrentQuery(preset.query);
+    setHighlightedTopic(null);
   };
 
   const handleCustomSearchSubmit = (e: React.FormEvent) => {
@@ -82,6 +106,7 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
     if (!searchQuery.trim()) return;
     setActivePreset("custom");
     setCurrentQuery(searchQuery.trim());
+    setHighlightedTopic(null);
   };
 
   const formatRelativeTime = (dateStr: string) => {
@@ -100,7 +125,7 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
     }
   };
 
-  // Direct Native Share with Sokoplus Referral Link
+  // Direct Native Share with Sokoplus Referral Link & Deep-Link Anchor
   const handleNativeShare = async (item: GoogleNewsItem, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -110,10 +135,11 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
       utm_source: "sokoplus_news_share",
       utm_medium: "social",
       news_topic: item.title,
+      news_id: item.id || item.title,
       ref: "sokoplus"
     });
-    const shareUrl = `${baseUrl}/?${params.toString()}`;
-    const shareText = `📰 "${item.title}" - via ${item.source}\n\nStay updated with Kenya's trending retail news on Sokoplus:\n${shareUrl}`;
+    const shareUrl = `${baseUrl}/?${params.toString()}#google-news-live-widget`;
+    const shareText = `📰 "${item.title}" - via ${item.source}\n\nRead this live Kenya retail news card on Sokoplus:\n${shareUrl}`;
 
     if (navigator.share) {
       try {
@@ -128,7 +154,7 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
     } else {
       try {
         await navigator.clipboard.writeText(shareText);
-        toast.success("Sokoplus news link copied to clipboard!", { icon: "🔗" });
+        toast.success("Sokoplus news card link copied to clipboard!", { icon: "🔗" });
       } catch (err) {
         toast.error("Unable to copy share link");
       }
@@ -245,60 +271,77 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
       ) : (
         <div className={`grid grid-cols-1 ${compact ? "gap-3" : "md:grid-cols-2 gap-4"}`}>
           <AnimatePresence mode="popLayout">
-            {newsItems.slice(0, compact ? 4 : 8).map((item, idx) => (
-              <motion.a
-                key={item.id || idx}
-                href={item.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, delay: idx * 0.04 }}
-                className="group p-4 rounded-2xl border border-gray-100 dark:border-gray-850 bg-gray-50/50 dark:bg-gray-950/40 hover:bg-white dark:hover:bg-gray-900 hover:border-orange-500/40 dark:hover:border-orange-500/40 hover:shadow-lg hover:shadow-orange-500/5 transition-all duration-200 flex flex-col justify-between gap-2.5 relative"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md truncate max-w-[180px]">
-                      <Globe size={11} className="shrink-0" />
-                      <span className="truncate">{item.source}</span>
-                    </span>
+            {newsItems.slice(0, compact ? 4 : 8).map((item, idx) => {
+              const isHighlighted = highlightedTopic && (
+                item.title.toLowerCase().includes(highlightedTopic.toLowerCase()) ||
+                highlightedTopic.toLowerCase().includes(item.title.toLowerCase())
+              );
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium shrink-0 flex items-center gap-1">
-                        <Clock size={11} />
-                        {formatRelativeTime(item.pubDate)}
+              return (
+                <motion.a
+                  key={item.id || idx}
+                  href={item.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: idx * 0.04 }}
+                  className={`group p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between gap-2.5 relative ${
+                    isHighlighted
+                      ? "border-orange-500 ring-2 ring-orange-500/80 bg-orange-50/60 dark:bg-orange-950/30 shadow-xl shadow-orange-500/10"
+                      : "border-gray-100 dark:border-gray-850 bg-gray-50/50 dark:bg-gray-950/40 hover:bg-white dark:hover:bg-gray-900 hover:border-orange-500/40 dark:hover:border-orange-500/40 hover:shadow-lg hover:shadow-orange-500/5"
+                  }`}
+                >
+                  <div>
+                    {isHighlighted && (
+                      <div className="mb-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-600 text-white shadow-sm">
+                        <Sparkles size={11} className="animate-spin" />
+                        <span>Featured Shared News Item on Sokoplus</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md truncate max-w-[180px]">
+                        <Globe size={11} className="shrink-0" />
+                        <span className="truncate">{item.source}</span>
                       </span>
-                      {/* Integrated Black Top-Right Share Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => handleNativeShare(item, e)}
-                        title="Share this news via Sokoplus"
-                        className="px-2.5 py-1 rounded-lg bg-black text-white dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-extrabold shrink-0 z-10 shadow-sm"
-                      >
-                        <Share2 size={12} className="stroke-[2.5]" />
-                        <span>Share</span>
-                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium shrink-0 flex items-center gap-1">
+                          <Clock size={11} />
+                          {formatRelativeTime(item.pubDate)}
+                        </span>
+                        {/* Integrated Black Top-Right Share Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleNativeShare(item, e)}
+                          title="Share this news via Sokoplus"
+                          className="px-2.5 py-1 rounded-lg bg-black text-white dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-extrabold shrink-0 z-10 shadow-sm"
+                        >
+                          <Share2 size={12} className="stroke-[2.5]" />
+                          <span>Share</span>
+                        </button>
+                      </div>
                     </div>
+
+                    <h4 className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-gray-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors line-clamp-2 leading-snug">
+                      {item.title}
+                    </h4>
+
+                    {item.snippet && (
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2 mt-1 leading-relaxed font-normal">
+                        {item.snippet}
+                      </p>
+                    )}
                   </div>
 
-                  <h4 className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-gray-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors line-clamp-2 leading-snug">
-                    {item.title}
-                  </h4>
-
-                  {item.snippet && (
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2 mt-1 leading-relaxed font-normal">
-                      {item.snippet}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-gray-200/40 dark:border-gray-800/60 text-[11px] font-bold">
-                  <span className="text-gray-500 dark:text-gray-400 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors flex items-center gap-1">
-                    Read Article <ArrowUpRight size={13} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </span>
-                </div>
-              </motion.a>
-            ))}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-200/40 dark:border-gray-800/60 text-[11px] font-bold">
+                    <span className="text-gray-500 dark:text-gray-400 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors flex items-center gap-1">
+                      Read Article on {item.source} <ArrowUpRight size={13} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    </span>
+                  </div>
+                </motion.a>
+              );
+            })}
           </AnimatePresence>
         </div>
       )}

@@ -17,14 +17,30 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Initialize Firebase Admin for Backend TTL Orders Cleanup
-const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+let firebaseConfig: any = {};
+let adminApp: admin.app.App | null = null;
+let adminDb: admin.firestore.Firestore | null = null;
 
-const adminApp = admin.initializeApp({
-  projectId: firebaseConfig.projectId,
-}, "ttl-cleanup-admin");
-
-const adminDb = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
+try {
+  const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+  if (fs.existsSync(configPath)) {
+    firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    if (admin.apps.length === 0) {
+      adminApp = admin.initializeApp({
+        projectId: firebaseConfig.projectId,
+      }, "ttl-cleanup-admin");
+    } else {
+      adminApp = admin.apps.find(app => app?.name === "ttl-cleanup-admin") || admin.app();
+    }
+    if (adminApp) {
+      adminDb = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
+    }
+  } else {
+    console.warn("[Server Init] firebase-applet-config.json not found in working directory.");
+  }
+} catch (err: any) {
+  console.warn("[Server Init] Safe fallback - Firebase admin initialization skipped:", err?.message || err);
+}
 
 // Helper functions for parsing Firestore REST responses reliably inside backends
 function parseFirestoreValue(valueObj: any): any {
@@ -119,6 +135,10 @@ async function fetchCollectionFromREST(collectionName: string): Promise<any[]> {
  */
 async function runOrderCleanupTTL(): Promise<number> {
   console.log("[TTL Cleanup] Run request received for orders older than 1 year...");
+  if (!adminDb) {
+    console.warn("[TTL Cleanup] Admin DB is not initialized.");
+    return 0;
+  }
   try {
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -174,6 +194,9 @@ async function requireSuperAdmin(req: express.Request, res: express.Response, ne
     return res.status(401).json({ error: "Unauthorized: Missing authorization header token" });
   }
   const token = authHeader.split("Bearer ")[1];
+  if (!adminApp) {
+    return res.status(500).json({ error: "Server error: Firebase Admin is not initialized" });
+  }
   try {
     const decodedToken = await adminApp.auth().verifyIdToken(token);
     if (decodedToken.email === "upfrontretaile@gmail.com" && decodedToken.email_verified) {
@@ -1854,7 +1877,7 @@ app.post("/api/admin/marketing/trigger", async (req, res) => {
       }
 
       // Create live notifications in Firestore (so client pushes live!)
-      if (channel === "push" || channel === "both") {
+      if ((channel === "push" || channel === "both") && adminDb) {
         const notifPromise = adminDb.collection("users").doc(targetUser.uid).collection("notifications").add({
           title,
           body: message,
@@ -1887,13 +1910,15 @@ app.post("/api/admin/marketing/trigger", async (req, res) => {
 
   } catch (err: any) {
     console.error("[Marketing API Fatal Error]", err);
-    try {
-      await adminDb.collection("marketing_campaigns").doc(campaignId).update({
-        status: "failed",
-        error: err.message || String(err),
-        completedAt: new Date().toISOString()
-      });
-    } catch (_) {}
+    if (adminDb) {
+      try {
+        await adminDb.collection("marketing_campaigns").doc(campaignId).update({
+          status: "failed",
+          error: err.message || String(err),
+          completedAt: new Date().toISOString()
+        });
+      } catch (_) {}
+    }
     res.status(500).json({ error: "Failed to trigger campaign", details: err.message });
   }
 });

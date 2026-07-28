@@ -104,36 +104,42 @@ async function run() {
   console.log("[Sitemap Script] Dynamic sitemap.xml generator starting...");
 
   try {
-    // 1. Locate config files
+    // 1. Locate config files safely
     const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    if (!fs.existsSync(configPath)) {
-      throw new Error(`Configuration file not found at: ${configPath}`);
-    }
+    let projectId = "";
+    let databaseId = "(default)";
+    let apiKey = "";
 
-    const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    const projectId = firebaseConfig.projectId;
-    const databaseId = firebaseConfig.firestoreDatabaseId || "(default)";
-    const apiKey = firebaseConfig.apiKey;
-
-    if (!projectId || !apiKey) {
-      throw new Error("Invalid Firebase applet configuration: missing projectId or apiKey.");
+    if (fs.existsSync(configPath)) {
+      try {
+        const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        projectId = firebaseConfig.projectId || "";
+        databaseId = firebaseConfig.firestoreDatabaseId || "(default)";
+        apiKey = firebaseConfig.apiKey || "";
+      } catch (err: any) {
+        console.warn("[Sitemap Script] Failed to parse firebase-applet-config.json:", err.message);
+      }
+    } else {
+      console.warn("[Sitemap Script] Configuration file not found, generating static sitemap fallback.");
     }
 
     // Initialize Firebase Admin for Sitemap Generation (using SDK directly whenever possible)
     let adminDb: admin.firestore.Firestore | null = null;
-    try {
-      if (admin.apps.length === 0) {
-        const adminApp = admin.initializeApp({
-          projectId: projectId,
-        }, "sitemap-admin");
-        adminDb = getFirestore(adminApp, databaseId);
-      } else {
-        const existingApp = admin.apps.find(app => app?.name === "sitemap-admin") || admin.app();
-        adminDb = getFirestore(existingApp, databaseId);
+    if (projectId) {
+      try {
+        if (admin.apps.length === 0) {
+          const adminApp = admin.initializeApp({
+            projectId: projectId,
+          }, "sitemap-admin");
+          adminDb = getFirestore(adminApp, databaseId);
+        } else {
+          const existingApp = admin.apps.find(app => app?.name === "sitemap-admin") || admin.app();
+          adminDb = getFirestore(existingApp, databaseId);
+        }
+        console.log("[Sitemap Script] Firebase Admin SDK initialized successfully.");
+      } catch (adminInitErr: any) {
+        console.warn("[Sitemap Script] Failed to initialize Firebase Admin SDK, continuing with REST fallback:", adminInitErr.message);
       }
-      console.log("[Sitemap Script] Firebase Admin SDK initialized successfully.");
-    } catch (adminInitErr: any) {
-      console.warn("[Sitemap Script] Failed to initialize Firebase Admin SDK, continuing with REST fallback:", adminInitErr.message);
     }
 
     // 2. Setup standard metadata
