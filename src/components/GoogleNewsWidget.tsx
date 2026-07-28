@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { Newspaper, ExternalLink, RefreshCw, Search, Sparkles, TrendingUp, Clock, Globe, ArrowUpRight, ShieldCheck, Share2, Copy, Check, X, MessageCircle, Send, Link2 } from "lucide-react";
+import { Newspaper, ExternalLink, RefreshCw, Search, Clock, Globe, ArrowUpRight, ShieldCheck, Share2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -37,10 +37,6 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isFallback, setIsFallback] = useState<boolean>(false);
-
-  // Share Modal State
-  const [shareItem, setShareItem] = useState<GoogleNewsItem | null>(null);
-  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   const fetchNews = useCallback(async (queryToFetch: string, forceRefresh = false) => {
     if (forceRefresh) {
@@ -104,8 +100,11 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
     }
   };
 
-  // --- Sokoplus Share Helper Functions ---
-  const getSokoplusShareUrl = (item: GoogleNewsItem) => {
+  // Direct Native Share with Sokoplus Referral Link
+  const handleNativeShare = async (item: GoogleNewsItem, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://sokoplus.co.ke";
     const params = new URLSearchParams({
       utm_source: "sokoplus_news_share",
@@ -113,48 +112,26 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
       news_topic: item.title,
       ref: "sokoplus"
     });
-    return `${baseUrl}/?${params.toString()}`;
-  };
+    const shareUrl = `${baseUrl}/?${params.toString()}`;
+    const shareText = `📰 "${item.title}" - via ${item.source}\n\nStay updated with Kenya's trending retail news on Sokoplus:\n${shareUrl}`;
 
-  const getSokoplusShareMessage = (item: GoogleNewsItem) => {
-    const url = getSokoplusShareUrl(item);
-    return `📰 "${item.title}" - via ${item.source}\n\nStay updated with Kenya's trending retail news and shop top verified products on Sokoplus:\n${url}`;
-  };
-
-  const handleOpenShare = (item: GoogleNewsItem, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShareItem(item);
-    setCopiedLink(false);
-  };
-
-  const handleCopySokoplusLink = async (item: GoogleNewsItem) => {
-    const textToCopy = getSokoplusShareMessage(item);
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      setCopiedLink(true);
-      toast.success("Sokoplus news link copied! Traffic will land on Sokoplus.", { icon: "🔗" });
-      setTimeout(() => setCopiedLink(false), 3000);
-    } catch (err) {
-      toast.error("Failed to copy link");
-    }
-  };
-
-  const handleNativeShare = async (item: GoogleNewsItem) => {
-    const url = getSokoplusShareUrl(item);
-    const text = getSokoplusShareMessage(item);
     if (navigator.share) {
       try {
         await navigator.share({
           title: `${item.title} | Sokoplus News`,
-          text: text,
-          url: url
+          text: shareText,
+          url: shareUrl
         });
       } catch (err) {
-        // user cancelled share
+        // User cancelled share dialog
       }
     } else {
-      handleCopySokoplusLink(item);
+      try {
+        await navigator.clipboard.writeText(shareText);
+        toast.success("Sokoplus news link copied to clipboard!", { icon: "🔗" });
+      } catch (err) {
+        toast.error("Unable to copy share link");
+      }
     }
   };
 
@@ -291,14 +268,15 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
                         <Clock size={11} />
                         {formatRelativeTime(item.pubDate)}
                       </span>
+                      {/* Integrated Black Top-Right Share Button */}
                       <button
                         type="button"
-                        onClick={(e) => handleOpenShare(item, e)}
-                        title="Share as Sokoplus"
-                        className="p-1.5 rounded-lg bg-orange-500/10 hover:bg-orange-600 text-orange-600 dark:text-orange-400 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-[10px] font-bold shrink-0 z-10"
+                        onClick={(e) => handleNativeShare(item, e)}
+                        title="Share this news via Sokoplus"
+                        className="px-2.5 py-1 rounded-lg bg-black text-white dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-extrabold shrink-0 z-10 shadow-sm"
                       >
-                        <Share2 size={12} />
-                        <span className="hidden sm:inline">Share</span>
+                        <Share2 size={12} className="stroke-[2.5]" />
+                        <span>Share</span>
                       </button>
                     </div>
                   </div>
@@ -318,13 +296,6 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
                   <span className="text-gray-500 dark:text-gray-400 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors flex items-center gap-1">
                     Read Article <ArrowUpRight size={13} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </span>
-                  <button
-                    type="button"
-                    onClick={(e) => handleOpenShare(item, e)}
-                    className="px-2.5 py-1 rounded-lg bg-orange-500/10 hover:bg-orange-600 text-orange-600 dark:text-orange-400 hover:text-white text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1"
-                  >
-                    <Share2 size={11} /> Share as Sokoplus
-                  </button>
                 </div>
               </motion.a>
             ))}
@@ -346,132 +317,7 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
           View all on Google News <ExternalLink size={11} />
         </a>
       </div>
-
-      {/* Sokoplus Share Modal */}
-      <AnimatePresence>
-        {shareItem && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-gray-950/70 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 relative"
-            >
-              {/* Close Button */}
-              <button
-                onClick={() => setShareItem(null)}
-                className="absolute top-4 right-4 p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-
-              {/* Modal Header */}
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-orange-600 text-white shadow-lg shadow-orange-600/30">
-                  <Share2 size={22} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
-                    Share as Sokoplus
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-orange-500/10 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/20">
-                      Traffic Referral
-                    </span>
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Share this news item with Sokoplus branding so visitors land on Sokoplus.
-                  </p>
-                </div>
-              </div>
-
-              {/* Article Preview Box */}
-              <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-950/60 border border-gray-200/80 dark:border-gray-800 space-y-2">
-                <div className="flex items-center gap-2 text-[10px] font-extrabold text-orange-600 dark:text-orange-400">
-                  <Globe size={11} /> {shareItem.source}
-                </div>
-                <h4 className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-white line-clamp-2">
-                  {shareItem.title}
-                </h4>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2">
-                  {shareItem.snippet}
-                </p>
-                <div className="pt-2 text-[10px] font-medium text-gray-400 dark:text-gray-500 border-t border-gray-200/50 dark:border-gray-800/80 flex items-center gap-1">
-                  <Link2 size={11} className="text-orange-500 shrink-0" /> Landing Link: <span className="font-mono truncate">{getSokoplusShareUrl(shareItem)}</span>
-                </div>
-              </div>
-
-              {/* Quick Social Channels Grid */}
-              <div className="space-y-2">
-                <label className="text-xs font-extrabold text-gray-700 dark:text-gray-300">
-                  Choose Sharing Channel
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {/* WhatsApp */}
-                  <a
-                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(getSokoplusShareMessage(shareItem))}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-500/20 transition-all text-xs font-bold gap-1.5 cursor-pointer group"
-                  >
-                    <MessageCircle size={20} className="group-hover:scale-110 transition-transform" />
-                    WhatsApp
-                  </a>
-
-                  {/* X / Twitter */}
-                  <a
-                    href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(getSokoplusShareMessage(shareItem))}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-sky-500/10 hover:bg-sky-500 text-sky-600 dark:text-sky-400 hover:text-white border border-sky-500/20 transition-all text-xs font-bold gap-1.5 cursor-pointer group"
-                  >
-                    <Send size={20} className="group-hover:scale-110 transition-transform" />
-                    X / Twitter
-                  </a>
-
-                  {/* Facebook */}
-                  <a
-                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getSokoplusShareUrl(shareItem))}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-blue-600/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-600/20 transition-all text-xs font-bold gap-1.5 cursor-pointer group"
-                  >
-                    <Globe size={20} className="group-hover:scale-110 transition-transform" />
-                    Facebook
-                  </a>
-
-                  {/* LinkedIn */}
-                  <a
-                    href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(getSokoplusShareUrl(shareItem))}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-indigo-600/10 hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 hover:text-white border border-indigo-600/20 transition-all text-xs font-bold gap-1.5 cursor-pointer group"
-                  >
-                    <Sparkles size={20} className="group-hover:scale-110 transition-transform" />
-                    LinkedIn
-                  </a>
-                </div>
-              </div>
-
-              {/* Copy Sokoplus Branded Link Button */}
-              <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
-                <button
-                  onClick={() => handleCopySokoplusLink(shareItem)}
-                  className="flex-1 py-3 px-4 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-orange-600/20 transition-all cursor-pointer"
-                >
-                  {copiedLink ? <Check size={16} /> : <Copy size={16} />}
-                  {copiedLink ? "Sokoplus Link Copied!" : "Copy Sokoplus Branded Link"}
-                </button>
-
-                <button
-                  onClick={() => handleNativeShare(shareItem)}
-                  className="py-3 px-4 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Share2 size={15} /> Native Share
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
+
