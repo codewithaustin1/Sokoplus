@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { Newspaper, ExternalLink, RefreshCw, Search, Clock, Globe, ArrowUpRight, ShieldCheck, Share2, Sparkles } from "lucide-react";
+import { Newspaper, ExternalLink, RefreshCw, Search, Clock, Globe, ArrowUpRight, ShieldCheck, Share2, Sparkles, BookOpen, TrendingUp, Flame, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -38,6 +38,14 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isFallback, setIsFallback] = useState<boolean>(false);
   const [highlightedTopic, setHighlightedTopic] = useState<string | null>(null);
+  const [expandedSummaryId, setExpandedSummaryId] = useState<string | null>(null);
+
+  // Helper to compute read time estimation chip
+  const getReadTime = (title: string, snippet?: string) => {
+    const words = `${title} ${snippet || ""}`.trim().split(/\s+/).length;
+    const mins = Math.max(1, Math.ceil(words / 35));
+    return `${mins} min read`;
+  };
 
   // Check URL query parameters for deep-linked shared news item on mount
   useEffect(() => {
@@ -161,6 +169,40 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
     }
   };
 
+  // Helper to extract domain and favicon for publisher brand badges
+  const getPublisherFavicon = (source: string, link: string) => {
+    const src = (source || "").toLowerCase();
+    let domain = "";
+
+    if (src.includes("business daily")) domain = "businessdailyafrica.com";
+    else if (src.includes("nation")) domain = "nation.africa";
+    else if (src.includes("standard")) domain = "standardmedia.co.ke";
+    else if (src.includes("capital")) domain = "capitalfm.co.ke";
+    else if (src.includes("star")) domain = "the-star.co.ke";
+    else if (src.includes("citizen")) domain = "citizentv.co.ke";
+    else if (src.includes("kbc")) domain = "kbc.co.ke";
+    else if (src.includes("techweez")) domain = "techweez.com";
+    else if (src.includes("business today")) domain = "businesstoday.co.ke";
+    else if (src.includes("reuters")) domain = "reuters.com";
+    else if (src.includes("bloomberg")) domain = "bloomberg.com";
+    else if (src.includes("bbc")) domain = "bbc.com";
+    else {
+      try {
+        if (link) {
+          const parsed = new URL(link);
+          domain = parsed.hostname.replace("www.", "");
+        }
+      } catch {
+        domain = "";
+      }
+    }
+
+    if (domain) {
+      return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+    }
+    return null;
+  };
+
   return (
     <div id="google-news-live-widget" className={`bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-3xl p-5 sm:p-7 shadow-xl shadow-gray-200/40 dark:shadow-none transition-all ${className}`}>
       {/* Widget Header */}
@@ -199,6 +241,38 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
           </button>
         </div>
       </div>
+
+      {/* Animated Horizon Ticker */}
+      {newsItems.length > 0 && (
+        <div className="mt-4 overflow-hidden rounded-2xl bg-gray-900 dark:bg-black text-white p-2.5 flex items-center gap-3 shadow-inner border border-gray-800/80 group">
+          <div className="flex items-center gap-1.5 shrink-0 bg-orange-600 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-xl tracking-wider z-10 shadow-sm animate-pulse">
+            <TrendingUp size={12} />
+            <span>Breaking Intel</span>
+          </div>
+          <div className="overflow-hidden whitespace-nowrap w-full relative">
+            <motion.div 
+              className="inline-flex gap-8 whitespace-nowrap"
+              animate={{ x: [0, -1200] }}
+              transition={{ repeat: Infinity, duration: 35, ease: "linear" }}
+              whileHover={{ animationPlayState: "paused" }}
+            >
+              {newsItems.concat(newsItems).map((tItem, tIdx) => (
+                <a
+                  key={`ticker-${tIdx}`}
+                  href={tItem.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-xs font-semibold text-gray-200 hover:text-orange-400 transition-colors"
+                >
+                  <span className="text-orange-500 font-bold">•</span>
+                  <span className="truncate max-w-[260px] sm:max-w-[380px]">{tItem.title}</span>
+                  <span className="text-[10px] text-gray-400 font-mono px-1.5 py-0.5 rounded bg-gray-800">{tItem.source}</span>
+                </a>
+              ))}
+            </motion.div>
+          </div>
+        </div>
+      )}
 
       {/* Preset Topics & Custom Search */}
       <div className="pt-4 pb-5 space-y-3">
@@ -271,11 +345,13 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
       ) : (
         <div className={`grid grid-cols-1 ${compact ? "gap-3" : "md:grid-cols-2 gap-4"}`}>
           <AnimatePresence mode="popLayout">
-            {newsItems.slice(0, compact ? 4 : 8).map((item, idx) => {
+            {newsItems.slice(0, compact ? 4 : 7).map((item, idx) => {
+              const isHero = idx === 0 && !compact && newsItems.length >= 2;
               const isHighlighted = highlightedTopic && (
                 item.title.toLowerCase().includes(highlightedTopic.toLowerCase()) ||
                 highlightedTopic.toLowerCase().includes(item.title.toLowerCase())
               );
+              const faviconUrl = getPublisherFavicon(item.source, item.link);
 
               return (
                 <motion.a
@@ -283,34 +359,67 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
                   href={item.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: idx * 0.04 }}
-                  className={`group p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between gap-2.5 relative ${
-                    isHighlighted
-                      ? "border-orange-500 ring-2 ring-orange-500/80 bg-orange-50/60 dark:bg-orange-950/30 shadow-xl shadow-orange-500/10"
-                      : "border-gray-100 dark:border-gray-850 bg-gray-50/50 dark:bg-gray-950/40 hover:bg-white dark:hover:bg-gray-900 hover:border-orange-500/40 dark:hover:border-orange-500/40 hover:shadow-lg hover:shadow-orange-500/5"
+                  whileHover={{ y: -4, scale: 1.006 }}
+                  transition={{ type: "spring", stiffness: 280, damping: 22, delay: idx * 0.04 }}
+                  className={`group transition-all duration-200 flex flex-col justify-between relative ${
+                    isHero
+                      ? "md:col-span-2 p-5 sm:p-6 rounded-3xl border border-orange-500/30 dark:border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-white dark:from-orange-950/40 dark:via-gray-900 dark:to-gray-950 shadow-md hover:shadow-2xl hover:shadow-orange-500/15 dark:hover:shadow-orange-500/20 hover:border-orange-500/60"
+                      : isHighlighted
+                      ? "p-4 sm:p-5 rounded-2xl border-2 border-orange-500 bg-orange-50/60 dark:bg-orange-950/30 shadow-xl shadow-orange-500/10"
+                      : "p-4 sm:p-5 rounded-2xl border border-gray-200/80 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/40 hover:bg-white dark:hover:bg-gray-900 hover:border-orange-500/50 dark:hover:border-orange-500/50 hover:shadow-xl hover:shadow-orange-500/10"
                   }`}
                 >
-                  <div>
-                    {isHighlighted && (
-                      <div className="mb-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-600 text-white shadow-sm">
-                        <Sparkles size={11} className="animate-spin" />
-                        <span>Featured Shared News Item on Sokoplus</span>
+                  <div className="space-y-2.5">
+                    {/* Top Status Pill / Badges */}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isHero && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-600 text-white shadow-xs">
+                            <Sparkles size={11} className="animate-pulse" />
+                            <span>Top Story Spotlight</span>
+                          </span>
+                        )}
+
+                        {isHighlighted && !isHero && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-600 text-white shadow-sm">
+                            <Sparkles size={11} className="animate-spin" />
+                            <span>Shared Story</span>
+                          </span>
+                        )}
+
+                        {/* Publisher Brand Badge with Micro-logo Favicon */}
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800/90 border border-gray-200/80 dark:border-gray-700/80 px-2.5 py-1 rounded-lg truncate max-w-[210px] shadow-2xs">
+                          {faviconUrl ? (
+                            <img 
+                              src={faviconUrl} 
+                              alt={item.source} 
+                              className="w-4 h-4 rounded-sm object-contain shrink-0" 
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                              }} 
+                            />
+                          ) : (
+                            <Globe size={12} className="shrink-0 text-orange-600 dark:text-orange-400" />
+                          )}
+                          <span className="truncate">{item.source}</span>
+                        </span>
                       </div>
-                    )}
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md truncate max-w-[180px]">
-                        <Globe size={11} className="shrink-0" />
-                        <span className="truncate">{item.source}</span>
-                      </span>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium shrink-0 flex items-center gap-1">
+                        {/* Estimated Read Time Micro-Chip */}
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20 shrink-0">
+                          <BookOpen size={10} />
+                          <span>{getReadTime(item.title, item.snippet)}</span>
+                        </span>
+
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold shrink-0 flex items-center gap-1">
                           <Clock size={11} />
                           {formatRelativeTime(item.pubDate)}
                         </span>
-                        {/* Integrated Black Top-Right Share Button */}
+
+                        {/* Integrated Share Button */}
                         <button
                           type="button"
                           onClick={(e) => handleNativeShare(item, e)}
@@ -323,20 +432,68 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
                       </div>
                     </div>
 
-                    <h4 className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-gray-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors line-clamp-2 leading-snug">
+                    {/* Headline */}
+                    <h4 className={`font-extrabold text-gray-900 dark:text-gray-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors ${
+                      isHero 
+                        ? "text-base sm:text-lg md:text-xl leading-snug tracking-tight line-clamp-2" 
+                        : "text-xs sm:text-sm line-clamp-2 leading-snug"
+                    }`}>
                       {item.title}
                     </h4>
 
+                    {/* Snippet */}
                     {item.snippet && (
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2 mt-1 leading-relaxed font-normal">
+                      <p className={`text-gray-600 dark:text-gray-300 font-normal leading-relaxed ${
+                        isHero ? "text-xs sm:text-sm line-clamp-3" : "text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2"
+                      }`}>
                         {item.snippet}
                       </p>
                     )}
+
+                    {/* Summary Micro-Chip & Hover-Expandable Drawer */}
+                    {item.snippet && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const currentId = item.id || String(idx);
+                            setExpandedSummaryId(expandedSummaryId === currentId ? null : currentId);
+                          }}
+                          className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 cursor-pointer bg-orange-500/10 hover:bg-orange-500/20 px-2.5 py-1 rounded-lg border border-orange-500/20 transition-all"
+                        >
+                          <Flame size={11} className="text-orange-500 animate-pulse" />
+                          <span>{expandedSummaryId === (item.id || String(idx)) ? "Collapse Intelligence" : "⚡ Quick Intel Drawer"}</span>
+                          <ChevronDown size={11} className={`transition-transform duration-200 ${expandedSummaryId === (item.id || String(idx)) ? "rotate-180" : ""}`} />
+                        </button>
+
+                        <AnimatePresence>
+                          {expandedSummaryId === (item.id || String(idx)) && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden mt-2"
+                            >
+                              <div className="p-3 rounded-xl bg-orange-50/80 dark:bg-orange-950/30 border border-orange-200/80 dark:border-orange-900/50 text-[11px] text-gray-800 dark:text-gray-200 font-normal leading-relaxed shadow-inner">
+                                <div className="font-extrabold text-orange-700 dark:text-orange-400 mb-1 flex items-center gap-1">
+                                  <Sparkles size={11} /> Executive Summary Brief:
+                                </div>
+                                {item.snippet}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-200/40 dark:border-gray-800/60 text-[11px] font-bold">
+                  {/* Card Footer Link */}
+                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-200/50 dark:border-gray-800/60 text-[11px] font-bold">
                     <span className="text-gray-500 dark:text-gray-400 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors flex items-center gap-1">
-                      Read Article on {item.source} <ArrowUpRight size={13} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                      Read full article on {item.source} <ArrowUpRight size={13} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                     </span>
                   </div>
                 </motion.a>
