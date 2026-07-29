@@ -210,9 +210,10 @@ export default function FreeDeliveryMap({ county, city, onChange }: FreeDelivery
           onChange(selectedCoords.lat, selectedCoords.lng);
         }
       } catch (err) {
-        console.error("Geocoding failed:", err);
-        setGeocodingError("Failed to lookup address details. Map pin coordinates remain active.");
-        onChange(selectedCoords.lat, selectedCoords.lng);
+        console.warn("Geocoding lookup notice (using map pin fallback):", err);
+        const fallbackStr = `Pin (${selectedCoords.lat.toFixed(4)}, ${selectedCoords.lng.toFixed(4)})`;
+        setResolvedAddress(fallbackStr);
+        onChange(selectedCoords.lat, selectedCoords.lng, fallbackStr);
       } finally {
         setLoading(false);
       }

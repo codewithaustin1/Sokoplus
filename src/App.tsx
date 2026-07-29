@@ -52,6 +52,7 @@ import { OfflineNotifier } from "./components/OfflineNotifier";
 import { NotificationManager } from "./components/NotificationManager";
 import { motion, AnimatePresence } from "motion/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { claimGuestOrdersForUser } from "./utils/guestSession";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -369,6 +370,13 @@ export default function App() {
       if (fbUser) {
         // Unsubscribe from previous user if exists
         if (unsubscribeUser) unsubscribeUser();
+
+        // Claim any guest orders linked to this session token or email
+        if (fbUser.email) {
+          claimGuestOrdersForUser(fbUser.uid, fbUser.email).catch((err) => {
+            console.warn("[App] Failed to auto-claim guest orders:", err);
+          });
+        }
 
         // Perform the admin check once on authentication change, rather than inside every snapshot update trigger
         let isAdmin = false;
