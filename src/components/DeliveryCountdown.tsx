@@ -233,7 +233,7 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
           <span className="text-[10px] font-black uppercase text-gray-455 dark:text-gray-500 tracking-wider flex items-center gap-1">
             <Clock size={11} className={isUrgent ? "text-red-500 animate-spin" : ""} /> Dispatch Cutoff Timer
           </span>
-          <div className="flex items-baseline gap-1 mt-1 font-mono">
+          <div className="flex items-baseline gap-1 mt-1 font-mono tabular-nums">
             <span className={`text-2xl font-black tracking-tight ${isUrgent ? "text-red-600 animate-pulse" : "text-gray-800 dark:text-gray-200"}`}>
               {countdown.hours.toString().padStart(2, "0")}
             </span>

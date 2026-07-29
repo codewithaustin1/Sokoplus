@@ -1,15 +1,17 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, setLogLevel } from "firebase/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
+
+// Suppress benign transient offline/reconnection warning notices in dev console
+setLogLevel("error");
 
 const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager(),
   }),
-  experimentalForceLongPolling: true,
-  experimentalAutoDetectLongPolling: false,
+  experimentalAutoDetectLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 

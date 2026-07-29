@@ -733,13 +733,13 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
 
           <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
             <div className="flex items-baseline space-x-3">
-              <p className="text-4xl font-black text-orange-600 dark:text-orange-550">{formatPrice(product.price)}</p>
+              <p className="text-4xl font-black text-orange-600 dark:text-orange-550 tabular-nums">{formatPrice(product.price)}</p>
               {product.originalPrice && product.originalPrice > product.price && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-lg text-gray-400 dark:text-gray-500 line-through font-semibold">
+                  <span className="text-lg text-gray-400 dark:text-gray-500 line-through font-semibold tabular-nums">
                     {formatPrice(product.originalPrice)}
                   </span>
-                  <span className="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-extrabold px-2.5 py-1 rounded-xl border border-red-100 dark:border-red-900/50 uppercase animate-pulse-subtle">
+                  <span className="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-extrabold px-2.5 py-1 rounded-xl border border-red-100 dark:border-red-900/50 uppercase animate-pulse-subtle tabular-nums">
                     Save {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 105 / 1.05)}%
                   </span>
                 </div>
@@ -1386,7 +1386,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                   <p className="text-xs sm:text-sm font-extrabold text-gray-900 dark:text-white truncate">
                     {product.name}
                   </p>
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex items-baseline gap-2 tabular-nums">
                     <span className="text-sm sm:text-base font-black text-orange-600 dark:text-orange-500">
                       {formatPrice(product.price)}
                     </span>

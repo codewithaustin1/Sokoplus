@@ -1671,11 +1671,12 @@ function parseGoogleNewsRSS(xml: string) {
 app.get("/api/google-news", async (req, res) => {
   const queryParam = (req.query.q as string) || "Kenya Retail E-commerce Market";
   const topicParam = (req.query.topic as string) || "";
+  const isForceRefresh = req.query.refresh === "true" || !!req.query.t;
   const cacheKey = `${queryParam}_${topicParam}`.toLowerCase();
 
-  // Check 5-minute memory cache
+  // Check 5-minute memory cache unless force refresh requested
   const cached = newsCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
+  if (!isForceRefresh && cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
     return res.json({ success: true, cached: true, query: queryParam, items: cached.data });
   }
 

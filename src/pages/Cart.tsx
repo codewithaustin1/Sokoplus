@@ -155,7 +155,7 @@ export default function Cart() {
                     </div>
 
                     {/* Unit Price */}
-                    <p className="text-xs sm:text-sm font-semibold text-orange-600 mt-0.5">
+                    <p className="text-xs sm:text-sm font-semibold text-orange-600 mt-0.5 tabular-nums">
                       KES {item.price.toLocaleString()} {t("each")}
                     </p>
 
@@ -189,7 +189,7 @@ export default function Cart() {
                         <Minus size={12} className="sm:hidden" />
                         <Minus size={16} className="hidden sm:block" />
                       </button>
-                      <span className="px-2 sm:px-4 font-bold text-xs sm:text-sm text-gray-800 dark:text-gray-200 select-none">
+                      <span className="px-2 sm:px-4 font-bold text-xs sm:text-sm text-gray-800 dark:text-gray-200 select-none tabular-nums">
                         {item.quantity}
                       </span>
                       <button 
@@ -203,7 +203,7 @@ export default function Cart() {
                     </div>
 
                     {/* Subtotal */}
-                    <div className="text-right font-black text-sm sm:text-lg text-gray-900 dark:text-white">
+                    <div className="text-right font-black text-sm sm:text-lg text-gray-900 dark:text-white tabular-nums">
                       KES {(item.price * item.quantity).toLocaleString()}
                     </div>
                   </div>
@@ -220,12 +220,12 @@ export default function Cart() {
             <div className="space-y-4 text-sm">
               <div className="flex justify-between text-gray-500 dark:text-gray-400">
                 <span>{t("Subtotal")}</span>
-                <span>KES {total.toLocaleString()}</span>
+                <span className="tabular-nums font-semibold">KES {total.toLocaleString()}</span>
               </div>
               <div className="flex flex-col gap-1 text-gray-500 dark:text-gray-400">
                 <div className="flex justify-between">
                   <span>{t("Shipping")}</span>
-                  <span className="font-bold text-gray-800 dark:text-gray-200">
+                  <span className="font-bold text-gray-800 dark:text-gray-200 tabular-nums">
                     {shippingFee === 0 ? (
                       <span className="text-emerald-600 dark:text-emerald-400 font-black uppercase text-[10px] bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">
                         Free shipping
@@ -294,7 +294,7 @@ export default function Cart() {
 
               <div className="border-t border-gray-100 dark:border-gray-800 pt-4 flex justify-between text-xl font-black text-gray-900 dark:text-white">
                 <span>{t("Total")}</span>
-                <span>KES {overallTotal.toLocaleString()}</span>
+                <span className="tabular-nums">KES {overallTotal.toLocaleString()}</span>
               </div>
             </div>
             <Link 

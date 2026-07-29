@@ -1,4 +1,4 @@
-import { collection, getDocsFromServer, getDocsFromCache, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 export interface MarketingBannerData {
@@ -34,8 +34,8 @@ export async function fetchMarketingBanners(): Promise<MarketingBannerData[]> {
       orderBy("createdAt", "desc")
     );
     try {
-      // Attempt to fetch fresh data from server
-      const snapshot = await getDocsFromServer(bannersQuery);
+      // Attempt to fetch data from Firestore (uses cache when offline automatically)
+      const snapshot = await getDocs(bannersQuery);
       const fetchedBanners: MarketingBannerData[] = [];
       
       snapshot.forEach((docSnap) => {
@@ -48,22 +48,7 @@ export async function fetchMarketingBanners(): Promise<MarketingBannerData[]> {
       
       return fetchedBanners;
     } catch (error) {
-      console.warn("[bannerCache] Server fetch failed, attempting local cache fallback:", error);
-      try {
-        const cacheSnapshot = await getDocsFromCache(bannersQuery);
-        const cachedBanners: MarketingBannerData[] = [];
-        cacheSnapshot.forEach((docSnap) => {
-          cachedBanners.push({
-            id: docSnap.id,
-            ...docSnap.data(),
-          } as MarketingBannerData);
-        });
-        if (cachedBanners.length > 0) return cachedBanners;
-      } catch (cacheErr) {
-        console.warn("[bannerCache] Cache fallback also failed:", cacheErr);
-      }
-
-      // Reset cache promise on complete failure
+      console.warn("[bannerCache] Fetch failed, returning empty list fallback:", error);
       cachedBannersPromise = null;
       lastFetchTime = 0;
       return [];

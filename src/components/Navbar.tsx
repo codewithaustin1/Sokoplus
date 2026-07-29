@@ -10,7 +10,7 @@ import { useSettings } from "../lib/SettingsContext";
 import { auth, db } from "../lib/firebase";
 import { UserProfile, Product } from "../types";
 import { motion, AnimatePresence } from "motion/react";
-import { collection, getDocs, query, limit, doc, setDoc } from "firebase/firestore";
+import { collection, getDocs, getDocsFromCache, query, limit, doc, setDoc } from "firebase/firestore";
 import { FastImage } from "./FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
@@ -167,6 +167,7 @@ export default function Navbar({ user }: NavbarProps) {
   }, [allProducts, language]);
 
   const [suggestedProducts, setSuggestedProducts] = useState<Product[]>([]);
+  const [suggestedCategories, setSuggestedCategories] = useState<string[]>([]);
   const [showDesktopSuggestions, setShowDesktopSuggestions] = useState(false);
 
   const [isListening, setIsListening] = useState(false);
@@ -311,7 +312,25 @@ export default function Navbar({ user }: NavbarProps) {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const q = query(collection(db, "products"), limit(50));
+        const q = query(collection(db, "products"), limit(100));
+        
+        // 1. Instant local-first retrieval using Firestore local cache
+        try {
+          const cacheSnapshot = await getDocsFromCache(q);
+          if (!cacheSnapshot.empty) {
+            const cachedList = cacheSnapshot.docs
+              .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+              .filter(p => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved"));
+            if (cachedList.length > 0) {
+              setAllProducts(cachedList);
+              cachedList.forEach(p => productCache.set(p.id, p));
+            }
+          }
+        } catch {
+          // Cache miss on cold boot - fallback to network fetch
+        }
+
+        // 2. Fetch/sync fresh network snapshot to keep cache updated
         const snapshot = await getDocs(q);
         const fetched = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Product))
@@ -319,7 +338,7 @@ export default function Navbar({ user }: NavbarProps) {
         setAllProducts(fetched);
         fetched.forEach(p => productCache.set(p.id, p));
       } catch (err) {
-        console.warn("Failed to fetch products for search suggestions:", err);
+        console.warn("Failed to fetch products for predictive search:", err);
       }
     }
     fetchProducts();
@@ -331,6 +350,8 @@ export default function Navbar({ user }: NavbarProps) {
       navigate(`/?search=${encodeURIComponent(search.trim())}`);
       setSearch("");
       setSuggestedProducts([]);
+      setSuggestedCategories([]);
+      setShowDesktopSuggestions(false);
       setIsMobileMenuOpen(false);
       setIsMobileSearchOpen(false);
     }
@@ -339,15 +360,35 @@ export default function Navbar({ user }: NavbarProps) {
   const handleSearchChange = (val: string) => {
     setSearch(val);
     if (val.trim()) {
-      const queryStr = val.toLowerCase();
+      const queryStr = val.trim().toLowerCase();
+
+      // 1. Filter predictive matching categories
+      const categorySet = new Set<string>();
+      const seedCategories = [
+        "Electronics", "Phones & Tablets", "Computers & Laptops",
+        "TV & Audio", "Home & Kitchen", "Fashion", "Beauty & Personal Care",
+        "Sports & Fitness", "Automotive", "Supermarket"
+      ];
+      seedCategories.forEach(c => categorySet.add(c));
+      allProducts.forEach(p => { if (p.category) categorySet.add(p.category); });
+
+      const matchedCats = Array.from(categorySet)
+        .filter(cat => cat.toLowerCase().includes(queryStr))
+        .slice(0, 3);
+      setSuggestedCategories(matchedCats);
+
+      // 2. Filter predictive matching products
       const filtered = allProducts.filter(p => 
         p.name.toLowerCase().includes(queryStr) || 
-        p.description.toLowerCase().includes(queryStr) ||
-        p.category.toLowerCase().includes(queryStr)
+        (p.description && p.description.toLowerCase().includes(queryStr)) ||
+        (p.category && p.category.toLowerCase().includes(queryStr)) ||
+        (p.sellerName && p.sellerName.toLowerCase().includes(queryStr)) ||
+        (p.artisan && p.artisan.toLowerCase().includes(queryStr))
       ).slice(0, 5);
       setSuggestedProducts(filtered);
     } else {
       setSuggestedProducts([]);
+      setSuggestedCategories([]);
     }
   };
 
@@ -356,6 +397,17 @@ export default function Navbar({ user }: NavbarProps) {
     navigate(`/product/${productId}`, { state: matchedProduct ? { product: matchedProduct } : undefined });
     setSearch("");
     setSuggestedProducts([]);
+    setSuggestedCategories([]);
+    setShowDesktopSuggestions(false);
+    setIsMobileSearchOpen(false);
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleCategorySelect = (categoryName: string) => {
+    navigate(`/?category=${encodeURIComponent(categoryName)}`);
+    setSearch("");
+    setSuggestedProducts([]);
+    setSuggestedCategories([]);
     setShowDesktopSuggestions(false);
     setIsMobileSearchOpen(false);
     setIsMobileMenuOpen(false);
@@ -628,7 +680,7 @@ export default function Navbar({ user }: NavbarProps) {
 
               {/* Desktop Suggestions Dropdown */}
               <AnimatePresence>
-                {showDesktopSuggestions && (search.trim() || suggestedProducts.length > 0) && (
+                {showDesktopSuggestions && (search.trim() || suggestedProducts.length > 0 || suggestedCategories.length > 0) && (
                   <>
                     <div 
                       className="fixed inset-0 z-40" 
@@ -639,11 +691,35 @@ export default function Navbar({ user }: NavbarProps) {
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 10 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute left-0 right-0 mt-2 bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-xl border border-gray-150 dark:border-gray-800 shadow-2xl z-50 p-4 space-y-3 max-h-[80vh] overflow-y-auto"
+                      className="absolute left-0 right-0 mt-2 bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-2xl border border-gray-150 dark:border-gray-800 shadow-2xl z-50 overflow-hidden max-h-[80vh] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800"
                     >
+                      {/* Suggested Categories */}
+                      {suggestedCategories.length > 0 && (
+                        <div className="p-3 bg-gray-50/70 dark:bg-gray-850/50">
+                          <div className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-2 flex items-center gap-1.5 px-1">
+                            <Layers size={11} className="text-amber-500" /> Matching Categories
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {suggestedCategories.map((cat) => (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => handleCategorySelect(cat)}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-amber-400 hover:text-black hover:border-amber-400 transition-all cursor-pointer shadow-2xs"
+                              >
+                                <span>📁</span> {cat}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Suggested Products */}
                       {suggestedProducts.length > 0 ? (
-                        <div className="space-y-2">
-                          <div className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Instant Matches</div>
+                        <div className="p-3 space-y-1">
+                          <div className="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1 flex items-center gap-1.5 px-1">
+                            <ShoppingBag size={11} className="text-orange-500" /> Suggested Products
+                          </div>
                           <div className="divide-y divide-gray-100 dark:divide-gray-800">
                             {suggestedProducts.map((p) => (
                               <div
@@ -651,7 +727,7 @@ export default function Navbar({ user }: NavbarProps) {
                                 onClick={() => handleProductSelect(p.id)}
                                 onMouseEnter={() => prefetchProductAssets(p)}
                                 onTouchStart={() => prefetchProductAssets(p)}
-                                className="flex items-center space-x-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl px-2 group transition-all"
+                                className="flex items-center space-x-3 py-2 cursor-pointer hover:bg-orange-50/50 dark:hover:bg-gray-800/60 rounded-xl px-2 group transition-all"
                               >
                                 <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0 border border-gray-200/50 dark:border-gray-700/50">
                                   <FastImage 
@@ -664,7 +740,7 @@ export default function Navbar({ user }: NavbarProps) {
                                   <p className="text-xs font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-amber-500 transition-colors">{p.name}</p>
                                   <p className="text-[9px] text-gray-450 font-bold uppercase tracking-wide">{p.category}</p>
                                 </div>
-                                <div className="text-xs font-extrabold text-gray-950 dark:text-gray-50 whitespace-nowrap">
+                                <div className="text-xs font-extrabold text-gray-950 dark:text-gray-50 whitespace-nowrap tabular-nums">
                                   {formatPrice(p.price)}
                                 </div>
                               </div>
@@ -672,8 +748,23 @@ export default function Navbar({ user }: NavbarProps) {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-center py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
-                          No matches for "{search}"
+                        suggestedCategories.length === 0 && search.trim() && (
+                          <div className="text-center py-5 px-4 text-xs font-semibold text-gray-400">
+                            No matching products or categories for "<span className="font-bold text-gray-700 dark:text-gray-300">{search}</span>"
+                          </div>
+                        )
+                      )}
+
+                      {search.trim() && (
+                        <div 
+                          onClick={handleSearch}
+                          className="p-3 bg-gray-50 dark:bg-gray-950/80 hover:bg-amber-400 dark:hover:bg-amber-400 hover:text-black text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center justify-between cursor-pointer transition-colors"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Search size={14} className="text-amber-500" />
+                            Search all results for "<span className="truncate max-w-[200px]">{search}</span>"
+                          </span>
+                          <ChevronRight size={14} />
                         </div>
                       )}
                     </motion.div>
@@ -784,7 +875,7 @@ export default function Navbar({ user }: NavbarProps) {
                     key={itemCount}
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="absolute -top-1 -right-2.5 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[16px] text-center shadow-md"
+                    className="absolute -top-1 -right-2.5 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[16px] text-center shadow-md tabular-nums"
                   >
                     {itemCount}
                   </motion.span>
@@ -902,6 +993,7 @@ export default function Navbar({ user }: NavbarProps) {
                 onClick={() => {
                   setSearch("");
                   setSuggestedProducts([]);
+                  setSuggestedCategories([]);
                 }}
                 className="p-1 text-gray-450 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
                 title={language === "sw" ? "Futa" : "Clear"}
@@ -926,36 +1018,62 @@ export default function Navbar({ user }: NavbarProps) {
 
         {/* Suggestion Dropdown floating beautifully over the parent page */}
         <AnimatePresence>
-          {suggestedProducts.length > 0 && (
+          {(suggestedProducts.length > 0 || suggestedCategories.length > 0) && (
             <motion.div
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 5 }}
-              className="absolute left-4 right-4 mt-2 bg-white rounded-2xl border border-gray-100 shadow-2xl max-h-60 overflow-y-auto p-3 space-y-1 z-[100]"
+              className="absolute left-4 right-4 mt-2 bg-white dark:bg-gray-900 rounded-2xl border border-gray-150 dark:border-gray-800 shadow-2xl max-h-72 overflow-y-auto p-3 space-y-2 z-[100] divide-y divide-gray-100 dark:divide-gray-800"
             >
-              <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider px-2 py-1">Instant Matches</div>
-              {suggestedProducts.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => handleProductSelect(p.id)}
-                  className="flex items-center space-x-3 py-2 cursor-pointer hover:bg-gray-50 px-2 rounded-xl transition-colors"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-150">
-                    <FastImage 
-                      src={p.images?.[0] || ""} 
-                      alt={p.name} 
-                      fallbackIconSize={14}
-                    />
+              {suggestedCategories.length > 0 && (
+                <div className="space-y-1.5 pb-2">
+                  <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
+                    <Layers size={10} className="text-amber-500" /> Categories
                   </div>
-                  <div className="flex-grow min-w-0">
-                    <p className="text-xs font-bold text-gray-950 truncate">{p.name}</p>
-                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{p.category}</p>
-                  </div>
-                  <div className="text-xs font-black text-gray-900 whitespace-nowrap">
-                    KES {p.price.toLocaleString()}
+                  <div className="flex flex-wrap gap-1.5">
+                    {suggestedCategories.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => handleCategorySelect(cat)}
+                        className="text-xs font-bold px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-amber-400 hover:text-black transition-colors cursor-pointer"
+                      >
+                        📁 {cat}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ))}
+              )}
+
+              {suggestedProducts.length > 0 && (
+                <div className="space-y-1 pt-2">
+                  <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
+                    <ShoppingBag size={10} className="text-orange-500" /> Products
+                  </div>
+                  {suggestedProducts.map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => handleProductSelect(p.id)}
+                      className="flex items-center space-x-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 px-2 rounded-xl transition-colors"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0 border border-gray-150 dark:border-gray-700">
+                        <FastImage 
+                          src={p.images?.[0] || ""} 
+                          alt={p.name} 
+                          fallbackIconSize={14}
+                        />
+                      </div>
+                      <div className="flex-grow min-w-0">
+                        <p className="text-xs font-bold text-gray-950 dark:text-gray-100 truncate">{p.name}</p>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{p.category}</p>
+                      </div>
+                      <div className="text-xs font-black text-gray-900 dark:text-gray-100 whitespace-nowrap tabular-nums">
+                        {formatPrice(p.price)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -1030,6 +1148,7 @@ export default function Navbar({ user }: NavbarProps) {
                       onClick={() => {
                         setSearch("");
                         setSuggestedProducts([]);
+                        setSuggestedCategories([]);
                       }}
                       className="p-1 text-gray-450 hover:text-gray-750 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
                       title={language === "sw" ? "Futa" : "Clear"}
@@ -1051,6 +1170,68 @@ export default function Navbar({ user }: NavbarProps) {
                   </button>
                 </div>
               </motion.form>
+
+              {/* Mobile Drawer Predictive Search Dropdown */}
+              <AnimatePresence>
+                {(suggestedProducts.length > 0 || suggestedCategories.length > 0) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-150 dark:border-gray-800 shadow-2xl max-h-72 overflow-y-auto p-3 space-y-2 divide-y divide-gray-100 dark:divide-gray-800"
+                  >
+                    {suggestedCategories.length > 0 && (
+                      <div className="space-y-1.5 pb-2">
+                        <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
+                          <Layers size={10} className="text-amber-500" /> Matching Categories
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {suggestedCategories.map((cat) => (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => handleCategorySelect(cat)}
+                              className="text-xs font-bold px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-amber-400 hover:text-black transition-colors cursor-pointer"
+                            >
+                              📁 {cat}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {suggestedProducts.length > 0 && (
+                      <div className="space-y-1 pt-2">
+                        <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
+                          <ShoppingBag size={10} className="text-orange-500" /> Products
+                        </div>
+                        {suggestedProducts.map((p) => (
+                          <div
+                            key={p.id}
+                            onClick={() => handleProductSelect(p.id)}
+                            className="flex items-center space-x-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 px-2 rounded-xl transition-colors"
+                          >
+                            <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0 border border-gray-150 dark:border-gray-700">
+                              <FastImage 
+                                src={p.images?.[0] || ""} 
+                                alt={p.name} 
+                                fallbackIconSize={14}
+                              />
+                            </div>
+                            <div className="flex-grow min-w-0">
+                              <p className="text-xs font-bold text-gray-950 dark:text-gray-100 truncate">{p.name}</p>
+                              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{p.category}</p>
+                            </div>
+                            <div className="text-xs font-black text-gray-900 dark:text-gray-100 whitespace-nowrap tabular-nums">
+                              {formatPrice(p.price)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Category tag for organization */}
               <div className="text-[10px] uppercase font-black tracking-widest text-orange-600 dark:text-orange-500 px-1 py-0.5 select-none pt-2 opacity-80">

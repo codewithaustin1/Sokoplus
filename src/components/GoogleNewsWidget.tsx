@@ -100,6 +100,14 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
 
   useEffect(() => {
     fetchNews(currentQuery);
+
+    // Auto-refresh Google News feed every 25 minutes (1,500,000 ms)
+    const REFRESH_INTERVAL_MS = 25 * 60 * 1000;
+    const intervalId = setInterval(() => {
+      fetchNews(currentQuery, true);
+    }, REFRESH_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
   }, [currentQuery, fetchNews]);
 
   const handlePresetClick = (preset: typeof PRESET_TOPICS[0]) => {
@@ -229,7 +237,7 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
 
         <div className="flex items-center gap-2 self-end sm:self-center">
           <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium hidden md:inline-block">
-            Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            Auto-refreshes every 25m • Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
           <button
             onClick={() => fetchNews(currentQuery, true)}
