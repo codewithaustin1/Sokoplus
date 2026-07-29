@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import ReactMarkdown from "react-markdown";
 import { UserProfile, Product, Order, SupportTicket, BlogPost, JobOffer, JobApplication, Review } from "../types";
+import { OrderRefundManager } from "../components/OrderRefundManager";
+import { AdminDataErasureManager } from "../components/AdminDataErasureManager";
 import { db, auth } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -1586,7 +1588,7 @@ export default function Admin({ user }: AdminProps) {
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
   const [inventorySubTab, setInventorySubTab] = useState<"alerts" | "catalog">("alerts");
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue"
+    "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue" | "privacy_erasure"
   >("inventory");
 
   useEffect(() => {
@@ -4984,6 +4986,12 @@ export default function Admin({ user }: AdminProps) {
             </button>
           </>
         )}
+        <button
+          onClick={() => setActiveTab("privacy_erasure")}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-1.5 ${activeTab === "privacy_erasure" ? "bg-white shadow-sm text-red-600" : "text-gray-500 hover:bg-gray-200"}`}
+        >
+          Data Erasure Queue
+        </button>
         {user?.email === "upfrontretaile@gmail.com" && (
           <button
             onClick={() => setActiveTab("security")}
@@ -9158,6 +9166,10 @@ export default function Admin({ user }: AdminProps) {
         <SecurityManager user={user} />
       )}
 
+      {activeTab === "privacy_erasure" && (
+        <AdminDataErasureManager />
+      )}
+
       {activeTab === "reviews" && (
         <AdminReviewsManager />
       )}
@@ -10788,6 +10800,28 @@ export default function Admin({ user }: AdminProps) {
                   </button>
                 </div>
               </div>
+
+              {/* Refund & Inventory Restock Management */}
+              <OrderRefundManager
+                order={selectedViewOrder}
+                products={products}
+                onRefundSuccess={(updatedOrder, restockedProducts) => {
+                  setSelectedViewOrder(updatedOrder);
+                  setOrders((prevOrders) =>
+                    prevOrders.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
+                  );
+                  if (restockedProducts.length > 0) {
+                    setProducts((prevProducts) =>
+                      prevProducts.map((p) => {
+                        const restock = restockedProducts.find((rp) => rp.productId === p.id);
+                        return restock
+                          ? { ...p, stock: restock.newStock, inStock: restock.newStock > 0 }
+                          : p;
+                      })
+                    );
+                  }
+                }}
+              />
             </div>
           </div>
         </div>

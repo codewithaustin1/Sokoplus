@@ -30,7 +30,12 @@ import {
   Gift,
   X,
   RefreshCw,
-  Banknote
+  Banknote,
+  Award,
+  Layers,
+  Zap,
+  CheckCircle2,
+  Tag
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { counties } from "../data/counties";
@@ -119,6 +124,9 @@ export default function Checkout({ user }: CheckoutProps) {
       city: savedCity,
       county: savedCountry === "Kenya" ? savedCounty : "",
       street: "",
+      landmarkNotes: "",
+      lat: undefined as number | undefined,
+      lng: undefined as number | undefined,
       phone: initialPhone,
       email: user?.email || ""
     };
@@ -268,10 +276,20 @@ export default function Checkout({ user }: CheckoutProps) {
 
   const baseShippingFee = calculateShippingFee(address.county, address.city, total, address.country);
 
+  // Level 1: Primary Voucher Code
   const [appliedVoucher, setAppliedVoucher] = useState<any | null>(null);
   const [voucherCodeInput, setVoucherCodeInput] = useState("");
   const [voucherError, setVoucherError] = useState("");
   const [voucherSuccess, setVoucherSuccess] = useState("");
+
+  // Level 2: Referral Bonus Credit
+  const [appliedReferral, setAppliedReferral] = useState<{ code: string; discount: number; title: string } | null>(null);
+  const [referralCodeInput, setReferralCodeInput] = useState("");
+  const [referralError, setReferralError] = useState("");
+  const [referralSuccess, setReferralSuccess] = useState("");
+
+  // Level 3: Loyalty Points Redemption
+  const [redeemedPoints, setRedeemedPoints] = useState<number>(0);
 
   const handleApplyVoucherCode = (code: string) => {
     setVoucherError("");
@@ -313,6 +331,27 @@ export default function Checkout({ user }: CheckoutProps) {
         });
         setVoucherSuccess("🎉 Voucher applied: KES 500 Shopping Discount!");
         toast.success("Voucher applied: KES 500 Discount!");
+      } else if (cleanCode === "SOKO-SAVE-20") {
+        setAppliedVoucher({
+          id: "save-20-percent",
+          title: "20% Flash Sale Voucher",
+          badge: "20% OFF",
+          description: "Enjoy 20% off your items subtotal.",
+          code: "SOKO-SAVE-20"
+        });
+        setVoucherSuccess("🎉 Voucher applied: 20% Off Subtotal!");
+        toast.success("Voucher applied: 20% Off!");
+      } else if (cleanCode === "SOKO-VIP-EXCLUSIVE") {
+        setAppliedVoucher({
+          id: "vip-exclusive",
+          title: "VIP Exclusive 40% Pass",
+          badge: "VIP EXCLUSIVE",
+          description: "Exclusive tier voucher — provides 40% off subtotal. Stacking secondary credits paused to maximize single discount.",
+          code: "SOKO-VIP-EXCLUSIVE",
+          isExclusive: true
+        });
+        setVoucherSuccess("🎉 VIP Exclusive Voucher Applied (40% OFF)!");
+        toast.success("VIP Exclusive Pass Applied (40% OFF)!");
       } else if (cleanCode === "SOKO-POINTS-MULTIPLY") {
         setAppliedVoucher({
           id: "points-multiplier",
@@ -348,17 +387,88 @@ export default function Checkout({ user }: CheckoutProps) {
     toast.success("Voucher removed.");
   };
 
-  let appliedDiscount = 0;
-  let shippingFee = baseShippingFee;
+  const handleApplyReferralCode = (code: string) => {
+    setReferralError("");
+    setReferralSuccess("");
+    const clean = code.trim().toUpperCase();
+    if (!clean) {
+      setReferralError("Please enter a referral code.");
+      return;
+    }
+    if (appliedVoucher?.isExclusive) {
+      setReferralError("VIP Exclusive voucher active — referral credit held for your next order to preserve highest single-tier discount.");
+      toast.error("Cannot stack with VIP Exclusive voucher.");
+      return;
+    }
+    if (clean === "REF-FRIEND-250" || clean.startsWith("REF-")) {
+      setAppliedReferral({
+        code: clean,
+        discount: 250,
+        title: "KES 250 Friend Referral Credit"
+      });
+      setReferralSuccess("🎉 Referral credit applied: KES 250!");
+      toast.success("Referral credit applied: KES 250!");
+    } else {
+      setReferralError("Invalid referral code.");
+      toast.error("Invalid referral code.");
+    }
+  };
 
+  const handleRemoveReferral = () => {
+    setAppliedReferral(null);
+    setReferralCodeInput("");
+    setReferralError("");
+    setReferralSuccess("");
+    toast.success("Referral credit removed.");
+  };
+
+  // -------------------------------------------------------------
+  // PROMO STACKING & ANTI-ABUSE CALCULATION ENGINE
+  // -------------------------------------------------------------
+  let shippingFee = baseShippingFee;
+  let level1VoucherDiscount = 0;
+  let level2ReferralDiscount = 0;
+  let level3PointsDiscount = 0;
+  const isExclusiveVoucherActive = Boolean(appliedVoucher?.isExclusive);
+
+  // Level 1: Primary Voucher Calculation
   if (appliedVoucher) {
     if (appliedVoucher.id === "free-shipping" || appliedVoucher.code === "SOKO-SHIP-FREE-NEXT") {
       shippingFee = 0;
     } else if (appliedVoucher.id === "gift-voucher" || appliedVoucher.code === "SOKO-VOUCH-500K") {
-      appliedDiscount = 500;
+      level1VoucherDiscount = 500;
+    } else if (appliedVoucher.code === "SOKO-SAVE-20") {
+      level1VoucherDiscount = Math.round(total * 0.20);
+    } else if (appliedVoucher.code === "SOKO-VIP-EXCLUSIVE" || appliedVoucher.isExclusive) {
+      level1VoucherDiscount = Math.round(total * 0.40);
     }
+    level1VoucherDiscount = Math.min(level1VoucherDiscount, total);
   }
 
+  const subtotalAfterLevel1 = Math.max(0, total - level1VoucherDiscount);
+
+  // Level 2: Referral Bonus Credit Calculation
+  if (appliedReferral && !isExclusiveVoucherActive) {
+    level2ReferralDiscount = Math.min(appliedReferral.discount, subtotalAfterLevel1);
+  }
+
+  const subtotalAfterLevel2 = Math.max(0, subtotalAfterLevel1 - level2ReferralDiscount);
+
+  // Level 3: Loyalty Points Redemption Calculation (1 Point = KES 1)
+  const userAvailablePoints = user?.loyaltyPoints || 0;
+  const maxUsablePoints = !isExclusiveVoucherActive ? Math.min(userAvailablePoints, subtotalAfterLevel2) : 0;
+  const validRedeemedPoints = Math.min(redeemedPoints, maxUsablePoints);
+  level3PointsDiscount = validRedeemedPoints;
+
+  // Raw Combined Discount Total
+  const rawTotalDiscount = level1VoucherDiscount + level2ReferralDiscount + level3PointsDiscount;
+
+  // ANTI-ABUSE ENFORCEMENT RULES:
+  // 1. Max 50% Basket Subtotal Cap across all stacked discounts
+  const maxAllowedDiscountCap = Math.round(total * 0.50);
+  const isCapExceeded = rawTotalDiscount > maxAllowedDiscountCap;
+  
+  const appliedDiscount = isCapExceeded ? maxAllowedDiscountCap : rawTotalDiscount;
   const overallTotal = Math.max(0, total + shippingFee - appliedDiscount);
 
   // Free shipping progress variables
@@ -502,35 +612,56 @@ export default function Checkout({ user }: CheckoutProps) {
         return obj;
       };
 
-      // If a voucher is applied, we must remove it from the user's vouchers array in Firestore to enforce single-use!
-      if (appliedVoucher) {
+      // 3. Single-Use Voucher & Loyalty Points Atomic Deductions in Firestore
+      if (user && user.uid) {
         try {
           const userRef = doc(db, "users", user.uid);
           const userSnap = await getDoc(userRef);
           if (userSnap.exists()) {
             const userData = userSnap.data();
             const currentVouchers = userData.vouchers || [];
-            // Filter out the matching voucher
-            const updatedVouchers = currentVouchers.filter((v: any) => v.code.toUpperCase() !== appliedVoucher.code.toUpperCase());
+            const currentPoints = userData.loyaltyPoints || 0;
+
+            const updatedVouchers = appliedVoucher
+              ? currentVouchers.filter((v: any) => v.code.toUpperCase() !== appliedVoucher.code.toUpperCase())
+              : currentVouchers;
+            const updatedPoints = Math.max(0, currentPoints - validRedeemedPoints);
+
             await updateDoc(userRef, {
-              vouchers: updatedVouchers
+              vouchers: updatedVouchers,
+              loyaltyPoints: updatedPoints
             });
-            console.log(`[Checkout] Successfully consumed voucher: ${appliedVoucher.code}`);
+            console.log(`[Checkout Atomic Update] Consumed voucher (${appliedVoucher?.code || 'none'}), deducted ${validRedeemedPoints} loyalty points. Remaining points: ${updatedPoints}`);
           }
         } catch (vErr) {
-          console.error("Error consuming voucher from Firestore:", vErr);
+          console.error("Error performing atomic promo deduction in Firestore:", vErr);
         }
       }
 
       await addDoc(collection(db, "orders"), sanitizeData({
-        userId: user.uid,
+        userId: user ? user.uid : "guest",
         userEmail: address.email,
         items,
         sellerIds: sellerIdsList,
         totalAmount: overallTotal,
         depositAmount: paymentMethod === "cod" ? Math.round(overallTotal * 0.1) : 0,
         discountAmount: appliedDiscount,
+        promoAuditTrail: {
+          rawSubtotal: total,
+          level1VoucherCode: appliedVoucher ? appliedVoucher.code : null,
+          level1VoucherDiscount,
+          level2ReferralCode: appliedReferral ? appliedReferral.code : null,
+          level2ReferralDiscount,
+          level3PointsRedeemed: validRedeemedPoints,
+          level3PointsDiscount,
+          isExclusiveVoucherActive,
+          isCapExceeded,
+          maxAllowedDiscountCap,
+          finalAppliedDiscount: appliedDiscount
+        },
         appliedVoucherCode: appliedVoucher ? appliedVoucher.code : null,
+        referralCodeUsed: appliedReferral ? appliedReferral.code : null,
+        pointsRedeemed: validRedeemedPoints,
         status: "pending",
         paymentStatus: "unpaid",
         paymentReference: reference,
@@ -753,6 +884,24 @@ export default function Checkout({ user }: CheckoutProps) {
               )}
             </div>
 
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                  Landmark / Rural Directions (Optional)
+                </label>
+                <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
+                  Recommended for Rural & Non-Street Locations
+                </span>
+              </div>
+              <input 
+                type="text" 
+                value={address.landmarkNotes || ""}
+                onChange={(e) => setAddress({...address, landmarkNotes: e.target.value})}
+                placeholder="e.g. 200m past Total Energies Petrol Station, blue gate opposite Green Mosque" 
+                className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border border-gray-150 dark:border-gray-800 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all text-xs"
+              />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Delivery Phone Number</label>
@@ -949,137 +1098,350 @@ export default function Checkout({ user }: CheckoutProps) {
                           {/* Total Items count alert details */}
             <div className="bg-gray-50 dark:bg-gray-950 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 text-xs font-semibold text-gray-500 dark:text-gray-400 flex justify-between items-center">
               <span>Dynamic cart total weight/item count check:</span>
-              <span className="font-black text-gray-900 dark:text-white uppercase font-black">Pre-Cleaned</span>
+              <span className="font-black text-gray-900 dark:text-white uppercase">Pre-Cleaned</span>
             </div>
 
           </div>
 
-          {/* STEP 3: Promo Voucher Application (Optional) */}
+          {/* STEP 3: Promo Stacking & Anti-Abuse Engine */}
           <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl dark:shadow-none space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 bg-gradient-to-r from-orange-500 to-amber-500 h-1.5 w-full"></div>
+            <div className="absolute top-0 left-0 bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 h-1.5 w-full"></div>
             
             <div className="flex items-start justify-between gap-4 border-b border-gray-50 dark:border-gray-800 pb-4">
               <div className="flex items-start gap-4">
                 <div className="bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 p-2.5 rounded-2xl shrink-0">
-                  <Gift size={22} />
+                  <Layers size={22} />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-lg font-black tracking-tight text-gray-955 dark:text-white">3. Apply Soko Voucher (Optional)</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-black tracking-tight text-gray-955 dark:text-white">3. Stack Discounts & Loyalty Points</h3>
+                    <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1 uppercase tracking-wider">
+                      <ShieldCheck size={11} />
+                      Anti-Abuse Protected
+                    </span>
+                  </div>
                   <p className="text-xs text-gray-400 dark:text-gray-550 font-semibold uppercase tracking-wider">
-                    Redeem special mystery box rewards or type a coupon code
+                    Combine Level 1 Vouchers, Level 2 Referral Credits, and Level 3 Loyalty Points safely
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              {appliedVoucher ? (
-                <div className="bg-[#32ba78]/10 dark:bg-[#32ba78]/5 border border-[#32ba78]/30 p-5 rounded-2xl flex items-center justify-between gap-4 animate-fade-in brand-success-glow">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-[#32ba78]/20 dark:bg-[#32ba78]/10 text-[#32ba78] rounded-xl">
-                      <Check size={20} />
-                    </div>
-                    <div>
-                      <p className="font-black text-sm text-[#32ba78] dark:text-gray-100">
-                        Voucher Applied: <span className="font-extrabold uppercase bg-[#32ba78]/20 dark:bg-[#32ba78]/25 text-[#32ba78] px-2.5 py-1 rounded-lg text-xs tracking-wider">{appliedVoucher.code}</span>
-                      </p>
-                      <p className="text-xs text-[#32ba78]/90 dark:text-[#32ba78] mt-1 font-semibold leading-relaxed">
-                        {appliedVoucher.title} — {appliedVoucher.description}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleRemoveVoucher}
-                    className="p-2 bg-[#32ba78]/10 dark:bg-[#32ba78]/10 hover:bg-[#32ba78]/20 dark:hover:bg-[#32ba78]/20 text-[#32ba78] rounded-xl transition-all cursor-pointer"
-                    title="Remove voucher"
-                  >
-                    <X size={16} />
-                  </button>
+            {/* Anti-Abuse Cap Triggered Alert */}
+            {isCapExceeded && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 p-4 rounded-2xl flex items-start gap-3 text-amber-900 dark:text-amber-200 text-xs font-semibold animate-fade-in">
+                <ShieldCheck size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-black text-amber-950 dark:text-amber-100 uppercase tracking-wide">
+                    50% Fair Savings Guardrail Applied
+                  </p>
+                  <p className="text-amber-800 dark:text-amber-300 leading-relaxed text-[11px]">
+                    Your stacked discounts reached the 50% anti-abuse threshold. You are receiving the maximum allowable discount of <strong className="font-extrabold text-amber-950 dark:text-amber-100">KES {maxAllowedDiscountCap.toLocaleString()}</strong> while preserving seller authenticity.
+                  </p>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
-                  <div className="md:col-span-8">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={voucherCodeInput}
-                        onChange={(e) => setVoucherCodeInput(e.target.value)}
-                        placeholder="Type or paste voucher code (e.g., SOKO-VOUCH-500K)"
-                        className="w-full p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold text-gray-950 dark:text-white uppercase tracking-wide placeholder-gray-400 text-xs sm:text-sm"
-                      />
+              </div>
+            )}
+
+            {/* Exclusive Voucher Notice */}
+            {isExclusiveVoucherActive && (
+              <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900/40 p-4 rounded-2xl flex items-start gap-3 text-purple-900 dark:text-purple-200 text-xs font-semibold animate-fade-in">
+                <Zap size={18} className="text-purple-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-black text-purple-950 dark:text-purple-100 uppercase tracking-wide">
+                    VIP Exclusive 40% Voucher Active
+                  </p>
+                  <p className="text-purple-800 dark:text-purple-300 leading-relaxed text-[11px]">
+                    To give you the highest single tier savings (40% off subtotal), referral credits and loyalty points redemptions are held for your next checkout.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 3-TIER STACKING INPUT PANELS */}
+            <div className="space-y-6">
+
+              {/* TIER 1: VOUCHER CODE (LEVEL 1) */}
+              <div className="bg-gray-50/70 dark:bg-gray-950/50 p-5 rounded-2xl border border-gray-150 dark:border-gray-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 bg-orange-600 text-white rounded-full text-[10px] font-black flex items-center justify-center">1</span>
+                    <span className="text-xs font-black uppercase text-gray-900 dark:text-white tracking-wider">Level 1: Soko Voucher (Fixed or % OFF)</span>
+                  </div>
+                  {appliedVoucher && (
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md">
+                      Active: KES {level1VoucherDiscount.toLocaleString()} Saved
+                    </span>
+                  )}
+                </div>
+
+                {appliedVoucher ? (
+                  <div className="bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 p-4 rounded-xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 rounded-lg shrink-0">
+                        <Check size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-black text-xs text-emerald-950 dark:text-emerald-100 uppercase tracking-wide">
+                          {appliedVoucher.code} — <span className="font-extrabold text-emerald-700 dark:text-emerald-300">{appliedVoucher.title}</span>
+                        </p>
+                        <p className="text-[10px] text-emerald-800 dark:text-emerald-400 font-semibold truncate">
+                          {appliedVoucher.description}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveVoucher}
+                      className="p-1.5 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200/50 dark:hover:bg-emerald-900/50 rounded-lg transition-colors shrink-0"
+                      title="Remove voucher"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                    <div className="md:col-span-8">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={voucherCodeInput}
+                          onChange={(e) => setVoucherCodeInput(e.target.value)}
+                          placeholder="Code (e.g., SOKO-SAVE-20, SOKO-VOUCH-500K)"
+                          className="w-full p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-gray-950 dark:text-white uppercase tracking-wider text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleApplyVoucherCode(voucherCodeInput)}
+                          className="px-5 py-3 bg-gray-950 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all whitespace-nowrap"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                      {voucherError && (
+                        <p className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-1.5 ml-1">
+                          <AlertTriangle size={11} />
+                          <span>{voucherError}</span>
+                        </p>
+                      )}
+                      {voucherSuccess && (
+                        <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1.5 ml-1">
+                          <Check size={11} />
+                          <span>{voucherSuccess}</span>
+                        </p>
+                      )}
+                    </div>
+                    {/* Demo Quick Codes */}
+                    <div className="md:col-span-4 flex flex-wrap gap-1.5">
                       <button
                         type="button"
-                        onClick={() => handleApplyVoucherCode(voucherCodeInput)}
-                        className="px-6 py-4 bg-gray-950 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all cursor-pointer whitespace-nowrap"
+                        onClick={() => handleApplyVoucherCode("SOKO-SAVE-20")}
+                        className="text-[9px] font-black uppercase px-2 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-orange-500 rounded-lg text-gray-700 dark:text-gray-300"
                       >
-                        Apply Code
+                        + 20% OFF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyVoucherCode("SOKO-VOUCH-500K")}
+                        className="text-[9px] font-black uppercase px-2 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-orange-500 rounded-lg text-gray-700 dark:text-gray-300"
+                      >
+                        + KES 500
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyVoucherCode("SOKO-VIP-EXCLUSIVE")}
+                        className="text-[9px] font-black uppercase px-2 py-1 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 rounded-lg"
+                      >
+                        + VIP 40%
                       </button>
                     </div>
-
-                    {voucherError && (
-                      <p className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-2 ml-1">
-                        <AlertTriangle size={12} />
-                        <span>{voucherError}</span>
-                      </p>
-                    )}
-
-                    {voucherSuccess && (
-                      <p className="text-[10px] text-[#32ba78] font-bold flex items-center gap-1 mt-2 ml-1">
-                        <Check size={12} />
-                        <span>{voucherSuccess}</span>
-                      </p>
-                    )}
                   </div>
+                )}
+              </div>
 
-                  {/* ACTIVE VOUCHERS QUICK SELECT */}
-                  <div className="md:col-span-4 space-y-2 bg-gray-50/70 dark:bg-gray-950/40 p-4 rounded-2xl border border-gray-150 dark:border-gray-800">
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-widest leading-none">
-                      Your Available Vouchers
-                    </p>
-                    {!user ? (
-                      <p className="text-[10px] text-gray-400 font-semibold italic">Sign in to apply saved vouchers.</p>
-                    ) : !user.vouchers || user.vouchers.filter((v: any) => v.status === "active").length === 0 ? (
-                      <p className="text-[10px] text-gray-400 font-semibold italic leading-relaxed">No active rewards on your profile yet. Order & win mystery boxes!</p>
-                    ) : (
-                      <div className="flex flex-col gap-2 max-h-36 overflow-y-auto no-scrollbar">
-                        {user.vouchers
-                          .filter((v: any) => v.status === "active")
-                          .map((voucher: any, idx: number) => (
-                            <button
-                              key={`${voucher.id}-${idx}`}
-                              type="button"
-                              onClick={() => handleApplyVoucherCode(voucher.code)}
-                              className="w-full text-left p-2.5 bg-white dark:bg-gray-900 hover:bg-orange-50 dark:hover:bg-orange-950/20 border border-gray-200 dark:border-gray-800 rounded-xl transition-colors cursor-pointer group flex items-center justify-between"
-                            >
-                              <div className="min-w-0 pr-1.5">
-                                <p className="text-[10px] font-black uppercase text-gray-900 dark:text-white group-hover:text-orange-600 tracking-wider">
-                                  {voucher.code}
-                                </p>
-                                <p className="text-[8px] text-gray-400 truncate max-w-[150px]">
-                                  {voucher.title}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {voucher.unlockedAt && (
-                                  <span className="text-[8px] bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-extrabold px-1.5 py-0.5 rounded">
-                                    {(() => {
-                                      const expiry = new Date(new Date(voucher.unlockedAt).getTime() + 21 * 24 * 60 * 60 * 1000);
-                                      const diff = expiry.getTime() - new Date().getTime();
-                                      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                                      return `${days > 0 ? days : 0}d left`;
-                                    })()}
-                                  </span>
-                                )}
-                                <Plus size={10} className="text-gray-400 group-hover:text-orange-600 shrink-0" />
-                              </div>
-                            </button>
-                          ))}
-                      </div>
-                    )}
+              {/* TIER 2: REFERRAL BONUS (LEVEL 2) */}
+              <div className="bg-gray-50/70 dark:bg-gray-950/50 p-5 rounded-2xl border border-gray-150 dark:border-gray-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 bg-amber-500 text-white rounded-full text-[10px] font-black flex items-center justify-center">2</span>
+                    <span className="text-xs font-black uppercase text-gray-900 dark:text-white tracking-wider">Level 2: Referral Code / Friend Credit</span>
                   </div>
+                  {appliedReferral && !isExclusiveVoucherActive && (
+                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md">
+                      Active: KES {level2ReferralDiscount.toLocaleString()} Saved
+                    </span>
+                  )}
                 </div>
-              )}
+
+                {appliedReferral ? (
+                  <div className="bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 p-4 rounded-xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300 rounded-lg shrink-0">
+                        <Check size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-black text-xs text-amber-950 dark:text-amber-100 uppercase tracking-wide">
+                          {appliedReferral.code} — <span className="font-extrabold text-amber-700 dark:text-amber-300">{appliedReferral.title}</span>
+                        </p>
+                        <p className="text-[10px] text-amber-800 dark:text-amber-400 font-semibold truncate">
+                          KES 250 Friend Bonus Applied
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveReferral}
+                      className="p-1.5 text-amber-700 dark:text-amber-300 hover:bg-amber-200/50 dark:hover:bg-amber-900/50 rounded-lg transition-colors shrink-0"
+                      title="Remove referral code"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                    <div className="md:col-span-8">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={referralCodeInput}
+                          onChange={(e) => setReferralCodeInput(e.target.value)}
+                          disabled={isExclusiveVoucherActive}
+                          placeholder="Referral Code (e.g., REF-FRIEND-250)"
+                          className="w-full p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-gray-955 dark:text-white uppercase tracking-wider text-xs disabled:opacity-50"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleApplyReferralCode(referralCodeInput)}
+                          disabled={isExclusiveVoucherActive}
+                          className="px-5 py-3 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all whitespace-nowrap disabled:opacity-50"
+                        >
+                          Apply Referral
+                        </button>
+                      </div>
+                      {referralError && (
+                        <p className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-1.5 ml-1">
+                          <AlertTriangle size={11} />
+                          <span>{referralError}</span>
+                        </p>
+                      )}
+                      {referralSuccess && (
+                        <p className="text-[10px] text-amber-600 font-bold flex items-center gap-1 mt-1.5 ml-1">
+                          <Check size={11} />
+                          <span>{referralSuccess}</span>
+                        </p>
+                      )}
+                    </div>
+                    {/* Quick Demo Referral */}
+                    <div className="md:col-span-4 flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyReferralCode("REF-FRIEND-250")}
+                        disabled={isExclusiveVoucherActive}
+                        className="w-full text-[9px] font-black uppercase py-2 px-3 bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-400 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-50"
+                      >
+                        + Use REF-FRIEND-250
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* TIER 3: LOYALTY POINTS REDEEMER (LEVEL 3) */}
+              <div className="bg-gray-50/70 dark:bg-gray-950/50 p-5 rounded-2xl border border-gray-150 dark:border-gray-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 bg-emerald-600 text-white rounded-full text-[10px] font-black flex items-center justify-center">3</span>
+                    <span className="text-xs font-black uppercase text-gray-900 dark:text-white tracking-wider">Level 3: Loyalty Points Redemption (1 Point = KES 1)</span>
+                  </div>
+                  <span className="text-[10px] font-extrabold text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <Award size={12} className="text-emerald-500" />
+                    Available: <strong className="text-emerald-600 dark:text-emerald-400 font-black">{userAvailablePoints} pts</strong>
+                  </span>
+                </div>
+
+                {isExclusiveVoucherActive ? (
+                  <p className="text-[11px] text-gray-400 italic">
+                    Loyalty points redemption paused because VIP Exclusive voucher is active.
+                  </p>
+                ) : userAvailablePoints === 0 ? (
+                  <p className="text-[11px] text-gray-400 font-semibold italic">
+                    No loyalty points on your balance yet. Complete purchases to earn 1 point per KES 100 spent!
+                  </p>
+                ) : (
+                  <div className="space-y-3 pt-1">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="range"
+                          min="0"
+                          max={maxUsablePoints}
+                          value={validRedeemedPoints}
+                          onChange={(e) => setRedeemedPoints(Number(e.target.value))}
+                          className="w-full accent-emerald-600 cursor-pointer"
+                        />
+                      </div>
+                      <div className="bg-white dark:bg-gray-900 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-right min-w-[110px]">
+                        <span className="text-[10px] font-bold text-gray-400 block uppercase leading-none">Redeeming</span>
+                        <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                          {validRedeemedPoints} Points (- KES {validRedeemedPoints})
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Quick Points Select Buttons */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setRedeemedPoints(0)}
+                        className={`text-[9px] font-bold uppercase px-2.5 py-1 rounded-lg border transition-all ${
+                          validRedeemedPoints === 0
+                            ? "bg-gray-950 text-white border-gray-950 dark:bg-white dark:text-gray-950"
+                            : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800"
+                        }`}
+                      >
+                        0 pts
+                      </button>
+                      {maxUsablePoints >= 50 && (
+                        <button
+                          type="button"
+                          onClick={() => setRedeemedPoints(50)}
+                          className={`text-[9px] font-bold uppercase px-2.5 py-1 rounded-lg border transition-all ${
+                            validRedeemedPoints === 50
+                              ? "bg-emerald-600 text-white border-emerald-600"
+                              : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800"
+                          }`}
+                        >
+                          50 pts
+                        </button>
+                      )}
+                      {maxUsablePoints >= 100 && (
+                        <button
+                          type="button"
+                          onClick={() => setRedeemedPoints(100)}
+                          className={`text-[9px] font-bold uppercase px-2.5 py-1 rounded-lg border transition-all ${
+                            validRedeemedPoints === 100
+                              ? "bg-emerald-600 text-white border-emerald-600"
+                              : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800"
+                          }`}
+                        >
+                          100 pts
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setRedeemedPoints(maxUsablePoints)}
+                        className={`text-[9px] font-bold uppercase px-2.5 py-1 rounded-lg border transition-all ${
+                          validRedeemedPoints === maxUsablePoints && maxUsablePoints > 0
+                            ? "bg-emerald-600 text-white border-emerald-600"
+                            : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800"
+                        }`}
+                      >
+                        Max ({maxUsablePoints} pts)
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
             </div>
           </div>
 
@@ -1622,10 +1984,60 @@ export default function Checkout({ user }: CheckoutProps) {
                 <span className="font-bold">Included</span>
               </div>
 
-              {appliedDiscount > 0 && (
-                <div className="flex justify-between items-center text-[#32ba78] font-black bg-[#32ba78]/10 dark:bg-[#32ba78]/5 px-3 py-2 rounded-xl border border-[#32ba78]/20">
-                  <span>Voucher Discount</span>
-                  <span>- KES {appliedDiscount.toLocaleString()}</span>
+              {/* STACKED DISCOUNTS WATERFALL BREAKDOWN */}
+              {(level1VoucherDiscount > 0 || level2ReferralDiscount > 0 || level3PointsDiscount > 0) && (
+                <div className="space-y-2 pt-2 border-t border-dashed border-gray-100 dark:border-gray-800">
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase text-gray-400 dark:text-gray-500 tracking-wider">
+                    <span>Stacked Savings Breakdown</span>
+                    <span className="text-[#32ba78]">Anti-Abuse Engine</span>
+                  </div>
+
+                  {level1VoucherDiscount > 0 && (
+                    <div className="flex justify-between items-center text-xs font-bold text-gray-700 dark:text-gray-300">
+                      <span className="flex items-center gap-1.5">
+                        <Tag size={12} className="text-orange-500" />
+                        Level 1 Voucher ({appliedVoucher?.code})
+                      </span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">- KES {level1VoucherDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {level2ReferralDiscount > 0 && !isExclusiveVoucherActive && (
+                    <div className="flex justify-between items-center text-xs font-bold text-gray-700 dark:text-gray-300">
+                      <span className="flex items-center gap-1.5">
+                        <Gift size={12} className="text-amber-500" />
+                        Level 2 Referral ({appliedReferral?.code})
+                      </span>
+                      <span className="text-amber-600 dark:text-amber-400 font-extrabold">- KES {level2ReferralDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {level3PointsDiscount > 0 && !isExclusiveVoucherActive && (
+                    <div className="flex justify-between items-center text-xs font-bold text-gray-700 dark:text-gray-300">
+                      <span className="flex items-center gap-1.5">
+                        <Award size={12} className="text-emerald-500" />
+                        Level 3 Loyalty Points ({validRedeemedPoints} pts)
+                      </span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">- KES {level3PointsDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {isCapExceeded && (
+                    <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 p-2.5 rounded-xl text-[10px] text-amber-900 dark:text-amber-200 font-semibold space-y-0.5">
+                      <div className="flex items-center gap-1.5 font-black uppercase text-amber-950 dark:text-amber-100">
+                        <ShieldCheck size={12} className="text-amber-600 shrink-0" />
+                        50% Cap Guard Rail Active
+                      </div>
+                      <p className="text-[9px] text-amber-800 dark:text-amber-300 leading-tight">
+                        Stacked discounts auto-capped to 50% max (KES {maxAllowedDiscountCap.toLocaleString()}) to protect vendor margins.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center text-[#32ba78] font-black bg-[#32ba78]/10 dark:bg-[#32ba78]/5 px-3 py-2 rounded-xl border border-[#32ba78]/20">
+                    <span>Total Net Savings</span>
+                    <span>- KES {appliedDiscount.toLocaleString()}</span>
+                  </div>
                 </div>
               )}
 

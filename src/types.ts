@@ -20,6 +20,17 @@ export interface Product {
   originalProductId?: string;
   isPending?: boolean;
   availableColors?: string[];
+  availableSizes?: string[];
+  availableMaterials?: { name: string; priceDelta?: number }[];
+  allowEngraving?: boolean;
+  engravingMaxChars?: number;
+  variantMatrix?: {
+    size?: string;
+    color?: string;
+    material?: string;
+    stock: number;
+    priceDelta?: number;
+  }[];
 }
 
 export interface CartItem {
@@ -29,9 +40,11 @@ export interface CartItem {
   quantity: number;
   image: string;
   customizations?: {
+    size?: string;
     material?: string;
     color?: string;
     colorName?: string;
+    engravingText?: string;
     notes?: string;
   };
   sellerId?: string;
@@ -72,17 +85,40 @@ export interface UserProfile {
   deliveryAddress?: string;
 }
 
+export interface RefundItem {
+  productId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  restocked: boolean;
+}
+
+export interface RefundRecord {
+  id: string;
+  amount: number;
+  reason: string;
+  customerNote?: string;
+  items: RefundItem[];
+  createdAt: string;
+  processedBy?: string;
+}
+
 export interface Order {
   id: string;
   userId: string;
   userEmail?: string;
   items: CartItem[];
   totalAmount: number;
-  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled" | "partially_refunded" | "refunded";
   paymentStatus: "unpaid" | "paid";
   createdAt: any;
   paymentReference?: string;
   clearedByClient?: boolean;
+  refundedAmount?: number;
+  refunds?: RefundRecord[];
+  customerNotes?: { note: string; createdAt: string; author: string }[];
+  shippingAddress?: any;
+  shippingFee?: number;
 }
 
 export interface Review {
@@ -188,6 +224,30 @@ export interface InventoryAlert {
   status: "unread" | "resolved" | "dismissed";
   createdAt: any;
   updatedAt?: any;
+}
+
+export interface DataErasureRequest {
+  id: string;
+  userId: string;
+  userEmail: string;
+  displayName?: string;
+  requestDate: any;
+  statutoryDeadline: any; // statutory 30-day compliance deadline
+  status: "pending" | "processing" | "completed" | "rejected";
+  erasureType: "full_deletion" | "anonymize_for_audit";
+  reason?: string;
+  processedAt?: any;
+  processedBy?: string;
+  rejectionReason?: string;
+  auditMetrics?: {
+    usersScrubbed: number;
+    ordersAnonymized: number;
+    ticketsScrubbed: number;
+    reviewsScrubbed: number;
+    notificationsDeleted: number;
+    commentsScrubbed: number;
+    jobAppsScrubbed: number;
+  };
 }
 
 

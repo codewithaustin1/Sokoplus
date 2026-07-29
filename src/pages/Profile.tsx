@@ -16,6 +16,7 @@ import toast from "react-hot-toast";
 import SellerStudio from "../components/SellerStudio";
 import { useSellerStudio } from "../lib/SellerStudioContext";
 import { generateSecret, verifyTOTP } from "../utils/totp";
+import { UserDataErasureModal } from "../components/UserDataErasureModal";
 
 function getVoucherBgImage(voucherId: string, code: string): string {
   const id = (voucherId || "").toLowerCase();
@@ -151,6 +152,7 @@ export default function Profile({ user }: ProfileProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showErasureModal, setShowErasureModal] = useState(false);
   const [timeFilter, setTimeFilter] = useState<"this-month" | "last-12-months" | "specific-month">("this-month");
   const [profileTab, setProfileTab] = useState<"orders" | "vouchers" | "seller" | "settings">("orders");
   const { t, language, setLanguage } = useLanguage();
@@ -1245,9 +1247,44 @@ export default function Profile({ user }: ProfileProps) {
                 )}
               </div>
             </div>
+
+            {/* Privacy & Data Erasure Card */}
+            <div className="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 p-6 rounded-2xl flex flex-col justify-between space-y-4 md:col-span-2 lg:col-span-1">
+              <div className="space-y-1">
+                <div className="w-10 h-10 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center font-bold">
+                  <ShieldAlert size={20} />
+                </div>
+                <h3 className="text-base font-black text-gray-900 dark:text-gray-100 pt-2">
+                  {language === "sw" ? "Haki za Faragha na Data" : "Privacy & Statutory Data Rights"}
+                </h3>
+                <p className="text-xs text-gray-400 font-medium leading-relaxed">
+                  {language === "sw"
+                    ? "Wasilisha ombi la kufuta au kutohifadhi taarifa zako za kibinafsi kulingana na sheria za KPDPA & GDPR."
+                    : "Exercise your statutory 'Right to Be Forgotten' under KPDPA & GDPR to request automated data erasure or anonymization."}
+                </p>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowErasureModal(true)}
+                  className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md shadow-red-600/10 flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  <Trash2 size={14} />
+                  <span>{language === "sw" ? "Omba Kufuta Data" : "Manage / Request Data Erasure"}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
+
+      {/* USER DATA ERASURE MODAL */}
+      <UserDataErasureModal
+        isOpen={showErasureModal}
+        onClose={() => setShowErasureModal(false)}
+        userProfile={user}
+      />
 
       {/* Logout Confirmation Modal */}
       <AnimatePresence>

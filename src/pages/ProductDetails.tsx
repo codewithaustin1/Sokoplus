@@ -8,6 +8,7 @@ import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { AddToCartButton } from "../components/AddToCartButton";
+import { ProductAttributeConfigurator, SelectedConfig } from "../components/ProductAttributeConfigurator";
 import { DeliveryCountdown } from "../components/DeliveryCountdown";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "motion/react";
@@ -76,6 +77,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   // Advanced Photo Capture & Review Attachment state
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [activeConfig, setActiveConfig] = useState<SelectedConfig | null>(null);
   const mainBuyButtonRef = useRef<HTMLDivElement | null>(null);
   const [isMainBuyButtonVisible, setIsMainBuyButtonVisible] = useState(true);
 
@@ -924,14 +926,29 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </div>
           )}
 
+          {/* 4-Complex Attribute Proactive Matrix Configurator */}
+          <div className="mb-6">
+            <ProductAttributeConfigurator
+              product={product}
+              onChange={(cfg) => setActiveConfig(cfg)}
+            />
+          </div>
+
           <DeliveryCountdown className="mb-6" />
 
           <div ref={mainBuyButtonRef} className="flex space-x-3">
             <AddToCartButton
               productId={product.id}
-              product={product}
+              product={activeConfig ? { ...product, price: activeConfig.totalPrice } : product}
               size="lg"
-              customizations={selectedColor ? {
+              disabled={activeConfig ? !activeConfig.isValid : false}
+              customizations={activeConfig ? {
+                size: activeConfig.size,
+                color: activeConfig.colorHex,
+                colorName: activeConfig.colorName,
+                material: activeConfig.material,
+                engravingText: activeConfig.engravingText
+              } : selectedColor ? {
                 color: selectedColor.split("|")[1],
                 colorName: selectedColor.split("|")[0]
               } : undefined}
