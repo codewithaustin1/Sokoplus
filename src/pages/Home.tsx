@@ -28,6 +28,7 @@ import { saveProductsToCache, getCachedProducts, saveHomepageSettings, getHomepa
 import { getCompareList, addToCompare, removeFromCompare } from "../utils/compare";
 import { useSellerStudio } from "../lib/SellerStudioContext";
 import { useSettings } from "../lib/SettingsContext";
+import { matchesFuzzyQuery, normalizeSearchQuery } from "../utils/searchFuzzy";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -614,8 +615,10 @@ export default function Home({ user }: HomeProps) {
     };
   }, [refetchProductsQuery]);
 
+  const [correctedSearchTerm, setCorrectedSearchTerm] = useState<{ suggested?: string; original?: string }>({});
+
   useEffect(() => {
-    const searchTerm = searchParams.get("search")?.toLowerCase();
+    const rawSearch = searchParams.get("search");
     
     let result = [...products];
 
@@ -624,12 +627,25 @@ export default function Home({ user }: HomeProps) {
       result = result.filter(p => p.category === selectedCategory);
     }
 
-    // Search Filter
-    if (searchTerm) {
+    // Search Filter with Slang, Misspelling, and Brand Typo Tolerance
+    if (rawSearch && rawSearch.trim()) {
+      const { normalized, suggestedTerm, isSlangOrCorrected } = normalizeSearchQuery(rawSearch);
+      
+      if (isSlangOrCorrected && suggestedTerm) {
+        setCorrectedSearchTerm({ suggested: suggestedTerm, original: rawSearch });
+      } else {
+        setCorrectedSearchTerm({});
+      }
+
       result = result.filter(p => 
-        p.name.toLowerCase().includes(searchTerm) || 
-        p.description.toLowerCase().includes(searchTerm)
+        matchesFuzzyQuery(p.name, rawSearch) || 
+        (p.description && matchesFuzzyQuery(p.description, rawSearch)) ||
+        (p.category && matchesFuzzyQuery(p.category, rawSearch)) ||
+        (p.sellerName && matchesFuzzyQuery(p.sellerName, rawSearch)) ||
+        (p.artisan && matchesFuzzyQuery(p.artisan, rawSearch))
       );
+    } else {
+      setCorrectedSearchTerm({});
     }
 
     // Advanced Filters
@@ -1486,26 +1502,109 @@ export default function Home({ user }: HomeProps) {
         {loading ? (
           <ProductCardSkeleton />
         ) : filteredProducts.length === 0 ? (
-          <EmptyState 
-            icon={ShoppingBag}
-            title="No products found"
-            description={`We couldn't find any products in "${selectedCategory}" matching your criteria. Try adjusting your search or category.`}
-            actionLabel="Clear Filters"
-            onAction={() => {
-              setMinPrice("");
-              setMaxPrice("");
-              setMinRating(0);
-              setOnlyInStock(false);
-              setSearchParams((prev) => {
-                const next = new URLSearchParams(prev);
-                next.delete("search");
-                next.delete("category");
-                next.delete("collection");
-                return next;
-              }, { replace: true });
-              setSelectedCategory("All");
-            }}
-          />
+          <div className="space-y-10">
+            <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 border border-gray-150 dark:border-gray-800 text-center space-y-4 max-w-xl mx-auto shadow-xl">
+              <div className="w-16 h-16 rounded-3xl bg-orange-100 dark:bg-orange-950/50 flex items-center justify-center text-orange-600 mx-auto border border-orange-200 dark:border-orange-800">
+                <Search size={32} />
+              </div>
+
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-black text-gray-950 dark:text-gray-50">No exact matches found</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
+                  We couldn't find products matching <strong className="text-gray-900 dark:text-gray-100">"{searchParams.get("search") || selectedCategory}"</strong> in our catalog.
+                </p>
+              </div>
+
+              {/* Did you mean suggestion banner */}
+              {correctedSearchTerm.suggested && (
+                <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-900/50 flex items-center justify-between gap-3 text-left">
+                  <div className="text-xs">
+                    <span className="text-amber-700 dark:text-amber-400 font-black">💡 Regional Slang / Typo Detected:</span>
+                    <p className="text-gray-700 dark:text-gray-300 font-bold">Search instead for "<span className="text-orange-600 capitalize">{correctedSearchTerm.suggested}</span>"?</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSearchParams(prev => {
+                        const next = new URLSearchParams(prev);
+                        next.set("search", correctedSearchTerm.suggested!);
+                        return next;
+                      }, { replace: true });
+                    }}
+                    className="px-3.5 py-1.5 bg-orange-500 hover:bg-orange-400 text-black font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    Search {correctedSearchTerm.suggested}
+                  </button>
+                </div>
+              )}
+
+              <div className="pt-2 flex items-center justify-center gap-3 flex-wrap">
+                <button
+                  onClick={() => {
+                    setMinPrice("");
+                    setMaxPrice("");
+                    setMinRating(0);
+                    setOnlyInStock(false);
+                    setSearchParams((prev) => {
+                      const next = new URLSearchParams(prev);
+                      next.delete("search");
+                      next.delete("category");
+                      next.delete("collection");
+                      return next;
+                    }, { replace: true });
+                    setSelectedCategory("All");
+                  }}
+                  className="px-5 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 font-extrabold text-xs rounded-2xl hover:opacity-90 transition-all cursor-pointer shadow-md"
+                >
+                  Clear All Filters & Browse Catalog
+                </button>
+              </div>
+            </div>
+
+            {/* Smart Fallback Recommendations to prevent zero-results dead-end */}
+            {products.length > 0 && (
+              <div className="space-y-4 pt-4 border-t border-gray-150 dark:border-gray-800">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h3 className="text-base font-black text-gray-950 dark:text-gray-50 flex items-center gap-2">
+                      <ShoppingBag size={18} className="text-orange-500" />
+                      <span>Popular Products You Might Like</span>
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Top picks from our active market catalog</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-5">
+                  {products.slice(0, 4).map((p) => (
+                    <motion.div 
+                      whileHover={{ y: -4 }}
+                      key={p.id} 
+                      className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm transition-all flex flex-col justify-between"
+                    >
+                      <Link 
+                        to={`/product/${p.id}`} 
+                        state={{ product: p }}
+                        className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-2.5 relative group"
+                      >
+                        <FastImage 
+                          src={p.images?.[0] || ""} 
+                          alt={p.name} 
+                          fallbackIconSize={36}
+                        />
+                      </Link>
+                      <div className="space-y-1">
+                        <Link to={`/product/${p.id}`} className="font-bold text-xs text-gray-900 dark:text-gray-100 truncate block hover:text-orange-600">
+                          {p.name}
+                        </Link>
+                        <div className="text-xs font-black text-gray-950 dark:text-gray-50">
+                          {formatPrice(p.price)}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-5">
             {filteredProducts.map((p) => (

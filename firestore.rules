@@ -363,5 +363,21 @@ service cloud.firestore {
                     request.resource.data.productIds.size() > 0;
       allow update, delete: if false; // Immutable after creation
     }
+
+    // Inventory Alerts
+    match /inventory_alerts/{alertId} {
+      function isValidInventoryAlert(data) {
+        return data.productId is string && data.productId.size() > 0 &&
+               data.productName is string && data.productName.size() > 0 &&
+               data.stock is number &&
+               data.threshold is number &&
+               data.status in ['unread', 'resolved', 'dismissed'];
+      }
+
+      allow read: if isAdmin();
+      allow create: if (isAdmin() || isVerified()) && isValidInventoryAlert(incoming()) && isValidId(alertId);
+      allow update: if isAdmin() && isValidInventoryAlert(incoming());
+      allow delete: if isAdmin();
+    }
   }
 }

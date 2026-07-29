@@ -177,4 +177,17 @@ export interface SellerProfile {
   }[];
 }
 
+export interface InventoryAlert {
+  id: string;
+  productId: string;
+  productName: string;
+  stock: number;
+  threshold: number;
+  category?: string;
+  artisan?: string;
+  status: "unread" | "resolved" | "dismissed";
+  createdAt: any;
+  updatedAt?: any;
+}
+
 

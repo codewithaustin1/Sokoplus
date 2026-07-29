@@ -14,6 +14,7 @@ import { collection, getDocs, getDocsFromCache, query, limit, doc, setDoc } from
 import { FastImage } from "./FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
+import { matchesFuzzyQuery, normalizeSearchQuery } from "../utils/searchFuzzy";
 
 interface NavbarProps {
   user: UserProfile | null;
@@ -360,7 +361,7 @@ export default function Navbar({ user }: NavbarProps) {
   const handleSearchChange = (val: string) => {
     setSearch(val);
     if (val.trim()) {
-      const queryStr = val.trim().toLowerCase();
+      const queryStr = val.trim();
 
       // 1. Filter predictive matching categories
       const categorySet = new Set<string>();
@@ -373,17 +374,17 @@ export default function Navbar({ user }: NavbarProps) {
       allProducts.forEach(p => { if (p.category) categorySet.add(p.category); });
 
       const matchedCats = Array.from(categorySet)
-        .filter(cat => cat.toLowerCase().includes(queryStr))
+        .filter(cat => matchesFuzzyQuery(cat, queryStr))
         .slice(0, 3);
       setSuggestedCategories(matchedCats);
 
-      // 2. Filter predictive matching products
+      // 2. Filter predictive matching products with slang/typo tolerance
       const filtered = allProducts.filter(p => 
-        p.name.toLowerCase().includes(queryStr) || 
-        (p.description && p.description.toLowerCase().includes(queryStr)) ||
-        (p.category && p.category.toLowerCase().includes(queryStr)) ||
-        (p.sellerName && p.sellerName.toLowerCase().includes(queryStr)) ||
-        (p.artisan && p.artisan.toLowerCase().includes(queryStr))
+        matchesFuzzyQuery(p.name, queryStr) || 
+        (p.description && matchesFuzzyQuery(p.description, queryStr)) ||
+        (p.category && matchesFuzzyQuery(p.category, queryStr)) ||
+        (p.sellerName && matchesFuzzyQuery(p.sellerName, queryStr)) ||
+        (p.artisan && matchesFuzzyQuery(p.artisan, queryStr))
       ).slice(0, 5);
       setSuggestedProducts(filtered);
     } else {

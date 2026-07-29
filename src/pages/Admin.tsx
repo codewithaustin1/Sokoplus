@@ -208,6 +208,7 @@ import ArtisanColorPicker from "../components/ArtisanColorPicker";
 import { downloadReceipt } from "../utils/pdfGenerator";
 import SecurityManager from "../components/SecurityManager";
 import AdminReviewsManager from "../components/AdminReviewsManager";
+import { AdminInventoryAlerts } from "../components/AdminInventoryAlerts";
 import { clearAllOfflineCache } from "../utils/offlineDb";
 import { counties } from "../data/counties";
 import {
@@ -1583,6 +1584,7 @@ export default function Admin({ user }: AdminProps) {
   });
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
+  const [inventorySubTab, setInventorySubTab] = useState<"alerts" | "catalog">("alerts");
   const [activeTab, setActiveTab] = useState<
     "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue"
   >("inventory");
@@ -4892,9 +4894,15 @@ export default function Admin({ user }: AdminProps) {
         </button>
         <button
           onClick={() => setActiveTab("inventory")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "inventory" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-1.5 ${activeTab === "inventory" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
         >
-          Inventory
+          <Package size={16} />
+          <span>Inventory Alerts & Catalog</span>
+          {products.filter(p => p.active !== false && p.stock <= 5).length > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-orange-500 text-white animate-pulse">
+              {products.filter(p => p.active !== false && p.stock <= 5).length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab("users")}
@@ -5755,31 +5763,75 @@ export default function Admin({ user }: AdminProps) {
         )}
 
         {activeTab === "inventory" && (
-          <AdminProductsTable
-            products={products}
-            minRatingFilter={minRatingFilter}
-            setMinRatingFilter={setMinRatingFilter}
-            productApprovalFilter={productApprovalFilter}
-            setProductApprovalFilter={setProductApprovalFilter}
-            productSortBy={productSortBy}
-            setProductSortBy={setProductSortBy}
-            productSearchTerm={productSearchTerm}
-            setProductSearchTerm={setProductSearchTerm}
-            selectedProductIds={selectedProductIds}
-            setSelectedProductIds={setSelectedProductIds}
-            handleBatchDeleteProducts={handleBatchDeleteProducts}
-            isBatchDeletingProducts={isBatchDeletingProducts}
-            setProducts={setProducts}
-            setEditingProduct={setEditingProduct}
-            setHasColorsEdit={setHasColorsEdit}
-            setSelectedColorsEdit={setSelectedColorsEdit}
-            setShowEditModal={setShowEditModal}
-            deleteProduct={deleteProduct}
-            setSelectedProductForRejection={setSelectedProductForRejection}
-            setProductRejectionReasonInput={setProductRejectionReasonInput}
-            confirmingApproveProductId={confirmingApproveProductId}
-            setConfirmingApproveProductId={setConfirmingApproveProductId}
-          />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-gray-150 dark:border-gray-800 pb-3 flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInventorySubTab("alerts")}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                    inventorySubTab === "alerts"
+                      ? "bg-orange-600 text-white shadow-md"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
+                  }`}
+                >
+                  <ShieldAlert size={14} />
+                  <span>Automated Low-Stock Alerts</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setInventorySubTab("catalog")}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                    inventorySubTab === "catalog"
+                      ? "bg-orange-600 text-white shadow-md"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
+                  }`}
+                >
+                  <Package size={14} />
+                  <span>Full Catalog Management ({products.length})</span>
+                </button>
+              </div>
+            </div>
+
+            {inventorySubTab === "alerts" ? (
+              <AdminInventoryAlerts 
+                products={products} 
+                onProductsUpdated={() => {
+                  onSnapshot(collection(db, "products"), (snapshot) => {
+                    const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+                    setProducts(list);
+                  });
+                }} 
+              />
+            ) : (
+              <AdminProductsTable
+                products={products}
+                minRatingFilter={minRatingFilter}
+                setMinRatingFilter={setMinRatingFilter}
+                productApprovalFilter={productApprovalFilter}
+                setProductApprovalFilter={setProductApprovalFilter}
+                productSortBy={productSortBy}
+                setProductSortBy={setProductSortBy}
+                productSearchTerm={productSearchTerm}
+                setProductSearchTerm={setProductSearchTerm}
+                selectedProductIds={selectedProductIds}
+                setSelectedProductIds={setSelectedProductIds}
+                handleBatchDeleteProducts={handleBatchDeleteProducts}
+                isBatchDeletingProducts={isBatchDeletingProducts}
+                setProducts={setProducts}
+                setEditingProduct={setEditingProduct}
+                setHasColorsEdit={setHasColorsEdit}
+                setSelectedColorsEdit={setSelectedColorsEdit}
+                setShowEditModal={setShowEditModal}
+                deleteProduct={deleteProduct}
+                setSelectedProductForRejection={setSelectedProductForRejection}
+                setProductRejectionReasonInput={setProductRejectionReasonInput}
+                confirmingApproveProductId={confirmingApproveProductId}
+                setConfirmingApproveProductId={setConfirmingApproveProductId}
+              />
+            )}
+          </div>
         )}
 
         {activeTab === "users" && (
