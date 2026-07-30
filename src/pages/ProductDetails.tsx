@@ -926,14 +926,6 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </div>
           )}
 
-          {/* 4-Complex Attribute Proactive Matrix Configurator */}
-          <div className="mb-6">
-            <ProductAttributeConfigurator
-              product={product}
-              onChange={(cfg) => setActiveConfig(cfg)}
-            />
-          </div>
-
           <DeliveryCountdown className="mb-6" />
 
           <div ref={mainBuyButtonRef} className="flex space-x-3">

@@ -655,7 +655,7 @@ export default function Checkout({ user }: CheckoutProps) {
         guestSessionToken: user ? null : guestSessionToken,
         isGuestOrder: !user,
         userEmail: address.email.toLowerCase().trim(),
-        customerName: `${submittedAddress.firstName || ''} ${submittedAddress.lastName || ''}`.trim() || "Guest Customer",
+        customerName: user?.displayName || user?.email?.split('@')[0] || (address.email ? address.email.split('@')[0] : "Guest Customer"),
         items,
         sellerIds: sellerIdsList,
         totalAmount: overallTotal,
