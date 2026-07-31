@@ -648,7 +648,7 @@ export default function App() {
                       }}
                       onClick={scrollToTop}
                       style={{ backgroundColor: scrollTopBg }}
-                      className="p-4 rounded-full shadow-2xl border border-white/10 text-white hover:brightness-110 transition-colors duration-200 cursor-pointer flex items-center justify-center group"
+                      className="p-4 rounded-full shadow-2xl border border-white/10 text-white hover:brightness-110 transition-all duration-300 ease-in-out cursor-pointer flex items-center justify-center group"
                       title="Back to Top"
                       id="back-to-top-btn"
                     >

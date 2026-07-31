@@ -4,7 +4,7 @@ import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager
 import firebaseConfig from "../../firebase-applet-config.json";
 
 // Suppress benign transient offline/reconnection warning notices in dev console
-setLogLevel("error");
+setLogLevel("silent");
 
 const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {

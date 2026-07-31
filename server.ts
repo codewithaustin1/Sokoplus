@@ -1633,9 +1633,9 @@ app.get("/s/:code", (req, res) => {
   const targetTopic = data?.title || topicQuery || "";
 
   if (targetTopic) {
-    return res.redirect(`/?news_topic=${encodeURIComponent(targetTopic)}#google-news-live-widget`);
+    return res.redirect(`/blog?news_topic=${encodeURIComponent(targetTopic)}#google-news-live-widget`);
   }
-  return res.redirect("/#google-news-live-widget");
+  return res.redirect("/blog#google-news-live-widget");
 });
 
 function unescapeXml(str: string): string {
