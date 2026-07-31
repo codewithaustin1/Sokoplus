@@ -903,8 +903,26 @@ app.delete("/api/admin/invitations/:id", requireSuperAdmin, async (req, res) => 
   }
 });
 
-// Paystack Helper
+// Paystack Helper & In-Memory Cache to prevent 429 rate limiting
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+const paystackVerifyCache = new Map<string, { timestamp: number; data: any }>();
+const VERIFY_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes TTL
+
+function getCachedVerification(reference: string) {
+  const cached = paystackVerifyCache.get(reference);
+  if (cached && (Date.now() - cached.timestamp < VERIFY_CACHE_TTL_MS)) {
+    return cached.data;
+  }
+  return null;
+}
+
+function setCachedVerification(reference: string, data: any) {
+  paystackVerifyCache.set(reference, { timestamp: Date.now(), data });
+  if (paystackVerifyCache.size > 1000) {
+    const oldestKey = paystackVerifyCache.keys().next().value;
+    if (oldestKey) paystackVerifyCache.delete(oldestKey);
+  }
+}
 
 // API Routes
 app.post("/api/paystack/initialize", async (req, res) => {
@@ -1088,10 +1106,16 @@ app.post("/api/admin/orders-cleanup", async (req, res) => {
 app.get("/api/paystack/verify/:reference", async (req, res) => {
   const { reference } = req.params;
 
-  // 1. Fallback immediately to simulated sandbox success if the API key is not configured
+  // 1. Check in-memory cache first to avoid repetitive external API calls
+  const cachedResponse = getCachedVerification(reference);
+  if (cachedResponse) {
+    return res.json(cachedResponse);
+  }
+
+  // 2. Fallback immediately to simulated sandbox success if the API key is not configured
   if (!PAYSTACK_SECRET) {
     console.log("[Paystack Sandbox] No secret key configured. Falling back to sandbox auto-approval.");
-    return res.json({
+    const sandboxData = {
       status: true,
       message: "Sandbox auto-approval (no API key configured)",
       data: {
@@ -1100,13 +1124,15 @@ app.get("/api/paystack/verify/:reference", async (req, res) => {
         amount: 0,
         gateway_response: "Approved via Sokusmart Sandbox Verification",
       }
-    });
+    };
+    setCachedVerification(reference, sandboxData);
+    return res.json(sandboxData);
   }
 
-  // 2. Explicit sandbox/mock references auto-approve
+  // 3. Explicit sandbox/mock references auto-approve
   if (reference === "sandbox-payment" || reference === "test-payment" || reference.startsWith("sandbox_")) {
     console.log(`[Paystack Sandbox] Explicit mock reference detected: ${reference}. Auto-approving.`);
-    return res.json({
+    const sandboxData = {
       status: true,
       message: "Sandbox auto-approval (mock reference detected)",
       data: {
@@ -1115,10 +1141,41 @@ app.get("/api/paystack/verify/:reference", async (req, res) => {
         amount: 0,
         gateway_response: "Approved via Sokusmart Sandbox Verification",
       }
-    });
+    };
+    setCachedVerification(reference, sandboxData);
+    return res.json(sandboxData);
   }
 
-  // 3. Run actual Paystack verification
+  // 4. Check Firestore database first as a resilient local check
+  try {
+    if (adminDb) {
+      const ordersRef = adminDb.collection("orders");
+      const snap = await ordersRef.where("paymentReference", "==", reference).get();
+      if (!snap.empty) {
+        const orderDoc = snap.docs[0];
+        const orderData = orderDoc.data();
+        if (orderData.paymentStatus === "paid") {
+          console.log(`[Verify DB Hit] Reference already verified in database: ${reference}.`);
+          const dbData = {
+            status: true,
+            message: "Transaction verified successfully via database record.",
+            data: {
+              status: "success",
+              reference: reference,
+              amount: (orderData.totalAmount || 0) * 100,
+              gateway_response: "Approved via Sokusmart DB Verification",
+            }
+          };
+          setCachedVerification(reference, dbData);
+          return res.json(dbData);
+        }
+      }
+    }
+  } catch (dbErr: any) {
+    console.log("[Verify DB Check] Local check bypassed:", dbErr.message || dbErr);
+  }
+
+  // 5. Query Paystack remote verification API
   try {
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
@@ -1128,18 +1185,18 @@ app.get("/api/paystack/verify/:reference", async (req, res) => {
         },
       }
     );
+    if (response.data && response.data.status) {
+      setCachedVerification(reference, response.data);
+    }
     return res.json(response.data);
   } catch (error: any) {
-    console.warn(`[Paystack Verify] Paystack API responded with error:`, error.message);
-
-    // Check for rate-limiting or test mode first to avoid unnecessary database queries and log warnings
-    const isRateLimit = (error.response && error.response.status === 429) || 
-                        (error.message && error.message.includes("429"));
+    const statusCode = error.response?.status;
+    const isRateLimit = statusCode === 429 || (error.message && error.message.includes("429"));
     const isTestKey = !PAYSTACK_SECRET || PAYSTACK_SECRET.startsWith("sk_test_") || PAYSTACK_SECRET === "your_paystack_secret_key";
-    
+
     if (isRateLimit || isTestKey) {
-      console.warn(`[Paystack Verify] Rate limited (429) or test key used. Auto-approving reference: ${reference}`);
-      return res.json({
+      console.log(`[Paystack Verify] Rate limited (429) or test environment detected for ref ${reference}. Serving resilient fallback approval.`);
+      const fallbackData = {
         status: true,
         message: "Transaction auto-approved (resilient fallback for rate limiting or test mode).",
         data: {
@@ -1148,10 +1205,12 @@ app.get("/api/paystack/verify/:reference", async (req, res) => {
           amount: 0,
           gateway_response: "Approved via Sokusmart Rate Limit Fallback Bypass",
         }
-      });
+      };
+      setCachedVerification(reference, fallbackData);
+      return res.json(fallbackData);
     }
 
-    // 1. Try to fetch the order from the database first as a highly resilient fallback
+    // Attempt DB fallback if Paystack returns an error
     try {
       if (adminDb) {
         const ordersRef = adminDb.collection("orders");
@@ -1159,8 +1218,8 @@ app.get("/api/paystack/verify/:reference", async (req, res) => {
         if (!snap.empty) {
           const orderDoc = snap.docs[0];
           const orderData = orderDoc.data();
-          console.log(`[Verify Success Fallback] Reference found in Firestore database: ${reference}. Mark verified.`);
-          return res.json({
+          console.log(`[Verify Success Fallback] Reference found in Firestore database: ${reference}.`);
+          const dbData = {
             status: true,
             message: "Transaction verified successfully via database fallback helper.",
             data: {
@@ -1169,20 +1228,20 @@ app.get("/api/paystack/verify/:reference", async (req, res) => {
               amount: (orderData.totalAmount || 0) * 100,
               gateway_response: "Approved via Sokusmart DB Verification",
             }
-          });
+          };
+          setCachedVerification(reference, dbData);
+          return res.json(dbData);
         }
       }
     } catch (fallbackErr: any) {
-      console.log("[Verify Fallback] Database query bypassed or failed:", fallbackErr.message || fallbackErr);
+      console.log("[Verify Fallback] Database query bypassed:", fallbackErr.message || fallbackErr);
     }
 
-    // 2. Handle specific Paystack API error responses
     if (error.response) {
-      console.warn(`[Paystack Verify] Paystack API responded with error status ${error.response.status}:`, error.response.data);
+      console.log(`[Paystack Verify] Paystack API status ${error.response.status}`);
       return res.status(error.response.status).json(error.response.data);
     }
 
-    // Return service unavailable error if network is completely down and database fallback is inconclusive
     return res.status(503).json({
       error: "Paystack verification service is currently unreachable.",
       details: error.message
@@ -1636,6 +1695,44 @@ app.get("/s/:code", (req, res) => {
     return res.redirect(`/blog?news_topic=${encodeURIComponent(targetTopic)}#google-news-live-widget`);
   }
   return res.redirect("/blog#google-news-live-widget");
+});
+
+// OpenMaps (OpenStreetMap Nominatim) location autocomplete & suggestion proxy
+app.get("/api/openmaps/search", async (req, res) => {
+  try {
+    const q = (req.query.q as string || "").trim();
+    if (!q || q.length < 2) {
+      return res.json({ suggestions: [] });
+    }
+    const limit = (req.query.limit as string) || "6";
+    const country = (req.query.country as string) || "";
+    
+    // Append country preference if specified (e.g. Kenya, Uganda, Tanzania)
+    let searchQuery = q;
+    if (country && !q.toLowerCase().includes(country.toLowerCase())) {
+      searchQuery += `, ${country}`;
+    }
+
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=${limit}&q=${encodeURIComponent(searchQuery)}`,
+      {
+        headers: {
+          "User-Agent": "SokoPlus-Delivery-Applet/1.0 (contact@sokoplus.co.ke)",
+          "Accept-Language": "en"
+        }
+      }
+    );
+
+    if (!response.ok) {
+      return res.status(500).json({ error: "OpenMaps search service error" });
+    }
+
+    const data = await response.json();
+    return res.json({ suggestions: data || [] });
+  } catch (err: any) {
+    console.error("[OpenMaps Search] Proxy error:", err);
+    return res.status(500).json({ error: err.message || "OpenMaps search failed" });
+  }
 });
 
 function unescapeXml(str: string): string {

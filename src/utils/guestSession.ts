@@ -96,8 +96,17 @@ export async function claimGuestOrdersForUser(userId: string, userEmail: string)
     await batch.commit();
     console.log(`[Guest Conversion] Successfully converted ${map.size} guest orders for user ${userId}. Awarded ${totalPoints} XP.`);
     return { claimedCount: map.size, pointsClaimed: totalPoints };
-  } catch (error) {
-    console.error("Error claiming guest orders:", error);
+  } catch (error: any) {
+    const isQuotaError =
+      error?.message?.includes("Quota limit exceeded") ||
+      error?.message?.includes("quota") ||
+      error?.code === "resource-exhausted";
+    
+    if (isQuotaError) {
+      console.warn("[Guest Conversion] Firestore daily quota reached. Order claiming bypassed gracefully.");
+    } else {
+      console.warn("[Guest Conversion] Order auto-claim notice:", error?.message || error);
+    }
     return { claimedCount: 0, pointsClaimed: 0 };
   }
 }

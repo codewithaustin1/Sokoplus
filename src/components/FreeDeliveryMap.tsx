@@ -3,6 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapPin, Navigation, Compass, Search, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "react-hot-toast";
+import DeliveryLocationSearch, { SelectedLocationData } from "./DeliveryLocationSearch";
 
 // Inline pin SVG to avoid broken default asset URLs in bundlers
 const PIN_SVG = `
@@ -14,7 +15,11 @@ const PIN_SVG = `
 interface FreeDeliveryMapProps {
   county: string;
   city: string;
-  onChange: (lat: number, lng: number, addressText?: string) => void;
+  initialStreet?: string;
+  lat?: number;
+  lng?: number;
+  error?: string;
+  onChange: (lat: number, lng: number, addressText?: string, locationData?: SelectedLocationData) => void;
 }
 
 interface LocationCoords {
@@ -81,12 +86,14 @@ const CITY_COORDINATES: { [key: string]: LocationCoords } = {
   "Gisenyi": { lat: -1.7011, lng: 29.2553, zoom: 14 },
 };
 
-export default function FreeDeliveryMap({ county, city, onChange }: FreeDeliveryMapProps) {
+export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng, error, onChange }: FreeDeliveryMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const isExplicitUserPinRef = useRef<boolean>(false);
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [resolvedAddress, setResolvedAddress] = useState<string>("");
+  const [searchInputValue, setSearchInputValue] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [geocodingError, setGeocodingError] = useState<string>("");
   const geocodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -95,13 +102,20 @@ export default function FreeDeliveryMap({ county, city, onChange }: FreeDelivery
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Get default coordinates based on city and county
-    const targetCoords = CITY_COORDINATES[city] || COUNTY_COORDINATES[county] || { lat: -1.2921, lng: 36.8219, zoom: 10 };
+    // Use explicit coordinates if passed initially, otherwise fall back to region centroid
+    const hasInitialExplicitCoords = lat !== undefined && lng !== undefined && lat !== 0 && lng !== 0;
+    const initialCoords = hasInitialExplicitCoords
+      ? { lat, lng, zoom: 16 }
+      : CITY_COORDINATES[city] || COUNTY_COORDINATES[county] || { lat: -1.2921, lng: 36.8219, zoom: 10 };
+
+    if (hasInitialExplicitCoords) {
+      isExplicitUserPinRef.current = true;
+    }
 
     // Create Map
     const map = L.map(mapContainerRef.current, {
-      center: [targetCoords.lat, targetCoords.lng],
-      zoom: targetCoords.zoom,
+      center: [initialCoords.lat, initialCoords.lng],
+      zoom: initialCoords.zoom,
       zoomControl: true,
       attributionControl: false,
     });
@@ -123,22 +137,24 @@ export default function FreeDeliveryMap({ county, city, onChange }: FreeDelivery
     });
 
     // Create draggable marker
-    const marker = L.marker([targetCoords.lat, targetCoords.lng], {
+    const marker = L.marker([initialCoords.lat, initialCoords.lng], {
       icon: customIcon,
       draggable: true,
     }).addTo(map);
 
     markerRef.current = marker;
-    setSelectedCoords({ lat: targetCoords.lat, lng: targetCoords.lng });
+    setSelectedCoords({ lat: initialCoords.lat, lng: initialCoords.lng });
 
-    // Handle marker drag
+    // Handle marker drag (Explicit user input)
     marker.on("dragend", () => {
+      isExplicitUserPinRef.current = true;
       const position = marker.getLatLng();
       setSelectedCoords({ lat: position.lat, lng: position.lng });
     });
 
-    // Handle map click
+    // Handle map click (Explicit user input)
     map.on("click", (e) => {
+      isExplicitUserPinRef.current = true;
       marker.setLatLng(e.latlng);
       setSelectedCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
     });
@@ -152,9 +168,34 @@ export default function FreeDeliveryMap({ county, city, onChange }: FreeDelivery
     };
   }, []);
 
+  // Sync Map when explicit lat/lng props change from parent (e.g., top search bar)
+  useEffect(() => {
+    if (!mapInstanceRef.current || !markerRef.current) return;
+    if (lat !== undefined && lng !== undefined && lat !== 0 && lng !== 0) {
+      const cur = markerRef.current.getLatLng();
+      if (Math.abs(cur.lat - lat) > 0.0001 || Math.abs(cur.lng - lng) > 0.0001) {
+        isExplicitUserPinRef.current = true;
+        mapInstanceRef.current.setView([lat, lng], 16, {
+          animate: true,
+          duration: 0.8,
+        });
+        markerRef.current.setLatLng([lat, lng]);
+        setSelectedCoords({ lat, lng });
+      }
+    } else {
+      // Coords cleared or reset by manual dropdown selection
+      isExplicitUserPinRef.current = false;
+    }
+  }, [lat, lng]);
+
   // Sync Map when county/city changes in standard form inputs
   useEffect(() => {
     if (!mapInstanceRef.current || !markerRef.current) return;
+
+    // Preserve explicit user input: DO NOT overwrite explicit pin with fallback centroid!
+    if (isExplicitUserPinRef.current) {
+      return;
+    }
 
     const targetCoords = CITY_COORDINATES[city] || COUNTY_COORDINATES[county];
     if (targetCoords) {
@@ -204,8 +245,21 @@ export default function FreeDeliveryMap({ county, city, onChange }: FreeDelivery
             cleanAddress = `${localPlace}${cityTown ? `, ${cityTown}` : ""}`;
           }
 
+          const parsedLocation: SelectedLocationData = {
+            displayName: data.display_name,
+            shortAddress: cleanAddress,
+            lat: selectedCoords.lat,
+            lng: selectedCoords.lng,
+            city: cityTown || localPlace || "Nairobi",
+            county: countyRegion || "Nairobi",
+            country: addr.country || "Kenya",
+            street: localPlace || cleanAddress,
+            raw: data,
+          };
+
           setResolvedAddress(data.display_name);
-          onChange(selectedCoords.lat, selectedCoords.lng, cleanAddress);
+          setSearchInputValue(cleanAddress);
+          onChange(selectedCoords.lat, selectedCoords.lng, cleanAddress, parsedLocation);
         } else {
           onChange(selectedCoords.lat, selectedCoords.lng);
         }
@@ -213,6 +267,7 @@ export default function FreeDeliveryMap({ county, city, onChange }: FreeDelivery
         console.warn("Geocoding lookup notice (using map pin fallback):", err);
         const fallbackStr = `Pin (${selectedCoords.lat.toFixed(4)}, ${selectedCoords.lng.toFixed(4)})`;
         setResolvedAddress(fallbackStr);
+        setSearchInputValue(fallbackStr);
         onChange(selectedCoords.lat, selectedCoords.lng, fallbackStr);
       } finally {
         setLoading(false);
@@ -237,6 +292,7 @@ export default function FreeDeliveryMap({ county, city, onChange }: FreeDelivery
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
+        isExplicitUserPinRef.current = true;
         if (mapInstanceRef.current && markerRef.current) {
           mapInstanceRef.current.setView([latitude, longitude], 16, {
             animate: true,
@@ -257,6 +313,22 @@ export default function FreeDeliveryMap({ county, city, onChange }: FreeDelivery
     );
   };
 
+  const handleOpenMapsLocationSelect = (loc: SelectedLocationData) => {
+    isExplicitUserPinRef.current = true;
+    if (mapInstanceRef.current && markerRef.current) {
+      mapInstanceRef.current.setView([loc.lat, loc.lng], 17, {
+        animate: true,
+        duration: 0.8,
+      });
+      markerRef.current.setLatLng([loc.lat, loc.lng]);
+      setSelectedCoords({ lat: loc.lat, lng: loc.lng });
+      setResolvedAddress(loc.displayName);
+      setSearchInputValue(loc.shortAddress || loc.displayName);
+      onChange(loc.lat, loc.lng, loc.shortAddress, loc);
+      toast.success(`Pin snapped to: ${loc.shortAddress}`);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -265,21 +337,38 @@ export default function FreeDeliveryMap({ county, city, onChange }: FreeDelivery
             📍 Exact Delivery Pin-drop
           </label>
           <p className="text-[10px] text-gray-400 font-medium mt-0.5">
-            Tap or drag the marker to your precise apartment/building location. 100% Free OpenStreetMap.
+            Search or drag marker to your precise apartment/building location. Powered by OpenMaps.
           </p>
         </div>
 
         <button
           type="button"
           onClick={handleLocateMe}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-950/70 border border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 rounded-xl text-xs font-black transition-all shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-black transition-all shadow-sm shrink-0 cursor-pointer"
         >
           <Compass className="w-3.5 h-3.5 animate-spin-slow" />
           <span>Locate Me</span>
         </button>
       </div>
 
-      <div className="relative w-full h-64 rounded-2xl overflow-hidden border border-gray-150 dark:border-gray-800 shadow-sm bg-gray-100 dark:bg-gray-950">
+      {/* OpenMaps Real-time Location Search Input */}
+      <div>
+        <DeliveryLocationSearch
+          initialValue={searchInputValue || initialStreet || ""}
+          onSelectLocation={handleOpenMapsLocationSelect}
+          placeholder="Type street, landmark, building or area (e.g. Westlands Road, Kilimani, Thika)..."
+          countryHint={county || "Kenya"}
+          inputClassName={`p-3.5 rounded-2xl shadow-sm ${error ? "border-red-500 focus:ring-red-400" : ""}`}
+        />
+        {error && (
+          <p className="text-red-500 text-[10px] font-bold flex items-center gap-1 mt-1.5">
+            <AlertCircle size={12} />
+            <span>{error}</span>
+          </p>
+        )}
+      </div>
+
+      <div className="relative w-full h-64 rounded-2xl overflow-hidden border border-gray-150 dark:border-gray-800 shadow-sm bg-gray-100 dark:bg-gray-950 z-0">
         {/* Leaflet target container */}
         <div ref={mapContainerRef} className="w-full h-full z-10" />
 

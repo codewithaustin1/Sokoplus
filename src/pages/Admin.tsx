@@ -1620,10 +1620,7 @@ export default function Admin({ user }: AdminProps) {
   const [googleMapsLink, setGoogleMapsLink] = useState<string>("");
   const [googleMapsLinks, setGoogleMapsLinks] = useState<{ name: string; url: string }[]>([]);
   const [showAudioBubble, setShowAudioBubble] = useState<boolean>(true);
-  const [showDailyDeals, setShowDailyDeals] = useState<boolean>(true);
   const [promotionalBannersEnabled, setPromotionalBannersEnabled] = useState<boolean>(true);
-  const [dailyDealsSpeed, setDailyDealsSpeed] = useState<number>(30);
-  const [dailyDealsHours, setDailyDealsHours] = useState<number>(24);
   const [brandLogoUrl, setBrandLogoUrl] = useState<string>("");
   const [faviconUrl, setFaviconUrl] = useState<string>("");
   const [seoTitle, setSeoTitle] = useState<string>("");
@@ -1903,10 +1900,17 @@ export default function Admin({ user }: AdminProps) {
         pSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as Product),
       );
 
-      const oSnap = await getDocs(
-        query(collection(db, "orders"), orderBy("createdAt", "desc"), limit(50)),
-      );
-      let loadedOrders = oSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
+      let loadedOrders: any[] = [];
+      try {
+        const oSnap = await getDocs(
+          query(collection(db, "orders"), orderBy("createdAt", "desc"), limit(100)),
+        );
+        loadedOrders = oSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
+      } catch (oErr) {
+        console.warn("[Admin Fetch] Fallback to unindexed orders read:", oErr);
+        const oSnap = await getDocs(query(collection(db, "orders"), limit(100)));
+        loadedOrders = oSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
+      }
 
       // 1-Year Order History TTL Cleanup policy
       const oneYearAgo = new Date();
@@ -2030,17 +2034,8 @@ export default function Admin({ user }: AdminProps) {
           if (settingsData.showAudioBubble !== undefined) {
             setShowAudioBubble(settingsData.showAudioBubble);
           }
-          if (settingsData.showDailyDeals !== undefined) {
-            setShowDailyDeals(settingsData.showDailyDeals);
-          }
           if (settingsData.promotionalBannersEnabled !== undefined) {
             setPromotionalBannersEnabled(settingsData.promotionalBannersEnabled);
-          }
-          if (settingsData.dailyDealsSpeed !== undefined) {
-            setDailyDealsSpeed(settingsData.dailyDealsSpeed);
-          }
-          if (settingsData.dailyDealsHours !== undefined) {
-            setDailyDealsHours(settingsData.dailyDealsHours);
           }
           if (settingsData.brandLogoUrl) {
             setBrandLogoUrl(settingsData.brandLogoUrl);
@@ -2527,10 +2522,7 @@ export default function Admin({ user }: AdminProps) {
         googleMapsLink: googleMapsLinks.length > 0 ? googleMapsLinks[0].url : "",
         googleMapsLinks: googleMapsLinks,
         showAudioBubble: showAudioBubble,
-        showDailyDeals: showDailyDeals,
         promotionalBannersEnabled: promotionalBannersEnabled,
-        dailyDealsSpeed: dailyDealsSpeed,
-        dailyDealsHours: dailyDealsHours,
         brandLogoUrl: brandLogoUrl,
         faviconUrl: faviconUrl,
         seoTitle: seoTitle,
@@ -2568,9 +2560,6 @@ export default function Admin({ user }: AdminProps) {
           googleMapsLink: "",
           googleMapsLinks: [],
           showAudioBubble: true,
-          showDailyDeals: true,
-          dailyDealsSpeed: 30,
-          dailyDealsHours: 24,
           brandLogoUrl: "",
           faviconUrl: "",
           seoTitle: "",
@@ -2585,9 +2574,6 @@ export default function Admin({ user }: AdminProps) {
         setGoogleMapsLink("");
         setGoogleMapsLinks([]);
         setShowAudioBubble(true);
-        setShowDailyDeals(true);
-        setDailyDealsSpeed(30);
-        setDailyDealsHours(24);
         setBrandLogoUrl("");
         setFaviconUrl("");
         setSeoTitle("");
@@ -3894,22 +3880,37 @@ export default function Admin({ user }: AdminProps) {
   const filteredOrders = orders
     .filter((o) => {
       const cleanTerm = orderSearchTerm.trim().toLowerCase().replace(/^#/, "");
-      if (!cleanTerm) return orderStatusFilter === "all" || o.status === orderStatusFilter;
-
-      const receiptId = o.id.slice(0, 8).toLowerCase();
-      const fullId = o.id.toLowerCase();
-      const userId = o.userId.toLowerCase();
+      
+      const isGuest = Boolean(o.isGuestOrder || o.userId === "guest" || !o.userId);
+      const receiptId = (o.id || "").slice(0, 8).toLowerCase();
+      const fullId = (o.id || "").toLowerCase();
+      const userId = (o.userId || "").toLowerCase();
       const userEmail = (o.userEmail || "").toLowerCase();
+      const customerName = (o.customerName || "").toLowerCase();
+      const recipientName = (o.shippingAddress?.fullName || "").toLowerCase();
+      const recipientPhone = (o.shippingAddress?.phone || "").toLowerCase();
       const paymentRef = (o.paymentReference || "").toLowerCase();
 
-      const matchesSearch = 
-        receiptId.includes(cleanTerm) ||
-        fullId.includes(cleanTerm) ||
-        userId.includes(cleanTerm) ||
-        userEmail.includes(cleanTerm) ||
-        paymentRef.includes(cleanTerm);
+      let matchesSearch = true;
+      if (cleanTerm) {
+        matchesSearch = 
+          receiptId.includes(cleanTerm) ||
+          fullId.includes(cleanTerm) ||
+          userId.includes(cleanTerm) ||
+          userEmail.includes(cleanTerm) ||
+          customerName.includes(cleanTerm) ||
+          recipientName.includes(cleanTerm) ||
+          recipientPhone.includes(cleanTerm) ||
+          paymentRef.includes(cleanTerm) ||
+          (cleanTerm === "guest" && isGuest);
+      }
 
-      const matchesStatus = orderStatusFilter === "all" || o.status === orderStatusFilter;
+      let matchesStatus = true;
+      if (orderStatusFilter === "guest") {
+        matchesStatus = isGuest;
+      } else if (orderStatusFilter !== "all") {
+        matchesStatus = o.status === orderStatusFilter;
+      }
 
       return matchesSearch && matchesStatus;
     })
@@ -3920,7 +3921,7 @@ export default function Admin({ user }: AdminProps) {
     });
 
   const handleDownloadCSV = () => {
-    const headers = ["Order ID", "Customer ID / Email", "Date", "Status", "Total Amount"];
+    const headers = ["Order ID", "Customer ID / Email", "Customer Name", "Order Type", "Date", "Status", "Total Amount"];
     
     const escapeCSV = (val: any) => {
       if (val === null || val === undefined) return "";
@@ -3939,9 +3940,12 @@ export default function Admin({ user }: AdminProps) {
       } else {
         dateStr = "N/A";
       }
+      const isGuest = Boolean(o.isGuestOrder || o.userId === "guest" || !o.userId);
       return [
         o.id,
-        o.userEmail || o.userId,
+        o.userEmail || o.userId || "guest",
+        o.customerName || o.shippingAddress?.fullName || "Guest Customer",
+        isGuest ? "Guest Checkout" : "Registered User",
         dateStr,
         o.status,
         `KES ${o.totalAmount}`
@@ -5868,7 +5872,8 @@ export default function Admin({ user }: AdminProps) {
                   onChange={(e) => setOrderStatusFilter(e.target.value)}
                   className="bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
                 >
-                  <option value="all">All Statuses</option>
+                  <option value="all">All Orders</option>
+                  <option value="guest">Guest Checkout Orders</option>
                   <option value="pending">Pending</option>
                   <option value="processing">Processing</option>
                   <option value="shipped">Shipped</option>
@@ -5890,7 +5895,7 @@ export default function Admin({ user }: AdminProps) {
                   />
                   <input
                     type="text"
-                    placeholder="Search Receipt ID (#ABC1234F), Email, or M-Pesa Ref..."
+                    placeholder="Search Receipt ID, Email, Name, Phone, or M-Pesa Ref..."
                     value={orderSearchTerm}
                     onChange={(e) => setOrderSearchTerm(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm font-medium"
@@ -5927,7 +5932,21 @@ export default function Admin({ user }: AdminProps) {
                           #{o.id.slice(0, 8)}
                         </td>
                         <td className="py-4 text-gray-700">
-                          <div>{o.userEmail || o.userId.slice(0, 8)}</div>
+                          <div className="flex flex-col space-y-0.5">
+                            <div className="flex items-center space-x-1.5">
+                              <span className="font-bold text-gray-900 text-xs">
+                                {o.shippingAddress?.fullName || o.customerName || o.userEmail?.split("@")[0] || "Guest Customer"}
+                              </span>
+                              {(o.isGuestOrder || o.userId === "guest" || !o.userId) && (
+                                <span className="bg-amber-100 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+                                  Guest
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-gray-400 font-medium break-all">
+                              {o.userEmail || o.shippingAddress?.phone || "No Email Provided"}
+                            </div>
+                          </div>
                         </td>
                         <td className="py-4 text-gray-700 font-medium">
                           {o.createdAt ? (
@@ -7362,89 +7381,6 @@ export default function Admin({ user }: AdminProps) {
                     />
                   </button>
                 </div>
-              </div>
-
-              {/* Today's Deals Ticker Toggle Configuration */}
-              <div className="p-6 bg-orange-50/20 dark:bg-orange-950/10 rounded-3xl border border-orange-100/50 dark:border-orange-900/30 space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-orange-850 dark:text-orange-400 flex items-center">
-                      <Flame size={16} className="mr-2 text-orange-600 animate-pulse" /> Today's Deals Ticker Widget
-                    </h3>
-                    <p className="text-xs text-orange-705 dark:text-orange-300 leading-relaxed font-medium">
-                      Enable or disable the real-time top trending Today's Deals announcement ticker on the homepage.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowDailyDeals(!showDailyDeals)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      showDailyDeals ? "bg-orange-650" : "bg-gray-200 dark:bg-gray-800"
-                    }`}
-                    id="daily-deals-toggle"
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        showDailyDeals ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {showDailyDeals && (
-                  <div className="pt-3 border-t border-orange-100/40 dark:border-orange-900/20 space-y-4">
-                    {/* Auto-Scroll Speed Slider */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs font-semibold text-orange-850 dark:text-orange-350">
-                        <span>Auto-Scroll Duration</span>
-                        <span className="bg-orange-100 dark:bg-orange-950/60 px-2.5 py-0.5 rounded text-orange-700 dark:text-orange-300 font-bold">
-                          {dailyDealsSpeed}s {dailyDealsSpeed <= 20 ? "(Fast)" : dailyDealsSpeed >= 45 ? "(Slow)" : "(Normal)"}
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="10"
-                        max="60"
-                        step="5"
-                        value={dailyDealsSpeed}
-                        onChange={(e) => setDailyDealsSpeed(parseInt(e.target.value, 10))}
-                        className="w-full h-2 bg-orange-100 dark:bg-orange-950/40 rounded-lg appearance-none cursor-pointer accent-orange-600 focus:outline-none"
-                        id="daily-deals-speed-slider"
-                      />
-                      <div className="flex justify-between text-[10px] text-orange-650/70 dark:text-orange-400/50 font-medium">
-                        <span>10s (Fast)</span>
-                        <span>30s (Default)</span>
-                        <span>60s (Slow)</span>
-                      </div>
-                    </div>
-
-                    {/* Countdown Timer Hours Slider */}
-                    <div className="pt-3 border-t border-orange-100/20 dark:border-orange-900/10 space-y-2">
-                      <div className="flex items-center justify-between text-xs font-semibold text-orange-850 dark:text-orange-350">
-                        <span>Timer Countdown Duration</span>
-                        <span className="bg-orange-100 dark:bg-orange-950/60 px-2.5 py-0.5 rounded text-orange-700 dark:text-orange-300 font-bold">
-                          {dailyDealsHours} Hours
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="1"
-                        max="48"
-                        step="1"
-                        value={dailyDealsHours}
-                        onChange={(e) => setDailyDealsHours(parseInt(e.target.value, 10))}
-                        className="w-full h-2 bg-orange-100 dark:bg-orange-950/40 rounded-lg appearance-none cursor-pointer accent-orange-600 focus:outline-none"
-                        id="daily-deals-hours-slider"
-                      />
-                      <div className="flex justify-between text-[10px] text-orange-650/70 dark:text-orange-400/50 font-medium">
-                        <span>1 Hour</span>
-                        <span>12h</span>
-                        <span>24h (Default)</span>
-                        <span>48 Hours</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Sizing, Aspect, and Placement safety guidance */}
@@ -10659,11 +10595,30 @@ export default function Admin({ user }: AdminProps) {
             </div>
 
             {/* Customer Details info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-55 p-6 rounded-3xl border border-gray-100/50 text-xs">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Customer info</p>
-                <p className="font-extrabold text-gray-800 break-all">{selectedViewOrder.userEmail || "Guest User"}</p>
-                <p className="text-[11px] text-gray-500 font-medium">ID: {selectedViewOrder.userId}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-6 rounded-3xl border border-gray-100/50 text-xs">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Customer info</p>
+                  {(selectedViewOrder.isGuestOrder || selectedViewOrder.userId === "guest" || !selectedViewOrder.userId) && (
+                    <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Guest Checkout
+                    </span>
+                  )}
+                </div>
+                <p className="font-extrabold text-gray-800 break-all">
+                  {selectedViewOrder.customerName || selectedViewOrder.shippingAddress?.fullName || selectedViewOrder.userEmail || "Guest Customer"}
+                </p>
+                <p className="text-xs text-gray-500 font-medium break-all">
+                  Email: {selectedViewOrder.userEmail || "None provided"}
+                </p>
+                <p className="text-[11px] text-gray-400 font-mono">
+                  Account ID: {selectedViewOrder.userId || "guest"}
+                </p>
+                {selectedViewOrder.guestSessionToken && (
+                  <p className="text-[10px] text-gray-400 font-mono">
+                    Session: {selectedViewOrder.guestSessionToken}
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Delivery Address</p>
@@ -10675,7 +10630,7 @@ export default function Admin({ user }: AdminProps) {
                   {selectedViewOrder.shippingAddress?.county} Kenya.
                 </p>
                 {selectedViewOrder.shippingAddress?.phone && (
-                  <p className="text-xs text-orange-605 font-bold">
+                  <p className="text-xs text-orange-600 font-bold">
                     Phone: {selectedViewOrder.shippingAddress.phone}
                   </p>
                 )}

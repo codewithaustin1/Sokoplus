@@ -14,7 +14,6 @@ import axios from "axios";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
 import MarketingBanner from "../components/MarketingBanner";
-import DailyDealsTicker from "../components/DailyDealsTicker";
 import PromotionalBanner from "../components/PromotionalBanner";
 import { trackEvent } from "../lib/analytics";
 import heroImage from "../assets/images/sokoplus_hero_bg_1782815259030.jpg";
@@ -727,7 +726,6 @@ export default function Home({ user }: HomeProps) {
         schema={homeSchema}
       />
       <MarketingBanner />
-      <DailyDealsTicker />
       {/* Hero Section */}
       <section className="relative min-h-[480px] sm:min-h-[520px] md:min-h-[580px] py-12 sm:py-16 md:py-24 px-4 sm:px-6 lg:px-8 border-b border-gray-100 dark:border-gray-900/50 overflow-hidden flex items-center transition-colors duration-200">
         {/* Full-width Responsive Background Carousel */}

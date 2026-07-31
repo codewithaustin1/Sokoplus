@@ -107,6 +107,9 @@ export interface Order {
   id: string;
   userId: string;
   userEmail?: string;
+  customerName?: string;
+  isGuestOrder?: boolean;
+  guestSessionToken?: string;
   items: CartItem[];
   totalAmount: number;
   status: "pending" | "processing" | "shipped" | "delivered" | "cancelled" | "partially_refunded" | "refunded";

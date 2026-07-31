@@ -447,8 +447,9 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
       );
       const snap = await getDocs(q);
       setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
-    } catch (error) {
-      console.error("Fetch reviews error:", error);
+    } catch (error: any) {
+      console.warn("Fetch reviews fallback (quota/offline):", error?.message || error);
+      setReviews([]);
     }
   };
 
@@ -611,8 +612,18 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             recommendationCache.set(id, { items: fallbacks, source: "category" });
           }
         }
-      } catch (error) {
-        console.error("Error fetching product:", error);
+      } catch (error: any) {
+        console.warn("Firestore product fetch fallback (quota/offline):", error?.message || error);
+        try {
+          const allCached = await getCachedProducts();
+          const localMatch = allCached.find(p => p.id === id);
+          if (localMatch) {
+            setProduct(localMatch);
+            productCache.set(localMatch.id, localMatch);
+          }
+        } catch (localErr) {
+          console.warn("Local product fallback error:", localErr);
+        }
       } finally {
         setLoading(false);
       }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import axios from "axios";
 import { CheckCircle, XCircle, ShoppingBag, ArrowRight, Truck, UserCheck, Lock, Mail, Sparkles, ShieldCheck, Loader2 } from "lucide-react";
@@ -34,6 +34,7 @@ export default function PaymentSuccess() {
 
   const { clearCart } = useCart();
   const reference = searchParams.get("reference");
+  const isVerifyingRef = useRef<boolean>(false);
 
   useEffect(() => {
     async function verifyPayment() {
@@ -41,6 +42,9 @@ export default function PaymentSuccess() {
         setStatus("error");
         return;
       }
+
+      if (isVerifyingRef.current) return;
+      isVerifyingRef.current = true;
 
       try {
         // 1. Verify Paystack transaction via backend endpoint
@@ -219,13 +223,17 @@ export default function PaymentSuccess() {
       const newUser = userCred.user;
 
       // 2. Create User document in Firestore
-      await setDoc(doc(db, "users", newUser.uid), {
-        email: guestEmail.trim().toLowerCase(),
-        loyaltyPoints: pointsEarned,
-        role: "user",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+      try {
+        await setDoc(doc(db, "users", newUser.uid), {
+          email: guestEmail.trim().toLowerCase(),
+          loyaltyPoints: pointsEarned,
+          role: "user",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch (docErr: any) {
+        console.warn("[PaymentSuccess] User doc creation notice:", docErr?.message || docErr);
+      }
 
       // 3. Claim guest orders and link to this new account
       const { claimedCount, pointsClaimed } = await claimGuestOrdersForUser(newUser.uid, guestEmail.trim());

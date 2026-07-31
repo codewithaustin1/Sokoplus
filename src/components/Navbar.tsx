@@ -15,6 +15,7 @@ import { FastImage } from "./FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
 import { matchesFuzzyQuery, normalizeSearchQuery } from "../utils/searchFuzzy";
+import DeliveryLocationSearch, { SelectedLocationData } from "./DeliveryLocationSearch";
 
 interface NavbarProps {
   user: UserProfile | null;
@@ -1581,11 +1582,64 @@ export default function Navbar({ user }: NavbarProps) {
                 Delivery options and delivery speeds may vary depending on the location.
               </p>
 
+              {/* OpenMaps Real-time Location Search Input */}
+              <div className="space-y-1">
+                <label className="block text-[10px] font-black uppercase text-gray-300 tracking-wider">
+                  🔍 Search Address or Landmark (OpenMaps)
+                </label>
+                <DeliveryLocationSearch
+                  darkTheme={true}
+                  placeholder="Type city, street or landmark (e.g. Westlands, Nakuru)..."
+                  countryHint={deliveryCountry}
+                  onSelectLocation={async (loc) => {
+                    const matchedCountry = Object.keys(CITIES_BY_COUNTRY).find(
+                      c => c.toLowerCase() === loc.country.toLowerCase()
+                    ) || deliveryCountry;
+
+                    let matchedCity = loc.city;
+                    const availableCities = CITIES_BY_COUNTRY[matchedCountry] || [];
+                    const cityMatch = availableCities.find(
+                      c => c.toLowerCase().includes(loc.city.toLowerCase()) || loc.displayName.toLowerCase().includes(c.toLowerCase())
+                    );
+                    if (cityMatch) matchedCity = cityMatch;
+
+                    setDeliveryCountry(matchedCountry);
+                    setDeliveryCity(matchedCity);
+
+                    localStorage.setItem("sokoplus_delivery_country", matchedCountry);
+                    localStorage.setItem("sokoplus_delivery_city", matchedCity);
+                    localStorage.setItem("sokoplus_delivery_address", loc.shortAddress);
+                    localStorage.setItem("sokoplus_delivery_lat", String(loc.lat));
+                    localStorage.setItem("sokoplus_delivery_lng", String(loc.lng));
+
+                    const activeUid = auth.currentUser?.uid || user?.uid;
+                    if (activeUid) {
+                      try {
+                        const userRef = doc(db, "users", activeUid);
+                        await setDoc(userRef, {
+                          deliveryCountry: matchedCountry,
+                          deliveryCity: matchedCity,
+                          deliveryAddress: loc.shortAddress,
+                          updatedAt: new Date().toISOString()
+                        }, { merge: true });
+                      } catch (err) {
+                        console.warn("Could not sync delivery address:", err);
+                      }
+                    }
+
+                    setShowLocationModal(false);
+                    toast.success(`Delivery set to: ${loc.shortAddress}`, {
+                      icon: COUNTRY_FLAGS[matchedCountry] || "📍"
+                    });
+                  }}
+                />
+              </div>
+
               {user ? (
                 <Link
                   to="/profile"
                   onClick={() => setShowLocationModal(false)}
-                  className="w-full bg-[#f5c105] hover:bg-amber-500 text-black py-2.5 rounded-lg text-xs font-black transition-all text-center block active:scale-95 cursor-pointer uppercase tracking-wider"
+                  className="w-full bg-[#f5c105] hover:bg-amber-500 text-black py-2 rounded-lg text-xs font-black transition-all text-center block active:scale-95 cursor-pointer uppercase tracking-wider"
                 >
                   Manage addresses in Profile
                 </Link>
@@ -1593,7 +1647,7 @@ export default function Navbar({ user }: NavbarProps) {
                 <Link
                   to="/login"
                   onClick={() => setShowLocationModal(false)}
-                  className="w-full bg-[#f5c105] hover:bg-amber-500 text-black py-2.5 rounded-lg text-xs font-black transition-all text-center block active:scale-95 cursor-pointer uppercase tracking-wider"
+                  className="w-full bg-[#f5c105] hover:bg-amber-500 text-black py-2 rounded-lg text-xs font-black transition-all text-center block active:scale-95 cursor-pointer uppercase tracking-wider"
                 >
                   Login to manage addresses
                 </Link>

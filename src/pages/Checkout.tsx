@@ -36,7 +36,8 @@ import {
   Zap,
   CheckCircle2,
   Tag,
-  UserCheck
+  UserCheck,
+  SlidersHorizontal
 } from "lucide-react";
 import { getOrCreateGuestSessionToken, saveGuestAddressDraft, getGuestAddressDraft } from "../utils/guestSession";
 import { motion, AnimatePresence } from "motion/react";
@@ -46,6 +47,7 @@ import { calculateDelivery, calculateShippingFee } from "../utils/delivery";
 import { DeliveryCountdown } from "../components/DeliveryCountdown";
 import { useSellerStudio } from "../lib/SellerStudioContext";
 import FreeDeliveryMap from "../components/FreeDeliveryMap";
+import DeliveryLocationSearch, { SelectedLocationData } from "../components/DeliveryLocationSearch";
 
 const COUNTRY_FLAGS: Record<string, string> = {
   "Kenya": "🇰🇪",
@@ -135,6 +137,122 @@ export default function Checkout({ user }: CheckoutProps) {
       email: user?.email || guestDraft?.email || ""
     };
   });
+
+  const [showManualRegionEdit, setShowManualRegionEdit] = useState<boolean>(false);
+  const [isManualOverride, setIsManualOverride] = useState<boolean>(false);
+
+  const matchRegionFromOSM = (loc: Partial<SelectedLocationData>) => {
+    const rawCountry = (loc.country || "").trim().toLowerCase();
+    const rawCounty = (loc.county || "").trim().toLowerCase();
+    const rawCity = (loc.city || "").trim().toLowerCase();
+    const rawFull = `${loc.shortAddress || ""} ${loc.displayName || ""}`.trim().toLowerCase();
+
+    // 1. Determine Country
+    let matchedCountry = "Kenya";
+    const countryKeys = Object.keys(COUNTRY_FLAGS);
+    const matchedCty = countryKeys.find(c => 
+      rawCountry.includes(c.toLowerCase()) || 
+      rawFull.includes(c.toLowerCase())
+    );
+    if (matchedCty) {
+      matchedCountry = matchedCty;
+    }
+
+    let matchedCounty = "Nairobi City County";
+    let matchedCity = "";
+
+    if (matchedCountry === "Kenya") {
+      // Check if city matches any specific city in our counties dataset
+      let foundCountyByCity: (typeof counties)[0] | undefined;
+      for (const cObj of counties) {
+        const cityHit = cObj.cities.find(ct => 
+          rawCity.includes(ct.toLowerCase()) || 
+          rawFull.includes(ct.toLowerCase())
+        );
+        if (cityHit) {
+          foundCountyByCity = cObj;
+          matchedCity = cityHit;
+          break;
+        }
+      }
+
+      if (foundCountyByCity) {
+        matchedCounty = foundCountyByCity.name;
+      } else {
+        // Check county name match
+        const countyHit = counties.find(cObj => {
+          const cNorm = cObj.name.toLowerCase().replace("county", "").trim();
+          return rawCounty.includes(cNorm) || rawFull.includes(cNorm);
+        });
+        if (countyHit) {
+          matchedCounty = countyHit.name;
+        }
+      }
+
+      // Pick city if not yet matched
+      const activeCountyObj = counties.find(cObj => cObj.name === matchedCounty);
+      if (activeCountyObj) {
+        if (!matchedCity) {
+          const candidateCity = activeCountyObj.cities.find(ct => 
+            rawCity.includes(ct.toLowerCase()) || 
+            rawFull.includes(ct.toLowerCase())
+          );
+          matchedCity = candidateCity || activeCountyObj.cities[0] || "";
+        }
+      }
+    } else {
+      // Non-Kenya countries
+      const countryCities = CITIES_BY_COUNTRY[matchedCountry] || [];
+      const candidateCity = countryCities.find(ct => 
+        rawCity.includes(ct.toLowerCase()) || 
+        rawFull.includes(ct.toLowerCase())
+      );
+      matchedCity = candidateCity || countryCities[0] || "";
+    }
+
+    return {
+      country: matchedCountry,
+      county: matchedCountry === "Kenya" ? matchedCounty : "",
+      city: matchedCity
+    };
+  };
+
+  const handleAutoLocationUpdate = (
+    lat: number, 
+    lng: number, 
+    addressText?: string, 
+    locData?: SelectedLocationData
+  ) => {
+    setAddress(prev => {
+      const updated = { ...prev, lat, lng };
+      if (addressText) {
+        updated.street = addressText;
+      }
+
+      if (locData) {
+        const region = matchRegionFromOSM(locData);
+        updated.country = region.country;
+        updated.county = region.county;
+        updated.city = region.city;
+
+        localStorage.setItem("sokoplus_delivery_country", region.country);
+        if (region.county) localStorage.setItem("sokoplus_delivery_county", region.county);
+        if (region.city) localStorage.setItem("sokoplus_delivery_city", region.city);
+      }
+
+      return updated;
+    });
+
+    setIsManualOverride(false);
+
+    if (addressText) {
+      setValidationErrors(prev => {
+        const nextErrs = { ...prev };
+        delete nextErrs.street;
+        return nextErrs;
+      });
+    }
+  };
 
   const navigate = useNavigate();
 
@@ -259,7 +377,9 @@ export default function Checkout({ user }: CheckoutProps) {
         ...address,
         country: countryName,
         county: "",
-        city: defaultCity
+        city: defaultCity,
+        lat: undefined,
+        lng: undefined,
       });
       localStorage.setItem("sokoplus_delivery_country", countryName);
       localStorage.setItem("sokoplus_delivery_county", "");
@@ -274,7 +394,9 @@ export default function Checkout({ user }: CheckoutProps) {
     setAddress({
       ...address,
       county: countyName,
-      city: defaultCity
+      city: defaultCity,
+      lat: undefined,
+      lng: undefined,
     });
     localStorage.setItem("sokoplus_delivery_county", countyName);
     localStorage.setItem("sokoplus_delivery_city", defaultCity);
@@ -800,146 +922,164 @@ export default function Checkout({ user }: CheckoutProps) {
               <div className="space-y-1">
                 <h3 className="text-lg font-black tracking-tight text-gray-955 dark:text-white">1. Delivery Location</h3>
                 <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider">
-                  Select your exact shipping destination {address.country === "Kenya" ? "inside Kenya" : `in ${address.country}`}
+                  Search address or drop pin on map. Shipping region is auto-detected.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
-              <div>
-                <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Country</label>
-                <div className="relative">
-                  <select 
-                    value={address.country}
-                    onChange={(e) => handleCountryChange(e.target.value)}
-                    className="w-full p-4 bg-gray-50 dark:bg-gray-955 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
-                  >
-                    {Object.keys(COUNTRY_FLAGS).filter(cty => !disabledCountries.includes(cty)).map((cty) => (
-                      <option key={cty} value={cty} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
-                        {COUNTRY_FLAGS[cty]} {cty}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                </div>
-              </div>
-
-              {address.country === "Kenya" ? (
-                <>
-                  <div>
-                    <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">County Territory</label>
-                    <div className="relative">
-                      <select 
-                        value={address.county}
-                        onChange={(e) => handleCountyChange(e.target.value)}
-                        className="w-full p-4 bg-gray-50 dark:bg-gray-955 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
-                      >
-                        {counties.filter(c => !disabledCounties.includes(c.name)).map((c) => (
-                          <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Township / Settlement</label>
-                    <div className="relative">
-                      <select 
-                        value={address.city}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setAddress({...address, city: val});
-                          localStorage.setItem("sokoplus_delivery_city", val);
-                        }}
-                        className="w-full p-4 bg-gray-50 dark:bg-gray-955 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
-                      >
-                        {currentCities.map((city) => (
-                          <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
-                            {city}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">City / Destination</label>
-                  <div className="relative">
-                    <select 
-                      value={address.city}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setAddress({...address, city: val});
-                        localStorage.setItem("sokoplus_delivery_city", val);
-                      }}
-                      className="w-full p-4 bg-gray-50 dark:bg-gray-955 border border-gray-150 dark:border-gray-800 rounded-2xl outline-none text-gray-900 dark:text-white font-bold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all appearance-none cursor-pointer pr-10"
-                    >
-                      {CITIES_BY_COUNTRY[address.country]?.filter(city => !disabledCities.includes(city)).map((city) => (
-                        <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
-                          {city}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Free OpenStreetMap Interactive Pin-drop */}
-            <FreeDeliveryMap 
-              county={address.county}
-              city={address.city}
-              onChange={(lat, lng, addressText) => {
-                setAddress(prev => {
-                  const updated = { ...prev, lat, lng };
-                  if (addressText) {
-                    updated.street = addressText;
-                  }
-                  return updated;
-                });
-                if (addressText) {
-                  setValidationErrors(prev => {
-                    const updated = { ...prev };
-                    delete updated.street;
-                    return updated;
-                  });
-                }
-              }}
-            />
-
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Detailed Street Address / Apartment / Estate</label>
-              <input 
-                required
-                type="text" 
-                value={address.street}
-                onChange={(e) => {
-                  setAddress({...address, street: e.target.value});
-                  if (e.target.value.trim()) {
-                    setValidationErrors(prev => {
-                      const updated = { ...prev };
-                      delete updated.street;
-                      return updated;
-                    });
-                  }
+            {/* Single Unified Delivery Location Search & Interactive Map */}
+            <div className="space-y-2 pt-1">
+              <FreeDeliveryMap 
+                county={address.county}
+                city={address.city}
+                initialStreet={address.street}
+                lat={address.lat}
+                lng={address.lng}
+                error={validationErrors.street}
+                onChange={(lat, lng, addressText, locData) => {
+                  handleAutoLocationUpdate(lat, lng, addressText, locData);
                 }}
-                placeholder="e.g. Apartment A14, Pine Breeze Estate, 3rd Avenue" 
-                className={`w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all ${
-                  validationErrors.street ? "border-red-500 focus:ring-red-400" : "border-gray-150 dark:border-gray-800"
-                }`}
               />
-              {validationErrors.street && (
-                <p className="text-red-500 text-[10px] font-bold flex items-center gap-1 mt-1">
-                  <AlertTriangle size={12} />
-                  <span>{validationErrors.street}</span>
-                </p>
-              )}
+            </div>
+
+            {/* Auto-detected Shipping Region Badge & Fallback Edit Toggle */}
+            <div className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                    <span className="text-gray-500 dark:text-gray-400 font-normal">Auto-detected Region: </span>
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      {address.country} {address.county ? `→ ${address.county}` : ""} → {address.city || "Standard Area"}
+                    </span>
+                  </div>
+                  {isManualOverride && (
+                    <span className="bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider border border-gray-300 dark:border-gray-700">
+                      Manual Override Active
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowManualRegionEdit(!showManualRegionEdit)}
+                  className="text-xs font-bold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>{showManualRegionEdit ? "Hide Manual Selectors" : "Edit county/city manually"}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showManualRegionEdit ? "rotate-180" : ""}`} />
+                </button>
+              </div>
+
+              {/* Fallback Edit Accordion */}
+              <AnimatePresence>
+                {showManualRegionEdit && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden pt-3 border-t border-gray-200 dark:border-gray-800"
+                  >
+                    <p className="text-[11px] text-gray-600 dark:text-gray-400 mb-3 font-medium">
+                      Use these dropdowns to manually correct your Country, County, or City if OpenStreetMap's boundary differs from your courier's shipping rate zone.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Country</label>
+                        <div className="relative">
+                          <select 
+                            value={address.country}
+                            onChange={(e) => {
+                              handleCountryChange(e.target.value);
+                              setIsManualOverride(true);
+                            }}
+                            className="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-orange-500 appearance-none cursor-pointer pr-10"
+                          >
+                            {Object.keys(COUNTRY_FLAGS).filter(cty => !disabledCountries.includes(cty)).map((cty) => (
+                              <option key={cty} value={cty} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                                {COUNTRY_FLAGS[cty]} {cty}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                        </div>
+                      </div>
+
+                      {address.country === "Kenya" ? (
+                        <>
+                          <div>
+                            <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">County Territory</label>
+                            <div className="relative">
+                              <select 
+                                value={address.county}
+                                onChange={(e) => {
+                                  handleCountyChange(e.target.value);
+                                  setIsManualOverride(true);
+                                }}
+                                className="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-orange-500 appearance-none cursor-pointer pr-10"
+                              >
+                                {counties.filter(c => !disabledCounties.includes(c.name)).map((c) => (
+                                  <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                                    {c.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Township / Settlement</label>
+                            <div className="relative">
+                              <select 
+                                value={address.city}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setAddress({...address, city: val, lat: undefined, lng: undefined});
+                                  localStorage.setItem("sokoplus_delivery_city", val);
+                                  setIsManualOverride(true);
+                                }}
+                                className="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-orange-500 appearance-none cursor-pointer pr-10"
+                              >
+                                {currentCities.map((city) => (
+                                  <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                                    {city}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="md:col-span-2">
+                          <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">City / Destination</label>
+                          <div className="relative">
+                            <select 
+                              value={address.city}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setAddress({...address, city: val});
+                                localStorage.setItem("sokoplus_delivery_city", val);
+                                setIsManualOverride(true);
+                              }}
+                              className="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-orange-500 appearance-none cursor-pointer pr-10"
+                            >
+                              {CITIES_BY_COUNTRY[address.country]?.filter(city => !disabledCities.includes(city)).map((city) => (
+                                <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                                  {city}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="space-y-2">
@@ -1980,11 +2120,11 @@ export default function Checkout({ user }: CheckoutProps) {
             </div>
 
             {/* Predictive Free Shipping progress tracker */}
-            <div className="space-y-2 bg-gradient-to-r from-orange-50/50 to-amber-50/50 dark:from-orange-950/10 dark:to-amber-950/10 p-4 rounded-2xl border border-orange-100/30 dark:border-orange-900/20">
+            <div className="space-y-2 bg-gray-50 dark:bg-gray-900/70 p-4 rounded-2xl border border-gray-200 dark:border-gray-800">
               <div className="flex items-center justify-between text-xs font-bold leading-none">
-                <span className="text-orange-850 dark:text-orange-300 flex items-center gap-1.5 uppercase font-black text-[10px] tracking-wider">
+                <span className="text-gray-800 dark:text-gray-200 flex items-center gap-1.5 uppercase font-black text-[10px] tracking-wider">
                   <Sparkles size={12} className="text-orange-600 dark:text-orange-400" />
-                  Free delivery test
+                  Free Delivery Status
                 </span>
                 <span className="text-orange-600 dark:text-orange-400 font-black text-[10px] uppercase">
                   Threshold: KES 15,000
@@ -1992,9 +2132,9 @@ export default function Checkout({ user }: CheckoutProps) {
               </div>
 
               {/* Progress gauge */}
-              <div className="w-full bg-orange-100/30 dark:bg-orange-950/40 rounded-full h-2 overflow-hidden mt-1.5">
+              <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2 overflow-hidden mt-1.5">
                 <div 
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 h-full rounded-full transition-all duration-500 ease-out"
+                  className="bg-orange-500 h-full rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${progressToFreeShipping}%` }}
                 />
               </div>
@@ -2268,14 +2408,14 @@ export default function Checkout({ user }: CheckoutProps) {
               </div>
 
               {/* Free delivery metrics validation display */}
-              <div className="space-y-2 bg-gradient-to-r from-orange-50/50 to-amber-50/50 dark:from-orange-950/10 dark:to-amber-950/10 p-4 rounded-2xl border border-orange-100/30 dark:border-orange-900/10">
+              <div className="space-y-2 bg-gray-50 dark:bg-gray-900/70 p-4 rounded-2xl border border-gray-200 dark:border-gray-800">
                 <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
-                  <span className="text-orange-800 dark:text-orange-300">Free delivery test</span>
+                  <span className="text-gray-800 dark:text-gray-200">Free Delivery Status</span>
                   <span className="text-orange-600 dark:text-orange-400">Threshold: KES 15,000</span>
                 </div>
-                <div className="w-full bg-orange-100/30 dark:bg-orange-950/40 rounded-full h-1.5 overflow-hidden">
+                <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-1.5 overflow-hidden">
                   <div 
-                    className="bg-gradient-to-r from-orange-500 to-amber-500 h-full rounded-full"
+                    className="bg-orange-500 h-full rounded-full"
                     style={{ width: `${progressToFreeShipping}%` }}
                   />
                 </div>

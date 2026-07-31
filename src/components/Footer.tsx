@@ -259,68 +259,75 @@ export default function Footer() {
           <div className="flex flex-wrap items-center gap-3">
             {(() => {
               const social = settings.socialLinks || {};
-              const hasCustomSocial = Object.values(social).some((url) => url && url.trim().length > 0);
+
+              const defaultFallbacks: Record<string, string> = {
+                instagram: "https://instagram.com/sokoplus",
+                facebook: "https://facebook.com/sokoplus",
+                twitter: "https://x.com/sokoplus",
+                linkedin: "https://linkedin.com/company/sokoplus",
+                tiktok: "https://tiktok.com/@sokoplus",
+                whatsapp: "https://wa.me/254740463021",
+                youtube: "https://youtube.com/@sokoplus",
+              };
 
               const allPlatforms = [
                 {
                   key: "instagram",
                   label: "Instagram",
-                  url: social.instagram || (hasCustomSocial ? "" : "#"),
+                  url: social.instagram?.trim() || defaultFallbacks.instagram,
                   icon: <Instagram size={18} />,
                   activeClass: "hover:bg-pink-50 dark:hover:bg-pink-950/20 hover:text-pink-600 dark:hover:text-pink-400",
                 },
                 {
                   key: "facebook",
                   label: "Facebook",
-                  url: social.facebook || (hasCustomSocial ? "" : "#"),
+                  url: social.facebook?.trim() || defaultFallbacks.facebook,
                   icon: <Facebook size={18} fill="currentColor" />,
                   activeClass: "hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:text-blue-600 dark:hover:text-blue-400",
                 },
                 {
                   key: "twitter",
                   label: "Twitter / X",
-                  url: social.twitter || (hasCustomSocial ? "" : "#"),
+                  url: social.twitter?.trim() || defaultFallbacks.twitter,
                   icon: <Twitter size={18} />,
                   activeClass: "hover:bg-sky-50 dark:hover:bg-sky-950/20 hover:text-sky-500 dark:hover:text-sky-400",
                 },
                 {
                   key: "linkedin",
                   label: "LinkedIn",
-                  url: social.linkedin || (hasCustomSocial ? "" : "#"),
+                  url: social.linkedin?.trim() || defaultFallbacks.linkedin,
                   icon: <Linkedin size={18} fill="currentColor" />,
                   activeClass: "hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:text-blue-700 dark:hover:text-blue-400",
                 },
                 {
                   key: "tiktok",
                   label: "TikTok",
-                  url: social.tiktok || "",
+                  url: social.tiktok?.trim() || defaultFallbacks.tiktok,
                   icon: <Music size={18} />,
                   activeClass: "hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-black dark:hover:text-white",
                 },
                 {
                   key: "whatsapp",
                   label: "WhatsApp",
-                  url: social.whatsapp || "",
+                  url: social.whatsapp?.trim() || defaultFallbacks.whatsapp,
                   icon: <MessageCircle size={18} />,
                   activeClass: "hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-600 dark:hover:text-emerald-400",
                 },
                 {
                   key: "youtube",
                   label: "YouTube",
-                  url: social.youtube || "",
+                  url: social.youtube?.trim() || defaultFallbacks.youtube,
                   icon: <Youtube size={18} />,
                   activeClass: "hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600 dark:hover:text-red-400",
                 },
               ];
 
-              const visiblePlatforms = allPlatforms.filter((p) => p.url && p.url.trim().length > 0);
-
-              return visiblePlatforms.map((p) => (
+              return allPlatforms.map((p) => (
                 <a
                   key={p.key}
-                  href={p.url === "#" ? "#" : p.url}
-                  target={p.url === "#" ? undefined : "_blank"}
-                  rel={p.url === "#" ? undefined : "noopener noreferrer"}
+                  href={p.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   title={`Follow us on ${p.label}`}
                   className={`bg-gray-50 dark:bg-gray-900 p-2.5 sm:p-3 rounded-xl text-gray-400 dark:text-gray-500 transition-all shadow-xs border border-gray-100 dark:border-gray-800 flex items-center justify-center ${p.activeClass}`}
                 >
