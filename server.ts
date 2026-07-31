@@ -1617,7 +1617,9 @@ app.post("/api/shorten-news", (req, res) => {
   newsShortLinks.set(code, { title, link, source });
 
   const host = req.get("host") || "sokoplus.co.ke";
-  const protocol = req.protocol || "https";
+  const forwardedProto = req.headers["x-forwarded-proto"] as string | undefined;
+  const rawProto = forwardedProto ? forwardedProto.split(",")[0].trim() : req.protocol;
+  const protocol = (rawProto && rawProto !== "http") || host.includes("localhost") ? rawProto : "https";
   const shortUrl = `${protocol}://${host}/s/${code}`;
 
   return res.json({ success: true, code, shortUrl });
@@ -1750,13 +1752,27 @@ async function scrapeOpenGraphImage(articleUrl: string): Promise<string | null> 
 function parseGoogleNewsRSS(xml: string) {
   const items: any[] = [];
   const itemMatches = xml.match(/<item>[\s\S]*?<\/item>/gi) || [];
+  const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
 
-  for (const itemXml of itemMatches.slice(0, 15)) {
+  for (const itemXml of itemMatches) {
+    if (items.length >= 15) break;
+
     const titleMatch = itemXml.match(/<title>([\s\S]*?)<\/title>/i);
     const linkMatch = itemXml.match(/<link>([\s\S]*?)<\/link>/i);
     const pubDateMatch = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
     const sourceMatch = itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/i);
     const descMatch = itemXml.match(/<description>([\s\S]*?)<\/description>/i);
+
+    let pubDateStr = pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString();
+    const parsedDate = new Date(pubDateStr);
+    if (!isNaN(parsedDate.getTime())) {
+      const ageMs = now - parsedDate.getTime();
+      if (ageMs > THREE_MONTHS_MS) {
+        // Skip news items older than 3 months
+        continue;
+      }
+    }
 
     let rawTitle = titleMatch ? titleMatch[1] : "";
     rawTitle = unescapeXml(rawTitle.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1').trim());
@@ -1773,8 +1789,6 @@ function parseGoogleNewsRSS(xml: string) {
     }
 
     let link = linkMatch ? linkMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1').trim() : "#";
-    let pubDateStr = pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString();
-
     let rawDesc = descMatch ? descMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1') : "";
     let decodedDesc = unescapeXml(rawDesc);
 

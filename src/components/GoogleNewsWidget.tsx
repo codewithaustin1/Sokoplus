@@ -25,11 +25,11 @@ interface GoogleNewsWidgetProps {
 }
 
 const PRESET_TOPICS = [
-  { id: "ecommerce", label: "🛒 Kenya E-Commerce", query: "Kenya Retail E-commerce Market" },
-  { id: "business", label: "💼 Business & Markets", query: "Kenya Business Economy Commerce" },
-  { id: "tech", label: "💡 Tech & Fintech", query: "Kenya Tech Innovation Mobile Money" },
-  { id: "artisans", label: "🎨 Crafts & Exports", query: "Kenya Artisan Crafts Export Trade" },
-  { id: "global", label: "🌍 Global Trade", query: "Global Supply Chain Retail Trends" },
+  { id: "ecommerce", label: "Kenya E-Commerce", query: "Kenya Retail E-commerce Market" },
+  { id: "business", label: "Business & Markets", query: "Kenya Business Economy Commerce" },
+  { id: "tech", label: "Tech & Fintech", query: "Kenya Tech Innovation Mobile Money" },
+  { id: "artisans", label: "Crafts & Exports", query: "Kenya Artisan Crafts Export Trade" },
+  { id: "global", label: "Global Trade", query: "Global Supply Chain Retail Trends" },
 ];
 
 export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commerce Market", className = "", compact = false }: GoogleNewsWidgetProps) {
@@ -83,20 +83,11 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
     return `${mins} MIN READ`;
   };
 
-  // Helper to format date for the blog card design (e.g. JUN 5, 2026 or relative time)
+  // Helper to format date for the blog card design (e.g. MAY 29, 2026)
   const formatBlogCardDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return "MAY 19, 2026";
-      const diffMs = new Date().getTime() - date.getTime();
-      const diffHours = Math.floor(diffMs / 3600000);
-      if (diffHours < 24) {
-        return `${Math.max(1, diffHours)}H AGO`;
-      }
-      const diffDays = Math.floor(diffHours / 24);
-      if (diffDays < 14) {
-        return `${diffDays}D AGO`;
-      }
       return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase();
     } catch {
       return "MAY 19, 2026";
@@ -202,7 +193,16 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
       });
 
       if (response.data && response.data.items && response.data.items.length > 0) {
-        setNewsItems(response.data.items);
+        const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const freshItems = response.data.items.filter((item: GoogleNewsItem) => {
+          if (!item.pubDate) return true;
+          const pubTime = new Date(item.pubDate).getTime();
+          if (isNaN(pubTime)) return true;
+          return (now - pubTime) <= THREE_MONTHS_MS;
+        });
+
+        setNewsItems(freshItems.length > 0 ? freshItems : response.data.items);
         setIsFallback(!!response.data.fallback);
         setLastUpdated(new Date());
       } else {
