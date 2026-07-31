@@ -179,7 +179,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
         setLoadingComments(false);
       },
       (error) => {
-        console.error("Error listening to comments:", error);
+        console.warn("Notice listening to comments (using local/fallback state):", error);
         setLoadingComments(false);
       }
     );
@@ -348,7 +348,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
           setPosts(DEFAULT_FALLBACK_POSTS);
         }
       } catch (error) {
-        console.error("Error fetching blogs (using premium fallback/static cache):", error);
+        console.warn("Notice fetching blogs (using premium fallback/static cache):", error);
         setPosts(DEFAULT_FALLBACK_POSTS);
       } finally {
         setLoading(false);

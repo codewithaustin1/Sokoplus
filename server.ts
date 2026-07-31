@@ -1600,6 +1600,41 @@ ${JSON.stringify(productsData)}
 
 // Live Google News RSS Endpoint Proxy
 const newsCache = new Map<string, { timestamp: number; data: any[] }>();
+const newsShortLinks = new Map<string, { title: string; link?: string; source?: string }>();
+
+app.post("/api/shorten-news", (req, res) => {
+  const { title, link, source } = req.body || {};
+  if (!title) {
+    return res.status(400).json({ error: "Title is required" });
+  }
+  let hash = 0;
+  const str = String(title) + String(source || "");
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const code = Math.abs(hash).toString(36).substring(0, 7);
+  newsShortLinks.set(code, { title, link, source });
+
+  const host = req.get("host") || "sokoplus.co.ke";
+  const protocol = req.protocol || "https";
+  const shortUrl = `${protocol}://${host}/s/${code}`;
+
+  return res.json({ success: true, code, shortUrl });
+});
+
+app.get("/s/:code", (req, res) => {
+  const code = req.params.code;
+  const data = newsShortLinks.get(code);
+
+  const topicQuery = req.query.t as string;
+  const targetTopic = data?.title || topicQuery || "";
+
+  if (targetTopic) {
+    return res.redirect(`/?news_topic=${encodeURIComponent(targetTopic)}#google-news-live-widget`);
+  }
+  return res.redirect("/#google-news-live-widget");
+});
 
 function unescapeXml(str: string): string {
   if (!str) return "";
@@ -1616,6 +1651,100 @@ function unescapeXml(str: string): string {
     .replace(/&#8220;/g, '"')
     .replace(/&#8221;/g, '"')
     .replace(/&#8211;/g, "-");
+}
+
+function isGenericOrGoogleLogo(url: string | null | undefined): boolean {
+  if (!url) return true;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes("googleusercontent.com") ||
+    lower.includes("google.com") ||
+    lower.includes("gstatic.com") ||
+    lower.includes("google_news") ||
+    lower.includes("news_logo") ||
+    lower.includes("clear.gif") ||
+    lower.includes("favicon") ||
+    lower.endsWith(".1x1") ||
+    lower.includes("site-logo") ||
+    lower.includes("default-og") ||
+    lower.includes("placeholder")
+  );
+}
+
+async function scrapeOpenGraphImage(articleUrl: string): Promise<string | null> {
+  if (!articleUrl || articleUrl === "#" || articleUrl.startsWith("javascript:")) return null;
+  try {
+    let targetUrl = articleUrl;
+
+    const initialResponse = await axios.get(targetUrl, {
+      timeout: 3500,
+      maxRedirects: 5,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+      }
+    });
+
+    let html = initialResponse.data;
+    if (typeof html !== "string") return null;
+
+    // If fetching Google News link, resolve the actual publisher destination URL from Google's redirect page
+    if (targetUrl.includes("news.google.com")) {
+      const publisherUrlMatch = 
+        html.match(/data-n-au=["'](https?:\/\/[^"'\s]+)["']/i) ||
+        html.match(/data-url=["'](https?:\/\/[^"'\s]+)["']/i) ||
+        html.match(/c-wiz[^>]+data-url=["'](https?:\/\/[^"'\s]+)["']/i) ||
+        html.match(/<a[^>]+href=["'](https?:\/\/(?!news\.google\.com|www\.google\.com|google\.com)[^"'\s]+)["']/i) ||
+        html.match(/window\.location\.(?:replace|href)\s*=\s*["'](https?:\/\/[^"'\s]+)["']/i) ||
+        html.match(/<meta[^>]+http-equiv=["']refresh["'][^>]+url=(https?:\/\/[^"'\s]+)["']/i);
+
+      if (publisherUrlMatch && publisherUrlMatch[1]) {
+        targetUrl = publisherUrlMatch[1];
+        try {
+          const pubResponse = await axios.get(targetUrl, {
+            timeout: 3500,
+            maxRedirects: 5,
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+            }
+          });
+          if (typeof pubResponse.data === "string") {
+            html = pubResponse.data;
+          }
+        } catch {}
+      }
+    }
+
+    const ogMatches = [
+      /<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url)?["']/i,
+      /<meta[^>]+name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image(?::src)?["']/i,
+      /<link[^>]+rel=["'](?:image_src|apple-touch-icon)["'][^>]+href=["']([^"']+)["']/i
+    ];
+
+    for (const regex of ogMatches) {
+      const match = html.match(regex);
+      if (match && match[1]) {
+        let foundUrl = unescapeXml(match[1].trim());
+        if (foundUrl.startsWith("//")) {
+          foundUrl = "https:" + foundUrl;
+        } else if (foundUrl.startsWith("/") && targetUrl) {
+          try {
+            const base = new URL(targetUrl);
+            foundUrl = `${base.protocol}//${base.host}${foundUrl}`;
+          } catch {}
+        }
+        if (foundUrl.startsWith("http") && !isGenericOrGoogleLogo(foundUrl)) {
+          return foundUrl;
+        }
+      }
+    }
+  } catch (e) {
+    // Silently ignore individual article scrape timeouts or restrictions
+  }
+  return null;
 }
 
 function parseGoogleNewsRSS(xml: string) {
@@ -1646,12 +1775,82 @@ function parseGoogleNewsRSS(xml: string) {
     let link = linkMatch ? linkMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1').trim() : "#";
     let pubDateStr = pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString();
 
-    let snippet = descMatch ? descMatch[1] : "";
-    snippet = snippet.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1');
-    snippet = snippet.replace(/<[^>]+>/g, ' '); // Strip HTML tags
-    snippet = unescapeXml(snippet).trim();
+    let rawDesc = descMatch ? descMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1') : "";
+    let decodedDesc = unescapeXml(rawDesc);
+
+    // 1. Enhanced image extraction from RSS item XML and description
+    let imageUrl = "";
+
+    // Check media:content, media:thumbnail, enclosure tags
+    const mediaMatches = itemXml.match(/<(?:media:content|media:thumbnail|enclosure)[^>]+url=["']([^"']+)["']/gi);
+    if (mediaMatches) {
+      for (const m of mediaMatches) {
+        const u = m.match(/url=["']([^"']+)["']/i);
+        if (u && u[1] && !isGenericOrGoogleLogo(u[1])) {
+          imageUrl = u[1];
+          break;
+        }
+      }
+    }
+
+    // Check img tags in decoded description
+    if (!imageUrl) {
+      const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+      let imgMatch;
+      while ((imgMatch = imgRegex.exec(decodedDesc)) !== null) {
+        let srcCandidate = imgMatch[1];
+        if (srcCandidate.startsWith("//")) {
+          srcCandidate = "https:" + srcCandidate;
+        }
+        if (!isGenericOrGoogleLogo(srcCandidate)) {
+          imageUrl = srcCandidate;
+          break;
+        }
+      }
+    }
+
+    // Check direct image URL pattern in description
+    if (!imageUrl) {
+      const directUrlMatch = decodedDesc.match(/(https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^\s"'<>]*)?)/i);
+      if (directUrlMatch && directUrlMatch[1] && !isGenericOrGoogleLogo(directUrlMatch[1])) {
+        imageUrl = directUrlMatch[1];
+      }
+    }
+
+    if (imageUrl && imageUrl.startsWith("//")) {
+      imageUrl = "https:" + imageUrl;
+    }
+
+    if (isGenericOrGoogleLogo(imageUrl)) {
+      imageUrl = "";
+    }
+
+    // 2. Clean up snippet text by unescaping XML entities BEFORE stripping HTML tags
+    let snippet = decodedDesc;
+    snippet = snippet.replace(/<[^>]+>/g, ' '); // Strip HTML tags completely
+    snippet = snippet.replace(/https?:\/\/\S+/g, ''); // Remove leftover raw URL strings
+    snippet = snippet.replace(/\s+/g, ' ').trim(); // Normalize spaces
+
     if (snippet.length > 200) {
       snippet = snippet.substring(0, 197) + "...";
+    }
+
+    // 3. Select contextual high-resolution fallback image if no image found in article
+    if (!imageUrl) {
+      const titleLower = (cleanTitle + " " + source + " " + snippet).toLowerCase();
+      if (titleLower.includes("dhl") || titleLower.includes("shipping") || titleLower.includes("logistics") || titleLower.includes("return")) {
+        imageUrl = "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1200";
+      } else if (titleLower.includes("leather") || titleLower.includes("artisan") || titleLower.includes("craft") || titleLower.includes("stone")) {
+        imageUrl = "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=1200";
+      } else if (titleLower.includes("weaving") || titleLower.includes("kiondo") || titleLower.includes("basket")) {
+        imageUrl = "https://images.unsplash.com/photo-1533867617858-e7b97e060509?auto=format&fit=crop&q=80&w=1200";
+      } else if (titleLower.includes("money") || titleLower.includes("m-pesa") || titleLower.includes("fintech") || titleLower.includes("payment")) {
+        imageUrl = "https://images.unsplash.com/photo-1556742049-0a67e766a503?auto=format&fit=crop&q=80&w=1200";
+      } else if (titleLower.includes("coffee") || titleLower.includes("agriculture")) {
+        imageUrl = "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=1200";
+      } else {
+        imageUrl = "https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&q=80&w=1200";
+      }
     }
 
     if (cleanTitle) {
@@ -1661,7 +1860,8 @@ function parseGoogleNewsRSS(xml: string) {
         source: source || "Google News",
         link,
         pubDate: pubDateStr,
-        snippet: snippet || cleanTitle
+        snippet: snippet || cleanTitle,
+        image: imageUrl
       });
     }
   }
@@ -1697,8 +1897,21 @@ app.get("/api/google-news", async (req, res) => {
 
     const items = parseGoogleNewsRSS(response.data);
     if (items.length > 0) {
-      newsCache.set(cacheKey, { timestamp: Date.now(), data: items });
-      return res.json({ success: true, cached: false, query: queryParam, items });
+      // Scrape real OpenGraph lead images for articles using fallback image
+      const enhancedItems = await Promise.all(
+        items.map(async (item) => {
+          if (!item.image || item.image.includes("unsplash.com")) {
+            const ogImg = await scrapeOpenGraphImage(item.link);
+            if (ogImg) {
+              return { ...item, image: ogImg };
+            }
+          }
+          return item;
+        })
+      );
+
+      newsCache.set(cacheKey, { timestamp: Date.now(), data: enhancedItems });
+      return res.json({ success: true, cached: false, query: queryParam, items: enhancedItems });
     }
     throw new Error("No items parsed from RSS feed");
   } catch (error: any) {

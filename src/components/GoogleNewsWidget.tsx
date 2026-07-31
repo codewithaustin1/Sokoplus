@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { Newspaper, ExternalLink, RefreshCw, Search, Clock, Globe, ArrowUpRight, ShieldCheck, Share2, Sparkles, BookOpen, TrendingUp, Flame, ChevronDown } from "lucide-react";
+import { 
+  Newspaper, ExternalLink, RefreshCw, Search, Clock, Calendar, 
+  ArrowUpRight, ShieldCheck, Share2, TrendingUp, Bookmark 
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -11,6 +14,8 @@ export interface GoogleNewsItem {
   link: string;
   pubDate: string;
   snippet: string;
+  image?: string;
+  tags?: string[];
 }
 
 interface GoogleNewsWidgetProps {
@@ -38,13 +43,127 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isFallback, setIsFallback] = useState<boolean>(false);
   const [highlightedTopic, setHighlightedTopic] = useState<string | null>(null);
-  const [expandedSummaryId, setExpandedSummaryId] = useState<string | null>(null);
+  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
 
-  // Helper to compute read time estimation chip
+  // Load news bookmarks from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("google_news_bookmarks");
+      if (saved) {
+        setBookmarkedIds(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error("Failed to load news bookmarks:", e);
+    }
+  }, []);
+
+  const toggleBookmark = (e: React.MouseEvent, itemId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    let updated: string[];
+    if (bookmarkedIds.includes(itemId)) {
+      updated = bookmarkedIds.filter(id => id !== itemId);
+      toast.success("Article bookmark removed!");
+    } else {
+      updated = [...bookmarkedIds, itemId];
+      toast.success("News story bookmarked successfully!");
+    }
+    setBookmarkedIds(updated);
+    try {
+      localStorage.setItem("google_news_bookmarks", JSON.stringify(updated));
+    } catch (err) {
+      console.error("Failed to save news bookmarks:", err);
+    }
+  };
+
+  // Helper to compute read time estimation
   const getReadTime = (title: string, snippet?: string) => {
     const words = `${title} ${snippet || ""}`.trim().split(/\s+/).length;
     const mins = Math.max(1, Math.ceil(words / 35));
-    return `${mins} min read`;
+    return `${mins} MIN READ`;
+  };
+
+  // Helper to format date for the blog card design (e.g. JUN 5, 2026 or relative time)
+  const formatBlogCardDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "MAY 19, 2026";
+      const diffMs = new Date().getTime() - date.getTime();
+      const diffHours = Math.floor(diffMs / 3600000);
+      if (diffHours < 24) {
+        return `${Math.max(1, diffHours)}H AGO`;
+      }
+      const diffDays = Math.floor(diffHours / 24);
+      if (diffDays < 14) {
+        return `${diffDays}D AGO`;
+      }
+      return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase();
+    } catch {
+      return "MAY 19, 2026";
+    }
+  };
+
+  const isGenericOrGoogleLogo = (url?: string) => {
+    if (!url) return true;
+    const lower = url.toLowerCase();
+    return (
+      lower.includes("googleusercontent.com") ||
+      lower.includes("google.com") ||
+      lower.includes("gstatic.com") ||
+      lower.includes("google_news") ||
+      lower.includes("news_logo") ||
+      lower.includes("clear.gif") ||
+      lower.includes("favicon") ||
+      lower.endsWith(".1x1") ||
+      lower.includes("site-logo") ||
+      lower.includes("default-og") ||
+      lower.includes("placeholder")
+    );
+  };
+
+  // Helper to resolve high-res image for news item (extracted article image or curated topic match)
+  const getNewsImage = (item: GoogleNewsItem) => {
+    if (item.image && !isGenericOrGoogleLogo(item.image)) {
+      let img = item.image.trim();
+      if (img.startsWith("//")) img = "https:" + img;
+      if (img.startsWith("http")) {
+        return img;
+      }
+    }
+    const combined = (item.title + " " + item.source + " " + (item.snippet || "")).toLowerCase();
+    if (combined.includes("dhl") || combined.includes("shipping") || combined.includes("logistics") || combined.includes("return")) {
+      return "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1200";
+    } else if (combined.includes("leather") || combined.includes("artisan") || combined.includes("craft") || combined.includes("stone")) {
+      return "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=1200";
+    } else if (combined.includes("weaving") || combined.includes("kiondo") || combined.includes("basket")) {
+      return "https://images.unsplash.com/photo-1533867617858-e7b97e060509?auto=format&fit=crop&q=80&w=1200";
+    } else if (combined.includes("money") || combined.includes("m-pesa") || combined.includes("fintech") || combined.includes("payment")) {
+      return "https://images.unsplash.com/photo-1556742049-0a67e766a503?auto=format&fit=crop&q=80&w=1200";
+    } else if (combined.includes("coffee") || combined.includes("agriculture")) {
+      return "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=1200";
+    }
+    return "https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&q=80&w=1200";
+  };
+
+  // Helper to extract clean category tags
+  const getNewsTags = (item: GoogleNewsItem) => {
+    if (item.tags && item.tags.length > 0) return item.tags;
+    const tags: string[] = [];
+    const combined = (item.title + " " + item.source + " " + (item.snippet || "")).toLowerCase();
+
+    if (combined.includes("dhl") || combined.includes("logistics") || combined.includes("shipping") || combined.includes("return")) {
+      tags.push("LOGISTICS", "COMMERCE", "EXPORTS");
+    } else if (combined.includes("craft") || combined.includes("artisan") || combined.includes("leather") || combined.includes("stone") || combined.includes("kiondo")) {
+      tags.push("ARTISANS", "SUSTAINABILITY", "CRAFTS");
+    } else if (combined.includes("mobile money") || combined.includes("m-pesa") || combined.includes("fintech") || combined.includes("payment")) {
+      tags.push("FINTECH", "MOBILE MONEY", "INNOVATION");
+    } else if (combined.includes("inflation") || combined.includes("bank") || combined.includes("economy") || combined.includes("trade")) {
+      tags.push("MARKETS", "ECONOMY", "TRADE");
+    } else {
+      tags.push("COMMERCE", "KENYA", "RETAIL");
+    }
+
+    return tags.slice(0, 3);
   };
 
   // Check URL query parameters for deep-linked shared news item on mount
@@ -58,7 +177,6 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
         setCurrentQuery(decodedTopic);
         setActivePreset("custom");
 
-        // Scroll smoothly to the news widget after rendering
         setTimeout(() => {
           const widgetElem = document.getElementById("google-news-live-widget");
           if (widgetElem) {
@@ -99,7 +217,8 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
           source: "Business Daily Africa",
           link: "https://news.google.com/search?q=Kenya+E-Commerce+Mobile+Money",
           pubDate: new Date(Date.now() - 3600000 * 2).toUTCString(),
-          snippet: "Kenyan digital marketplaces and online retail platforms see record transaction volumes following enhanced M-Pesa API speed and seamless seller payouts."
+          snippet: "Kenyan digital marketplaces and online retail platforms see record transaction volumes following enhanced M-Pesa API speed and seamless seller payouts.",
+          image: "https://images.unsplash.com/photo-1556742049-0a67e766a503?auto=format&fit=crop&q=80&w=1200"
         },
         {
           id: "news_fallback_2",
@@ -107,7 +226,8 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
           source: "Capital FM Kenya",
           link: "https://news.google.com/search?q=Kenya+Artisans+Export+Sokoplus",
           pubDate: new Date(Date.now() - 3600000 * 5).toUTCString(),
-          snippet: "Local craftspeople in Tabaka and Nairobi leverage direct digital marketplace storefronts to reach international shoppers looking for verified authentic goods."
+          snippet: "Local craftspeople in Tabaka and Nairobi leverage direct digital marketplace storefronts to reach international shoppers looking for verified authentic goods.",
+          image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=1200"
         },
         {
           id: "news_fallback_3",
@@ -115,7 +235,8 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
           source: "The Standard Kenya",
           link: "https://news.google.com/search?q=Nairobi+Supply+Chain+Retail",
           pubDate: new Date(Date.now() - 3600000 * 9).toUTCString(),
-          snippet: "Direct farmer and manufacturer-to-consumer digital channels cut middleman markups, making everyday electronics, fashion, and home items more affordable."
+          snippet: "Direct farmer and manufacturer-to-consumer digital channels cut middleman markups, making everyday electronics, fashion, and home items more affordable.",
+          image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1200"
         },
         {
           id: "news_fallback_4",
@@ -123,7 +244,8 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
           source: "Kenya Broadcasting Corporation",
           link: "https://news.google.com/search?q=CBK+Digital+Payments+Kenya",
           pubDate: new Date(Date.now() - 3600000 * 18).toUTCString(),
-          snippet: "Real-time payment verification and escrow protection models build shopper trust in homegrown Kenyan e-commerce platforms."
+          snippet: "Real-time payment verification and escrow protection models build shopper trust in homegrown Kenyan e-commerce platforms.",
+          image: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&q=80&w=1200"
         }
       ]);
       setIsFallback(true);
@@ -138,7 +260,6 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
   useEffect(() => {
     fetchNews(currentQuery);
 
-    // Auto-refresh Google News feed every 25 minutes (1,500,000 ms)
     const REFRESH_INTERVAL_MS = 25 * 60 * 1000;
     const intervalId = setInterval(() => {
       fetchNews(currentQuery, true);
@@ -162,37 +283,35 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
     setHighlightedTopic(null);
   };
 
-  const formatRelativeTime = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return "Recently";
-      const diffMinutes = Math.floor((new Date().getTime() - date.getTime()) / 60000);
-      if (diffMinutes < 1) return "Just now";
-      if (diffMinutes < 60) return `${diffMinutes}m ago`;
-      const diffHours = Math.floor(diffMinutes / 60);
-      if (diffHours < 24) return `${diffHours}h ago`;
-      const diffDays = Math.floor(diffHours / 24);
-      return `${diffDays}d ago`;
-    } catch {
-      return "Recently";
-    }
-  };
-
-  // Direct Native Share with Sokoplus Referral Link & Deep-Link Anchor
+  // Direct Native Share with Shortened Sokoplus URL & Deep-Link Anchor
   const handleNativeShare = async (item: GoogleNewsItem, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://sokoplus.co.ke";
-    const params = new URLSearchParams({
-      utm_source: "sokoplus_news_share",
-      utm_medium: "social",
-      news_topic: item.title,
-      news_id: item.id || item.title,
-      ref: "sokoplus"
-    });
-    const shareUrl = `${baseUrl}/?${params.toString()}#google-news-live-widget`;
-    const shareText = `📰 "${item.title}" - via ${item.source}\n\nRead this live Kenya retail news card on Sokoplus:\n${shareUrl}`;
+    let shareUrl = "";
+
+    try {
+      const response = await axios.post("/api/shorten-news", {
+        title: item.title,
+        link: item.link,
+        source: item.source
+      });
+      if (response.data && response.data.shortUrl) {
+        shareUrl = response.data.shortUrl;
+      }
+    } catch {
+      // Fallback short link client-side hash
+      let hash = 0;
+      for (let i = 0; i < item.title.length; i++) {
+        hash = (hash << 5) - hash + item.title.charCodeAt(i);
+        hash |= 0;
+      }
+      const code = Math.abs(hash).toString(36).substring(0, 6);
+      shareUrl = `${baseUrl}/s/${code}?t=${encodeURIComponent(item.title.substring(0, 35))}`;
+    }
+
+    const shareText = `📰 "${item.title}" - via ${item.source}\n\nRead this live Kenya retail news story on Sokoplus:\n${shareUrl}`;
 
     if (navigator.share) {
       try {
@@ -207,7 +326,7 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
     } else {
       try {
         await navigator.clipboard.writeText(shareText);
-        toast.success("Sokoplus news card link copied to clipboard!", { icon: "🔗" });
+        toast.success("Short story link copied to clipboard!", { icon: "🔗" });
       } catch (err) {
         toast.error("Unable to copy share link");
       }
@@ -249,25 +368,25 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
   };
 
   return (
-    <div id="google-news-live-widget" className={`bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-3xl p-5 sm:p-7 shadow-xl shadow-gray-200/40 dark:shadow-none transition-all ${className}`}>
+    <div id="google-news-live-widget" className={`bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-3xl p-5 sm:p-8 shadow-xl shadow-gray-200/40 dark:shadow-none transition-all ${className}`}>
       {/* Widget Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100 dark:border-gray-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
-            <Newspaper size={22} className="stroke-[2.2]" />
+          <div className="p-3 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+            <Newspaper size={24} className="stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+              <h3 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
                 Live Google News Feed
               </h3>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                 LIVE
               </span>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-              Real-time headlines, Kenyan retail updates &amp; market intelligence
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium mt-0.5">
+              Real-time headlines, Kenyan commerce updates &amp; market intelligence
             </p>
           </div>
         </div>
@@ -280,7 +399,7 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
             onClick={() => fetchNews(currentQuery, true)}
             disabled={loading || refreshing}
             title="Refresh Live News Feed"
-            className="p-2 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer disabled:opacity-50"
+            className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-all cursor-pointer disabled:opacity-50"
           >
             <RefreshCw size={15} className={`${refreshing ? "animate-spin text-orange-500" : ""}`} />
           </button>
@@ -320,7 +439,7 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
       )}
 
       {/* Preset Topics & Custom Search */}
-      <div className="pt-4 pb-5 space-y-3">
+      <div className="pt-5 pb-6 space-y-3">
         <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none">
           {PRESET_TOPICS.map((preset) => {
             const isActive = activePreset === preset.id;
@@ -328,10 +447,10 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
               <button
                 key={preset.id}
                 onClick={() => handlePresetClick(preset)}
-                className={`whitespace-nowrap px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                className={`whitespace-nowrap px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
                   isActive
-                    ? "bg-orange-600 text-white shadow-md shadow-orange-600/20"
-                    : "bg-gray-100 dark:bg-gray-800/80 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 shadow-md"
+                    : "bg-gray-100 dark:bg-gray-800/80 text-gray-600 dark:text-gray-300 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-gray-700"
                 }`}
               >
                 {preset.label}
@@ -342,34 +461,38 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
 
         {/* Custom Search Bar */}
         <form onSubmit={handleCustomSearchSubmit} className="relative w-full">
-          <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400">
-            <Search size={15} />
+          <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
+            <Search size={16} />
           </span>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search custom news topic (e.g., M-Pesa, Safaricom, Nairobi inflation)..."
-            className="w-full pl-9 pr-24 py-2 border border-gray-200/90 dark:border-gray-800 rounded-2xl bg-gray-50/80 dark:bg-gray-950/60 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+            className="w-full pl-11 pr-24 py-3 border border-gray-200/90 dark:border-gray-800 rounded-2xl bg-gray-50/80 dark:bg-gray-950/60 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all font-medium"
           />
           <button
             type="submit"
             disabled={!searchQuery.trim()}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1 bg-gray-900 dark:bg-gray-800 hover:bg-orange-600 dark:hover:bg-orange-600 text-white text-[11px] font-bold rounded-xl transition-all disabled:opacity-40 cursor-pointer"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-gray-900 dark:bg-gray-800 hover:bg-orange-600 dark:hover:bg-orange-600 text-white text-[11px] font-black uppercase tracking-wider rounded-xl transition-all disabled:opacity-40 cursor-pointer"
           >
             Search
           </button>
         </form>
       </div>
 
-      {/* Content Area */}
+      {/* Content Area: Grid of Blog-Styled Cards */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-4">
           {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="p-4 rounded-2xl border border-gray-100 dark:border-gray-850 bg-gray-50/60 dark:bg-gray-950/40 animate-pulse space-y-3">
-              <div className="h-3 w-1/3 bg-gray-200 dark:bg-gray-800 rounded"></div>
-              <div className="h-4 w-5/6 bg-gray-200 dark:bg-gray-800 rounded"></div>
-              <div className="h-3 w-full bg-gray-200 dark:bg-gray-800 rounded"></div>
+            <div key={n} className="rounded-3xl border border-gray-100 dark:border-gray-850 bg-gray-50/60 dark:bg-gray-950/40 animate-pulse overflow-hidden flex flex-col h-[400px]">
+              <div className="w-full h-48 bg-gray-200 dark:bg-gray-800"></div>
+              <div className="p-6 space-y-4 flex-1">
+                <div className="h-3 w-1/3 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                <div className="h-6 w-5/6 bg-gray-200 dark:bg-gray-800 rounded"></div>
+                <div className="h-4 w-full bg-gray-200 dark:bg-gray-800 rounded"></div>
+                <div className="h-4 w-2/3 bg-gray-200 dark:bg-gray-800 rounded"></div>
+              </div>
             </div>
           ))}
         </div>
@@ -388,168 +511,127 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
           No live news found matching "{currentQuery}". Try another topic above.
         </div>
       ) : (
-        <div className={`grid grid-cols-1 ${compact ? "gap-3" : "md:grid-cols-2 gap-4"}`}>
+        <div className={`grid grid-cols-1 ${compact ? "gap-6" : "lg:grid-cols-2 gap-8"}`}>
           <AnimatePresence mode="popLayout">
-            {newsItems.slice(0, compact ? 4 : 7).map((item, idx) => {
+            {newsItems.slice(0, compact ? 4 : 8).map((item, idx) => {
+              const itemUniqueId = item.id || String(idx);
               const isHero = idx === 0 && !compact && newsItems.length >= 2;
               const isHighlighted = highlightedTopic && (
                 item.title.toLowerCase().includes(highlightedTopic.toLowerCase()) ||
                 highlightedTopic.toLowerCase().includes(item.title.toLowerCase())
               );
               const faviconUrl = getPublisherFavicon(item.source, item.link);
+              const isBookmarked = bookmarkedIds.includes(itemUniqueId);
+              const newsTags = getNewsTags(item);
+              const cardImage = getNewsImage(item);
 
               return (
-                <motion.a
-                  key={item.id || idx}
-                  href={item.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <motion.article
+                  key={itemUniqueId}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  whileHover={{ y: -4, scale: 1.006 }}
+                  whileHover={{ y: -6 }}
                   transition={{ type: "spring", stiffness: 280, damping: 22, delay: idx * 0.04 }}
-                  className={`group transition-all duration-200 flex flex-col justify-between relative ${
-                    isHero
-                      ? "md:col-span-2 p-5 sm:p-6 rounded-3xl border border-orange-500/30 dark:border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-white dark:from-orange-950/40 dark:via-gray-900 dark:to-gray-950 shadow-md hover:shadow-2xl hover:shadow-orange-500/15 dark:hover:shadow-orange-500/20 hover:border-orange-500/60"
-                      : isHighlighted
-                      ? "p-4 sm:p-5 rounded-2xl border-2 border-orange-500 bg-orange-50/60 dark:bg-orange-950/30 shadow-xl shadow-orange-500/10"
-                      : "p-4 sm:p-5 rounded-2xl border border-gray-200/80 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/40 hover:bg-white dark:hover:bg-gray-900 hover:border-orange-500/50 dark:hover:border-orange-500/50 hover:shadow-xl hover:shadow-orange-500/10"
+                  className={`news-card bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-full relative group ${
+                    isHighlighted
+                      ? "border-2 border-orange-500 bg-orange-50/20 dark:bg-orange-950/10"
+                      : "border-gray-100 dark:border-gray-800"
                   }`}
                 >
-                  <div className="space-y-2.5">
-                    {/* Top Status Pill / Badges */}
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {isHero && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-600 text-white shadow-xs">
-                            <Sparkles size={11} className="animate-pulse" />
-                            <span>Top Story Spotlight</span>
-                          </span>
-                        )}
+                  {/* Top Image Canvas Container */}
+                  <div className="relative w-full aspect-[16/9] sm:aspect-[16/10] bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
+                    <img
+                      src={cardImage}
+                      alt={item.title}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = "https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&q=80&w=1200";
+                      }}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
 
-                        {isHighlighted && !isHero && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-600 text-white shadow-sm">
-                            <Sparkles size={11} className="animate-spin" />
-                            <span>Shared Story</span>
-                          </span>
-                        )}
+                    {/* Top-Right Action Floating Circular Buttons */}
+                    <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+                      <button
+                        type="button"
+                        onClick={(e) => toggleBookmark(e, itemUniqueId)}
+                        className={`p-2.5 rounded-full shadow-md transition-all border border-gray-100/50 dark:border-gray-700/50 cursor-pointer flex items-center justify-center ${
+                          isBookmarked
+                            ? "bg-orange-600 hover:bg-orange-700 text-white border-orange-600"
+                            : "bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600 dark:bg-gray-800/95 dark:hover:bg-gray-800 dark:text-gray-300 dark:hover:text-orange-400"
+                        }`}
+                        title={isBookmarked ? "Remove Bookmark" : "Bookmark Story"}
+                      >
+                        <Bookmark size={13} fill={isBookmarked ? "currentColor" : "none"} />
+                      </button>
 
-                        {/* Publisher Brand Badge with Micro-logo Favicon */}
-                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800/90 border border-gray-200/80 dark:border-gray-700/80 px-2.5 py-1 rounded-lg truncate max-w-[210px] shadow-2xs">
-                          {faviconUrl ? (
-                            <img 
-                              src={faviconUrl} 
-                              alt={item.source} 
-                              className="w-4 h-4 rounded-sm object-contain shrink-0" 
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = 'none';
-                              }} 
-                            />
-                          ) : (
-                            <Globe size={12} className="shrink-0 text-orange-600 dark:text-orange-400" />
-                          )}
-                          <span className="truncate">{item.source}</span>
-                        </span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleNativeShare(item, e)}
+                        className="p-2.5 bg-white/95 hover:bg-white text-gray-700 hover:text-orange-600 dark:bg-gray-800/95 dark:hover:bg-gray-800 dark:text-gray-300 dark:hover:text-orange-400 rounded-full shadow-md transition-all border border-gray-100/50 dark:border-gray-700/50 cursor-pointer flex items-center justify-center"
+                        title="Share Story"
+                      >
+                        <Share2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card Content Area matching Blog Post Card Design */}
+                  <div className="p-6 md:p-8 flex flex-col flex-grow justify-between space-y-4">
+                    <div className="space-y-3">
+                      {/* Meta Information Row */}
+                      <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                        <span className="flex items-center"><Calendar size={13} className="mr-1.5 text-gray-400" /> {formatBlogCardDate(item.pubDate)}</span>
+                        <span className="flex items-center"><Clock size={13} className="mr-1.5 text-gray-400" /> {getReadTime(item.title, item.snippet)}</span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {/* Estimated Read Time Micro-Chip */}
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20 shrink-0">
-                          <BookOpen size={10} />
-                          <span>{getReadTime(item.title, item.snippet)}</span>
-                        </span>
+                      {/* Article Title */}
+                      <h3 className="text-xl md:text-2xl font-serif font-black text-gray-900 dark:text-white line-clamp-2 hover:text-orange-600 dark:hover:text-orange-500 transition-colors leading-snug">
+                        <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          {item.title}
+                        </a>
+                      </h3>
 
-                        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold shrink-0 flex items-center gap-1">
-                          <Clock size={11} />
-                          {formatRelativeTime(item.pubDate)}
-                        </span>
-
-                        {/* Integrated Share Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleNativeShare(item, e)}
-                          title="Share this news via Sokoplus"
-                          className="px-2.5 py-1 rounded-lg bg-black text-white dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-extrabold shrink-0 z-10 shadow-sm"
-                        >
-                          <Share2 size={12} className="stroke-[2.5]" />
-                          <span>Share</span>
-                        </button>
-                      </div>
+                      {/* Article Snippet Excerpt */}
+                      {item.snippet && (
+                        <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm leading-relaxed line-clamp-3 font-normal">
+                          {item.snippet}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Headline */}
-                    <h4 className={`font-extrabold text-gray-900 dark:text-gray-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors ${
-                      isHero 
-                        ? "text-base sm:text-lg md:text-xl leading-snug tracking-tight line-clamp-2" 
-                        : "text-xs sm:text-sm line-clamp-2 leading-snug"
-                    }`}>
-                      {item.title}
-                    </h4>
-
-                    {/* Snippet */}
-                    {item.snippet && (
-                      <p className={`text-gray-600 dark:text-gray-300 font-normal leading-relaxed ${
-                        isHero ? "text-xs sm:text-sm line-clamp-3" : "text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2"
-                      }`}>
-                        {item.snippet}
-                      </p>
-                    )}
-
-                    {/* Summary Micro-Chip & Hover-Expandable Drawer */}
-                    {item.snippet && (
-                      <div className="pt-1">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const currentId = item.id || String(idx);
-                            setExpandedSummaryId(expandedSummaryId === currentId ? null : currentId);
-                          }}
-                          className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 cursor-pointer bg-orange-500/10 hover:bg-orange-500/20 px-2.5 py-1 rounded-lg border border-orange-500/20 transition-all"
-                        >
-                          <Flame size={11} className="text-orange-500 animate-pulse" />
-                          <span>{expandedSummaryId === (item.id || String(idx)) ? "Collapse Intelligence" : "⚡ Quick Intel Drawer"}</span>
-                          <ChevronDown size={11} className={`transition-transform duration-200 ${expandedSummaryId === (item.id || String(idx)) ? "rotate-180" : ""}`} />
-                        </button>
-
-                        <AnimatePresence>
-                          {expandedSummaryId === (item.id || String(idx)) && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden mt-2"
-                            >
-                              <div className="p-3 rounded-xl bg-orange-50/80 dark:bg-orange-950/30 border border-orange-200/80 dark:border-orange-900/50 text-[11px] text-gray-800 dark:text-gray-200 font-normal leading-relaxed shadow-inner">
-                                <div className="font-extrabold text-orange-700 dark:text-orange-400 mb-1 flex items-center gap-1">
-                                  <Sparkles size={11} /> Executive Summary Brief:
-                                </div>
-                                {item.snippet}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                    <div className="space-y-4 pt-2">
+                      {/* Category Tag Pills */}
+                      <div className="flex flex-wrap gap-2">
+                        {newsTags.map((tag) => (
+                          <span key={tag} className="text-[9px] font-black uppercase tracking-widest bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 px-3 py-1.5 rounded-full">
+                            {tag}
+                          </span>
+                        ))}
                       </div>
-                    )}
-                  </div>
 
-                  {/* Card Footer Link */}
-                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-200/50 dark:border-gray-800/60 text-[11px] font-bold">
-                    <span className="text-gray-500 dark:text-gray-400 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors flex items-center gap-1">
-                      Read full article on {item.source} <ArrowUpRight size={13} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                    </span>
+                      {/* Card Bottom Link */}
+                      <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                        <a
+                          href={item.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center text-xs font-black text-gray-900 dark:text-gray-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors"
+                        >
+                          <span>Read full article on {item.source}</span>
+                          <ArrowUpRight className="ml-1.5 text-orange-600 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" size={14} />
+                        </a>
+                      </div>
+                    </div>
                   </div>
-                </motion.a>
-              );
-            })}
+                </motion.article>
+                );
+              })}
           </AnimatePresence>
         </div>
       )}
 
       {/* Footer Info */}
-      <div className="mt-5 pt-3 border-t border-gray-100 dark:border-gray-850 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500">
+      <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-850 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-gray-400 dark:text-gray-500">
         <span className="flex items-center gap-1 font-medium">
           <ShieldCheck size={12} className="text-green-500" /> Powered by Google News RSS Stream
         </span>
@@ -565,4 +647,3 @@ export default function GoogleNewsWidget({ defaultQuery = "Kenya Retail E-commer
     </div>
   );
 }
-
