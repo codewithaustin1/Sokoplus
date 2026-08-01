@@ -1635,6 +1635,13 @@ export default function Admin({ user }: AdminProps) {
     tiktok: "",
     whatsapp: "",
     youtube: "",
+    facebookVisible: true,
+    instagramVisible: true,
+    twitterVisible: true,
+    linkedinVisible: true,
+    tiktokVisible: true,
+    whatsappVisible: true,
+    youtubeVisible: true,
   });
   const [isSavingSettings, setIsSavingSettings] = useState<boolean>(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
@@ -2064,6 +2071,13 @@ export default function Admin({ user }: AdminProps) {
               tiktok: settingsData.socialLinks.tiktok || "",
               whatsapp: settingsData.socialLinks.whatsapp || "",
               youtube: settingsData.socialLinks.youtube || "",
+              facebookVisible: settingsData.socialLinks.facebookVisible !== undefined ? settingsData.socialLinks.facebookVisible : true,
+              instagramVisible: settingsData.socialLinks.instagramVisible !== undefined ? settingsData.socialLinks.instagramVisible : true,
+              twitterVisible: settingsData.socialLinks.twitterVisible !== undefined ? settingsData.socialLinks.twitterVisible : true,
+              linkedinVisible: settingsData.socialLinks.linkedinVisible !== undefined ? settingsData.socialLinks.linkedinVisible : true,
+              tiktokVisible: settingsData.socialLinks.tiktokVisible !== undefined ? settingsData.socialLinks.tiktokVisible : true,
+              whatsappVisible: settingsData.socialLinks.whatsappVisible !== undefined ? settingsData.socialLinks.whatsappVisible : true,
+              youtubeVisible: settingsData.socialLinks.youtubeVisible !== undefined ? settingsData.socialLinks.youtubeVisible : true,
             });
           }
           if (settingsData.disabledCountries) {
@@ -7143,187 +7157,135 @@ export default function Admin({ user }: AdminProps) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Instagram */}
-                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                        <Instagram size={16} className="text-pink-600" /> Instagram Page
-                      </label>
-                      {socialLinks.instagram && (
-                        <a
-                          href={socialLinks.instagram}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
-                        >
-                          <span>Test Link</span> <ExternalLink size={10} />
-                        </a>
-                      )}
-                    </div>
-                    <input
-                      type="url"
-                      placeholder="e.g. https://instagram.com/sokoplus_ke"
-                      value={socialLinks.instagram || ""}
-                      onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })}
-                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
-                    />
-                  </div>
+                  {[
+                    {
+                      key: "instagram" as const,
+                      visKey: "instagramVisible" as const,
+                      label: "Instagram Page",
+                      icon: <Instagram size={16} className="text-pink-600" />,
+                      placeholder: "e.g. https://instagram.com/sokoplus_ke",
+                      colSpan: "",
+                    },
+                    {
+                      key: "facebook" as const,
+                      visKey: "facebookVisible" as const,
+                      label: "Facebook Page",
+                      icon: <Facebook size={16} className="text-blue-600" fill="currentColor" />,
+                      placeholder: "e.g. https://facebook.com/sokoplus.official",
+                      colSpan: "",
+                    },
+                    {
+                      key: "twitter" as const,
+                      visKey: "twitterVisible" as const,
+                      label: "Twitter / X Profile",
+                      icon: <Twitter size={16} className="text-sky-500" />,
+                      placeholder: "e.g. https://x.com/sokoplus",
+                      colSpan: "",
+                    },
+                    {
+                      key: "linkedin" as const,
+                      visKey: "linkedinVisible" as const,
+                      label: "LinkedIn Company Page",
+                      icon: <Linkedin size={16} className="text-blue-700" fill="currentColor" />,
+                      placeholder: "e.g. https://linkedin.com/company/sokoplus",
+                      colSpan: "",
+                    },
+                    {
+                      key: "tiktok" as const,
+                      visKey: "tiktokVisible" as const,
+                      label: "TikTok Profile",
+                      icon: <Music size={16} className="text-black dark:text-white" />,
+                      placeholder: "e.g. https://tiktok.com/@sokoplus",
+                      colSpan: "",
+                    },
+                    {
+                      key: "whatsapp" as const,
+                      visKey: "whatsappVisible" as const,
+                      label: "WhatsApp Direct / Channel",
+                      icon: <MessageCircle size={16} className="text-emerald-600" />,
+                      placeholder: "e.g. https://wa.me/254740463021",
+                      colSpan: "",
+                    },
+                    {
+                      key: "youtube" as const,
+                      visKey: "youtubeVisible" as const,
+                      label: "YouTube Channel",
+                      icon: <Youtube size={16} className="text-red-600" />,
+                      placeholder: "e.g. https://youtube.com/@sokoplus",
+                      colSpan: "md:col-span-2",
+                    },
+                  ].map((item) => {
+                    const urlValue = socialLinks[item.key] || "";
+                    const isVisible = socialLinks[item.visKey] !== false;
 
-                  {/* Facebook */}
-                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                        <Facebook size={16} className="text-blue-600" fill="currentColor" /> Facebook Page
-                      </label>
-                      {socialLinks.facebook && (
-                        <a
-                          href={socialLinks.facebook}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
-                        >
-                          <span>Test Link</span> <ExternalLink size={10} />
-                        </a>
-                      )}
-                    </div>
-                    <input
-                      type="url"
-                      placeholder="e.g. https://facebook.com/sokoplus.official"
-                      value={socialLinks.facebook || ""}
-                      onChange={(e) => setSocialLinks({ ...socialLinks, facebook: e.target.value })}
-                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
-                    />
-                  </div>
-
-                  {/* Twitter / X */}
-                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                        <Twitter size={16} className="text-sky-500" /> Twitter / X Profile
-                      </label>
-                      {socialLinks.twitter && (
-                        <a
-                          href={socialLinks.twitter}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
-                        >
-                          <span>Test Link</span> <ExternalLink size={10} />
-                        </a>
-                      )}
-                    </div>
-                    <input
-                      type="url"
-                      placeholder="e.g. https://x.com/sokoplus"
-                      value={socialLinks.twitter || ""}
-                      onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })}
-                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
-                    />
-                  </div>
-
-                  {/* LinkedIn */}
-                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                        <Linkedin size={16} className="text-blue-700" fill="currentColor" /> LinkedIn Company Page
-                      </label>
-                      {socialLinks.linkedin && (
-                        <a
-                          href={socialLinks.linkedin}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
-                        >
-                          <span>Test Link</span> <ExternalLink size={10} />
-                        </a>
-                      )}
-                    </div>
-                    <input
-                      type="url"
-                      placeholder="e.g. https://linkedin.com/company/sokoplus"
-                      value={socialLinks.linkedin || ""}
-                      onChange={(e) => setSocialLinks({ ...socialLinks, linkedin: e.target.value })}
-                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
-                    />
-                  </div>
-
-                  {/* TikTok */}
-                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                        <Music size={16} className="text-black dark:text-white" /> TikTok Profile
-                      </label>
-                      {socialLinks.tiktok && (
-                        <a
-                          href={socialLinks.tiktok}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
-                        >
-                          <span>Test Link</span> <ExternalLink size={10} />
-                        </a>
-                      )}
-                    </div>
-                    <input
-                      type="url"
-                      placeholder="e.g. https://tiktok.com/@sokoplus"
-                      value={socialLinks.tiktok || ""}
-                      onChange={(e) => setSocialLinks({ ...socialLinks, tiktok: e.target.value })}
-                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
-                    />
-                  </div>
-
-                  {/* WhatsApp */}
-                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                        <MessageCircle size={16} className="text-emerald-600" /> WhatsApp Direct / Channel
-                      </label>
-                      {socialLinks.whatsapp && (
-                        <a
-                          href={socialLinks.whatsapp}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
-                        >
-                          <span>Test Link</span> <ExternalLink size={10} />
-                        </a>
-                      )}
-                    </div>
-                    <input
-                      type="url"
-                      placeholder="e.g. https://wa.me/254740463021"
-                      value={socialLinks.whatsapp || ""}
-                      onChange={(e) => setSocialLinks({ ...socialLinks, whatsapp: e.target.value })}
-                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
-                    />
-                  </div>
-
-                  {/* YouTube */}
-                  <div className="p-4 bg-gray-50/70 dark:bg-gray-950/30 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2 md:col-span-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                        <Youtube size={16} className="text-red-600" /> YouTube Channel
-                      </label>
-                      {socialLinks.youtube && (
-                        <a
-                          href={socialLinks.youtube}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
-                        >
-                          <span>Test Link</span> <ExternalLink size={10} />
-                        </a>
-                      )}
-                    </div>
-                    <input
-                      type="url"
-                      placeholder="e.g. https://youtube.com/@sokoplus"
-                      value={socialLinks.youtube || ""}
-                      onChange={(e) => setSocialLinks({ ...socialLinks, youtube: e.target.value })}
-                      className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
-                    />
-                  </div>
+                    return (
+                      <div
+                        key={item.key}
+                        className={`p-4 rounded-2xl border transition-all space-y-2.5 ${
+                          item.colSpan
+                        } ${
+                          isVisible
+                            ? "bg-gray-50/70 dark:bg-gray-950/30 border-gray-100 dark:border-gray-800"
+                            : "bg-gray-100/40 dark:bg-gray-900/40 border-gray-200 dark:border-gray-800 opacity-75"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <label className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                            {item.icon} {item.label}
+                          </label>
+                          <div className="flex items-center gap-3">
+                            {urlValue && (
+                              <a
+                                href={urlValue}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] font-extrabold text-orange-600 hover:underline flex items-center gap-1"
+                              >
+                                <span>Test Link</span> <ExternalLink size={10} />
+                              </a>
+                            )}
+                            {/* Visibility Switch */}
+                            <div className="flex items-center gap-1.5 bg-white dark:bg-gray-900 px-2 py-1 rounded-full border border-gray-200 dark:border-gray-800 shadow-2xs">
+                              <span className={`text-[10px] font-bold ${isVisible ? "text-emerald-600 dark:text-emerald-400" : "text-gray-400 dark:text-gray-500"}`}>
+                                {isVisible ? "Visible" : "Hidden"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSocialLinks({
+                                    ...socialLinks,
+                                    [item.visKey]: !isVisible,
+                                  })
+                                }
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                  isVisible ? "bg-orange-600" : "bg-gray-300 dark:bg-gray-700"
+                                }`}
+                                title={`Toggle visibility for ${item.label}`}
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                                    isVisible ? "translate-x-4" : "translate-x-0"
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <input
+                          type="url"
+                          placeholder={item.placeholder}
+                          value={urlValue}
+                          onChange={(e) =>
+                            setSocialLinks({
+                              ...socialLinks,
+                              [item.key]: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2.5 text-xs bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 text-gray-900 dark:text-white font-medium"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

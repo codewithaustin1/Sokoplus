@@ -10,6 +10,13 @@ export interface SocialLinks {
   tiktok?: string;
   whatsapp?: string;
   youtube?: string;
+  facebookVisible?: boolean;
+  instagramVisible?: boolean;
+  twitterVisible?: boolean;
+  linkedinVisible?: boolean;
+  tiktokVisible?: boolean;
+  whatsappVisible?: boolean;
+  youtubeVisible?: boolean;
 }
 
 export interface HomepageSettings {
@@ -56,6 +63,13 @@ const defaultSettings: HomepageSettings = {
     tiktok: "",
     whatsapp: "",
     youtube: "",
+    facebookVisible: true,
+    instagramVisible: true,
+    twitterVisible: true,
+    linkedinVisible: true,
+    tiktokVisible: true,
+    whatsappVisible: true,
+    youtubeVisible: true,
   },
 };
 
@@ -115,6 +129,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             tiktok: data.socialLinks.tiktok || "",
             whatsapp: data.socialLinks.whatsapp || "",
             youtube: data.socialLinks.youtube || "",
+            facebookVisible: data.socialLinks.facebookVisible !== undefined ? data.socialLinks.facebookVisible : true,
+            instagramVisible: data.socialLinks.instagramVisible !== undefined ? data.socialLinks.instagramVisible : true,
+            twitterVisible: data.socialLinks.twitterVisible !== undefined ? data.socialLinks.twitterVisible : true,
+            linkedinVisible: data.socialLinks.linkedinVisible !== undefined ? data.socialLinks.linkedinVisible : true,
+            tiktokVisible: data.socialLinks.tiktokVisible !== undefined ? data.socialLinks.tiktokVisible : true,
+            whatsappVisible: data.socialLinks.whatsappVisible !== undefined ? data.socialLinks.whatsappVisible : true,
+            youtubeVisible: data.socialLinks.youtubeVisible !== undefined ? data.socialLinks.youtubeVisible : true,
           } : defaultSettings.socialLinks,
         });
       } else {

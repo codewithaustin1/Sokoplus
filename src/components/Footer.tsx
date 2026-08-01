@@ -322,7 +322,12 @@ export default function Footer() {
                 },
               ];
 
-              return allPlatforms.map((p) => (
+              const visiblePlatforms = allPlatforms.filter((p) => {
+                const vis = (social as any)[`${p.key}Visible`];
+                return vis !== false;
+              });
+
+              return visiblePlatforms.map((p) => (
                 <a
                   key={p.key}
                   href={p.url}
