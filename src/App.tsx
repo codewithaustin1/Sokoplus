@@ -41,7 +41,7 @@ import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, limit } from "firebase/firestore";
 import { useSettings } from "./lib/SettingsContext";
 import { UserProfile } from "./types";
-import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X, Key, LogOut, ShieldCheck, Clock } from "lucide-react";
+import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X, Key, LogOut, ShieldCheck, Clock, BarChart2 } from "lucide-react";
 import { verifyTOTP } from "./utils/totp";
 import toast from "react-hot-toast";
 import SupportChat from "./components/SupportChat";
@@ -68,6 +68,56 @@ const queryClient = new QueryClient({
 interface QuotaBannerWrapperProps {
   quotaExceededInfo: { error: string; path: string | null } | null;
   onClear: () => void;
+}
+
+export interface BackoffOptions {
+  maxRetries?: number;
+  initialDelayMs?: number;
+  maxDelayMs?: number;
+  backoffFactor?: number;
+}
+
+/**
+ * Executes a Firestore asynchronous operation with exponential backoff and jitter
+ * for rate-limiting (429), resource-exhausted (quota), and service unavailable errors.
+ */
+export async function executeWithExponentialBackoff<T>(
+  operation: () => Promise<T>,
+  options: BackoffOptions = {}
+): Promise<T> {
+  const maxRetries = options.maxRetries ?? 5;
+  const initialDelayMs = options.initialDelayMs ?? 1000;
+  const maxDelayMs = options.maxDelayMs ?? 32000;
+  const backoffFactor = options.backoffFactor ?? 2;
+
+  let attempt = 0;
+  while (true) {
+    try {
+      return await operation();
+    } catch (err: any) {
+      attempt++;
+      const errorMsg = err?.message || String(err);
+      const isQuotaOrRateLimit =
+        errorMsg.toLowerCase().includes("quota") ||
+        errorMsg.toLowerCase().includes("resource_exhausted") ||
+        errorMsg.toLowerCase().includes("429") ||
+        errorMsg.toLowerCase().includes("rate limit") ||
+        errorMsg.toLowerCase().includes("unavailable") ||
+        err?.code === "resource-exhausted" ||
+        err?.code === "unavailable";
+
+      if (!isQuotaOrRateLimit || attempt > maxRetries) {
+        throw err;
+      }
+
+      const exponentialDelay = initialDelayMs * Math.pow(backoffFactor, attempt - 1);
+      const jitter = Math.random() * 0.2 * exponentialDelay;
+      const delayMs = Math.min(maxDelayMs, Math.round(exponentialDelay + jitter));
+
+      console.warn(`[App Backoff] Firestore operation rate-limited/quota error. Retrying attempt ${attempt}/${maxRetries} in ${delayMs}ms... Error:`, errorMsg);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
 }
 
 function QuotaBannerWrapper({ quotaExceededInfo, onClear }: QuotaBannerWrapperProps) {
@@ -152,7 +202,7 @@ function QuotaBannerWrapper({ quotaExceededInfo, onClear }: QuotaBannerWrapperPr
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
           {!keepShowing && (
             <button
               onClick={() => setKeepShowing(true)}
@@ -166,13 +216,23 @@ function QuotaBannerWrapper({ quotaExceededInfo, onClear }: QuotaBannerWrapperPr
             </button>
           )}
           <a
-            href="https://console.firebase.google.com/project/gen-lang-client-0489491426/firestore/databases/ai-studio-8d476022-e7b3-48f3-98d2-317aae594cb7/data?openUpgradeDialog=true"
+            href="https://console.firebase.google.com/project/ai-studio-8d476022-e7b3-48f3-98d2-317aae594cb7/firestore/usage"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 bg-amber-600 hover:bg-amber-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white text-xs font-black px-3.5 py-2 rounded-lg shadow-sm transition active:scale-95 cursor-pointer uppercase tracking-tight"
+            className="inline-flex items-center gap-1.5 bg-amber-700 hover:bg-amber-800 text-white text-xs font-black px-3.5 py-2 rounded-lg shadow-sm transition active:scale-95 cursor-pointer uppercase tracking-tight"
+            title="Open Firestore Usage Analytics Dashboard to identify high traffic collections & queries"
+          >
+            <BarChart2 size={14} />
+            Usage Analytics
+          </a>
+          <a
+            href="https://console.firebase.google.com/project/ai-studio-8d476022-e7b3-48f3-98d2-317aae594cb7/firestore/databases/ai-studio-8d476022-e7b3-48f3-98d2-317aae594cb7/data?openUpgradeDialog=true"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white text-xs font-black px-3.5 py-2 rounded-lg shadow-sm transition active:scale-95 cursor-pointer uppercase tracking-tight"
           >
             <ExternalLink size={14} />
-            Upgrade/Check Database
+            Upgrade / Check Data
           </a>
           <button
             onClick={onClear}
@@ -288,31 +348,65 @@ export default function App() {
     };
   }, []);
 
-  // Realtime listener for client support unread messages count
+  // Realtime listener for client support unread messages count with Exponential Backoff
   useEffect(() => {
     if (!user?.uid) {
       setUnreadSupportCount(0);
       return;
     }
 
-    const q = query(
-      collection(db, "support_tickets"),
-      where("userId", "==", user.uid),
-      limit(30)
-    );
+    let isCancelled = false;
+    let unsubscribeFn: (() => void) | null = null;
+    let retryTimeoutId: any = null;
+    let attempt = 0;
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      let count = 0;
-      snapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        count += data.unreadCountClient || 0;
-      });
-      setUnreadSupportCount(count);
-    }, (error) => {
-      console.warn("Failed to listen to support tickets unread counts:", error);
-    });
+    const connectSupportListener = () => {
+      if (isCancelled) return;
 
-    return () => unsubscribe();
+      const q = query(
+        collection(db, "support_tickets"),
+        where("userId", "==", user.uid),
+        limit(30)
+      );
+
+      unsubscribeFn = onSnapshot(
+        q,
+        (snapshot) => {
+          attempt = 0; // Successful sync: reset exponential backoff attempt count
+          let count = 0;
+          snapshot.docs.forEach((doc) => {
+            const data = doc.data();
+            count += data.unreadCountClient || 0;
+          });
+          setUnreadSupportCount(count);
+        },
+        (error) => {
+          if (isCancelled) return;
+          attempt++;
+          const delayMs = Math.min(60000, Math.round(1500 * Math.pow(2, attempt - 1) + Math.random() * 500));
+          console.warn(`[App Support Listener] Rate-limited or quota event (attempt ${attempt}). Exponential backoff retry in ${delayMs}ms:`, error);
+
+          if (unsubscribeFn) {
+            unsubscribeFn();
+            unsubscribeFn = null;
+          }
+
+          retryTimeoutId = setTimeout(() => {
+            if (!isCancelled) {
+              connectSupportListener();
+            }
+          }, delayMs);
+        }
+      );
+    };
+
+    connectSupportListener();
+
+    return () => {
+      isCancelled = true;
+      if (retryTimeoutId) clearTimeout(retryTimeoutId);
+      if (unsubscribeFn) unsubscribeFn();
+    };
   }, [user?.uid]);
 
   useEffect(() => {
@@ -365,20 +459,26 @@ export default function App() {
 
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
+    let userSubCancelled = false;
+    let userSubRetryTimeout: any = null;
+    let userSubAttempt = 0;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
-        // Unsubscribe from previous user if exists
-        if (unsubscribeUser) unsubscribeUser();
+        // Unsubscribe from previous user listener if exists
+        if (unsubscribeUser) {
+          unsubscribeUser();
+          unsubscribeUser = null;
+        }
 
-        // Claim any guest orders linked to this session token or email
+        // Claim any guest orders linked to this session token or email with error tolerance
         if (fbUser.email) {
           claimGuestOrdersForUser(fbUser.uid, fbUser.email).catch((err) => {
-            console.warn("[App] Failed to auto-claim guest orders:", err);
+            console.warn("[App] Auto-claim guest orders notice:", err);
           });
         }
 
-        // Perform the admin check once on authentication change, rather than inside every snapshot update trigger
+        // Perform the admin check with exponential backoff
         let isAdmin = false;
         try {
           if (
@@ -387,7 +487,7 @@ export default function App() {
           ) {
             isAdmin = true;
           } else {
-            const adminDoc = await getDoc(doc(db, "admins", fbUser.uid));
+            const adminDoc = await executeWithExponentialBackoff(() => getDoc(doc(db, "admins", fbUser.uid)), { maxRetries: 3 });
             isAdmin = adminDoc.exists();
           }
 
@@ -395,123 +495,161 @@ export default function App() {
           if (!isAdmin && fbUser.email) {
             const inviteDocId = fbUser.email.toLowerCase().replace(/[^a-z0-9]/g, "_");
             const inviteRef = doc(db, "admin_invitations", inviteDocId);
-            const inviteSnap = await getDoc(inviteRef);
+            const inviteSnap = await executeWithExponentialBackoff(() => getDoc(inviteRef), { maxRetries: 3 });
 
             if (inviteSnap.exists()) {
               const inviteData = inviteSnap.data();
               if (inviteData && inviteData.status === "pending") {
                 const adminRef = doc(db, "admins", fbUser.uid);
-                await setDoc(adminRef, {
-                  email: fbUser.email.toLowerCase(),
+                await executeWithExponentialBackoff(() => setDoc(adminRef, {
+                  email: fbUser.email!.toLowerCase(),
                   roleId: inviteData.roleId || "custom",
                   roleName: inviteData.roleName || "Custom Profile",
                   permissions: inviteData.permissions || [],
                   updatedAt: new Date().toISOString(),
                   updatedBy: inviteData.invitedBy || "Pre-authorized Invitation"
-                }, { merge: true });
+                }, { merge: true }), { maxRetries: 3 });
 
-                await setDoc(inviteRef, { status: "accepted" }, { merge: true });
+                await executeWithExponentialBackoff(() => setDoc(inviteRef, { status: "accepted" }, { merge: true }), { maxRetries: 3 });
                 isAdmin = true;
                 console.log(`[App] Auto-promoted preauthorized admin email: ${fbUser.email}`);
               }
             }
           }
         } catch (e) {
-          console.warn("Admin check failed:", e);
+          console.warn("Admin check notice:", e);
         }
 
-        // Listen to user document for real-time updates (like wishlist)
-        const userRef = doc(db, "users", fbUser.uid);
-        unsubscribeUser = onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.deliveryCountry) {
-              localStorage.setItem("sokoplus_delivery_country", data.deliveryCountry);
-            }
-            if (data.deliveryCounty) {
-              localStorage.setItem("sokoplus_delivery_county", data.deliveryCounty);
-            }
-            if (data.deliveryCity) {
-              localStorage.setItem("sokoplus_delivery_city", data.deliveryCity);
-            }
+        // Listen to user document for real-time updates with Exponential Backoff re-subscription
+        userSubCancelled = false;
+        userSubAttempt = 0;
 
-            setUser({
-              uid: fbUser.uid,
-              email: fbUser.email || data.email || null,
-              phoneNumber: fbUser.phoneNumber || data.phoneNumber || null,
-              displayName: fbUser.displayName || data.displayName || "User",
-              loyaltyPoints: data.loyaltyPoints || 0,
-              wishlist: data.wishlist || [],
-              isAdmin,
-              emailVerified: fbUser.emailVerified,
-              photoURL: data.photoURL || fbUser.photoURL || null,
-              twoFactorEnabled: data.twoFactorEnabled || false,
-              twoFactorSecret: data.twoFactorSecret || null,
-              deliveryCountry: data.deliveryCountry || undefined,
-              deliveryCounty: data.deliveryCounty || undefined,
-              deliveryCity: data.deliveryCity || undefined,
-              deliveryAddress: data.deliveryAddress || undefined,
-              vouchers: (data.vouchers || []).filter((v: any) => {
-                if (!v.unlockedAt) return true;
-                const unlockedTime = new Date(v.unlockedAt).getTime();
-                if (isNaN(unlockedTime)) return true;
-                const diffTime = new Date().getTime() - unlockedTime;
-                const diffDays = diffTime / (1000 * 60 * 60 * 24);
-                return diffDays <= 21;
-              })
-            });
-          } else {
-            // Document might not exist yet if just signed up, wait for Login page to create it
-            setUser({
-              uid: fbUser.uid,
-              email: fbUser.email || null,
-              phoneNumber: fbUser.phoneNumber || null,
-              displayName: fbUser.displayName || "User",
-              loyaltyPoints: 0,
-              wishlist: [],
-              isAdmin,
-              emailVerified: fbUser.emailVerified,
-              photoURL: fbUser.photoURL || null,
-              vouchers: []
-            });
-          }
-          setLoading(false);
-        }, (error) => {
-          const errorMsg = error instanceof Error ? error.message : String(error);
-          const isQuota = errorMsg.toLowerCase().includes("quota");
-          if (isQuota) {
-            console.warn("User doc listener quota limit warning:", errorMsg);
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(
-                new CustomEvent("firestore-quota-exceeded", {
-                  detail: { error: errorMsg, path: `users/${fbUser.uid}` }
-                })
-              );
+        const connectUserDocListener = () => {
+          if (userSubCancelled) return;
+
+          const userRef = doc(db, "users", fbUser.uid);
+          unsubscribeUser = onSnapshot(
+            userRef,
+            (docSnap) => {
+              userSubAttempt = 0; // Reset backoff attempt counter on success
+              if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.deliveryCountry) localStorage.setItem("sokoplus_delivery_country", data.deliveryCountry);
+                if (data.deliveryCounty) localStorage.setItem("sokoplus_delivery_county", data.deliveryCounty);
+                if (data.deliveryCity) localStorage.setItem("sokoplus_delivery_city", data.deliveryCity);
+
+                setUser({
+                  uid: fbUser.uid,
+                  email: fbUser.email || data.email || null,
+                  phoneNumber: fbUser.phoneNumber || data.phoneNumber || null,
+                  displayName: fbUser.displayName || data.displayName || "User",
+                  loyaltyPoints: data.loyaltyPoints || 0,
+                  wishlist: data.wishlist || [],
+                  isAdmin,
+                  emailVerified: fbUser.emailVerified,
+                  photoURL: data.photoURL || fbUser.photoURL || null,
+                  twoFactorEnabled: data.twoFactorEnabled || false,
+                  twoFactorSecret: data.twoFactorSecret || null,
+                  deliveryCountry: data.deliveryCountry || undefined,
+                  deliveryCounty: data.deliveryCounty || undefined,
+                  deliveryCity: data.deliveryCity || undefined,
+                  deliveryAddress: data.deliveryAddress || undefined,
+                  vouchers: (data.vouchers || []).filter((v: any) => {
+                    if (!v.unlockedAt) return true;
+                    const unlockedTime = new Date(v.unlockedAt).getTime();
+                    if (isNaN(unlockedTime)) return true;
+                    const diffTime = new Date().getTime() - unlockedTime;
+                    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                    return diffDays <= 21;
+                  })
+                });
+              } else {
+                setUser({
+                  uid: fbUser.uid,
+                  email: fbUser.email || null,
+                  phoneNumber: fbUser.phoneNumber || null,
+                  displayName: fbUser.displayName || "User",
+                  loyaltyPoints: 0,
+                  wishlist: [],
+                  isAdmin,
+                  emailVerified: fbUser.emailVerified,
+                  photoURL: fbUser.photoURL || null,
+                  vouchers: []
+                });
+              }
+              setLoading(false);
+            },
+            (error) => {
+              if (userSubCancelled) return;
+              userSubAttempt++;
+
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              const isQuota =
+                errorMsg.toLowerCase().includes("quota") ||
+                errorMsg.toLowerCase().includes("resource_exhausted") ||
+                errorMsg.toLowerCase().includes("429") ||
+                errorMsg.toLowerCase().includes("unavailable") ||
+                (error as any)?.code === "resource-exhausted" ||
+                (error as any)?.code === "unavailable";
+
+              // Calculate exponential backoff delay with jitter (1.5s, 3s, 6s... up to 60s max)
+              const delayMs = Math.min(60000, Math.round(1500 * Math.pow(2, userSubAttempt - 1) + Math.random() * 500));
+
+              console.warn(`[App User Listener] Firestore rate-limited or quota error (attempt ${userSubAttempt}). Retrying sync via exponential backoff in ${delayMs}ms... Error:`, errorMsg);
+
+              if (isQuota && typeof window !== "undefined") {
+                window.dispatchEvent(
+                  new CustomEvent("firestore-quota-exceeded", {
+                    detail: { error: errorMsg, path: `users/${fbUser.uid}` }
+                  })
+                );
+              }
+
+              // Fallback user state so UI continues to function cleanly offline
+              setUser((prevUser) => prevUser || {
+                uid: fbUser.uid,
+                email: fbUser.email || null,
+                phoneNumber: fbUser.phoneNumber || null,
+                displayName: fbUser.displayName || "User",
+                loyaltyPoints: 100,
+                wishlist: [],
+                isAdmin: fbUser.uid === "qdeDtBfWIKNgWVjoUWHR3W3L7oa2" || fbUser.email?.toLowerCase() === "upfrontretaile@gmail.com",
+                emailVerified: fbUser.emailVerified,
+                photoURL: fbUser.photoURL || null
+              });
+              setLoading(false);
+
+              if (unsubscribeUser) {
+                unsubscribeUser();
+                unsubscribeUser = null;
+              }
+
+              // Exponential backoff reconnect
+              userSubRetryTimeout = setTimeout(() => {
+                if (!userSubCancelled) {
+                  connectUserDocListener();
+                }
+              }, delayMs);
             }
-            setUser({
-              uid: fbUser.uid,
-              email: fbUser.email || null,
-              phoneNumber: fbUser.phoneNumber || null,
-              displayName: fbUser.displayName || "User",
-              loyaltyPoints: 100,
-              wishlist: [],
-              isAdmin: fbUser.uid === "qdeDtBfWIKNgWVjoUWHR3W3L7oa2" || fbUser.email?.toLowerCase() === "upfrontretaile@gmail.com",
-              emailVerified: fbUser.emailVerified,
-              photoURL: fbUser.photoURL || null
-            });
-          } else {
-            console.error("User doc listener error:", error);
-          }
-          setLoading(false);
-        });
+          );
+        };
+
+        connectUserDocListener();
       } else {
-        if (unsubscribeUser) unsubscribeUser();
+        userSubCancelled = true;
+        if (userSubRetryTimeout) clearTimeout(userSubRetryTimeout);
+        if (unsubscribeUser) {
+          unsubscribeUser();
+          unsubscribeUser = null;
+        }
         setUser(null);
         setLoading(false);
       }
     });
 
     return () => {
+      userSubCancelled = true;
+      if (userSubRetryTimeout) clearTimeout(userSubRetryTimeout);
       unsubscribeAuth();
       if (unsubscribeUser) unsubscribeUser();
     };
