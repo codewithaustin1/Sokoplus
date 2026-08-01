@@ -259,6 +259,23 @@ export function NotificationManager({ user }: NotificationManagerProps) {
         snapshot.docChanges().forEach((change) => {
           if (change.type === "added") {
             const data = change.doc.data();
+
+            // Ignore low inventory and stock alerts completely
+            const isInventoryAlert =
+              data.type === "inventory_alert" ||
+              (typeof data.title === "string" && (
+                data.title.toLowerCase().includes("inventory") ||
+                data.title.toLowerCase().includes("stock")
+              )) ||
+              (typeof data.body === "string" && (
+                data.body.toLowerCase().includes("inventory") ||
+                data.body.toLowerCase().includes("stock")
+              ));
+
+            if (isInventoryAlert) {
+              return;
+            }
+
             // Trigger local OS push notification
             triggerLocalNotification(
               data.title || "New Offer from SokoPlus",
