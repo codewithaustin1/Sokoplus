@@ -204,6 +204,7 @@ import {
 import toast from "react-hot-toast";
 import { useSellerStudio } from "../lib/SellerStudioContext";
 import { SocialLinks } from "../lib/SettingsContext";
+import AdminCategoryImagesManager from "../components/AdminCategoryImagesManager";
 
 const TikTokIcon = ({ size = 18, className = "" }: { size?: number; className?: string }) => (
   <svg
@@ -1665,6 +1666,7 @@ export default function Admin({ user }: AdminProps) {
   const [seoDescription, setSeoDescription] = useState<string>("");
   const [seoImage, setSeoImage] = useState<string>("");
   const [featuredCollections, setFeaturedCollections] = useState<{ title: string; imageUrl: string; category: string }[]>([]);
+  const [categoryImages, setCategoryImages] = useState<Record<string, string>>({});
   const [socialLinks, setSocialLinks] = useState<SocialLinks>({
     facebook: "",
     instagram: "",
@@ -2127,6 +2129,9 @@ export default function Admin({ user }: AdminProps) {
           if (settingsData.disabledCities) {
             setDisabledCities(settingsData.disabledCities);
           }
+          if (settingsData.categoryImages) {
+            setCategoryImages(settingsData.categoryImages);
+          }
         }
       } catch (settingsError) {
         console.warn("Could not retrieve hero image settings: ", settingsError);
@@ -2585,6 +2590,7 @@ export default function Admin({ user }: AdminProps) {
         disabledCountries: disabledCountries,
         disabledCounties: disabledCounties,
         disabledCities: disabledCities,
+        categoryImages: categoryImages,
         updatedAt: new Date(),
         updatedBy: user?.email || "Admin",
       }, { merge: true });
@@ -2596,6 +2602,20 @@ export default function Admin({ user }: AdminProps) {
       } else {
         toast.error("Failed to save homepage settings.");
       }
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleSaveCategoryImagesDirect = async () => {
+    setIsSavingSettings(true);
+    try {
+      const settingsRef = doc(db, "settings", "homepage");
+      await setDoc(settingsRef, { categoryImages: categoryImages }, { merge: true });
+      toast.success("Category images updated successfully! Changes are live across mobile views.");
+    } catch (err) {
+      console.error("Failed to save category images:", err);
+      toast.error("Failed to update category images.");
     } finally {
       setIsSavingSettings(false);
     }
@@ -6793,6 +6813,14 @@ export default function Admin({ user }: AdminProps) {
                   )}
                 </div>
               </div>
+
+              {/* SokoPlus Category Image Management Section */}
+              <AdminCategoryImagesManager
+                categoryImages={categoryImages}
+                onChangeCategoryImages={setCategoryImages}
+                onSave={handleSaveCategoryImagesDirect}
+                isSaving={isSavingSettings}
+              />
 
 
 

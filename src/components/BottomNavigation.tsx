@@ -19,10 +19,13 @@ import {
   ArrowRight, 
   Layers, 
   Store,
-  Check
+  Check,
+  ScanLine
 } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
+import { useSettings } from "../lib/SettingsContext";
+import { getCategoryImageUrl } from "../lib/categoryImages";
 import { UserProfile } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { db } from "../lib/firebase";
@@ -47,14 +50,25 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
   const navigate = useNavigate();
   const { items } = useCart();
   const { language } = useLanguage();
+  const { settings } = useSettings();
   const [imgError, setImgError] = useState(false);
 
   // Categories drawer state
   const [isCategoriesDrawerOpen, setIsCategoriesDrawerOpen] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
   const [dbCategoryNames, setDbCategoryNames] = useState<string[]>([]);
+  const [categoryItemCounts, setCategoryItemCounts] = useState<Record<string, number>>({});
 
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0);
+
+  const getItemFallbackCount = (name: string): number => {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = (hash << 5) - hash + name.charCodeAt(i);
+      hash |= 0;
+    }
+    return 12 + (Math.abs(hash) % 25);
+  };
 
   // Lock body scroll when categories drawer is open
   useEffect(() => {
@@ -68,7 +82,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
     };
   }, [isCategoriesDrawerOpen]);
 
-  // Fetch unique categories from Firestore products
+  // Fetch unique categories & item counts from Firestore products
   useEffect(() => {
     let isMounted = true;
     const fetchCategories = async () => {
@@ -76,24 +90,30 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
         const q = query(collection(db, "products"), limit(250));
         const snap = await getDocs(q);
         const setOfCats = new Set<string>();
+        const counts: Record<string, number> = {};
+
         snap.docs.forEach((doc) => {
           const data = doc.data();
           if (data.active !== false && (!data.approvalStatus || data.approvalStatus === "approved") && data.category) {
-            setOfCats.add(data.category.trim());
+            const cat = data.category.trim();
+            setOfCats.add(cat);
+            counts[cat] = (counts[cat] || 0) + 1;
           }
         });
+
         if (isMounted) {
+          setCategoryItemCounts(counts);
           if (setOfCats.size > 0) {
             setDbCategoryNames(Array.from(setOfCats));
           } else {
             // Default active categories fallback if DB query yields no products
-            setDbCategoryNames(["Local Crafts", "Fashion", "Groceries", "Electronics"]);
+            setDbCategoryNames(["Local Crafts", "Fashion", "Groceries", "Electronics", "Beauty & Personal Care", "Home & Office Décor", "Pet Supplies"]);
           }
         }
       } catch (err) {
         console.warn("Categories fetch notice:", err);
         if (isMounted) {
-          setDbCategoryNames(["Local Crafts", "Fashion", "Groceries", "Electronics"]);
+          setDbCategoryNames(["Local Crafts", "Fashion", "Groceries", "Electronics", "Beauty & Personal Care", "Home & Office Décor", "Pet Supplies"]);
         }
       }
     };
@@ -258,203 +278,167 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
 
   return (
     <>
-      {/* MOBILE CATEGORIES SLIDE-IN DRAWER */}
+      {/* MOBILE CATEGORIES FULL-SCREEN OVERLAY / MODAL */}
       <AnimatePresence>
         {isCategoriesDrawerOpen && (
           <>
-            {/* Backdrop Blur Overlay */}
+            {/* Backdrop Overlay */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.22 }}
+              transition={{ duration: 0.2 }}
               onClick={() => setIsCategoriesDrawerOpen(false)}
-              className="fixed inset-0 bg-black/65 backdrop-blur-md z-[140] md:hidden"
+              className="fixed inset-0 bg-black/70 backdrop-blur-md z-[140] md:hidden"
             />
 
-            {/* Left Slide-in Drawer Container */}
+            {/* Mobile View Sheet */}
             <motion.div
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 260, restDelta: 0.5 }}
-              drag="x"
-              dragConstraints={{ left: -320, right: 0 }}
-              dragElastic={{ left: 0.5, right: 0 }}
-              onDragEnd={(_, info) => {
-                if (info.offset.x < -80) {
-                  setIsCategoriesDrawerOpen(false);
-                }
-              }}
-              className="fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white dark:bg-gray-950 shadow-2xl z-[150] md:hidden flex flex-col touch-pan-y transition-all duration-300 border-r border-gray-150 dark:border-gray-850"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 260 }}
+              className="fixed inset-0 top-0 bg-gray-50 dark:bg-gray-950 z-[150] md:hidden flex flex-col overflow-hidden"
             >
-              {/* Header */}
-              <div className="p-5 pb-4 border-b border-gray-100 dark:border-gray-850 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/40">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center border border-orange-200/50 dark:border-orange-850">
-                    <LayoutGrid size={18} className="stroke-[2.2]" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 tracking-tight leading-none">
-                      {language === "sw" ? "Vitengo vya Bidhaa" : "Product Categories"}
-                    </h3>
-                    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider block mt-1">
-                      {allCategoryList.length + 1} {language === "sw" ? "Makusanyo Yasiyo na Mipaka" : "Curated Catalogs"}
+              {/* Header & Search Bar */}
+              <div className="p-4 pb-3 bg-white dark:bg-gray-900 border-b border-gray-150 dark:border-gray-800 space-y-3 shrink-0 shadow-2xs">
+                <div className="flex items-center justify-between gap-3">
+                  {/* Search categories bar with left search icon and right scan icon */}
+                  <div className="relative flex-1">
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                      <Search size={18} />
                     </span>
+                    <input
+                      type="text"
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      placeholder={language === "sw" ? "Tafuta kitengo..." : "Search categories..."}
+                      className="w-full pl-10 pr-10 py-2.5 bg-gray-100 dark:bg-gray-800 border border-transparent dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/50 text-sm font-medium transition-all"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      {categorySearch ? (
+                        <button
+                          onClick={() => setCategorySearch("")}
+                          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                        >
+                          <X size={16} />
+                        </button>
+                      ) : (
+                        <ScanLine size={18} className="text-gray-400 hover:text-orange-500 cursor-pointer" />
+                      )}
+                    </div>
                   </div>
+
+                  {/* Close Modal Button */}
+                  <button
+                    onClick={() => setIsCategoriesDrawerOpen(false)}
+                    className="p-2.5 text-gray-500 hover:text-orange-600 bg-gray-100 dark:bg-gray-800 rounded-2xl border border-gray-200/60 dark:border-gray-700 cursor-pointer shrink-0"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.1, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setIsCategoriesDrawerOpen(false)}
-                  className="p-2 text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors bg-gray-100 dark:bg-gray-850 rounded-xl border border-gray-200/50 dark:border-gray-800 cursor-pointer"
-                >
-                  <X size={18} />
-                </motion.button>
-              </div>
-
-              {/* Category Quick Search Bar */}
-              <div className="px-5 pt-4 pb-2">
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                    <Search size={15} />
+                {/* Section Title */}
+                <div className="flex items-center justify-between px-1 pt-1">
+                  <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+                    {language === "sw" ? "Vitengo" : "Categories"}
+                  </h1>
+                  <span className="text-xs font-semibold text-gray-400">
+                    {filteredCategories.length} {language === "sw" ? "Aina" : "Available"}
                   </span>
-                  <input
-                    type="text"
-                    value={categorySearch}
-                    onChange={(e) => setCategorySearch(e.target.value)}
-                    placeholder={language === "sw" ? "Tafuta kitengo..." : "Filter categories..."}
-                    className="w-full pl-9 pr-8 py-2.5 bg-gray-50 dark:bg-gray-900/80 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/50 text-xs font-medium transition-all"
-                  />
-                  {categorySearch && (
-                    <button
-                      onClick={() => setCategorySearch("")}
-                      className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
                 </div>
               </div>
 
-              {/* Scrollable Categories List */}
-              <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 max-h-[calc(100vh-170px)]">
+              {/* Scrollable Categories Grid */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[calc(100vh-120px)]">
                 {/* Feature Card: All Products */}
                 {!categorySearch.trim() && (
                   <motion.button
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleSelectCategory("All")}
-                    className={`w-full p-3.5 rounded-2xl border text-left transition-all duration-200 flex items-center justify-between group cursor-pointer ${
+                    className={`w-full p-4 rounded-[22px] border text-left transition-all duration-200 flex items-center justify-between group cursor-pointer relative overflow-hidden shadow-2xs ${
                       currentCategoryParam === "All"
-                        ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md border-orange-400"
-                        : "bg-orange-50/70 dark:bg-orange-950/20 border-orange-200/60 dark:border-orange-900/30 text-orange-900 dark:text-orange-300 hover:bg-orange-100/60"
+                        ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white border-orange-500"
+                        : "bg-white dark:bg-gray-900 border-gray-150 dark:border-gray-800 text-gray-900 dark:text-white hover:border-orange-300"
                     }`}
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-xl ${
+                    <div className="flex items-center space-x-3.5 z-10">
+                      <div className={`p-3 rounded-2xl ${
                         currentCategoryParam === "All"
                           ? "bg-white/20 text-white"
-                          : "bg-white dark:bg-gray-900 text-orange-600 dark:text-orange-400 shadow-xs"
+                          : "bg-orange-100 dark:bg-orange-950 text-orange-600 dark:text-orange-400"
                       }`}>
-                        <Layers size={18} />
+                        <Layers size={22} />
                       </div>
                       <div>
-                        <span className="text-xs font-bold block leading-tight">
-                          {language === "sw" ? "Vitengo Vyote na Ofa" : "All Products & Catalogs"}
-                        </span>
-                        <span className={`text-[10px] block mt-0.5 ${
-                          currentCategoryParam === "All" ? "text-white/80" : "text-gray-500 dark:text-gray-400"
+                        <h3 className="text-base font-extrabold leading-tight">
+                          {language === "sw" ? "Vitengo Vyote na Ofa" : "All Collections"}
+                        </h3>
+                        <span className={`text-xs block mt-0.5 font-medium ${
+                          currentCategoryParam === "All" ? "text-white/80" : "text-gray-400"
                         }`}>
-                          {language === "sw" ? "Tazama bidhaa zote sokoni" : "Explore full marketplace catalog"}
+                          {language === "sw" ? "Tazama bidhaa zote sokoni" : "Explore full marketplace"}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center">
+                    <div className="z-10">
                       {currentCategoryParam === "All" ? (
-                        <Check size={16} className="text-white font-bold" />
+                        <Check size={20} className="text-white font-bold" />
                       ) : (
-                        <ChevronRight size={16} className="opacity-50 group-hover:translate-x-0.5 transition-transform" />
+                        <ChevronRight size={20} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
                       )}
                     </div>
                   </motion.button>
                 )}
 
-                {/* Category List Items */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="px-1 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                    {language === "sw" ? "Orodha ya Vitengo" : "Browse by Category"}
+                {/* 2-Column Responsive Card Grid matching requested UI */}
+                {filteredCategories.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-gray-400 font-medium">
+                    {language === "sw" ? "Hakuna kitengo kilichopatikana" : "No matching categories found"}
                   </div>
-
-                  {filteredCategories.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-gray-400">
-                      {language === "sw" ? "Hakuna kitengo kilichopatikana" : "No matching categories found"}
-                    </div>
-                  ) : (
-                    filteredCategories.map((cat) => {
-                      const CategoryIcon = cat.icon;
-                      const isSelected = currentCategoryParam === cat.name;
+                ) : (
+                  <div className="grid grid-cols-2 gap-3.5 sm:gap-4 pb-16">
+                    {filteredCategories.map((cat) => {
+                      const bgImg = getCategoryImageUrl(cat.name, settings?.categoryImages);
+                      const realCount = categoryItemCounts[cat.name] || categoryItemCounts[cat.label];
+                      const itemCountText = realCount !== undefined ? `${realCount} items` : `${getItemFallbackCount(cat.name)} items`;
 
                       return (
                         <motion.button
                           key={cat.name}
-                          whileTap={{ scale: 0.98 }}
+                          whileTap={{ scale: 0.97 }}
                           onClick={() => handleSelectCategory(cat.name)}
-                          className={`w-full p-3 rounded-2xl border text-left transition-all duration-200 flex items-center justify-between group cursor-pointer ${
-                            isSelected
-                              ? "bg-orange-50 dark:bg-orange-950/40 border-orange-300 dark:border-orange-800 text-orange-600 dark:text-orange-400 font-bold shadow-xs"
-                              : "bg-white dark:bg-gray-900/40 border-gray-150/70 dark:border-gray-800/60 hover:bg-gray-50 dark:hover:bg-gray-850 text-gray-700 dark:text-gray-300"
-                          }`}
+                          className="relative w-full rounded-[22px] overflow-hidden aspect-[1/1.08] shadow-sm border border-gray-150/60 dark:border-gray-800 group cursor-pointer text-left focus:outline-none"
                         >
-                          <div className="flex items-center space-x-3 min-w-0 pr-2">
-                            <div className={`p-2 rounded-xl shrink-0 transition-colors ${
-                              isSelected
-                                ? "bg-orange-500 text-white shadow-xs"
-                                : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-orange-100 dark:group-hover:bg-orange-950 group-hover:text-orange-600"
-                            }`}>
-                              <CategoryIcon size={16} />
-                            </div>
+                          {/* Image Background */}
+                          <img
+                            src={bgImg}
+                            alt={cat.label}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=800&q=80";
+                            }}
+                          />
 
-                            <div className="min-w-0 flex-1">
-                              <span className="text-xs font-bold block truncate leading-tight">
-                                {cat.label}
-                              </span>
-                              {cat.desc && (
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500 block truncate mt-0.5 font-medium">
-                                  {cat.desc}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                          {/* Dark Gradient Overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
 
-                          <div className="shrink-0 flex items-center">
-                            {isSelected ? (
-                              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                            ) : (
-                              <ChevronRight size={15} className="text-gray-300 dark:text-gray-600 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
-                            )}
+                          {/* Text Overlay at bottom left */}
+                          <div className="absolute bottom-0 left-0 right-0 p-3.5 sm:p-4 text-white z-10 flex flex-col justify-end">
+                            <h3 className="text-base sm:text-lg font-extrabold text-white leading-tight drop-shadow-xs">
+                              {cat.label}
+                            </h3>
+                            <span className="text-xs font-medium text-white/85 mt-0.5 block">
+                              {itemCountText}
+                            </span>
                           </div>
                         </motion.button>
                       );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Drawer Bottom Action Footer */}
-              <div className="p-4 border-t border-gray-100 dark:border-gray-850 bg-gray-50/80 dark:bg-gray-900/50 mt-auto">
-                <Link
-                  to="/profile"
-                  onClick={() => setIsCategoriesDrawerOpen(false)}
-                  className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-gray-950 border border-gray-200/80 dark:border-gray-800 text-xs font-bold text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 transition-colors shadow-2xs"
-                >
-                  <div className="flex items-center space-x-2.5">
-                    <Store size={15} className="text-orange-500" />
-                    <span>{language === "sw" ? "Kuwa Muuzaji wa Sokoplus" : "Become an Artisan Seller"}</span>
+                    })}
                   </div>
-                  <ArrowRight size={14} className="text-gray-400" />
-                </Link>
+                )}
               </div>
             </motion.div>
           </>

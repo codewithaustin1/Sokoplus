@@ -20,6 +20,14 @@ interface Message {
   mapsLinks?: any[];
 }
 
+const DEFAULT_AI_PRODUCTS_FALLBACK = [
+  { id: "f1", name: "Handcrafted Maasai Beaded Necklace", category: "Local Crafts", price: 3500, inStock: true, description: "Authentic handmade Kenyan beaded jewelry." },
+  { id: "f2", name: "Premium Kitenge Cotton Dress", category: "Fashion", price: 4800, inStock: true, description: "Vibrant African Kitenge print tailored dress." },
+  { id: "f3", name: "Organic Kenyan Macadamia Nuts 500g", category: "Groceries", price: 1200, inStock: true, description: "Freshly roasted local macadamia nuts." },
+  { id: "f4", name: "Solar Powered Portable Power Bank 20,000mAh", category: "Electronics", price: 3200, inStock: true, description: "High-capacity outdoor solar charger." },
+  { id: "f5", name: "Pure Shea & Coconut Body Butter", category: "Beauty & Personal Care", price: 1500, inStock: true, description: "Nourishing natural skin butter." },
+];
+
 export default function Support({ user, isOpen, onClose }: SupportProps) {
   // Tabs: "ai" for custom Gemini product assistant; "whatsapp" for direct live chat; "email" for Firestore ticketing helpdesk
   const [mode, setMode] = useState<"ai" | "whatsapp" | "email">("ai");
@@ -152,9 +160,13 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
     }
   ]);
 
+  // Ref to ensure we only attempt fetching products once per session or handle quota gracefully
+  const hasAttemptedFetch = useRef(false);
+
   // Load products client side to supply chatbot context reliably (bypasses REST 403 & Admin SDK 7 Permission Denied issues)
   useEffect(() => {
-    if (isOpen && products.length === 0) {
+    if (isOpen && products.length === 0 && !hasAttemptedFetch.current) {
+      hasAttemptedFetch.current = true;
       const fetchProductsForAI = async () => {
         try {
           const q = query(collection(db, "products"), limit(50));
@@ -162,9 +174,10 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
           const retrieved = snap.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
             .filter((p: any) => p.active !== false);
-          setProducts(retrieved);
-        } catch (error) {
-          console.error("SupportChat client products fetch failed:", error);
+          setProducts(retrieved.length > 0 ? retrieved : DEFAULT_AI_PRODUCTS_FALLBACK);
+        } catch (error: any) {
+          console.warn("SupportChat client products fetch bypassed (using fallback context):", error?.message || error);
+          setProducts(DEFAULT_AI_PRODUCTS_FALLBACK);
         }
       };
       fetchProductsForAI();

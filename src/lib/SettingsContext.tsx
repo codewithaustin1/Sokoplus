@@ -34,6 +34,7 @@ export interface HomepageSettings {
   seoImage?: string;
   featuredCollections?: { title: string; imageUrl: string; category: string }[];
   socialLinks?: SocialLinks;
+  categoryImages?: Record<string, string>;
 }
 
 interface SettingsContextType {
@@ -121,6 +122,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           seoDescription: data.seoDescription || "",
           seoImage: data.seoImage || "",
           featuredCollections: data.featuredCollections || [],
+          categoryImages: data.categoryImages || {},
           socialLinks: data.socialLinks ? {
             facebook: data.socialLinks.facebook || "",
             instagram: data.socialLinks.instagram || "",
