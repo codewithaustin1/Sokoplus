@@ -250,7 +250,6 @@ import ArtisanColorPicker from "../components/ArtisanColorPicker";
 import { downloadReceipt } from "../utils/pdfGenerator";
 import SecurityManager from "../components/SecurityManager";
 import AdminReviewsManager from "../components/AdminReviewsManager";
-import { AdminInventoryAlerts } from "../components/AdminInventoryAlerts";
 import { clearAllOfflineCache } from "../utils/offlineDb";
 import { counties } from "../data/counties";
 import {
@@ -1016,8 +1015,8 @@ function AdminProductsTable({
       </div>
 
       {/* VIRTUALIZED PRODUCT TABLE SCROLL CONTAINER */}
-      <div ref={tableContainerRef} className="overflow-y-auto max-h-[620px] rounded-2xl border border-gray-100 shadow-inner">
-        <table className="w-full text-left border-collapse">
+      <div ref={tableContainerRef} className="overflow-x-auto overflow-y-auto max-h-[620px] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-inner">
+        <table className="w-full text-left border-collapse min-w-[720px]">
           <thead className="sticky top-0 bg-white z-20 shadow-xs">
             <tr className="text-xs font-bold text-gray-400 border-b border-gray-100 bg-gray-50/90 backdrop-blur-xs">
               <th className="py-3.5 w-12 text-center">
@@ -1496,8 +1495,8 @@ function AdminUsersTable({
       </div>
 
       {/* VIRTUALIZED USER TABLE SCROLL CONTAINER */}
-      <div ref={tableContainerRef} className="overflow-y-auto max-h-[620px] rounded-2xl border border-gray-100 shadow-inner">
-        <table className="w-full text-left border-collapse">
+      <div ref={tableContainerRef} className="overflow-x-auto overflow-y-auto max-h-[620px] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-inner">
+        <table className="w-full text-left border-collapse min-w-[680px]">
           <thead className="sticky top-0 bg-white z-20 shadow-xs">
             <tr className="text-xs font-bold text-gray-400 border-b border-gray-100 bg-gray-50/90 backdrop-blur-xs">
               <th className="py-3.5 w-12 text-center">
@@ -1626,7 +1625,6 @@ export default function Admin({ user }: AdminProps) {
   });
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
-  const [inventorySubTab, setInventorySubTab] = useState<"alerts" | "catalog">("alerts");
   const [activeTab, setActiveTab] = useState<
     "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue" | "privacy_erasure"
   >("inventory");
@@ -4944,42 +4942,37 @@ export default function Admin({ user }: AdminProps) {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-gray-100 p-1 rounded-2xl w-fit flex-wrap gap-y-2">
+      <div className="flex items-center space-x-1.5 bg-gray-100 dark:bg-gray-900 p-1.5 rounded-2xl w-full max-w-full overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth md:w-fit md:flex-wrap md:whitespace-normal">
         <button
           onClick={() => setActiveTab("analytics")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-1.5 ${activeTab === "analytics" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-1.5 shrink-0 md:shrink-0 ${activeTab === "analytics" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           <TrendingUp size={16} />
           <span>BI Analytics</span>
         </button>
         <button
           onClick={() => setActiveTab("inventory")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-1.5 ${activeTab === "inventory" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-1.5 shrink-0 md:shrink-0 ${activeTab === "inventory" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           <Package size={16} />
-          <span>Inventory Alerts & Catalog</span>
-          {products.filter(p => p.active !== false && p.stock <= 5).length > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-orange-500 text-white animate-pulse">
-              {products.filter(p => p.active !== false && p.stock <= 5).length}
-            </span>
-          )}
+          <span>Inventory Catalog</span>
         </button>
         <button
           onClick={() => setActiveTab("users")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-1.5 ${activeTab === "users" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-1.5 shrink-0 md:shrink-0 ${activeTab === "users" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           <Users size={16} />
           <span>User Accounts</span>
         </button>
         <button
           onClick={() => setActiveTab("orders")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "orders" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "orders" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           Orders
         </button>
         <button
           onClick={() => setActiveTab("inbox")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "inbox" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "inbox" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           Inbox{" "}
           {tickets.filter((t) => t.status === "open").length > 0 && (
@@ -4990,31 +4983,31 @@ export default function Admin({ user }: AdminProps) {
         </button>
         <button
           onClick={() => setActiveTab("blogs")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "blogs" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "blogs" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           Blog Manager
         </button>
         <button
           onClick={() => setActiveTab("settings")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "settings" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "settings" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           Admin Settings
         </button>
         <button
           onClick={() => setActiveTab("marketing")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "marketing" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "marketing" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           Marketing & CRM
         </button>
         <button
           onClick={() => setActiveTab("careers")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "careers" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "careers" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           Careers Board
         </button>
         <button
           onClick={() => setActiveTab("reviews")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "reviews" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "reviews" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           Product Reviews
         </button>
@@ -5022,7 +5015,7 @@ export default function Admin({ user }: AdminProps) {
           <>
             <button
               onClick={() => setActiveTab("sellers")}
-              className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "sellers" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+              className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "sellers" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
             >
               Marketplace Sellers
               {sellers.filter((s) => s.status === "pending").length > 0 && (
@@ -5033,7 +5026,7 @@ export default function Admin({ user }: AdminProps) {
             </button>
             <button
               onClick={() => setActiveTab("approval_queue")}
-              className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "approval_queue" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+              className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "approval_queue" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
             >
               Approval Queue
               {pendingProducts.filter((p) => p.approvalStatus === "pending").length > 0 && (
@@ -5046,14 +5039,14 @@ export default function Admin({ user }: AdminProps) {
         )}
         <button
           onClick={() => setActiveTab("privacy_erasure")}
-          className={`px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-1.5 ${activeTab === "privacy_erasure" ? "bg-white shadow-sm text-red-600" : "text-gray-500 hover:bg-gray-200"}`}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-1.5 shrink-0 md:shrink-0 ${activeTab === "privacy_erasure" ? "bg-white dark:bg-gray-800 shadow-sm text-red-600 dark:text-red-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           Data Erasure Queue
         </button>
         {user?.email === "upfrontretaile@gmail.com" && (
           <button
             onClick={() => setActiveTab("security")}
-            className={`px-6 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === "security" ? "bg-white shadow-sm text-orange-600" : "text-gray-500 hover:bg-gray-200"}`}
+            className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "security" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
           >
             Roles & Admins (RBAC)
           </button>
@@ -5064,30 +5057,30 @@ export default function Admin({ user }: AdminProps) {
         {activeTab === "analytics" && (
           <div className="space-y-8 animate-fade-in text-gray-950">
             {/* Header / Intro */}
-            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+            <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
                   <span className="text-[10px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100/50">
                     Sokoplus BI Workspace
                   </span>
-                  <h1 className="text-3xl font-extrabold text-gray-900 mt-2 tracking-tight">In-House Business Intelligence</h1>
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-2 tracking-tight">In-House Business Intelligence</h1>
                   <p className="text-xs text-gray-500 font-semibold mt-1">
                     Advanced dynamic reporting, artisan gross margins, product sales velocity, and automated stock recommendations.
                   </p>
                 </div>
 
                 {/* Exporters */}
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                   <button
                     onClick={downloadArtisanCSV}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-2xl text-xs font-bold text-gray-700 transition-all cursor-pointer shadow-sm"
+                    className="flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-2xl text-xs font-bold text-gray-700 transition-all cursor-pointer shadow-sm"
                   >
                     <Download size={14} className="text-gray-500" />
                     <span>Export Artisans CSV</span>
                   </button>
                   <button
                     onClick={downloadProductVelocityCSV}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 rounded-2xl text-xs font-extrabold text-white transition-all cursor-pointer shadow-md shadow-orange-600/15"
+                    className="flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 bg-orange-600 hover:bg-orange-700 rounded-2xl text-xs font-extrabold text-white transition-all cursor-pointer shadow-md shadow-orange-600/15"
                   >
                     <Download size={14} />
                     <span>Export Inventory Velocity CSV</span>
@@ -5096,7 +5089,7 @@ export default function Admin({ user }: AdminProps) {
               </div>
 
               {/* Advanced Interactive Filters Bar */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-gray-50/50 rounded-2xl border border-gray-100/85">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 p-3.5 sm:p-5 bg-gray-50/50 rounded-2xl border border-gray-100/85">
                 {/* Date Timescale selector */}
                 <div className="space-y-1">
                   <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Time Frame Horizon</span>
@@ -5151,9 +5144,9 @@ export default function Admin({ user }: AdminProps) {
             </div>
 
             {/* Dynamic Interactive Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6">
               {/* Card 1: Revenue index */}
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-orange-200/50 transition-all">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-orange-200/50 transition-all">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="p-2.5 rounded-2xl bg-orange-50 text-orange-600">
@@ -5175,7 +5168,7 @@ export default function Admin({ user }: AdminProps) {
               </div>
 
               {/* Card 2: Generated Profit */}
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-emerald-200/50 transition-all">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-emerald-200/50 transition-all">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600">
@@ -5197,7 +5190,7 @@ export default function Admin({ user }: AdminProps) {
               </div>
 
               {/* Card 3: Average Order Value (AOV) */}
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-indigo-200/50 transition-all">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-indigo-200/50 transition-all">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600">
@@ -5219,7 +5212,7 @@ export default function Admin({ user }: AdminProps) {
               </div>
 
               {/* Card 4: Total piece volume */}
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-pink-200/50 transition-all">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden flex flex-col justify-between group hover:border-pink-200/50 transition-all">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="p-2.5 rounded-2xl bg-pink-50 text-pink-600">
@@ -5830,73 +5823,31 @@ export default function Admin({ user }: AdminProps) {
 
         {activeTab === "inventory" && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-150 dark:border-gray-800 pb-3 flex-wrap gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setInventorySubTab("alerts")}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                    inventorySubTab === "alerts"
-                      ? "bg-orange-600 text-white shadow-md"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
-                  }`}
-                >
-                  <ShieldAlert size={14} />
-                  <span>Automated Low-Stock Alerts</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setInventorySubTab("catalog")}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                    inventorySubTab === "catalog"
-                      ? "bg-orange-600 text-white shadow-md"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
-                  }`}
-                >
-                  <Package size={14} />
-                  <span>Full Catalog Management ({products.length})</span>
-                </button>
-              </div>
-            </div>
-
-            {inventorySubTab === "alerts" ? (
-              <AdminInventoryAlerts 
-                products={products} 
-                onProductsUpdated={() => {
-                  onSnapshot(collection(db, "products"), (snapshot) => {
-                    const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-                    setProducts(list);
-                  });
-                }} 
-              />
-            ) : (
-              <AdminProductsTable
-                products={products}
-                minRatingFilter={minRatingFilter}
-                setMinRatingFilter={setMinRatingFilter}
-                productApprovalFilter={productApprovalFilter}
-                setProductApprovalFilter={setProductApprovalFilter}
-                productSortBy={productSortBy}
-                setProductSortBy={setProductSortBy}
-                productSearchTerm={productSearchTerm}
-                setProductSearchTerm={setProductSearchTerm}
-                selectedProductIds={selectedProductIds}
-                setSelectedProductIds={setSelectedProductIds}
-                handleBatchDeleteProducts={handleBatchDeleteProducts}
-                isBatchDeletingProducts={isBatchDeletingProducts}
-                setProducts={setProducts}
-                setEditingProduct={setEditingProduct}
-                setHasColorsEdit={setHasColorsEdit}
-                setSelectedColorsEdit={setSelectedColorsEdit}
-                setShowEditModal={setShowEditModal}
-                deleteProduct={deleteProduct}
-                setSelectedProductForRejection={setSelectedProductForRejection}
-                setProductRejectionReasonInput={setProductRejectionReasonInput}
-                confirmingApproveProductId={confirmingApproveProductId}
-                setConfirmingApproveProductId={setConfirmingApproveProductId}
-              />
-            )}
+            <AdminProductsTable
+              products={products}
+              minRatingFilter={minRatingFilter}
+              setMinRatingFilter={setMinRatingFilter}
+              productApprovalFilter={productApprovalFilter}
+              setProductApprovalFilter={setProductApprovalFilter}
+              productSortBy={productSortBy}
+              setProductSortBy={setProductSortBy}
+              productSearchTerm={productSearchTerm}
+              setProductSearchTerm={setProductSearchTerm}
+              selectedProductIds={selectedProductIds}
+              setSelectedProductIds={setSelectedProductIds}
+              handleBatchDeleteProducts={handleBatchDeleteProducts}
+              isBatchDeletingProducts={isBatchDeletingProducts}
+              setProducts={setProducts}
+              setEditingProduct={setEditingProduct}
+              setHasColorsEdit={setHasColorsEdit}
+              setSelectedColorsEdit={setSelectedColorsEdit}
+              setShowEditModal={setShowEditModal}
+              deleteProduct={deleteProduct}
+              setSelectedProductForRejection={setSelectedProductForRejection}
+              setProductRejectionReasonInput={setProductRejectionReasonInput}
+              confirmingApproveProductId={confirmingApproveProductId}
+              setConfirmingApproveProductId={setConfirmingApproveProductId}
+            />
           </div>
         )}
 
@@ -5967,7 +5918,7 @@ export default function Admin({ user }: AdminProps) {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-left min-w-[680px]">
                 <thead>
                   <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
                     <th className="pb-4 uppercase">Order ID</th>
