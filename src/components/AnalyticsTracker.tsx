@@ -6,14 +6,16 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { initGA, trackPageView } from "../lib/analytics";
+import { useSettings } from "../lib/SettingsContext";
 
 export default function AnalyticsTracker() {
   const location = useLocation();
+  const { settings } = useSettings();
 
-  // Initialize GA on mount
+  // Initialize GA on mount or when gaMeasurementId updates from admin settings
   useEffect(() => {
-    initGA();
-  }, []);
+    initGA(false, settings?.gaMeasurementId);
+  }, [settings?.gaMeasurementId]);
 
   // Track page navigation whenever location or search query changes
   useEffect(() => {

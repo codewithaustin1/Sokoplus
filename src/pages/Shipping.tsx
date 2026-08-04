@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import SEO from "../components/SEO";
+import { useSettings } from "../lib/SettingsContext";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Truck, 
@@ -15,6 +16,8 @@ import {
 } from "lucide-react";
 
 export default function Shipping() {
+  const { settings } = useSettings();
+  const freeThreshold = settings?.freeShippingThreshold !== undefined ? Number(settings.freeShippingThreshold) : 15000;
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const shippingRates = [
@@ -53,7 +56,7 @@ export default function Shipping() {
   const shippingFaqs = [
     {
       q: "How do I qualify for Free Shipping?",
-      a: "All orders across Kenya with a subtotal value of KES 15,000 or greater automatically qualify for free standard shipping! No discount codes required; the discount is applied directly during the checkout process."
+      a: `All orders across Kenya with a subtotal value of KES ${freeThreshold.toLocaleString()} or greater automatically qualify for free standard shipping! No discount codes required; the discount is applied directly during the checkout process.`
     },
     {
       q: "Can I track my delivery status in real-time?",
@@ -95,7 +98,7 @@ export default function Shipping() {
         <div className="space-y-1 text-center md:text-left">
           <h3 className="text-lg font-black text-gray-950">Free Delivery on Big Orders!</h3>
           <p className="text-gray-500 text-sm font-medium">
-            Spend KES 15,000 or more in one transaction and we cover 100% of your shipping fees automatically, no matter your county in Kenya.
+            Spend KES {freeThreshold.toLocaleString()} or more in one transaction and we cover 100% of your shipping fees automatically, no matter your county in Kenya.
           </p>
         </div>
       </div>

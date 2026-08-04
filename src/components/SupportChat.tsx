@@ -230,7 +230,7 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
     }
   };
 
-  // AI Assistant message handler
+  // AI Assistant message handler with Real-Time SSE Chunked Response Streaming
   const handleSendAiMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedInput = chatInput.trim();
@@ -242,41 +242,114 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
       text: trimmedInput,
     };
 
-    setAiMessages((prev) => [...prev, userMsg]);
+    const botMsgId = `m-bot-${Date.now()}`;
+
+    setAiMessages((prev) => [
+      ...prev,
+      userMsg,
+      {
+        id: botMsgId,
+        sender: "bot",
+        text: "",
+        mapsLinks: [],
+      },
+    ]);
     setChatInput("");
     setAiLoading(true);
 
     try {
-      const response = await axios.post("/api/support-chat/ai", {
-        messages: [...aiMessages, userMsg].map((m) => ({
-          sender: m.sender,
-          text: m.text,
-        })),
-        products: products,
-        latitude: userLocation?.latitude,
-        longitude: userLocation?.longitude,
+      const response = await fetch("/api/support-chat/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [...aiMessages, userMsg].map((m) => ({
+            sender: m.sender,
+            text: m.text,
+          })),
+          products: products,
+          latitude: userLocation?.latitude,
+          longitude: userLocation?.longitude,
+        }),
       });
 
-      const replyText = response.data?.text || "Pardon me, please check your connection and try asking that again.";
-      const mapsLinks = response.data?.mapsLinks || [];
-      setAiMessages((prev) => [
-        ...prev,
-        {
-          id: `m-bot-${Date.now()}`,
-          sender: "bot",
-          text: replyText,
-          mapsLinks: mapsLinks,
-        },
-      ]);
+      if (!response.ok || !response.body) {
+        throw new Error(`SSE stream failed with status ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let accumulatedText = "";
+      let mapsLinks: any[] = [];
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          const jsonStr = trimmed.slice(6).trim();
+          if (!jsonStr) continue;
+
+          try {
+            const data = JSON.parse(jsonStr);
+            if (data.chunk) {
+              accumulatedText += data.chunk;
+              setAiMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === botMsgId ? { ...msg, text: accumulatedText } : msg
+                )
+              );
+            }
+            if (data.mapsLinks && Array.isArray(data.mapsLinks)) {
+              mapsLinks = data.mapsLinks;
+              setAiMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === botMsgId ? { ...msg, mapsLinks } : msg
+                )
+              );
+            }
+          } catch (err) {
+            console.warn("Failed parsing SSE JSON line:", err);
+          }
+        }
+      }
+
+      if (buffer.trim().startsWith("data: ")) {
+        const jsonStr = buffer.trim().slice(6).trim();
+        try {
+          const data = JSON.parse(jsonStr);
+          if (data.chunk) {
+            accumulatedText += data.chunk;
+          }
+          if (data.mapsLinks) {
+            mapsLinks = data.mapsLinks;
+          }
+          setAiMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === botMsgId ? { ...msg, text: accumulatedText, mapsLinks } : msg
+            )
+          );
+        } catch (_) {}
+      }
+
+      if (!accumulatedText.trim()) {
+        throw new Error("No streamed text content received from SSE route");
+      }
     } catch (err: any) {
-      console.warn("AI proxy endpoint failed, attempting direct client-side fallback (Option B)...", err);
-      
+      console.warn("AI SSE stream endpoint failed, attempting direct client-side fallback (Option B)...", err);
+
       const clientApiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (clientApiKey) {
         try {
           const { GoogleGenAI } = await import("@google/genai");
           const aiInstance = new GoogleGenAI({ apiKey: clientApiKey });
-          
+
           const systemInstruction = `You are "SokoSmart", the intelligent, friendly, and helpful Customer Support Assistant for Sokoplus, a premier Kenyan e-commerce marketplace. 
 
 Your objectives:
@@ -305,7 +378,7 @@ ${JSON.stringify(products.map(p => ({
             parts: [{ text: m.text }],
           }));
 
-          const fallbackResponse = await aiInstance.models.generateContent({
+          const responseStream = await aiInstance.models.generateContentStream({
             model: "gemini-3.6-flash",
             contents: contents,
             config: {
@@ -322,51 +395,36 @@ ${JSON.stringify(products.map(p => ({
             },
           });
 
-          const replyText = fallbackResponse.text || "Pardon me, please check your connection and try asking that again.";
-          const groundingChunks = fallbackResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-          const mapsLinks: any[] = [];
-          groundingChunks.forEach((chunk: any) => {
-            if (chunk.maps) {
-              mapsLinks.push({
-                title: chunk.maps.title,
-                uri: chunk.maps.uri,
-                address: chunk.maps.address || ""
-              });
-            } else if (chunk.web && chunk.web.uri && chunk.web.uri.includes("google.com/maps")) {
-              mapsLinks.push({
-                title: chunk.web.title,
-                uri: chunk.web.uri,
-                address: ""
-              });
+          let accumulatedText = "";
+          for await (const chunk of responseStream) {
+            if (chunk.text) {
+              accumulatedText += chunk.text;
+              setAiMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === botMsgId ? { ...msg, text: accumulatedText } : msg
+                )
+              );
             }
-          });
+          }
 
-          setAiMessages((prev) => [
-            ...prev,
-            {
-              id: `m-bot-${Date.now()}`,
-              sender: "bot",
-              text: replyText,
-              mapsLinks: mapsLinks,
-            },
-          ]);
-          return;
-        } catch (fallbackErr: any) {
-          console.error("Direct client-side Gemini fallback failed:", fallbackErr);
+          if (accumulatedText.trim()) return;
+        } catch (clientErr) {
+          console.error("Direct client-side Gemini fallback stream failed:", clientErr);
         }
       }
 
-      setAiMessages((prev) => [
-        ...prev,
-        {
-          id: `m-err-${Date.now()}`,
-          sender: "bot",
-          text: `Habari! SokoSmart is currently experiencing extremely high traffic volume. 
+      setAiMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === botMsgId
+            ? {
+                ...msg,
+                text: `Habari! SokoSmart is currently operating in offline mode. 
 
-To prevent any delay, feel free to browse our main collections directly on the home page, or tap the **WhatsApp** or **Email Ticket** tabs above to reach us directly! Asante sana for your patience.`,
-          mapsLinks: [],
-        },
-      ]);
+Please check out our featured products catalog on the home page, or connect with our human support team via the **WhatsApp** or **Email Ticket** tabs above! Asante sana.`,
+              }
+            : msg
+        )
+      );
     } finally {
       setAiLoading(false);
     }
@@ -495,7 +553,19 @@ To prevent any delay, feel free to browse our main collections directly on the h
                       msg.text
                     ) : (
                       <div className="markdown-body space-y-1 prose prose-sm leading-relaxed text-gray-800 dark:text-gray-200 dark:prose-invert">
-                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                        {msg.text ? (
+                          <>
+                            <ReactMarkdown>{msg.text}</ReactMarkdown>
+                            {aiLoading && msg.id === aiMessages[aiMessages.length - 1]?.id && (
+                              <span className="inline-block w-1.5 h-3.5 bg-orange-500 animate-pulse ml-1 align-middle rounded-full" />
+                            )}
+                          </>
+                        ) : (
+                          <div className="flex items-center space-x-2 text-xs text-gray-400 dark:text-gray-500 italic py-1">
+                            <Loader2 size={12} className="animate-spin text-orange-500" />
+                            <span>SokoSmart is generating response...</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -539,14 +609,6 @@ To prevent any delay, feel free to browse our main collections directly on the h
                 </div>
               ))}
               
-              {aiLoading && (
-                <div className="flex items-start space-x-2.5 self-start max-w-[85%] animate-pulse">
-                  <div className="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-3xl rounded-bl-none p-3.5 shadow-sm text-xs font-bold text-gray-400 dark:text-gray-500 italic flex items-center space-x-2">
-                    <Loader2 size={13} className="animate-spin text-orange-500" />
-                    <span>Searching catalog...</span>
-                  </div>
-                </div>
-              )}
               <div ref={messagesEndRef} />
             </div>
           )}

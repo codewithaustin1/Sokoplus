@@ -122,6 +122,15 @@ export default function Home({ user }: HomeProps) {
   }, [activeCategories, selectedCategory, loading]);
 
   const [isOfflineView, setIsOfflineView] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isOfflineView) {
+      const timer = setTimeout(() => {
+        setIsOfflineView(false);
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOfflineView]);
   const [addingMap, setAddingMap] = useState<Record<string, "idle" | "loading" | "added">>({});
   const { addToCart } = useCart();
   const navigate = useNavigate();
@@ -1238,9 +1247,16 @@ export default function Home({ user }: HomeProps) {
 
             <div className="flex items-center gap-3">
               {isOfflineView && (
-                <span className="flex items-center gap-1.5 text-xs font-extrabold text-amber-700 bg-amber-50 px-4 py-2 rounded-full border border-amber-200 shadow-sm animate-fade-in shrink-0">
-                  <WifiOff size={14} className="animate-pulse shrink-0" />
+                <span className="flex items-center gap-1.5 text-xs font-extrabold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-3.5 py-1.5 rounded-full border border-amber-200 dark:border-amber-800/60 shadow-xs animate-fade-in shrink-0">
+                  <WifiOff size={13} className="animate-pulse shrink-0 text-amber-600" />
                   Offline Cache View
+                  <button
+                    onClick={() => setIsOfflineView(false)}
+                    className="ml-1 text-amber-600 hover:text-amber-950 dark:hover:text-amber-100 rounded-full p-0.5 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors cursor-pointer border-none"
+                    title="Dismiss notification"
+                  >
+                    <X size={12} />
+                  </button>
                 </span>
               )}
               <p className="text-gray-500 dark:text-gray-400 font-bold bg-gray-50 dark:bg-gray-900 px-4 py-2 rounded-full border border-gray-100 dark:border-gray-800 text-sm sm:text-base whitespace-nowrap">

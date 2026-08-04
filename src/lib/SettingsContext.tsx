@@ -32,6 +32,8 @@ export interface HomepageSettings {
   seoTitle?: string;
   seoDescription?: string;
   seoImage?: string;
+  gaMeasurementId?: string;
+  freeShippingThreshold?: number;
   featuredCollections?: { title: string; imageUrl: string; category: string }[];
   socialLinks?: SocialLinks;
   categoryImages?: Record<string, string>;
@@ -55,6 +57,8 @@ const defaultSettings: HomepageSettings = {
   seoTitle: "",
   seoDescription: "",
   seoImage: "",
+  gaMeasurementId: "",
+  freeShippingThreshold: 15000,
   featuredCollections: [],
   socialLinks: {
     facebook: "",
@@ -121,6 +125,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           seoTitle: data.seoTitle || "",
           seoDescription: data.seoDescription || "",
           seoImage: data.seoImage || "",
+          gaMeasurementId: data.gaMeasurementId || "",
+          freeShippingThreshold: data.freeShippingThreshold !== undefined ? Number(data.freeShippingThreshold) : 15000,
           featuredCollections: data.featuredCollections || [],
           categoryImages: data.categoryImages || {},
           socialLinks: data.socialLinks ? {

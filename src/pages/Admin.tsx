@@ -1,16 +1,28 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import ReactMarkdown from "react-markdown";
 import { UserProfile, Product, Order, SupportTicket, BlogPost, JobOffer, JobApplication, Review } from "../types";
+import { executeOrQueueFirestoreMutation } from "../utils/offlineSyncQueue";
 import { OrderRefundManager } from "../components/OrderRefundManager";
 import { AdminDataErasureManager } from "../components/AdminDataErasureManager";
 import { db, auth } from "../lib/firebase";
+
+// Lazy-loaded sub-component views for modularity and bundle splitting
+const OrdersTab = lazy(() => import("../components/admin/OrdersTab"));
+const ProductsTab = lazy(() => import("../components/admin/ProductsTab"));
+const UsersTab = lazy(() => import("../components/admin/UsersTab"));
+const InboxTab = lazy(() => import("../components/admin/InboxTab"));
+const SellersTab = lazy(() => import("../components/admin/SellersTab"));
+const ApprovalQueueTab = lazy(() => import("../components/admin/ApprovalQueueTab"));
+const MarketingTab = lazy(() => import("../components/admin/MarketingTab"));
+const CareersTab = lazy(() => import("../components/admin/CareersTab"));
 import { motion, AnimatePresence } from "motion/react";
 import {
   collection,
   query,
   orderBy,
   limit,
+  startAfter,
   doc,
   where,
   writeBatch as realWriteBatch,
@@ -170,6 +182,7 @@ import {
   Upload,
   Image,
   Globe,
+  Truck,
   Download,
   ChevronUp,
   ChevronDown,
@@ -315,7 +328,9 @@ function handleFirestoreError(
         })
       );
     }
-    toast.error(`Database Quota Exceeded. SokoPlus running on local cached datasets.`);
+    toast.error(`Database Quota Exceeded. SokoPlus running on local cached datasets.`, {
+      id: "quota-exceeded-toast",
+    });
     return; // Safe return
   }
 
@@ -771,6 +786,11 @@ interface AdminProductsTableProps {
   setProductRejectionReasonInput: (s: string) => void;
   confirmingApproveProductId: string | null;
   setConfirmingApproveProductId: (s: string | null) => void;
+  productsPage?: number;
+  hasMoreProducts?: boolean;
+  isProductsLoading?: boolean;
+  onNextProductsPage?: () => void;
+  onPrevProductsPage?: () => void;
 }
 
 function AdminProductsTable({
@@ -797,6 +817,11 @@ function AdminProductsTable({
   setProductRejectionReasonInput,
   confirmingApproveProductId,
   setConfirmingApproveProductId,
+  productsPage = 1,
+  hasMoreProducts = false,
+  isProductsLoading = false,
+  onNextProductsPage,
+  onPrevProductsPage,
 }: AdminProductsTableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1319,6 +1344,34 @@ function AdminProductsTable({
           </tbody>
         </table>
       </div>
+
+      {/* Server-Side Pagination Controls for Products */}
+      <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 pt-4 mt-6 gap-3">
+        <div className="flex items-center gap-2 text-xs text-gray-500 font-semibold">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold border border-emerald-200">
+            ⚡ Firestore Server Query (limit 25)
+          </span>
+          <span>Page {productsPage}</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={onPrevProductsPage}
+            disabled={productsPage <= 1 || isProductsLoading}
+            className="px-4 py-2 bg-gray-50 hover:bg-gray-100 disabled:opacity-40 text-xs font-bold rounded-xl border border-gray-200 cursor-pointer transition-all"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            onClick={onNextProductsPage}
+            disabled={!hasMoreProducts || isProductsLoading}
+            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer transition-all"
+          >
+            {isProductsLoading ? "Loading..." : "Next Page"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1665,6 +1718,8 @@ export default function Admin({ user }: AdminProps) {
   const [seoTitle, setSeoTitle] = useState<string>("");
   const [seoDescription, setSeoDescription] = useState<string>("");
   const [seoImage, setSeoImage] = useState<string>("");
+  const [gaMeasurementId, setGaMeasurementId] = useState<string>("");
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState<number>(15000);
   const [featuredCollections, setFeaturedCollections] = useState<{ title: string; imageUrl: string; category: string }[]>([]);
   const [categoryImages, setCategoryImages] = useState<Record<string, string>>({});
   const [socialLinks, setSocialLinks] = useState<SocialLinks>({
@@ -1699,6 +1754,17 @@ export default function Admin({ user }: AdminProps) {
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   const [productSortBy, setProductSortBy] = useState<string>("default");
   const [productApprovalFilter, setProductApprovalFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  
+  // Server-Side Firestore Query Pagination States
+  const [ordersPage, setOrdersPage] = useState<number>(1);
+  const [ordersCursors, setOrdersCursors] = useState<any[]>([]);
+  const [hasMoreOrders, setHasMoreOrders] = useState<boolean>(false);
+  const [isOrdersLoading, setIsOrdersLoading] = useState<boolean>(false);
+
+  const [productsPage, setProductsPage] = useState<number>(1);
+  const [productsCursors, setProductsCursors] = useState<any[]>([]);
+  const [hasMoreProducts, setHasMoreProducts] = useState<boolean>(false);
+  const [isProductsLoading, setIsProductsLoading] = useState<boolean>(false);
   const [selectedProductForRejection, setSelectedProductForRejection] = useState<Product | null>(null);
   const [productRejectionReasonInput, setProductRejectionReasonInput] = useState("");
   const [confirmingApproveProductId, setConfirmingApproveProductId] = useState<string | null>(null);
@@ -1940,6 +2006,132 @@ export default function Admin({ user }: AdminProps) {
     seoDescription: "",
   });
 
+  const loadOrdersChunk = async (targetPage: number = 1, cursor?: any) => {
+    setIsOrdersLoading(true);
+    try {
+      const pageSize = 25;
+      const constraints: any[] = [];
+      
+      if (orderStatusFilter !== "all" && orderStatusFilter !== "guest") {
+        constraints.push(where("status", "==", orderStatusFilter));
+      } else if (orderStatusFilter === "guest") {
+        constraints.push(where("isGuestOrder", "==", true));
+      }
+
+      if (orderSortBy === "oldest") {
+        constraints.push(orderBy("createdAt", "asc"));
+      } else {
+        constraints.push(orderBy("createdAt", "desc"));
+      }
+
+      if (cursor) {
+        constraints.push(startAfter(cursor));
+      }
+
+      constraints.push(limit(pageSize));
+
+      let snap;
+      try {
+        const q = query(collection(db, "orders"), ...constraints);
+        snap = await realGetDocs(q);
+        notifyFsLog("Read", "orders", snap.docs.length);
+      } catch (e) {
+        console.warn("[Server Query Fallback] Unindexed orders query fallback:", e);
+        const fallbackQ = query(collection(db, "orders"), orderBy("createdAt", "desc"), limit(pageSize));
+        snap = await realGetDocs(fallbackQ);
+        notifyFsLog("Read", "orders", snap.docs.length);
+      }
+
+      const loaded = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Order);
+      setOrders(loaded);
+      setHasMoreOrders(snap.docs.length === pageSize);
+      if (snap.docs.length > 0) {
+        setOrdersCursors((prev) => {
+          const updated = [...prev];
+          updated[targetPage - 1] = snap.docs[snap.docs.length - 1];
+          return updated;
+        });
+      }
+      setOrdersPage(targetPage);
+    } catch (err) {
+      console.error("Error loading orders chunk:", err);
+    } finally {
+      setIsOrdersLoading(false);
+    }
+  };
+
+  const loadProductsChunk = async (targetPage: number = 1, cursor?: any) => {
+    setIsProductsLoading(true);
+    try {
+      const pageSize = 25;
+      const constraints: any[] = [];
+
+      if (productApprovalFilter !== "all") {
+        constraints.push(where("approvalStatus", "==", productApprovalFilter));
+      }
+
+      if (productSortBy === "created-asc") {
+        constraints.push(orderBy("createdAt", "asc"));
+      } else if (productSortBy === "created-desc") {
+        constraints.push(orderBy("createdAt", "desc"));
+      } else if (productSortBy === "rating-desc") {
+        constraints.push(orderBy("rating", "desc"));
+      } else if (productSortBy === "rating-asc") {
+        constraints.push(orderBy("rating", "asc"));
+      } else if (productSortBy === "price-desc") {
+        constraints.push(orderBy("price", "desc"));
+      } else if (productSortBy === "price-asc") {
+        constraints.push(orderBy("price", "asc"));
+      } else if (productSortBy === "stock-asc") {
+        constraints.push(orderBy("stock", "asc"));
+      } else if (productSortBy === "stock-desc") {
+        constraints.push(orderBy("stock", "desc"));
+      }
+
+      if (cursor) {
+        constraints.push(startAfter(cursor));
+      }
+
+      constraints.push(limit(pageSize));
+
+      let snap;
+      try {
+        const q = query(collection(db, "products"), ...constraints);
+        snap = await realGetDocs(q);
+        notifyFsLog("Read", "products", snap.docs.length);
+      } catch (e) {
+        console.warn("[Server Query Fallback] Unindexed products query fallback:", e);
+        const fallbackQ = query(collection(db, "products"), limit(pageSize));
+        snap = await realGetDocs(fallbackQ);
+        notifyFsLog("Read", "products", snap.docs.length);
+      }
+
+      const loaded = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Product);
+      setProducts(loaded);
+      setHasMoreProducts(snap.docs.length === pageSize);
+      if (snap.docs.length > 0) {
+        setProductsCursors((prev) => {
+          const updated = [...prev];
+          updated[targetPage - 1] = snap.docs[snap.docs.length - 1];
+          return updated;
+        });
+      }
+      setProductsPage(targetPage);
+    } catch (err) {
+      console.error("Error loading products chunk:", err);
+    } finally {
+      setIsProductsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrdersChunk(1);
+  }, [orderStatusFilter, orderSortBy]);
+
+  useEffect(() => {
+    loadProductsChunk(1);
+  }, [productApprovalFilter, productSortBy]);
+
   const fetchData = async () => {
     try {
       const pSnap = await getDocs(query(collection(db, "products"), limit(100)));
@@ -2098,6 +2290,12 @@ export default function Admin({ user }: AdminProps) {
           }
           if (settingsData.seoImage) {
             setSeoImage(settingsData.seoImage);
+          }
+          if (settingsData.gaMeasurementId) {
+            setGaMeasurementId(settingsData.gaMeasurementId);
+          }
+          if (settingsData.freeShippingThreshold !== undefined) {
+            setFreeShippingThreshold(Number(settingsData.freeShippingThreshold));
           }
           if (settingsData.featuredCollections) {
             setFeaturedCollections(settingsData.featuredCollections);
@@ -2573,7 +2771,7 @@ export default function Admin({ user }: AdminProps) {
       }
 
       const settingsRef = doc(db, "settings", "homepage");
-      await setDoc(settingsRef, {
+      const settingsPayload = {
         heroImageUrl: homepageHeroUrl,
         heroImageUrls: homepageHeroUrls,
         googleMapsLink: googleMapsLinks.length > 0 ? googleMapsLinks[0].url : "",
@@ -2585,15 +2783,29 @@ export default function Admin({ user }: AdminProps) {
         seoTitle: seoTitle,
         seoDescription: seoDescription,
         seoImage: seoImage,
+        gaMeasurementId: gaMeasurementId,
+        freeShippingThreshold: Number(freeShippingThreshold) || 15000,
         featuredCollections: featuredCollections,
         socialLinks: socialLinks,
         disabledCountries: disabledCountries,
         disabledCounties: disabledCounties,
         disabledCities: disabledCities,
         categoryImages: categoryImages,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
         updatedBy: user?.email || "Admin",
-      }, { merge: true });
+      };
+
+      await executeOrQueueFirestoreMutation(
+        () => setDoc(settingsRef, settingsPayload, { merge: true }),
+        {
+          type: "set",
+          collectionName: "settings",
+          docId: "homepage",
+          payload: settingsPayload,
+          options: { merge: true },
+          description: `Update Homepage & Shipping Settings (Threshold KES ${Number(freeShippingThreshold) || 15000})`,
+        }
+      );
       toast.success("Homepage settings successfully saved! Changes are now live.");
     } catch (error: any) {
       console.error("Error saving settings:", error);
@@ -2981,14 +3193,22 @@ export default function Admin({ user }: AdminProps) {
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
-      const order = orders.find((o) => o.id === orderId);
-      await updateDoc(doc(db, "orders", orderId), { status });
       setOrders(
         orders.map((o) =>
           o.id === orderId ? { ...o, status: status as any } : o,
         ),
       );
-      toast.success("Order updated.");
+      await executeOrQueueFirestoreMutation(
+        () => updateDoc(doc(db, "orders", orderId), { status }),
+        {
+          type: "update",
+          collectionName: "orders",
+          docId: orderId,
+          payload: { status },
+          description: `Update Order ${orderId.slice(0, 8)} status to ${status}`,
+        }
+      );
+      toast.success("Order status updated.");
       if (status === "delivered" || status === "cancelled") {
         fetchData();
       }
@@ -3002,12 +3222,22 @@ export default function Admin({ user }: AdminProps) {
     status: SupportTicket["status"],
   ) => {
     try {
-      await updateDoc(doc(db, "support_tickets", ticketId), {
-        status,
-        updatedAt: new Date().toISOString(),
-      });
       setTickets(
         tickets.map((t) => (t.id === ticketId ? { ...t, status } : t)),
+      );
+      const updatedAt = new Date().toISOString();
+      await executeOrQueueFirestoreMutation(
+        () => updateDoc(doc(db, "support_tickets", ticketId), {
+          status,
+          updatedAt,
+        }),
+        {
+          type: "update",
+          collectionName: "support_tickets",
+          docId: ticketId,
+          payload: { status, updatedAt },
+          description: `Update Ticket ${ticketId.slice(0, 8)} status to ${status}`,
+        }
       );
       toast.success("Ticket status updated.");
     } catch (error) {
@@ -3267,8 +3497,16 @@ export default function Admin({ user }: AdminProps) {
     )
       return;
     try {
-      await deleteDoc(doc(db, "orders", orderId));
       setOrders(orders.filter((o) => o.id !== orderId));
+      await executeOrQueueFirestoreMutation(
+        () => deleteDoc(doc(db, "orders", orderId)),
+        {
+          type: "delete",
+          collectionName: "orders",
+          docId: orderId,
+          description: `Delete Order ${orderId.slice(0, 8)}`,
+        }
+      );
       toast.success("Order deleted successfully.");
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `orders/${orderId}`);
@@ -5842,13 +6080,14 @@ export default function Admin({ user }: AdminProps) {
         )}
 
         {activeTab === "inventory" && (
-          <div className="space-y-6">
-            <AdminProductsTable
+          <Suspense fallback={<div className="p-8 text-center text-gray-500 font-bold">Loading inventory...</div>}>
+            <ProductsTab
+              AdminProductsTable={AdminProductsTable}
               products={products}
               minRatingFilter={minRatingFilter}
               setMinRatingFilter={setMinRatingFilter}
               productApprovalFilter={productApprovalFilter}
-              setProductApprovalFilter={setProductApprovalFilter}
+              setProductApprovalFilter={(val: string) => setProductApprovalFilter(val as any)}
               productSortBy={productSortBy}
               setProductSortBy={setProductSortBy}
               productSearchTerm={productSearchTerm}
@@ -5862,384 +6101,80 @@ export default function Admin({ user }: AdminProps) {
               setHasColorsEdit={setHasColorsEdit}
               setSelectedColorsEdit={setSelectedColorsEdit}
               setShowEditModal={setShowEditModal}
-              deleteProduct={deleteProduct}
+              deleteProduct={(id: string) => { deleteProduct(id, ""); }}
               setSelectedProductForRejection={setSelectedProductForRejection}
               setProductRejectionReasonInput={setProductRejectionReasonInput}
               confirmingApproveProductId={confirmingApproveProductId}
               setConfirmingApproveProductId={setConfirmingApproveProductId}
+              productsPage={productsPage}
+              hasMoreProducts={hasMoreProducts}
+              isProductsLoading={isProductsLoading}
+              onNextProductsPage={() => loadProductsChunk(productsPage + 1, productsCursors[productsPage - 1])}
+              onPrevProductsPage={() => {
+                const prevIndex = productsPage - 3;
+                const cursor = prevIndex >= 0 ? productsCursors[prevIndex] : undefined;
+                loadProductsChunk(productsPage - 1, cursor);
+              }}
             />
-          </div>
+          </Suspense>
         )}
 
         {activeTab === "users" && (
-          <AdminUsersTable
-            usersList={usersList}
-            userSearchTerm={userSearchTerm}
-            setUserSearchTerm={setUserSearchTerm}
-            selectedUserUids={selectedUserUids}
-            setSelectedUserUids={setSelectedUserUids}
-            handleBatchDeleteUsers={handleBatchDeleteUsers}
-            isBatchDeletingUsers={isBatchDeletingUsers}
-            handleDownloadUsersCSV={handleDownloadUsersCSV}
-            isExportingUsers={isExportingUsers}
-            deleteUserDoc={deleteUserDoc}
-          />
+          <Suspense fallback={<div className="p-8 text-center text-gray-500 font-bold">Loading users...</div>}>
+            <UsersTab
+              AdminUsersTable={AdminUsersTable}
+              usersList={usersList}
+              userSearchTerm={userSearchTerm}
+              setUserSearchTerm={setUserSearchTerm}
+              selectedUserUids={selectedUserUids}
+              setSelectedUserUids={setSelectedUserUids}
+              handleBatchDeleteUsers={handleBatchDeleteUsers}
+              isBatchDeletingUsers={isBatchDeletingUsers}
+              handleDownloadUsersCSV={handleDownloadUsersCSV}
+              isExportingUsers={isExportingUsers}
+              deleteUserDoc={(uid: string) => { deleteUserDoc(uid, ""); }}
+            />
+          </Suspense>
         )}
 
         {activeTab === "orders" && (
-          /* Orders Table */
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <h2 className="text-xl font-bold">Recent Orders</h2>
-              <div className="flex flex-wrap items-center gap-4">
-                <select
-                  value={orderStatusFilter}
-                  onChange={(e) => setOrderStatusFilter(e.target.value)}
-                  className="bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
-                >
-                  <option value="all">All Orders</option>
-                  <option value="guest">Guest Checkout Orders</option>
-                  <option value="pending">Pending</option>
-                  <option value="processing">Processing</option>
-                  <option value="shipped">Shipped</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-                <select
-                  value={orderSortBy}
-                  onChange={(e) => setOrderSortBy(e.target.value)}
-                  className="bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
-                >
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                </select>
-                <div className="relative group flex-grow max-w-sm">
-                  <Search
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors"
-                    size={18}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Search Receipt ID, Email, Name, Phone, or M-Pesa Ref..."
-                    value={orderSearchTerm}
-                    onChange={(e) => setOrderSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm font-medium"
-                  />
-                </div>
-                <button
-                  type="button"
-                  id="admin-download-csv-btn"
-                  onClick={handleDownloadCSV}
-                  className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 rounded-2xl text-sm font-bold shadow-sm flex items-center space-x-2 transition-all cursor-pointer hover:shadow"
-                >
-                  <Download size={16} />
-                  <span>Download CSV</span>
-                </button>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[680px]">
-                <thead>
-                  <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">
-                    <th className="pb-4 uppercase">Order ID</th>
-                    <th className="pb-4 uppercase">Customer</th>
-                    <th className="pb-4 uppercase">Date & Timestamp</th>
-                     <th className="pb-4 uppercase">Status</th>
-                    <th className="pb-4 uppercase text-right">Total</th>
-                    <th className="pb-4 uppercase text-right w-24">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filteredOrders.length > 0 ? (
-                    filteredOrders.map((o) => (
-                      <tr key={o.id} className="text-sm hover:bg-gray-50/50">
-                        <td className="py-4 font-mono text-xs text-gray-400">
-                          #{o.id.slice(0, 8)}
-                        </td>
-                        <td className="py-4 text-gray-700">
-                          <div className="flex flex-col space-y-0.5">
-                            <div className="flex items-center space-x-1.5">
-                              <span className="font-bold text-gray-900 text-xs">
-                                {o.shippingAddress?.fullName || o.customerName || o.userEmail?.split("@")[0] || "Guest Customer"}
-                              </span>
-                              {(o.isGuestOrder || o.userId === "guest" || !o.userId) && (
-                                <span className="bg-amber-100 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
-                                  Guest
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-gray-400 font-medium break-all">
-                              {o.userEmail || o.shippingAddress?.phone || "No Email Provided"}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 text-gray-700 font-medium">
-                          {o.createdAt ? (
-                            <div className="text-[11px] text-gray-400 font-medium mt-0.5">
-                              {o.createdAt.toDate
-                                ? o.createdAt.toDate().toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })
-                                : new Date(o.createdAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400 italic font-medium">No Date</span>
-                          )}
-                        </td>
-                        <td className="py-4">
-                          <select
-                            value={o.status}
-                            onChange={(e) =>
-                              updateOrderStatus(o.id, e.target.value)
-                            }
-                            className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase outline-none cursor-pointer ${
-                              o.status === "delivered"
-                                ? "bg-green-100 text-green-700"
-                                : o.status === "cancelled"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="processing">Processing</option>
-                            <option value="shipped">Shipped</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-                        </td>
-                        <td className="py-4 text-right font-black">
-                          KES {o.totalAmount.toLocaleString()}
-                        </td>
-                        <td className="py-4 text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedViewOrder(o)}
-                              className="inline-flex items-center justify-center text-orange-600 p-2 hover:bg-orange-50 rounded-xl transition-all group cursor-pointer"
-                              title="View Details"
-                            >
-                              <Eye size={16} className="group-hover:scale-110 transition-transform" />
-                            </button>
-                            {o.status === "delivered" || o.status === "cancelled" ? (
-                              <button
-                                type="button"
-                                onClick={() => deleteOrder(o.id)}
-                                className="inline-flex items-center justify-center text-red-500 p-2 hover:bg-red-50 rounded-xl transition-all hover:text-red-700 group cursor-pointer"
-                                title="Delete Order"
-                              >
-                                <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
-                              </button>
-                            ) : (
-                              <div className="w-8 shrink-0"></div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="py-12 text-center text-gray-500 font-medium"
-                      >
-                        No orders found matching your search.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <Suspense fallback={<div className="p-8 text-center text-gray-500 font-bold">Loading orders...</div>}>
+            <OrdersTab
+              orderStatusFilter={orderStatusFilter}
+              setOrderStatusFilter={setOrderStatusFilter}
+              orderSortBy={orderSortBy}
+              setOrderSortBy={setOrderSortBy}
+              orderSearchTerm={orderSearchTerm}
+              setOrderSearchTerm={setOrderSearchTerm}
+              handleDownloadCSV={handleDownloadCSV}
+              filteredOrders={filteredOrders}
+              updateOrderStatus={updateOrderStatus}
+              setSelectedViewOrder={setSelectedViewOrder}
+              deleteOrder={deleteOrder}
+              ordersPage={ordersPage}
+              hasMoreOrders={hasMoreOrders}
+              isOrdersLoading={isOrdersLoading}
+              onNextOrdersPage={() => loadOrdersChunk(ordersPage + 1, ordersCursors[ordersPage - 1])}
+              onPrevOrdersPage={() => {
+                const prevIndex = ordersPage - 3;
+                const cursor = prevIndex >= 0 ? ordersCursors[prevIndex] : undefined;
+                loadOrdersChunk(ordersPage - 1, cursor);
+              }}
+            />
+          </Suspense>
         )}
 
         {activeTab === "inbox" && (
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden min-h-[400px]">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-xl font-bold flex items-center">
-                <Inbox className="mr-2 text-orange-600" /> Support Inbox
-              </h2>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
-                {tickets.length} Total Tickets
-              </p>
-            </div>
-
-            {tickets.length > 0 ? (
-              <div className="space-y-4">
-                {tickets.map((t) => (
-                  <div
-                    key={t.id}
-                    className={`p-6 rounded-3xl border transition-all ${t.status === "resolved" || t.status === "closed" ? "bg-gray-50 border-gray-100 opacity-60" : "bg-white border-orange-100 shadow-sm"}`}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div
-                          className={`p-3 rounded-2xl ${
-                            t.subject === "Technical Support"
-                              ? "bg-red-50 text-red-600"
-                              : t.subject === "Billing/Invoices"
-                                ? "bg-green-50 text-green-600"
-                                : t.subject === "Order Status"
-                                  ? "bg-blue-50 text-blue-600"
-                                  : "bg-gray-50 text-gray-600"
-                          }`}
-                        >
-                          <MessageSquare size={20} />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-lg">{t.subject}</h4>
-                          <p className="text-sm text-gray-500">
-                            From:{" "}
-                            <span className="font-medium text-gray-900">
-                              {t.email}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-                      <select
-                        value={t.status}
-                        onChange={(e) =>
-                          updateTicketStatus(
-                            t.id,
-                            e.target.value as SupportTicket["status"],
-                          )
-                        }
-                        className={`text-[10px] font-bold px-3 py-1.5 rounded-full uppercase outline-none cursor-pointer border-none shadow-sm ${
-                          t.status === "resolved"
-                            ? "bg-green-600 text-white"
-                            : t.status === "open"
-                              ? "bg-orange-100 text-orange-700"
-                              : t.status === "in-progress"
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-400 text-white"
-                        }`}
-                      >
-                        <option value="open">Open</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="resolved">Resolved</option>
-                        <option value="closed">Closed</option>
-                      </select>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-2xl mb-4 text-gray-700 whitespace-pre-wrap text-sm leading-relaxed border border-gray-100">
-                      {t.message}
-                    </div>
-
-                    {/* Interactive Replies Conversation History */}
-                    {t.replies && t.replies.length > 0 && (
-                      <div className="mb-4 pl-4 border-l-2 border-orange-500 space-y-2">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                          Conversation History
-                        </p>
-                        {t.replies.map((reply, rid) => (
-                          <div
-                            key={rid}
-                            className={`p-3 rounded-2xl text-xs ${
-                              reply.sender === "admin"
-                                ? "bg-orange-50 text-orange-950 border border-orange-100"
-                                : "bg-gray-50 text-gray-800 border border-gray-150"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-extrabold uppercase text-[9px] tracking-wider text-orange-600">
-                                {reply.sender === "admin" ? "Soplus Team" : t.email ? t.email.split("@")[0] : "Customer"}
-                              </span>
-                              <span className="text-[9px] text-gray-400">
-                                {reply.createdAt && typeof reply.createdAt === "string"
-                                  ? new Date(reply.createdAt).toLocaleString()
-                                  : String(reply.createdAt)}
-                              </span>
-                            </div>
-                            <p className="font-medium whitespace-pre-wrap">{reply.message}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Send Outbound Response Box */}
-                    <form
-                      onSubmit={(e) => handleSendAdminReply(e, t.id, t.replies || [])}
-                      className="mb-4 flex gap-2"
-                    >
-                      <input
-                        type="text"
-                        required
-                        placeholder="Type response matching registered email..."
-                        className="flex-grow p-3 text-xs bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-850 rounded-xl outline-none focus:ring-1 focus:ring-orange-550 transition-all font-semibold"
-                        value={adminReplyText[t.id] || ""}
-                        onChange={(e) =>
-                          setAdminReplyText((prev) => ({
-                            ...prev,
-                            [t.id]: e.target.value,
-                          }))
-                        }
-                      />
-                      <button
-                        type="submit"
-                        className="bg-orange-600 hover:bg-orange-700 text-white font-black text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1 cursor-pointer border-none"
-                      >
-                        <Send size={12} />
-                        <span>Reply</span>
-                      </button>
-                    </form>
-                    <div className="flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      <div className="flex items-center">
-                        <Clock size={12} className="mr-1" />
-                        {t.createdAt?.toDate
-                          ? t.createdAt.toDate().toLocaleString()
-                          : String(t.createdAt)}
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        {t.unreadCountAdmin && t.unreadCountAdmin > 0 ? (
-                          <button
-                            onClick={async () => {
-                              try {
-                                await updateDoc(doc(db, "support_tickets", t.id), {
-                                  unreadCountAdmin: 0
-                                });
-                              } catch (e) {
-                                console.warn("Failed to mark ticket read:", e);
-                              }
-                            }}
-                            className="bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-[9px] px-2.5 py-1 rounded-xl uppercase cursor-pointer border-none flex items-center transition-all"
-                            title="Clear unread notification"
-                          >
-                            <Check size={10} className="mr-1" /> Clear Unread ({t.unreadCountAdmin})
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-green-650 font-bold flex items-center bg-green-50 px-2 py-0.5 rounded-lg border border-green-100">
-                            <CheckCheck size={12} className="mr-1 text-green-600" /> All Read
-                          </span>
-                        )}
-
-                        {t.status === "closed" && (
-                          <button
-                            onClick={() => deleteTicket(t.id)}
-                            className="flex items-center text-red-600 hover:text-red-700 transition-all font-bold group"
-                          >
-                            <Trash2 size={12} className="mr-1 text-red-500 group-hover:scale-110 transition-transform" /> Delete Ticket
-                          </button>
-                        )}
-                        {t.status !== "resolved" && t.status !== "closed" && (
-                          <button
-                            onClick={() => updateTicketStatus(t.id, "resolved")}
-                            className="flex items-center text-green-600 hover:text-green-700 transition-colors"
-                          >
-                            <CheckCircle2 size={12} className="mr-1" /> Mark Resolved
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-20 flex flex-col items-center justify-center text-gray-400 space-y-4">
-                <div className="bg-gray-50 p-6 rounded-full">
-                  <Inbox size={48} />
-                </div>
-                <p className="font-bold uppercase tracking-widest text-xs">
-                  No support tickets found
-                </p>
-              </div>
-            )}
-          </div>
+          <Suspense fallback={<div className="p-8 text-center text-gray-500 font-bold">Loading support inbox...</div>}>
+            <InboxTab
+              tickets={tickets}
+              updateTicketStatus={updateTicketStatus}
+              handleSendAdminReply={handleSendAdminReply}
+              adminReplyText={adminReplyText}
+              setAdminReplyText={setAdminReplyText}
+              deleteTicket={deleteTicket}
+            />
+          </Suspense>
         )}
       </div>
 
@@ -6952,14 +6887,67 @@ export default function Admin({ user }: AdminProps) {
                 </div>
               </div>
 
-              {/* Site-Wide SEO Metadata Settings */}
+              {/* Site-Wide SEO Metadata & Analytics Settings */}
               <div className="p-6 bg-white dark:bg-gray-900 rounded-3xl border border-gray-150 dark:border-gray-800 space-y-6">
                 <div className="space-y-1">
                   <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center">
-                    <Globe size={16} className="mr-2 text-orange-600" /> Site-Wide SEO & Social Metadata
+                    <Globe size={16} className="mr-2 text-orange-600" /> Site-Wide SEO, Analytics & Social Metadata
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                    Configure default search engine metadata and social media preview cards (Open Graph/Twitter cards) across the entire platform.
+                    Configure Google Analytics 4 tracking, default search engine metadata, and social media preview cards across SokoPlus.
+                  </p>
+                </div>
+
+                {/* Google Analytics GA4 Measurement ID card */}
+                <div className="p-4 bg-orange-50/50 dark:bg-orange-950/20 rounded-2xl border border-orange-100 dark:border-orange-900/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-orange-900 dark:text-orange-300 block">
+                      Google Analytics 4 (GA4) Measurement ID
+                    </label>
+                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${
+                      gaMeasurementId.startsWith("G-") 
+                        ? "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400" 
+                        : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
+                    }`}>
+                      {gaMeasurementId.startsWith("G-") ? "GA4 Active" : "Pending Measurement ID"}
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. G-XXXXXXXXXX"
+                    className="w-full px-3.5 py-2.5 text-xs font-mono bg-white dark:bg-gray-950 border border-orange-200 dark:border-orange-900/50 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/40 text-gray-900 dark:text-gray-100"
+                    value={gaMeasurementId}
+                    onChange={(e) => setGaMeasurementId(e.target.value)}
+                  />
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
+                    Paste your GA4 Measurement ID starting with <code className="bg-orange-100 dark:bg-orange-950 px-1 rounded font-bold">G-</code> from your Google Analytics Web Data Stream settings (e.g. for property <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">Analytics for Sokoplus</code>). Once saved, real-time web visits and checkout analytics will stream into your GA4 account.
+                  </p>
+                </div>
+
+                {/* Free Delivery Order Volume Threshold Card */}
+                <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
+                      <Truck size={14} className="text-emerald-600 dark:text-emerald-400" /> Free Delivery Trigger Threshold (KES)
+                    </label>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                      Active: KES {freeShippingThreshold.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-2.5 text-xs font-bold text-gray-400">KES</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="500"
+                      placeholder="e.g. 15000"
+                      className="w-full pl-13 pr-3.5 py-2.5 text-xs font-bold bg-white dark:bg-gray-950 border border-emerald-200 dark:border-emerald-900/50 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/40 text-gray-900 dark:text-gray-100"
+                      value={freeShippingThreshold}
+                      onChange={(e) => setFreeShippingThreshold(Math.max(0, Number(e.target.value)))}
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
+                    Decides the minimum cart subtotal order volume in KES that automatically triggers <strong className="text-emerald-700 dark:text-emerald-400">100% Free Standard Shipping</strong> across Kenya. Decreasing this encourages higher conversion for smaller orders; increasing protects logistics margins.
                   </p>
                 </div>
 
@@ -8630,1923 +8618,61 @@ export default function Admin({ user }: AdminProps) {
       )}
 
       {activeTab === "careers" && (
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-8 animate-fade-in text-gray-950 font-sans">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-50 pb-6">
-            <div>
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                <Briefcase size={22} className="text-orange-600" />
-                Careers Board
-              </h2>
-              <p className="text-sm text-gray-500 font-medium col-span-12">
-                Create SokoPlus workspace listings, accept applications, evaluate candidate qualifications, and download encrypted resumes.
-              </p>
-            </div>
-            
-            <button
-              onClick={() => {
-                setNewJob({
-                  title: "",
-                  department: "Engineering",
-                  location: "Nairobi (Hybrid)",
-                  type: "Full-time",
-                  description: "",
-                  requirementsString: ""
-                });
-                setShowJobAddModal(true);
-              }}
-              className="px-5 py-3 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs transition-all tracking-wide shadow-md shadow-orange-600/10 flex items-center gap-1.5 cursor-pointer shrink-0"
-            >
-              + Create Job Offer
-            </button>
-          </div>
-
-          <div className="flex space-x-2 border-b border-gray-100 pb-3">
-            <button
-              onClick={() => setSubTab("openings")}
-              className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
-                subTab === "openings" 
-                  ? "bg-orange-50 text-orange-700 border border-orange-100" 
-                  : "text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              Active Job Postings ({jobOffers.length})
-            </button>
-            <button
-              onClick={() => setSubTab("applicants")}
-              className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all ${
-                subTab === "applicants" 
-                  ? "bg-orange-50 text-orange-700 border border-orange-100" 
-                  : "text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              Candidates & Folders ({jobApplications.length})
-            </button>
-          </div>
-
-          {subTab === "openings" ? (
-            <div className="space-y-4">
-              {jobOffers.length === 0 ? (
-                <div className="p-12 text-center rounded-2xl border border-dashed border-gray-200 space-y-3">
-                  <Briefcase size={32} className="text-gray-300 mx-auto" />
-                  <p className="text-sm font-black text-gray-700">No Postings Created Yet</p>
-                  <p className="text-xs text-gray-400 font-medium max-w-xs mx-auto">
-                    Click "Create Job Offer" to make your first job opening visible to job seekers.
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-3xl border border-gray-100 shadow-sm">
-                  <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-gray-50 text-xs text-gray-400 font-black uppercase tracking-wider">
-                      <tr>
-                        <th className="p-4">Role Title</th>
-                        <th className="p-4">Department</th>
-                        <th className="p-4">Location</th>
-                        <th className="p-4">Type</th>
-                        <th className="p-4">Status</th>
-                        <th className="p-4 text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 font-medium">
-                      {jobOffers.map((j) => (
-                        <tr key={j.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="p-4 font-black text-gray-900">{j.title}</td>
-                          <td className="p-4"><span className="px-2.5 py-0.5 rounded-md bg-gray-100 text-[10px] font-black tracking-wider uppercase text-gray-600">{j.department}</span></td>
-                          <td className="p-4 text-xs font-semibold">{j.location}</td>
-                          <td className="p-4 text-xs font-semibold">{j.type}</td>
-                          <td className="p-4">
-                            <button
-                              onClick={async () => {
-                                try {
-                                  if (!j.id) return;
-                                  const jobRef = doc(db, "job_offers", j.id);
-                                  const nextState = j.active === false ? true : false;
-                                  await updateDoc(jobRef, { active: nextState });
-                                  setJobOffers(jobOffers.map(o => o.id === j.id ? { ...o, active: nextState } : o));
-                                  toast.success(`Job status changed to: ${nextState ? "Active" : "Paused"}`);
-                                } catch (e: any) {
-                                  toast.error(e.message);
-                                }
-                              }}
-                              className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer ${
-                                j.active !== false 
-                                  ? "bg-green-50 text-green-750 hover:bg-green-100" 
-                                  : "bg-red-50 text-red-750 hover:bg-red-100"
-                              }`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full ${j.active !== false ? "bg-green-600" : "bg-red-500"}`}></span>
-                              {j.active !== false ? "Recruiting" : "Paused / Draft"}
-                            </button>
-                          </td>
-                          <td className="p-4 text-center font-sans">
-                            <button
-                              onClick={async () => {
-                                if (!window.confirm("Are you sure you want to delete this career opportunity?")) return;
-                                try {
-                                  if (!j.id) return;
-                                  await deleteDoc(doc(db, "job_offers", j.id));
-                                  setJobOffers(jobOffers.filter(o => o.id !== j.id));
-                                  toast.success("Job posting removed successfully!");
-                                } catch (e: any) {
-                                  toast.error(e.message);
-                                }
-                              }}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                              title="Delete Posting"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {jobApplications.length === 0 ? (
-                <div className="p-12 text-center rounded-2xl border border-dashed border-gray-200 space-y-3">
-                  <Users size={32} className="text-gray-300 mx-auto" />
-                  <p className="text-sm font-black text-gray-700">No Candidate Leads Yet</p>
-                  <p className="text-xs text-gray-400 font-medium">
-                    When visitors submit documents for active openings, their records will pop up here.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="overflow-x-auto rounded-3xl border border-gray-100 shadow-sm">
-                    <table className="w-full text-left text-sm whitespace-nowrap">
-                      <thead className="bg-gray-50 text-xs text-gray-400 font-black uppercase tracking-wider">
-                        <tr>
-                          <th className="p-4">Candidate & Contacts</th>
-                          <th className="p-4">Target Role</th>
-                          <th className="p-4">Submission Date</th>
-                          <th className="p-4">Recruitment Status</th>
-                          <th className="p-4 text-center">CV / Document File</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50 font-medium text-xs">
-                        {jobApplications.map((app) => (
-                          <tr key={app.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="p-4">
-                              <div className="space-y-0.5">
-                                <p className="font-black text-gray-900 text-sm">{app.applicantName}</p>
-                                <p className="text-gray-400 font-semibold">{app.applicantEmail}</p>
-                                <p className="text-gray-400 font-semibold">{app.applicantPhone}</p>
-                              </div>
-                            </td>
-                            <td className="p-4 font-black text-gray-800 text-xs">
-                              {app.jobTitle}
-                            </td>
-                            <td className="p-4 text-gray-400 font-semibold">
-                              {app.createdAt ? new Date(app.createdAt).toLocaleDateString() : "Just Now"}
-                            </td>
-                            <td className="p-4">
-                              <select
-                                className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase outline-none focus:ring-1 focus:ring-orange-600 transition-all cursor-pointer ${
-                                  app.status === "shortlisted" 
-                                    ? "bg-green-100 text-green-800" 
-                                    : app.status === "rejected" 
-                                      ? "bg-red-100 text-red-800" 
-                                      : app.status === "reviewed"
-                                        ? "bg-blue-100 text-blue-800"
-                                        : "bg-amber-100 text-amber-800"
-                                }`}
-                                value={app.status || "pending"}
-                                onChange={async (e) => {
-                                  try {
-                                    const selectVal = e.target.value;
-                                    const appRef = doc(db, "job_applications", app.id);
-                                    await updateDoc(appRef, { status: selectVal });
-                                    setJobApplications(jobApplications.map(p => p.id === app.id ? { ...p, status: selectVal as any } : p));
-                                    toast.success(`Application updated to: ${selectVal.toUpperCase()}`);
-                                  } catch (err: any) {
-                                    toast.error(err.message);
-                                  }
-                                }}
-                              >
-                                <option value="pending">PENDING</option>
-                                <option value="reviewed">REVIEWED</option>
-                                <option value="shortlisted">SHORTLISTED</option>
-                                <option value="rejected">REJECTED</option>
-                              </select>
-                            </td>
-                            <td className="p-4 text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <button
-                                  onClick={() => {
-                                    // Download candidate details natively
-                                    const handleDownloadCV = (aDetails: JobApplication) => {
-                                      try {
-                                        if (!aDetails.resumeDetails) {
-                                          toast.error("No CV document details found on database storage.");
-                                          return;
-                                        }
-                                        let fileBlob: Blob;
-                                        let filename = aDetails.resumeName || `${aDetails.applicantName.replace(/\s+/g, "_")}_Resume.pdf`;
-                                        
-                                        if (aDetails.resumeDetails.startsWith("data:")) {
-                                          const parts = aDetails.resumeDetails.split(";base64,");
-                                          const contentType = parts[0].split(":")[1];
-                                          const raw = window.atob(parts[1]);
-                                          const rawLength = raw.length;
-                                          const uInt8Array = new Uint8Array(rawLength);
-                                          for (let i = 0; i < rawLength; ++i) {
-                                            uInt8Array[i] = raw.charCodeAt(i);
-                                          }
-                                          fileBlob = new Blob([uInt8Array], { type: contentType });
-                                        } else {
-                                          fileBlob = new Blob([aDetails.resumeDetails], { type: "text/plain" });
-                                          if (!filename.endsWith(".txt")) filename += ".txt";
-                                        }
-                                        const url = URL.createObjectURL(fileBlob);
-                                        const b = document.createElement("a");
-                                        b.href = url;
-                                        b.download = filename;
-                                        document.body.appendChild(b);
-                                        b.click();
-                                        document.body.removeChild(b);
-                                        URL.revokeObjectURL(url);
-                                        toast.success(`CV File downloaded: ${filename}`);
-                                      } catch (err: any) {
-                                        toast.error(err.message);
-                                      }
-                                    };
-                                    handleDownloadCV(app);
-                                  }}
-                                  className="px-3 py-2 rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white transition-all font-black text-[10px] flex items-center gap-1.5 cursor-pointer border border-orange-100/40"
-                                >
-                                  <Download size={12} />
-                                  Download CV
-                                </button>
-                                {app.coverLetter && (
-                                  <button
-                                    onClick={() => toast((t) => (
-                                      <div className="space-y-2 text-xs text-gray-900 font-medium font-sans">
-                                        <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
-                                          <b className="font-bold text-xs">Cover Letter Pitch</b>
-                                          <button className="text-[10px] font-bold text-gray-400 hover:text-gray-900" onClick={() => toast.dismiss(t.id)}>Close</button>
-                                        </div>
-                                        <p className="leading-relaxed bg-gray-50 p-2.5 rounded-xl border border-gray-100 max-h-48 overflow-y-auto max-w-sm whitespace-pre-line">{app.coverLetter}</p>
-                                      </div>
-                                    ), { duration: 15000 })}
-                                    className="px-3 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-700 transition-all font-black text-[10px] cursor-pointer"
-                                  >
-                                    Read Pitch
-                                  </button>
-                                )}
-                                {app.status === "reviewed" && (
-                                  <button
-                                    onClick={() => deleteJobApplication(app.id)}
-                                    className="px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all font-black text-[10px] flex items-center gap-1.5 cursor-pointer border border-red-100/40"
-                                  >
-                                    <Trash2 size={12} />
-                                    Delete
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SokoPlus Job Creation Modal block */}
-      <AnimatePresence>
-        {showJobAddModal && (
-          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100] overflow-y-auto">
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-2xl w-full max-w-xl mx-auto my-8 overflow-hidden self-center font-sans text-gray-950">
-              <div className="bg-orange-600 p-6 text-white flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-black tracking-widest uppercase text-orange-100">CMS Jobs Operations</span>
-                  <h3 className="text-xl font-black">Publish New Job Offer</h3>
-                </div>
-                <button 
-                  onClick={() => setShowJobAddModal(false)}
-                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-white cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!newJob.title || !newJob.description) {
-                    toast.error("Please complete all required fields.");
-                    return;
-                  }
-
-                  setIsSavingJob(true);
-                  try {
-                    const requirementsArr = newJob.requirementsString
-                      .split("\n")
-                      .map(r => r.trim())
-                      .filter(r => r.length > 0);
-
-                    const payload = {
-                      title: newJob.title,
-                      department: newJob.department,
-                      location: newJob.location,
-                      type: newJob.type,
-                      description: newJob.description,
-                      requirements: requirementsArr,
-                      active: true,
-                      createdAt: new Date().toISOString(),
-                      updatedAt: new Date().toISOString()
-                    };
-
-                    const docRef = await addDoc(collection(db, "job_offers"), payload);
-                    setJobOffers([{ id: docRef.id, ...payload } as JobOffer, ...jobOffers]);
-                    toast.success(`Job Opening "${newJob.title}" has been successfully broadcast!`);
-                    setShowJobAddModal(false);
-                  } catch (err: any) {
-                    toast.error(`Posting failed: ${err.message}`);
-                  } finally {
-                    setIsSavingJob(false);
-                  }
-                }}
-                className="p-6 md:p-8 space-y-5 max-h-[75vh] overflow-y-auto"
-              >
-                <div>
-                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Job Posting Title</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Lead Logistics Handler"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-medium shadow-sm"
-                    value={newJob.title}
-                    onChange={(e) => setNewJob({ ...newJob, title: e.target.value })}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Department</label>
-                    <select
-                      className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
-                      value={newJob.department}
-                      onChange={(e) => setNewJob({ ...newJob, department: e.target.value })}
-                    >
-                      <option value="Engineering">Engineering</option>
-                      <option value="Marketing">Marketing</option>
-                      <option value="Community & Sourcing">Sourcing</option>
-                      <option value="Operations">Operations</option>
-                      <option value="Customer Experience">Experience</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Location</label>
-                    <select
-                      className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
-                      value={newJob.location}
-                      onChange={(e) => setNewJob({ ...newJob, location: e.target.value })}
-                    >
-                      <option value="Nairobi (Hybrid)">Nairobi (Hybrid)</option>
-                      <option value="Remote (Kenya)">Remote (Kenya)</option>
-                      <option value="Mombasa Workshop">Mombasa Workshop</option>
-                      <option value="Eldoret Site">Eldoret Site</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Engagement</label>
-                    <select
-                      className="w-full px-3 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
-                      value={newJob.type}
-                      onChange={(e) => setNewJob({ ...newJob, type: e.target.value })}
-                    >
-                      <option value="Full-time">Full-time</option>
-                      <option value="Part-time">Part-time</option>
-                      <option value="Contract">Contract</option>
-                      <option value="Remote">Remote</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Role Overview Description</label>
-                  <textarea
-                    required
-                    rows={4}
-                    placeholder="Provide a compelling overview describing day-to-day work, SokoPlus impact..."
-                    className="w-full p-4 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-medium resize-none shadow-sm"
-                    value={newJob.description}
-                    onChange={(e) => setNewJob({ ...newJob, description: e.target.value })}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Candidate Requirements (One per line)</label>
-                  <textarea
-                    rows={4}
-                    placeholder="Enter key requirements...&#10;e.g. 2+ years React experience&#10;Fluent in Swahili & English&#10;Excellent communication"
-                    className="w-full p-4 bg-gray-55 border border-gray-100 rounded-xl text-xs font-mono outline-none focus:ring-1 focus:ring-orange-600 resize-none leading-relaxed shadow-sm"
-                    value={newJob.requirementsString}
-                    onChange={(e) => setNewJob({ ...newJob, requirementsString: e.target.value })}
-                  />
-                  <span className="text-[10px] text-gray-400 font-medium italic">Make sure to split different requirements/bullets using a hard enter key.</span>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                  <button
-                    type="button"
-                    onClick={() => setShowJobAddModal(false)}
-                    className="px-5 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all text-xs"
-                  >
-                    Discard
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSavingJob}
-                    className="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold transition-all text-xs shadow-md shadow-orange-600/10"
-                  >
-                    {isSavingJob ? "Broadcasting..." : "Publish Opportunity"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {activeTab === "security" && user?.email === "upfrontretaile@gmail.com" && (
-        <SecurityManager user={user} />
-      )}
-
-      {activeTab === "privacy_erasure" && (
-        <AdminDataErasureManager />
-      )}
-
-      {activeTab === "reviews" && (
-        <AdminReviewsManager />
-      )}
-
-      {activeTab === "sellers" && (
-        <div className="space-y-8 animate-fade-in text-gray-950 font-sans">
-          {/* Header Card */}
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-4">
-            <h1 className="text-3xl font-black text-gray-950 tracking-tight">Marketplace Governance</h1>
-            <p className="text-sm text-gray-500 font-medium">
-              Review third-party merchant seller proposals, audit shop configurations, process approvals or rejections, and oversee platform commissions.
-            </p>
-          </div>
-
-          {/* Stats Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <span className="text-xs text-gray-400 font-bold uppercase block">Pending Audits</span>
-              <p className="text-3xl font-black text-orange-600 mt-1">
-                {sellers.filter(s => s.status === "pending").length} proposals
-              </p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <span className="text-xs text-gray-400 font-bold uppercase block">Approved Partners</span>
-              <p className="text-3xl font-black text-green-600 mt-1">
-                {sellers.filter(s => s.status === "approved").length} merchants
-              </p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <span className="text-xs text-gray-400 font-bold uppercase block">Marketplace Commission Fee</span>
-              <p className="text-3xl font-black text-gray-900 mt-1">10.0% flat</p>
-            </div>
-          </div>
-
-          {/* List of Proposals */}
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
-            <div className="flex justify-between items-center border-b border-gray-100 pb-4">
-              <h3 className="text-lg font-black text-gray-900">Active Proposals & Merchants</h3>
-              <p className="text-xs text-gray-400">Total registered profiles loaded: {sellers.length}</p>
-            </div>
-
-            {sellers.length === 0 ? (
-              <div className="p-12 text-center text-gray-400 italic bg-gray-50 rounded-2xl border border-gray-100">
-                No seller profiles or applications have been recorded in the system.
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {sellers.map((seller) => (
-                  <div
-                    key={seller.uid}
-                    className="p-6 rounded-2xl border border-gray-150 bg-white shadow-xs space-y-4 hover:border-orange-200 transition-all text-left"
-                  >
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="text-lg font-black text-gray-900">{seller.shopName}</h4>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingSeller(seller);
-                              setEditSellerShopName(seller.shopName || "");
-                              setEditSellerPhone(seller.phone || "");
-                              setEditSellerLocation(seller.location || "");
-                              setEditSellerDescription(seller.description || "");
-                            }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 hover:bg-orange-50 text-gray-500 hover:text-orange-600 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors border border-gray-200/50 hover:border-orange-200/50 cursor-pointer"
-                            title="Edit Seller Details"
-                          >
-                            <Pencil size={11} />
-                            <span>Edit Profile</span>
-                          </button>
-                        </div>
-                        <p className="text-xs text-gray-400 font-semibold mt-1">
-                          Location: <span className="text-gray-700">{seller.location}</span> | Contact: <span className="text-gray-700">{seller.phone}</span>
-                        </p>
-                      </div>
-                      <span className={`text-[10px] uppercase font-black px-3 py-1 rounded-full ${
-                        seller.status === "approved" ? "bg-green-50 text-green-700 border border-green-200" :
-                        seller.status === "rejected" ? "bg-red-50 text-red-700 border border-red-200" :
-                        "bg-amber-50 text-amber-700 border border-amber-200 animate-pulse"
-                      }`}>
-                        {seller.status}
-                      </span>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 rounded-xl space-y-1">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Shop Pitch</span>
-                      <p className="text-xs text-gray-650 leading-relaxed font-medium">
-                        {seller.description || "_No pitch or description was supplied._"}
-                      </p>
-                      {seller.status === "rejected" && seller.rejectedReason && (
-                        <div className="mt-2 pt-2 border-t border-gray-200/50 text-[10px] text-red-650 font-medium">
-                          <strong>Rejection Note:</strong> "{seller.rejectedReason}"
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Paystack Split Settlement & Onboarding Details */}
-                    <div className="p-4 bg-gray-50/50 rounded-xl border border-gray-150 space-y-2">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Paystack Split Settlement & Onboarding Details</span>
-                      {seller.paystackSubaccountCode ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                          <div>
-                            <span className="text-[9px] uppercase font-bold text-gray-400 block">Subaccount Code</span>
-                            <span className="font-mono font-bold text-gray-900">{seller.paystackSubaccountCode}</span>
-                          </div>
-                          <div>
-                            <span className="text-[9px] uppercase font-bold text-gray-400 block">Settlement Target</span>
-                            <span className="font-bold text-gray-800">MPESA ({seller.mpesaPhone || seller.phone})</span>
-                          </div>
-                          <div>
-                            <span className="text-[9px] uppercase font-bold text-gray-400 block">Split Setup Status</span>
-                            <span className="inline-flex items-center gap-1 text-[10px] bg-green-50 text-green-700 px-2.5 py-0.5 rounded-full font-black border border-green-150">
-                              ● Active (10% Split)
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between text-xs bg-amber-50/50 p-2.5 rounded-lg border border-amber-100/40">
-                          <span className="text-amber-800 font-semibold italic">Onboarding incomplete: No Paystack Subaccount configured by seller yet.</span>
-                          <span className="text-[9px] uppercase font-black text-amber-700 bg-white px-2 py-1 rounded-md shadow-xs border border-amber-200">Pending Setup</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {seller.status === "pending" && (
-                      <div className="flex items-center gap-2 justify-end pt-2">
-                        {confirmingApproveSellerId === seller.uid && (
-                          <button
-                            type="button"
-                            onClick={() => setConfirmingApproveSellerId(null)}
-                            className="px-3 py-1.5 rounded-xl bg-gray-150 hover:bg-gray-200 text-gray-700 font-extrabold text-xs transition-all border-none cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedSellerForRejection(seller);
-                            setRejectionReasonInput("");
-                            setConfirmingApproveSellerId(null);
-                          }}
-                          className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-650 font-extrabold text-xs transition-all border-none cursor-pointer"
-                        >
-                          Reject Application
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (confirmingApproveSellerId !== seller.uid) {
-                              setConfirmingApproveSellerId(seller.uid);
-                              return;
-                            }
-                            try {
-                              // First approve the seller
-                              await updateDoc(doc(db, "sellers", seller.uid), { status: "approved" });
-                              
-                              // Now attempt to programmatically trigger Paystack Subaccount creation
-                              let extraData = {};
-                              try {
-                                const phoneNum = seller.mpesaPhone || seller.phone || "";
-                                if (phoneNum) {
-                                  const subRes = await axios.post("/api/paystack/subaccount/create", {
-                                    sellerId: seller.uid,
-                                    businessName: seller.shopName,
-                                    mpesaPhone: phoneNum
-                                  });
-                                  if (subRes.data && subRes.data.success) {
-                                    extraData = subRes.data.updateData || {};
-                                    if (subRes.data.status === "live") {
-                                      toast.success(`Paystack Subaccount automatically created and linked: ${subRes.data.subaccountCode}`);
-                                    } else {
-                                      toast.success(`Paystack Subaccount successfully initialized (simulated/sandbox): ${subRes.data.subaccountCode}`);
-                                    }
-                                  }
-                                }
-                              } catch (subErr) {
-                                console.warn("[Admin] Auto-subaccount creation had issues:", subErr);
-                              }
-
-                              setSellers(prev => prev.map(s => s.uid === seller.uid ? { ...s, status: "approved", ...extraData } : s));
-                              toast.success(`Merchant "${seller.shopName}" has been successfully approved!`);
-                              setConfirmingApproveSellerId(null);
-                            } catch (error) {
-                              console.error("[Admin] Failed to approve merchant:", error);
-                              toast.error(`Could not update merchant status: ${error instanceof Error ? error.message : String(error)}`);
-                            }
-                          }}
-                          className={`px-4 py-2 rounded-xl font-extrabold text-xs transition-all border-none cursor-pointer flex items-center gap-1 ${
-                            confirmingApproveSellerId === seller.uid
-                              ? "bg-amber-600 hover:bg-amber-750 text-white animate-pulse"
-                              : "bg-green-600 hover:bg-green-750 text-white"
-                          }`}
-                        >
-                          {confirmingApproveSellerId === seller.uid ? "Confirm Approval?" : "Approve Partner"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Interactive Rejection Overlay Dialog */}
-          {selectedSellerForRejection && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-              <div className="bg-white p-8 rounded-3xl max-w-md w-full border border-gray-150 shadow-2xl space-y-5 animate-fade-in text-left">
-                <h3 className="text-lg font-black text-gray-900">Provide Rejection Reason</h3>
-                <p className="text-xs text-gray-400">
-                  Are you sure you want to decline the proposal from <span className="font-extrabold text-gray-800">"{selectedSellerForRejection.shopName}"</span>? Explain the reason below:
-                </p>
-                <textarea
-                  required
-                  rows={4}
-                  placeholder="e.g., Authentic local sourcing validation failed, or contact credentials appear incorrect."
-                  value={rejectionReasonInput}
-                  onChange={(e) => setRejectionReasonInput(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs resize-none text-gray-950"
-                />
-                <div className="flex gap-2 justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSellerForRejection(null)}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-650 font-extrabold rounded-lg text-xs cursor-pointer border-none"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!rejectionReasonInput.trim()) {
-                        toast.error("Typing a rejection reason is mandatory.");
-                        return;
-                      }
-                      try {
-                        const note = rejectionReasonInput.trim();
-                        await updateDoc(doc(db, "sellers", selectedSellerForRejection.uid), {
-                          status: "rejected",
-                          rejectedReason: note
-                        });
-                        setSellers(prev => prev.map(s => s.uid === selectedSellerForRejection.uid ? { ...s, status: "rejected", rejectedReason: note } : s));
-                        toast.success(`Merchant proposal declined.`);
-                        setSelectedSellerForRejection(null);
-                      } catch (error) {
-                        console.error("[Admin] Failed to decline seller:", error);
-                        toast.error(`Failed to commit status: ${error instanceof Error ? error.message : String(error)}`);
-                      }
-                    }}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-800 text-white font-extrabold rounded-lg text-xs cursor-pointer border-none"
-                  >
-                    Confirm Rejection
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Interactive Edit Seller Profile Overlay Dialog */}
-          {editingSeller && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-55 flex items-center justify-center p-4">
-              <div className="bg-white p-8 rounded-3xl max-w-md w-full border border-gray-150 shadow-2xl space-y-5 animate-fade-in text-left">
-                <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                  <h3 className="text-lg font-black text-gray-900">Edit Seller Profile</h3>
-                  <button
-                    type="button"
-                    onClick={() => setEditingSeller(null)}
-                    className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-650 transition-colors cursor-pointer border-none flex items-center justify-center"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-                
-                <form 
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!editSellerShopName.trim() || !editSellerPhone.trim() || !editSellerLocation.trim()) {
-                      toast.error("Shop Name, Phone, and Location are required.");
-                      return;
-                    }
-                    setIsSavingSeller(true);
-                    try {
-                      const updatedData = {
-                        shopName: editSellerShopName.trim(),
-                        phone: editSellerPhone.trim(),
-                        location: editSellerLocation.trim(),
-                        description: editSellerDescription.trim(),
-                      };
-                      await updateDoc(doc(db, "sellers", editingSeller.uid), updatedData);
-                      setSellers(prev => prev.map(s => s.uid === editingSeller.uid ? { ...s, ...updatedData } : s));
-                      toast.success(`Seller profile updated successfully!`);
-                      setEditingSeller(null);
-                    } catch (error) {
-                      console.error("[Admin] Failed to update seller:", error);
-                      toast.error(`Failed to update seller: ${error instanceof Error ? error.message : String(error)}`);
-                    } finally {
-                      setIsSavingSeller(false);
-                    }
-                  }}
-                  className="space-y-4"
-                >
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Shop Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={editSellerShopName}
-                      onChange={(e) => setEditSellerShopName(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-xs text-gray-950"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Phone Number</label>
-                    <input
-                      type="text"
-                      required
-                      value={editSellerPhone}
-                      onChange={(e) => setEditSellerPhone(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-xs text-gray-950"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Location / City</label>
-                    <input
-                      type="text"
-                      required
-                      value={editSellerLocation}
-                      onChange={(e) => setEditSellerLocation(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-xs text-gray-950"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Shop Description / Pitch</label>
-                    <textarea
-                      rows={3}
-                      value={editSellerDescription}
-                      onChange={(e) => setEditSellerDescription(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-xs resize-none text-gray-950 text-left"
-                      placeholder="Specify seller story, goods sourced, craft specializations, etc."
-                    />
-                  </div>
-
-                  <div className="flex gap-2 justify-end pt-2">
-                    <button
-                      type="button"
-                      disabled={isSavingSeller}
-                      onClick={() => setEditingSeller(null)}
-                      className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-650 font-extrabold rounded-xl text-xs cursor-pointer border-none"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSavingSeller}
-                      className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white font-extrabold rounded-xl text-xs cursor-pointer border-none shadow-md shadow-orange-600/15"
-                    >
-                      {isSavingSeller ? "Saving..." : "Save Changes"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Interactive Product Rejection Overlay Dialog */}
-          {selectedProductForRejection && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-              <div className="bg-white p-8 rounded-3xl max-w-md w-full border border-gray-150 shadow-2xl space-y-5 animate-fade-in text-left">
-                <h3 className="text-lg font-black text-gray-900">Decline Product Listing</h3>
-                <p className="text-xs text-gray-400">
-                  Are you sure you want to decline the listing for <span className="font-extrabold text-gray-800">"{selectedProductForRejection.name}"</span>? Please specify what needs to be changed:
-                </p>
-                <textarea
-                  required
-                  rows={4}
-                  placeholder="e.g., Description is missing dimensions, price seems excessively high, or images must show product details more clearly."
-                  value={productRejectionReasonInput}
-                  onChange={(e) => setProductRejectionReasonInput(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs resize-none text-gray-950"
-                />
-                <div className="flex gap-2 justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedProductForRejection(null)}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-650 font-extrabold rounded-lg text-xs cursor-pointer border-none"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!productRejectionReasonInput.trim()) {
-                        toast.error("Specifying a feedback reason is required.");
-                        return;
-                      }
-                      try {
-                        const note = productRejectionReasonInput.trim();
-                        await updateDoc(doc(db, "products", selectedProductForRejection.id), {
-                          approvalStatus: "rejected",
-                          active: false,
-                          rejectionReason: note
-                        });
-                        setProducts(prev => prev.map(p => p.id === selectedProductForRejection.id ? { ...p, approvalStatus: "rejected", active: false, rejectionReason: note } : p));
-                        toast.success(`Product listing declined with feedback.`);
-                        setSelectedProductForRejection(null);
-                      } catch (error) {
-                        console.error("[Admin] Failed to decline product:", error);
-                        toast.error(`Failed to record feedback: ${error instanceof Error ? error.message : String(error)}`);
-                      }
-                    }}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-800 text-white font-extrabold rounded-lg text-xs cursor-pointer border-none"
-                  >
-                    Decline Listing
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <Suspense fallback={<div className="p-8 text-center text-gray-500 font-bold">Loading careers board...</div>}>
+          <CareersTab
+            jobOffers={jobOffers as any}
+            setJobOffers={setJobOffers as any}
+            jobApplications={jobApplications}
+            setJobApplications={setJobApplications}
+            subTab={subTab}
+            setSubTab={(val: string) => setSubTab(val as any)}
+            setNewJob={setNewJob}
+            setShowJobAddModal={setShowJobAddModal}
+          />
+        </Suspense>
       )}
 
       {activeTab === "approval_queue" && (
-        <div className="space-y-8 animate-fade-in text-gray-950 font-sans">
-          {/* Header Card */}
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-4">
-            <h1 className="text-3xl font-black text-gray-950 tracking-tight">Product Clearance Control</h1>
-            <p className="text-sm text-gray-500 font-medium">
-              Oversee artisan submissions. Review descriptions, catalog categories, price consistency, and stock levels before making their listings active in the main shopping index.
-            </p>
-          </div>
-
-          {/* Stats Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-              <span className="text-xs text-gray-400 font-bold uppercase block">Total Submission Slots</span>
-              <p className="text-3xl font-black text-orange-600 mt-1">
-                {pendingProducts.length} listings
-              </p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-              <span className="text-xs text-gray-400 font-bold uppercase block">Pending Clearance</span>
-              <p className="text-3xl font-black text-amber-500 mt-1">
-                {pendingProducts.filter(p => !p.approvalStatus || p.approvalStatus === "pending").length} items
-              </p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-              <span className="text-xs text-gray-400 font-bold uppercase block">Corrective Adjustments</span>
-              <p className="text-3xl font-black text-red-500 mt-1">
-                {pendingProducts.filter(p => p.approvalStatus === "rejected").length} items
-              </p>
-            </div>
-          </div>
-
-          {/* Queue View */}
-          <div className="bg-white p-8 rounded-3xl border border-gray-150 shadow-xl space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-50">
-              <h2 className="font-black text-lg text-gray-950">Pending Review Pipeline</h2>
-              <div className="text-xs text-gray-400">
-                Authorized administrator handles only
-              </div>
-            </div>
-
-            {pendingProducts.length === 0 ? (
-              <div className="p-16 text-center rounded-2xl bg-slate-50/60 border border-slate-100/80 flex flex-col items-center justify-center space-y-3">
-                <ShoppingBag size={42} className="text-slate-300" />
-                <h4 className="font-bold text-gray-700">Clearance queue is empty</h4>
-                <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                  All sellers creations and adjustments are approved! No items require review currently.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {pendingProducts.map((pendingItem) => (
-                  <div
-                    key={pendingItem.id}
-                    className="p-6 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-md hover:border-gray-200 transition-all space-y-4"
-                  >
-                    <div className="flex flex-col md:flex-row gap-6">
-                      {/* Image Preview & Category */}
-                      <div className="w-full md:w-48 h-32 bg-gray-100 rounded-xl overflow-hidden border border-gray-150 shrink-0 relative">
-                        {pendingItem.images && pendingItem.images[0] ? (
-                          <img
-                            src={pendingItem.images[0]}
-                            alt={pendingItem.name}
-                            className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-bold">
-                            No Image
-                          </div>
-                        )}
-                        <span className="absolute top-2 right-2 text-[8px] font-black uppercase bg-gray-900/80 text-white px-2 py-0.5 rounded">
-                          {pendingItem.category}
-                        </span>
-                      </div>
-
-                      {/* Info Panel */}
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-black text-base text-gray-950">{pendingItem.name}</h3>
-                          {pendingItem.originalProductId ? (
-                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
-                              Revision / Edit
-                            </span>
-                          ) : (
-                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-100">
-                              New Submission
-                            </span>
-                          )}
-
-                          {(!pendingItem.approvalStatus || pendingItem.approvalStatus === "pending") ? (
-                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100">
-                              Pending Review
-                            </span>
-                          ) : (
-                            <span className="text-[9px] font-black px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100 text-left">
-                              <strong>Declined Action:</strong> "{pendingItem.rejectionReason}"
-                            </span>
-                          )}
-
-                          {(() => {
-                            const checkText = `${pendingItem.name} ${pendingItem.description || ""} ${pendingItem.category || ""}`.toLowerCase();
-                            const prohibitedWords = [
-                              "firearm", "weapon", "ammunition", "rifle", "pistol", "gun", "bullets",
-                              "tobacco", "nicotine", "vape", "vaping", "e-cigarette", "cigarette",
-                              "marijuana", "cannabis", "cocaine", "heroin", "narcotic",
-                              "gambling", "betting", "lottery", "casino", "poker",
-                              "cryptocurrency", "bitcoin", "adult content", "pornography", "escort"
-                            ];
-                            const matched = prohibitedWords.filter(word => checkText.includes(word));
-                            if (matched.length > 0) {
-                              return (
-                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-red-50 text-red-650 border border-red-200 animate-pulse flex items-center gap-1 shrink-0">
-                                  ⚠ Paystack AUP Flagged: {matched.join(", ")}
-                                </span>
-                              );
-                            }
-                            return (
-                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-[#32ba78]/10 text-[#32ba78] border border-[#32ba78]/25 flex items-center gap-1 shrink-0">
-                                ✓ Paystack AUP Compliant
-                              </span>
-                            );
-                          })()}
-                        </div>
-
-                        {/* Seller Metadata */}
-                        <div className="flex items-center gap-4 text-xs text-gray-400 font-bold">
-                          {pendingItem.sellerName && (
-                            <span className="flex items-center gap-1">
-                              Store: <span className="text-gray-700 font-black">{pendingItem.sellerName}</span>
-                            </span>
-                          )}
-                          <span>Stock: <span className="text-gray-700 font-black">{pendingItem.stock}</span></span>
-                          <span>Price: <span className="text-orange-600 font-black">KES {pendingItem.price.toLocaleString()}</span></span>
-                        </div>
-
-                        {/* Description */}
-                        <div className="text-xs text-gray-650 italic bg-white p-3 rounded-xl border border-gray-100 max-h-24 overflow-y-auto">
-                          <ReactMarkdown>{pendingItem.description || "_"}</ReactMarkdown>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Operational Action Row */}
-                    <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-gray-100/60">
-                      {/* Decline Trigger */}
-                      {(!pendingItem.approvalStatus || pendingItem.approvalStatus === "pending") && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedPendingForRejection(pendingItem);
-                            setPendingRejectionReasonInput("");
-                          }}
-                          className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-extrabold rounded-lg text-xs border-none cursor-pointer flex items-center gap-1.5"
-                        >
-                          Decline Submission
-                        </button>
-                      )}
-
-                      {/* Discard Delete Trigger */}
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!confirm(`Discard this submission draft totally from database records? This is irreversible.`)) return;
-                          try {
-                            await deleteDoc(doc(db, "pending_products", pendingItem.id));
-                            setPendingProducts(prev => prev.filter(p => p.id !== pendingItem.id));
-                            toast.success("Submission draft discarded successfully.");
-                          } catch (err) {
-                            console.error("[Admin] error discarding submission:", err);
-                            toast.error("Failed to discard submission.");
-                          }
-                        }}
-                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-650 font-extrabold rounded-lg text-xs border-none cursor-pointer flex items-center gap-1.5"
-                      >
-                        Discard
-                      </button>
-
-                      {/* Confirmation & Approval */}
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (confirmingApprovePendingId !== pendingItem.id) {
-                            setConfirmingApprovePendingId(pendingItem.id);
-                            return;
-                          }
-                          try {
-                            const payload = {
-                              name: pendingItem.name,
-                              price: pendingItem.price,
-                              stock: pendingItem.stock,
-                              category: pendingItem.category,
-                              description: pendingItem.description,
-                              images: pendingItem.images,
-                              sellerId: pendingItem.sellerId,
-                              sellerName: pendingItem.sellerName,
-                              artisan: pendingItem.artisan || pendingItem.sellerName || "Artisan Merchant",
-                              active: true,
-                              approvalStatus: "approved",
-                              rejectionReason: "",
-                              createdAt: pendingItem.createdAt || new Date().toISOString(),
-                              availableColors: pendingItem.availableColors || []
-                            };
-
-                            if (pendingItem.originalProductId) {
-                              // Live item amendment
-                              await setDoc(doc(db, "products", pendingItem.originalProductId), payload, { merge: true });
-                              toast.success(`Approved revision: "${pendingItem.name}" live updates applied!`);
-                            } else {
-                              // New product publication
-                              await addDoc(collection(db, "products"), payload);
-                              toast.success(`Published: "${pendingItem.name}" catalogue record published active!`);
-                            }
-
-                            // delete from pending queue
-                            await deleteDoc(doc(db, "pending_products", pendingItem.id));
-
-                            // update dashboard states
-                            setPendingProducts(prev => prev.filter(p => p.id !== pendingItem.id));
-                            setConfirmingApprovePendingId(null);
-                            
-                            // Re-fetch regular products to update admin inventory
-                            fetchData();
-                          } catch (error) {
-                            console.error("[Admin] error approving product:", error);
-                            toast.error("Failed to publish or update item settings.");
-                          }
-                        }}
-                        className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all cursor-pointer border-none shadow-xs ${
-                          confirmingApprovePendingId === pendingItem.id
-                            ? "bg-amber-600 text-white animate-pulse"
-                            : "bg-green-600 text-white hover:bg-green-700"
-                        }`}
-                      >
-                        {confirmingApprovePendingId === pendingItem.id ? "Confirm?" : "Approve Listing"}
-                      </button>
-
-                      {confirmingApprovePendingId === pendingItem.id && (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmingApprovePendingId(null)}
-                          className="px-3 py-2 bg-gray-250 text-gray-700 font-extrabold rounded-lg text-xs border-none cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Interactive Rejection Feedback overlay */}
-          {selectedPendingForRejection && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-              <div className="bg-white p-8 rounded-3xl max-w-md w-full border border-gray-150 shadow-2xl space-y-5 animate-fade-in text-left">
-                <h3 className="text-lg font-black text-gray-900">Decline Listing Submission</h3>
-                <p className="text-xs text-gray-400">
-                  Specify details to guide <span className="font-extrabold text-gray-800">"{selectedPendingForRejection.name}"</span>'s seller on what needs to be changed:
-                </p>
-                <textarea
-                  required
-                  rows={4}
-                  placeholder="e.g., Please provide a higher-resolution photograph displaying dimensions. Ensure description lists material specs."
-                  value={pendingRejectionReasonInput}
-                  onChange={(e) => setPendingRejectionReasonInput(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-1 focus:ring-orange-600 font-medium text-xs resize-none text-gray-950"
-                />
-                <div className="flex gap-2 justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPendingForRejection(null)}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-650 font-extrabold rounded-lg text-xs cursor-pointer border-none"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!pendingRejectionReasonInput.trim()) {
-                        toast.error("Feedback explanation is required.");
-                        return;
-                      }
-                      try {
-                        const feedback = pendingRejectionReasonInput.trim();
-                        await updateDoc(doc(db, "pending_products", selectedPendingForRejection.id), {
-                          approvalStatus: "rejected",
-                          rejectionReason: feedback
-                        });
-                        
-                        setPendingProducts(prev =>
-                          prev.map(p =>
-                            p.id === selectedPendingForRejection.id
-                              ? { ...p, approvalStatus: "rejected", rejectionReason: feedback }
-                              : p
-                          )
-                        );
-                        
-                        toast.success("Listing submission declined. Seller notified.");
-                        setSelectedPendingForRejection(null);
-                      } catch (err) {
-                        console.error("[Admin] Failed to decline pending product:", err);
-                        toast.error("Failed to update status.");
-                      }
-                    }}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-800 text-white font-extrabold rounded-lg text-xs cursor-pointer border-none"
-                  >
-                    Send Decline Notice
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <Suspense fallback={<div className="p-8 text-center text-gray-500 font-bold">Loading product clearance queue...</div>}>
+          <ApprovalQueueTab
+            pendingProducts={pendingProducts}
+            setPendingProducts={setPendingProducts}
+            confirmingApprovePendingId={confirmingApprovePendingId}
+            setConfirmingApprovePendingId={setConfirmingApprovePendingId}
+            selectedPendingForRejection={selectedPendingForRejection}
+            setSelectedPendingForRejection={setSelectedPendingForRejection}
+            pendingRejectionReasonInput={pendingRejectionReasonInput}
+            setPendingRejectionReasonInput={setPendingRejectionReasonInput}
+            fetchData={fetchData}
+          />
+        </Suspense>
       )}
 
       {activeTab === "marketing" && (
-        <div className="space-y-8 animate-fade-in text-gray-950 font-sans">
-          {/* Header & Stats Banner */}
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div>
-                <span className="text-[10px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100/50">
-                  CRM Marketing Automation
-                </span>
-                <h1 className="text-3xl font-black text-gray-950 tracking-tight mt-3">
-                  Targeted Marketing Campaigns
-                </h1>
-                <p className="text-sm text-gray-500 font-medium mt-1">
-                  Send high-conversion, behavior-triggered push alerts and email newsletters based on cart contents or wishlists.
-                </p>
-              </div>
-            </div>
-
-            {/* Micro Stats Indicators */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
-              <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Campaigns</p>
-                <p className="text-2xl font-black text-gray-900 mt-1">{campaigns.length}</p>
-              </div>
-              <div className="p-5 bg-green-50/50 rounded-2xl border border-green-100/30">
-                <p className="text-xs font-bold text-green-700/70 uppercase tracking-wider">Completed Sends</p>
-                <p className="text-2xl font-black text-green-700 mt-1">
-                  {campaigns.filter((c) => c.status === "completed").length}
-                </p>
-              </div>
-              <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100/30">
-                <p className="text-xs font-bold text-blue-700/70 uppercase tracking-wider">Processing / Pending</p>
-                <p className="text-2xl font-black text-blue-700 mt-1">
-                  {campaigns.filter((c) => c.status === "processing" || c.status === "pending").length}
-                </p>
-              </div>
-              <div className="p-5 bg-orange-50/50 rounded-2xl border border-orange-100/30">
-                <p className="text-xs font-bold text-orange-700/70 uppercase tracking-wider">Recipients Reached</p>
-                <p className="text-2xl font-black text-orange-700 mt-1">
-                  {campaigns.reduce((acc, curr) => acc + (curr.sentCount || 0), 0).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Left Column: Create Campaign Form */}
-            <div className="lg:col-span-5 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6 h-fit">
-              <div>
-                <h2 className="text-xl font-black text-gray-950 tracking-tight">Create Campaign</h2>
-                <p className="text-xs text-gray-400 mt-1 font-semibold">Define your audience, message details and launch instantly.</p>
-              </div>
-
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!campaignTitle.trim() || !campaignMessage.trim()) {
-                    toast.error("Please provide both a campaign title and content body message.");
-                    return;
-                  }
-
-                  setIsCreatingCampaign(true);
-                  try {
-                    // Create Firestore document
-                    const campaignPayload = {
-                      title: campaignTitle,
-                      message: campaignMessage,
-                      channel: campaignChannel,
-                      status: "pending",
-                      targetCriteria: {
-                        type: campaignTargetType,
-                        productId: campaignProductId || null,
-                        category: campaignCategory || null
-                      },
-                      createdAt: new Date().toISOString(),
-                      createdBy: user?.email || "Admin"
-                    };
-
-                    const docRef = await addDoc(collection(db, "marketing_campaigns"), campaignPayload);
-                    toast.success("Marketing campaign registered. Launching background engine...");
-
-                    // Trigger the express endpoint immediately for instant dev execution & feedback
-                    const response = await fetch("/api/admin/marketing/trigger", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({ campaignId: docRef.id })
-                    });
-
-                    if (response.ok) {
-                      const resData = await response.json();
-                      if (resData.bypassToClient) {
-                        toast("Sandbox developer environment detected. Executing targeting algorithm in secure browser context...", {
-                          icon: "ℹ️"
-                        });
-                        
-                        // Fetch all users & carts client-side with full admin entitlements
-                        const [usersSnap, cartsSnap] = await Promise.all([
-                          getDocs(query(collection(db, "users"), limit(100))),
-                          getDocs(query(collection(db, "carts"), limit(100)))
-                        ]);
-                        
-                        const allUsers: any[] = [];
-                        usersSnap.forEach((d) => {
-                          const data = d.data();
-                          allUsers.push({
-                            uid: d.id,
-                            email: data.email || null,
-                            displayName: data.displayName || "Valued Customer",
-                            wishlist: data.wishlist || []
-                          });
-                        });
-                        
-                        const allCarts: any[] = [];
-                        cartsSnap.forEach((d) => {
-                          const data = d.data();
-                          allCarts.push({
-                            userId: d.id,
-                            email: data.email || null,
-                            items: data.items || []
-                          });
-                        });
-                        
-                        const criteriaType = campaignTargetType;
-                        let targetUsers: any[] = [];
-                        
-                        if (criteriaType === "all") {
-                          targetUsers = allUsers.filter((u) => u.email);
-                        } else if (criteriaType === "wishlist_nonempty") {
-                          targetUsers = allUsers.filter((u) => u.email && u.wishlist && u.wishlist.length > 0);
-                        } else if (criteriaType === "wishlist_product") {
-                          targetUsers = allUsers.filter((u) => u.email && u.wishlist && u.wishlist.includes(campaignProductId));
-                        } else if (criteriaType === "wishlist_category") {
-                          const productIdsInCategory = products
-                            .filter((p) => p.category === campaignCategory)
-                            .map((p) => p.id);
-                          targetUsers = allUsers.filter((u) => 
-                            u.email && 
-                            u.wishlist && 
-                            u.wishlist.some((pId: string) => productIdsInCategory.includes(pId))
-                          );
-                        } else if (criteriaType === "cart_nonempty") {
-                          const userIdsWithCartsSet = new Set(allCarts.filter((c) => c.items && c.items.length > 0).map((c) => c.userId));
-                          targetUsers = allUsers.filter((u) => u.email && userIdsWithCartsSet.has(u.uid));
-                        } else if (criteriaType === "cart_product") {
-                          const userIdsWithCartProdSet = new Set(
-                            allCarts.filter((c) => c.items && c.items.some((item: any) => item.productId === campaignProductId)).map((c) => c.userId)
-                          );
-                          targetUsers = allUsers.filter((u) => u.email && userIdsWithCartProdSet.has(u.uid));
-                        } else if (criteriaType === "cart_category") {
-                          const productIdsInCategory = new Set(
-                            products.filter((p) => p.category === campaignCategory).map((p) => p.id)
-                          );
-                          const userIdsWithCartCatSet = new Set(
-                            allCarts.filter((c) => c.items && c.items.some((item: any) => productIdsInCategory.has(item.productId))).map((c) => c.userId)
-                          );
-                          targetUsers = allUsers.filter((u) => u.email && userIdsWithCartCatSet.has(u.uid));
-                        }
-                        
-                        let sendCount = 0;
-                        const deliveryPromises: Promise<any>[] = [];
-                        
-                        for (const targetUser of targetUsers) {
-                          if (campaignChannel === "email" || campaignChannel === "both") {
-                            sendCount++;
-                          }
-                          if (campaignChannel === "push" || campaignChannel === "both") {
-                            const notifPromise = addDoc(collection(db, "users", targetUser.uid, "notifications"), {
-                              title: campaignTitle,
-                              body: campaignMessage,
-                              read: false,
-                              createdAt: new Date().toISOString(),
-                              campaignId: docRef.id,
-                              type: "marketing"
-                            }).then(() => {
-                              if (campaignChannel === "push") {
-                                sendCount++;
-                              }
-                            }).catch((err) => {
-                              console.error("Push notify error inside client fallback", err);
-                            });
-                            deliveryPromises.push(notifPromise);
-                          }
-                        }
-                        
-                        await Promise.all(deliveryPromises);
-                        
-                        // Complete campaign document on client side
-                        await updateDoc(doc(db, "marketing_campaigns", docRef.id), {
-                          status: "completed",
-                          sentCount: sendCount,
-                          completedAt: new Date().toISOString()
-                        });
-                        
-                        toast.success(`Development Sandbox Broadcast Success! Dispatched notifications & simulated emails. Targeted: ${targetUsers.length}.`, {
-                          icon: "🚀",
-                          duration: 6000
-                        });
-                      } else {
-                        toast.success(`Success! Campaign launched. Targeted ${resData.targetedCount} recipients.`, {
-                          icon: "🚀",
-                          duration: 6000
-                        });
-                      }
-                    } else {
-                      console.warn("Express direct engine trigger bypassed or failed, waiting for Cloud Function execution.");
-                    }
-
-                    // Reset form and refresh list
-                    setCampaignTitle("");
-                    setCampaignMessage("");
-                    setCampaignTargetType("all");
-                    setCampaignProductId("");
-                    setCampaignCategory("");
-                    
-                    // Refresh data
-                    await fetchData();
-
-                  } catch (err: any) {
-                    toast.error(`Error launching campaign: ${err.message || err}`);
-                    console.error(err);
-                  } finally {
-                    setIsCreatingCampaign(false);
-                  }
-                }}
-                className="space-y-4"
-              >
-                <div>
-                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Campaign Title</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 20% off all artisan craft sculptures!"
-                    className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-gray-950"
-                    value={campaignTitle}
-                    onChange={(e) => setCampaignTitle(e.target.value)}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Delivery Channel</label>
-                    <select
-                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
-                      value={campaignChannel}
-                      onChange={(e: any) => setCampaignChannel(e.target.value)}
-                    >
-                      <option value="both">Both (Email & Push)</option>
-                      <option value="email">Email Only</option>
-                      <option value="push">Live Push Alert Only</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Target Audience</label>
-                    <select
-                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
-                      value={campaignTargetType}
-                      onChange={(e) => setCampaignTargetType(e.target.value)}
-                    >
-                      <option value="all">All Register Users</option>
-                      <option value="wishlist_nonempty">Any Item in Wishlist</option>
-                      <option value="wishlist_product">Specific Item in Wishlist</option>
-                      <option value="wishlist_category">Specific Category in Wishlist</option>
-                      <option value="cart_nonempty">Any Item inside Active Cart</option>
-                      <option value="cart_product">Specific Item in Cart</option>
-                      <option value="cart_category">Specific Category in Cart</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Dynamic selector inputs depending on target selection */}
-                {campaignTargetType.endsWith("_product") && (
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Select Specific Product</label>
-                    <select
-                      required
-                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
-                      value={campaignProductId}
-                      onChange={(e) => setCampaignProductId(e.target.value)}
-                    >
-                      <option value="">-- Choose target product --</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name} (KES {p.price})</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {campaignTargetType.endsWith("_category") && (
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Select Specific Category</label>
-                    <select
-                      required
-                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
-                      value={campaignCategory}
-                      onChange={(e) => setCampaignCategory(e.target.value)}
-                    >
-                      <option value="">-- Choose target category --</option>
-                      {Array.from(new Set(products.map((p) => p.category))).map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Broadcast Message Content</label>
-                  <textarea
-                    required
-                    rows={6}
-                    placeholder="Write a personalized, high-converting message. Try adding localized details! e.g. 'Habari Gani! We noticed you saved this beautiful handcrafted item in your wishlist. Order today and enjoy same-day delivery across Nairobi!'"
-                    className="w-full p-4 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-medium leading-relaxed resize-none shadow-sm"
-                    value={campaignMessage}
-                    onChange={(e) => setCampaignMessage(e.target.value)}
-                  />
-                  <p className="text-[10px] text-gray-400 font-semibold italic mt-1">Supports plain text with paragraphs. This message is converted dynamically for email templates.</p>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isCreatingCampaign}
-                  className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-200 disabled:text-gray-400 active:scale-98 text-white text-xs font-black uppercase tracking-wider py-4 px-4 rounded-xl transition-all shadow-lg shadow-orange-600/10 cursor-pointer"
-                >
-                  {isCreatingCampaign ? "Broadcasting Audience Updates..." : "🚀 Launch Campaign Now"}
-                </button>
-              </form>
-            </div>
-
-            {/* Right Column: Historical Campaigns List */}
-            <div className="lg:col-span-7 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
-              <div>
-                <h2 className="text-xl font-black text-gray-950 tracking-tight">Campaign Dispatch Log</h2>
-                <p className="text-xs text-gray-400 mt-1 font-semibold">Track historical CRM performance metrics and campaign delivery statuses.</p>
-              </div>
-
-              <div className="overflow-x-auto border border-gray-100 rounded-2xl">
-                {campaigns.length === 0 ? (
-                  <div className="p-12 text-center text-gray-400 font-medium">
-                    No marketing campaigns dispatched yet. Launch your first targeted newsletter above!
-                  </div>
-                ) : (
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                        <th className="p-4">Target Criteria</th>
-                        <th className="p-4">Message Body</th>
-                        <th className="p-4">Channel</th>
-                        <th className="p-4 text-center">Recipients</th>
-                        <th className="p-4">Status</th>
-                        <th className="p-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 text-xs text-gray-600">
-                      {campaigns.map((camp) => {
-                        const dateFormatted = camp.createdAt 
-                          ? new Date(camp.createdAt).toLocaleDateString("en-KE", { 
-                              day: "numeric", 
-                              month: "short", 
-                              hour: "2-digit", 
-                              minute: "2-digit" 
-                            })
-                          : "Unknown time";
-
-                        return (
-                          <tr key={camp.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="p-4 font-black text-gray-950 space-y-1">
-                              <p className="mb-0.5 tracking-tight font-black text-gray-900">{camp.title}</p>
-                              <div className="flex flex-wrap gap-1">
-                                <span className="inline-block text-[9px] font-extrabold uppercase bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full border border-orange-100/30">
-                                  {camp.targetCriteria?.type || "all"}
-                                </span>
-                                {camp.targetCriteria?.category && (
-                                  <span className="inline-block text-[9px] font-bold bg-gray-50 text-gray-500 px-2 py-0.5 rounded-full">
-                                    {camp.targetCriteria.category}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[9px] text-gray-400 font-semibold">{dateFormatted}</p>
-                            </td>
-                            <td className="p-4 max-w-xs font-medium text-gray-500 line-clamp-2">
-                              {camp.message}
-                            </td>
-                            <td className="p-4 font-extrabold uppercase text-[10px] text-gray-500">
-                              {camp.channel === "both" ? "Email & Push" : camp.channel}
-                            </td>
-                            <td className="p-4 text-center font-black text-sm text-gray-900">
-                              {camp.sentCount || 0}
-                            </td>
-                            <td className="p-4">
-                              <span className={`inline-flex items-center gap-1 text-[10px] tracking-wider uppercase font-extrabold px-2.5 py-1 rounded-full ${
-                                camp.status === "completed"
-                                  ? "bg-green-100 text-green-700"
-                                  : camp.status === "processing"
-                                    ? "bg-blue-100 text-blue-700 animate-pulse"
-                                    : camp.status === "failed"
-                                      ? "bg-red-100 text-red-700"
-                                      : "bg-gray-100 text-gray-600"
-                              }`}>
-                                {camp.status === "processing" && <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" />}
-                                {camp.status || "pending"}
-                              </span>
-                              {camp.error && (
-                                <p className="text-[9px] text-red-500 font-bold mt-1 max-w-[150px] leading-tight break-words">
-                                  Error: {camp.error}
-                                </p>
-                              )}
-                            </td>
-                            <td className="p-4 text-right whitespace-nowrap">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={() => handleStartEditCampaign(camp)}
-                                  className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Edit Campaign Details"
-                                >
-                                  <Pencil size={15} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteCampaign(camp.id)}
-                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Delete Campaign"
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-gray-150 my-10" />
-
-          {/* Website Promotional Banners Section */}
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
-            <div>
-              <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100/50">
-                Home Page Media & Promotions
-              </span>
-              <h2 className="text-2xl font-black text-gray-950 tracking-tight mt-3">
-                Promotional Display Banners
-              </h2>
-              <p className="text-sm text-gray-500 font-medium mt-1">
-                Configure and schedule customizable, top-of-the-page web banners with solid or gradient themes, CTAs, and precise active date ranges.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Left Column: Create Banner Form */}
-            <div className="lg:col-span-5 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6 h-fit">
-              <div>
-                <h3 className="text-lg font-black text-gray-950 tracking-tight">Configure New Banner</h3>
-                <p className="text-xs text-gray-400 mt-1 font-semibold">Design a new high-visibility display banner.</p>
-              </div>
-
-              <form onSubmit={handleAddBanner} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Banner Message text</label>
-                  <textarea
-                    required
-                    rows={3}
-                    placeholder="e.g. 🎉 20% off all artisan craft sculptures this weekend only! Use code CRAFT20"
-                    className="w-full p-3.5 bg-gray-55 border border-gray-150 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-medium leading-relaxed resize-none shadow-sm text-gray-950"
-                    value={bannerText}
-                    onChange={(e) => setBannerText(e.target.value)}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Background Style</label>
-                    <select
-                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
-                      value={bannerBackgroundColor}
-                      onChange={(e) => setBannerBackgroundColor(e.target.value)}
-                    >
-                      <option value="sunset">Sunset Orange Gradient</option>
-                      <option value="forest">Forest Teal Gradient</option>
-                      <option value="ocean">Ocean Indigo Gradient</option>
-                      <option value="royal">Royal Purple Gradient</option>
-                      <option value="charcoal">Charcoal Dark Gradient</option>
-                      <option value="black">Solid Black</option>
-                      <option value="gold">Amber Gold Gradient</option>
-                      <option value="festive">Festive Red Gradient</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Text Color</label>
-                    <select
-                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-black outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
-                      value={bannerTextColor}
-                      onChange={(e) => setBannerTextColor(e.target.value)}
-                    >
-                      <option value="text-white">White Text</option>
-                      <option value="text-amber-100">Warm Amber Text</option>
-                      <option value="text-orange-100">Orange tint Text</option>
-                      <option value="text-green-100">Mint tint Text</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Active Start Date</label>
-                    <input
-                      type="date"
-                      required
-                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
-                      value={bannerStartDate}
-                      onChange={(e) => setBannerStartDate(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Expiry End Date</label>
-                    <input
-                      type="date"
-                      required
-                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-600 text-gray-700"
-                      value={bannerEndDate}
-                      onChange={(e) => setBannerEndDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Action Button Text</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Shop Now"
-                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-gray-950"
-                      value={bannerActionText}
-                      onChange={(e) => setBannerActionText(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black uppercase text-gray-400 mb-1.5">Action Route/URL</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. /checkout or /?search=craft"
-                      className="w-full p-3.5 bg-gray-55 border border-gray-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-orange-600 font-semibold text-gray-950"
-                      value={bannerActionUrl}
-                      onChange={(e) => setBannerActionUrl(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="bannerActiveCheckbox"
-                      className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 w-4.5 h-4.5 cursor-pointer accent-orange-600"
-                      checked={bannerActive}
-                      onChange={(e) => setBannerActive(e.target.checked)}
-                    />
-                    <label htmlFor="bannerActiveCheckbox" className="text-xs font-black text-gray-600 uppercase tracking-tight cursor-pointer select-none">
-                      Initially Active
-                    </label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="bannerClosableCheckbox"
-                      className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 w-4.5 h-4.5 cursor-pointer accent-orange-600"
-                      checked={bannerClosable}
-                      onChange={(e) => setBannerClosable(e.target.checked)}
-                    />
-                    <label htmlFor="bannerClosableCheckbox" className="text-xs font-black text-gray-600 uppercase tracking-tight cursor-pointer select-none">
-                      Dismissable (Closable)
-                    </label>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={isCreatingBanner}
-                    className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-200 disabled:text-gray-400 text-white text-xs font-black uppercase tracking-wider py-4 rounded-2xl transition-all shadow-lg shadow-orange-600/10 cursor-pointer active:scale-98"
-                  >
-                    {isCreatingBanner ? "Saving Promotional Banner..." : "Launch Promotional Banner"}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Right Column: Displays Active & Scheduled Banners */}
-            <div className="lg:col-span-7 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
-              <div>
-                <h3 className="text-lg font-black text-gray-950 tracking-tight">Active & Scheduled Banners</h3>
-                <p className="text-xs text-gray-400 mt-1 font-semibold font-sans">
-                  List of current and scheduled web promotional banners. Users see banners matching the active date window.
-                </p>
-              </div>
-
-              <div className="overflow-x-auto rounded-3xl border border-gray-100">
-                {marketingBanners.length === 0 ? (
-                  <div className="p-12 text-center text-gray-400 font-sans">
-                    <Megaphone className="mx-auto mb-3 text-gray-300" size={32} />
-                    <p className="text-xs font-bold uppercase tracking-wider">No promotional banners exist yet</p>
-                    <p className="text-xs font-medium text-gray-400 mt-1">Configure your first website display banner above.</p>
-                  </div>
-                ) : (
-                  <table className="w-full text-left border-collapse shrink-0 font-sans">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase font-black tracking-wider text-gray-400">
-                        <th className="p-4">Visual Theme / Text</th>
-                        <th className="p-4">Active Date Schedule</th>
-                        <th className="p-4">CTA Route</th>
-                        <th className="p-4 text-center">Status</th>
-                        <th className="p-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 text-xs text-gray-600">
-                      {marketingBanners.map((bn) => {
-                        const bgPresetLabel = bn.backgroundColor || "sunset";
-                        const startDateStr = bn.startDate ? new Date(bn.startDate).toLocaleDateString("en-KE") : "-";
-                        const endDateStr = bn.endDate ? new Date(bn.endDate).toLocaleDateString("en-KE") : "-";
-                        
-                        const isCurrentlyActiveSchedule = () => {
-                          if (bn.active !== true) return false;
-                          const now = new Date();
-                          return new Date(bn.startDate) <= now && new Date(bn.endDate) >= now;
-                        };
-
-                        const isUpcomingSchedule = () => {
-                          if (bn.active !== true) return false;
-                          const now = new Date();
-                          return new Date(bn.startDate) > now;
-                        };
-
-                        return (
-                          <tr key={bn.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="p-4 space-y-1.5 font-bold">
-                              <p className="text-gray-900 tracking-tight font-black leading-snug">{bn.text}</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                <span className="inline-flex items-center text-[9px] font-extrabold uppercase bg-gray-150 text-gray-700 px-2 py-0.5 rounded-full border border-gray-200">
-                                  Preset: {bgPresetLabel}
-                                </span>
-                                {bn.closable === false && (
-                                  <span className="inline-flex items-center text-[9px] font-extrabold uppercase bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-100">
-                                    Permanent Banner
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-4 font-semibold text-gray-500 text-left whitespace-nowrap">
-                              <div className="flex items-center gap-1">
-                                <Calendar size={12} className="text-gray-400" />
-                                <span>{startDateStr} - {endDateStr}</span>
-                              </div>
-                            </td>
-                            <td className="p-4 text-left font-semibold">
-                              {bn.actionText ? (
-                                <div className="space-y-0.5">
-                                  <p className="text-gray-900 font-bold">{bn.actionText}</p>
-                                  <p className="text-[10px] text-gray-400 font-mono italic">{bn.actionUrl || "/"}</p>
-                                </div>
-                              ) : (
-                                <span className="text-gray-400 font-medium">None</span>
-                              )}
-                            </td>
-                            <td className="p-4 text-center">
-                              {isCurrentlyActiveSchedule() ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] tracking-wider uppercase font-extrabold bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
-                                  <div className="w-1.5 h-1.5 bg-green-600 rounded-full animate-ping" />
-                                  Live Display
-                                </span>
-                              ) : isUpcomingSchedule() ? (
-                                <span className="inline-flex items-center text-[10px] tracking-wider uppercase font-extrabold bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full border border-blue-100">
-                                  Scheduled
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center text-[10px] tracking-wider uppercase font-extrabold bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">
-                                  Inactive
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-4 text-right whitespace-nowrap">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={() => handleStartEditBanner(bn)}
-                                  className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Edit Banner Settings"
-                                >
-                                  <Pencil size={15} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteBanner(bn.id)}
-                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Delete Banner"
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <Suspense fallback={<div className="p-8 text-center text-gray-500 font-bold">Loading marketing campaigns & banners...</div>}>
+          <MarketingTab
+            campaigns={campaigns}
+            campaignTitle={campaignTitle}
+            setCampaignTitle={setCampaignTitle}
+            campaignMessage={campaignMessage}
+            setCampaignMessage={setCampaignMessage}
+            campaignChannel={campaignChannel}
+            setCampaignChannel={(val: string) => setCampaignChannel(val as any)}
+            campaignTargetType={campaignTargetType}
+            setCampaignTargetType={setCampaignTargetType}
+            campaignProductId={campaignProductId}
+            setCampaignProductId={setCampaignProductId}
+            campaignCategory={campaignCategory}
+            setCampaignCategory={setCampaignCategory}
+            isCreatingCampaign={isCreatingCampaign}
+            setIsCreatingCampaign={setIsCreatingCampaign}
+            user={user}
+            products={products}
+            fetchData={fetchData}
+            handleStartEditCampaign={handleStartEditCampaign}
+            handleDeleteCampaign={handleDeleteCampaign}
+          />
+        </Suspense>
       )}
 
       {/* View Order Details Modal */}

@@ -165,9 +165,10 @@ export function calculateShippingFee(
   county: string,
   city: string,
   subtotal: number,
-  country: string = "Kenya"
+  country: string = "Kenya",
+  freeThreshold: number = 15000
 ): number {
-  if (subtotal >= 15000) return 0; // Free shipping threshold of KES 15,000 to reward larger orders responsively
+  if (subtotal >= freeThreshold) return 0; // Free shipping threshold configured by store admin
 
   if (country !== "Kenya") {
     if (country === "Uganda") return 1000;

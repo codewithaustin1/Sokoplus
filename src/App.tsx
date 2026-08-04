@@ -49,6 +49,7 @@ import VerificationBanner from "./components/VerificationBanner";
 import AnalyticsTracker from "./components/AnalyticsTracker";
 import CookieConsentBanner from "./components/CookieConsentBanner";
 import { OfflineNotifier } from "./components/OfflineNotifier";
+import { OfflineSyncQueueBanner } from "./components/OfflineSyncQueueBanner";
 import { NotificationManager } from "./components/NotificationManager";
 import { motion, AnimatePresence } from "motion/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -383,13 +384,29 @@ export default function App() {
         (error) => {
           if (isCancelled) return;
           attempt++;
-          const delayMs = Math.min(60000, Math.round(1500 * Math.pow(2, attempt - 1) + Math.random() * 500));
-          console.warn(`[App Support Listener] Rate-limited or quota event (attempt ${attempt}). Exponential backoff retry in ${delayMs}ms:`, error);
+          
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          const isQuotaOrOffline =
+            !navigator.onLine ||
+            errorMsg.toLowerCase().includes("quota") ||
+            errorMsg.toLowerCase().includes("resource_exhausted") ||
+            errorMsg.toLowerCase().includes("unavailable") ||
+            (error as any)?.code === "resource-exhausted" ||
+            (error as any)?.code === "unavailable";
 
           if (unsubscribeFn) {
             unsubscribeFn();
             unsubscribeFn = null;
           }
+
+          // If quota limit or offline status detected, pause polling until online/sync event
+          if (isQuotaOrOffline) {
+            console.warn(`[App Support Listener] Quota limit or offline status detected. Pausing automatic polling until network status changes or manual refresh.`);
+            return;
+          }
+
+          const delayMs = Math.min(60000, Math.round(1500 * Math.pow(2, attempt - 1) + Math.random() * 500));
+          console.warn(`[App Support Listener] Connection retry (attempt ${attempt}). Exponential backoff retry in ${delayMs}ms:`, error);
 
           retryTimeoutId = setTimeout(() => {
             if (!isCancelled) {
@@ -400,12 +417,24 @@ export default function App() {
       );
     };
 
+    const handleSyncReset = () => {
+      attempt = 0;
+      if (retryTimeoutId) clearTimeout(retryTimeoutId);
+      if (unsubscribeFn) unsubscribeFn();
+      connectSupportListener();
+    };
+
+    window.addEventListener("online", handleSyncReset);
+    window.addEventListener("network-sync", handleSyncReset);
+
     connectSupportListener();
 
     return () => {
       isCancelled = true;
       if (retryTimeoutId) clearTimeout(retryTimeoutId);
       if (unsubscribeFn) unsubscribeFn();
+      window.removeEventListener("online", handleSyncReset);
+      window.removeEventListener("network-sync", handleSyncReset);
     };
   }, [user?.uid]);
 
@@ -462,6 +491,7 @@ export default function App() {
     let userSubCancelled = false;
     let userSubRetryTimeout: any = null;
     let userSubAttempt = 0;
+    let handleUserSyncReset: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
@@ -624,7 +654,12 @@ export default function App() {
                 unsubscribeUser = null;
               }
 
-              // Exponential backoff reconnect
+              if (isQuota || !navigator.onLine) {
+                console.warn(`[App User Listener] Quota limit or offline status detected. Pausing automatic background retries until network status changes or manual sync.`);
+                return;
+              }
+
+              // Exponential backoff reconnect for transient glitches
               userSubRetryTimeout = setTimeout(() => {
                 if (!userSubCancelled) {
                   connectUserDocListener();
@@ -633,6 +668,21 @@ export default function App() {
             }
           );
         };
+
+        handleUserSyncReset = () => {
+          userSubAttempt = 0;
+          if (userSubRetryTimeout) clearTimeout(userSubRetryTimeout);
+          if (unsubscribeUser) {
+            unsubscribeUser();
+            unsubscribeUser = null;
+          }
+          if (!userSubCancelled) {
+            connectUserDocListener();
+          }
+        };
+
+        window.addEventListener("online", handleUserSyncReset);
+        window.addEventListener("network-sync", handleUserSyncReset);
 
         connectUserDocListener();
       } else {
@@ -650,6 +700,10 @@ export default function App() {
     return () => {
       userSubCancelled = true;
       if (userSubRetryTimeout) clearTimeout(userSubRetryTimeout);
+      if (handleUserSyncReset) {
+        window.removeEventListener("online", handleUserSyncReset);
+        window.removeEventListener("network-sync", handleUserSyncReset);
+      }
       unsubscribeAuth();
       if (unsubscribeUser) unsubscribeUser();
     };
@@ -737,6 +791,7 @@ export default function App() {
               <Router>
                 <AnalyticsTracker />
               <div className="min-h-screen flex flex-col font-sans bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 selection:bg-orange-100 transition-colors duration-200">
+              <OfflineSyncQueueBanner />
               <QuotaBannerWrapper
                 quotaExceededInfo={quotaExceededInfo}
                 onClear={() => setQuotaExceededInfo(null)}

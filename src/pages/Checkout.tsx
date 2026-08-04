@@ -46,6 +46,7 @@ import { FastImage } from "../components/FastImage";
 import { calculateDelivery, calculateShippingFee } from "../utils/delivery";
 import { DeliveryCountdown } from "../components/DeliveryCountdown";
 import { useSellerStudio } from "../lib/SellerStudioContext";
+import { useSettings } from "../lib/SettingsContext";
 import FreeDeliveryMap from "../components/FreeDeliveryMap";
 import DeliveryLocationSearch, { SelectedLocationData } from "../components/DeliveryLocationSearch";
 
@@ -69,6 +70,7 @@ interface CheckoutProps {
 
 export default function Checkout({ user }: CheckoutProps) {
   const { sellerStudioEnabled } = useSellerStudio();
+  const { settings } = useSettings();
   const { items, total, addToCart, removeFromCart } = useCart();
   const [disabledCountries, setDisabledCountries] = useState<string[]>([]);
   const [disabledCounties, setDisabledCounties] = useState<string[]>([]);
@@ -407,7 +409,8 @@ export default function Checkout({ user }: CheckoutProps) {
     ? selectedCountyData.cities.filter(city => !disabledCities.includes(city)) 
     : [];
 
-  const baseShippingFee = calculateShippingFee(address.county, address.city, total, address.country);
+  const FREE_SHIPPING_LIMIT = settings?.freeShippingThreshold !== undefined ? Number(settings.freeShippingThreshold) : 15000;
+  const baseShippingFee = calculateShippingFee(address.county, address.city, total, address.country, FREE_SHIPPING_LIMIT);
 
   // Level 1: Primary Voucher Code
   const [appliedVoucher, setAppliedVoucher] = useState<any | null>(null);
@@ -604,8 +607,10 @@ export default function Checkout({ user }: CheckoutProps) {
   const appliedDiscount = isCapExceeded ? maxAllowedDiscountCap : rawTotalDiscount;
   const overallTotal = Math.max(0, total + shippingFee - appliedDiscount);
 
+  // Pay on Delivery (COD) requires 10% deposit, strictly capped at KES 700 max
+  const codDepositAmount = Math.min(700, Math.round(overallTotal * 0.1));
+
   // Free shipping progress variables
-  const FREE_SHIPPING_LIMIT = 15000;
   const progressToFreeShipping = Math.min((total / FREE_SHIPPING_LIMIT) * 100, 100);
   const remainingForFreeShipping = FREE_SHIPPING_LIMIT - total;
 
@@ -693,7 +698,7 @@ export default function Checkout({ user }: CheckoutProps) {
       setRedirectDescription("Drafting Paystack billing configuration securely for instant payment validation...");
 
       // 2. Initialize Paystack
-      const payAmount = paymentMethod === "cod" ? Math.round(overallTotal * 0.1) : overallTotal;
+      const payAmount = paymentMethod === "cod" ? codDepositAmount : overallTotal;
       const response = await axios.post("/api/paystack/initialize", {
         email: address.email,
         amount: payAmount,
@@ -703,7 +708,7 @@ export default function Checkout({ user }: CheckoutProps) {
           items: items.map(i => ({ id: i.productId, qty: i.quantity, customs: i.customizations })),
           preferredPaymentMethod: paymentMethod,
           isDepositOnly: paymentMethod === "cod",
-          depositAmount: paymentMethod === "cod" ? Math.round(overallTotal * 0.1) : 0,
+          depositAmount: paymentMethod === "cod" ? codDepositAmount : 0,
           fullAmount: overallTotal
         }
       });
@@ -781,7 +786,7 @@ export default function Checkout({ user }: CheckoutProps) {
         items,
         sellerIds: sellerIdsList,
         totalAmount: overallTotal,
-        depositAmount: paymentMethod === "cod" ? Math.round(overallTotal * 0.1) : 0,
+        depositAmount: paymentMethod === "cod" ? codDepositAmount : 0,
         discountAmount: appliedDiscount,
         promoAuditTrail: {
           rawSubtotal: total,
@@ -1686,7 +1691,7 @@ export default function Checkout({ user }: CheckoutProps) {
                       <p className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold truncate">
                         {paymentMethod === "mpesa" && "Instant STK Push (Safaricom / Airtel / Telkom)"}
                         {paymentMethod === "card" && "Visa, Mastercard & American Express"}
-                        {paymentMethod === "cod" && `10% Deposit (KES ${Math.round(overallTotal * 0.1).toLocaleString()})`}
+                        {paymentMethod === "cod" && (overallTotal * 0.1 > 700 ? `10% Deposit (Capped at KES 700)` : `10% Deposit (KES ${codDepositAmount.toLocaleString()})`)}
                       </p>
                     </div>
                   </div>
@@ -1772,7 +1777,9 @@ export default function Checkout({ user }: CheckoutProps) {
                           </div>
                           <div>
                             <p className="text-xs font-black uppercase tracking-tight">Cash on Delivery (COD)</p>
-                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">10% Deposit (KES {Math.round(overallTotal * 0.1).toLocaleString()})</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">
+                              {overallTotal * 0.1 > 700 ? `10% Deposit (Capped at KES 700)` : `10% Deposit (KES ${codDepositAmount.toLocaleString()})`}
+                            </p>
                           </div>
                         </div>
                         {paymentMethod === "cod" && <Check size={16} className="text-orange-500 stroke-[3]" />}
@@ -1911,9 +1918,11 @@ export default function Checkout({ user }: CheckoutProps) {
                     </svg>
                   </div>
                   <div className="space-y-0.5 min-w-0">
-                    <p className="text-[8px] text-gray-400 dark:text-gray-550 font-black uppercase tracking-widest leading-none">Requires 10% deposit</p>
+                    <p className="text-[8px] text-gray-400 dark:text-gray-550 font-black uppercase tracking-widest leading-none">
+                      Requires 10% deposit {overallTotal * 0.1 > 700 ? "(Capped at KES 700)" : ""}
+                    </p>
                     <p className="text-[10px] text-gray-650 dark:text-gray-450 font-bold leading-tight">
-                      Requires 10% deposit of total cart value (KES {Math.round(overallTotal * 0.1).toLocaleString()})
+                      Requires 10% deposit of total cart value{overallTotal * 0.1 > 700 ? " (capped at KES 700)" : ""} (KES {codDepositAmount.toLocaleString()})
                     </p>
                   </div>
                 </div>
@@ -2267,7 +2276,7 @@ export default function Checkout({ user }: CheckoutProps) {
               ) : (
                 <>
                   {paymentMethod === "cod" 
-                    ? `Pay 10% Deposit (KES ${Math.round(overallTotal * 0.1).toLocaleString()})`
+                    ? `Pay Deposit (KES ${codDepositAmount.toLocaleString()})`
                     : "Secure Payment with Paystack"
                   }
                   <ArrowRight className="ml-2.5 group-hover:translate-x-1 transition-transform" size={16} />
@@ -2360,7 +2369,7 @@ export default function Checkout({ user }: CheckoutProps) {
             <span className="flex items-center gap-1.5 uppercase tracking-wide text-xs">
               <span>
                 {paymentMethod === "cod" 
-                  ? `Pay Deposit (KES ${Math.round(overallTotal * 0.1).toLocaleString()})`
+                  ? `Pay Deposit (KES ${codDepositAmount.toLocaleString()})`
                   : "Checkout"
                 }
               </span>

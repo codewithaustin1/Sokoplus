@@ -12,32 +12,46 @@ declare global {
 
 let GA_MEASUREMENT_ID: string | undefined = (import.meta as any).env?.VITE_GA_MEASUREMENT_ID;
 
-// Fallback Google Analytics Measurement ID if none is set, to ensure it loads in the sandbox/preview environment
-if (!GA_MEASUREMENT_ID) {
-  GA_MEASUREMENT_ID = "G-MEASURE-ID"; 
+export function setGAMeasurementId(id: string) {
+  if (id && id.trim()) {
+    GA_MEASUREMENT_ID = id.trim();
+  }
+}
+
+export function getGAMeasurementId(): string {
+  return GA_MEASUREMENT_ID || "G-MEASURE-ID";
 }
 
 /**
  * Initializes the Google Analytics script tag and defines window.gtag
  */
-export function initGA(force = false) {
+export function initGA(force = false, customId?: string) {
   if (typeof window === "undefined") return;
-  if (!GA_MEASUREMENT_ID) return;
+  if (customId && customId.trim()) {
+    GA_MEASUREMENT_ID = customId.trim();
+  }
+
+  const activeId = GA_MEASUREMENT_ID || "G-MEASURE-ID";
+
+  if (activeId === "G-MEASURE-ID" || !activeId.startsWith("G-")) {
+    console.warn("[Google Analytics] Notice: Google Analytics is currently using a placeholder ID ('G-MEASURE-ID'). Please configure your Google Analytics Measurement ID (G-XXXXXXXXXX) in the SokoPlus Admin Panel or set VITE_GA_MEASUREMENT_ID in your environment variables to enable real-time tracking.");
+  }
 
   // Track if consent actually exists; if not forced or accepted, defer loading GA
   const consent = localStorage.getItem("sokoplus_cookie_consent");
   if (!force && consent !== "accepted") {
-    console.log("[Google Analytics] Deferring initialization: no explicit consent granted.");
+    console.log("[Google Analytics] Deferring initialization: no explicit cookie consent granted yet.");
     return;
   }
 
-  // Prevent multiple initializations
-  if (window.gtag) return;
+  // Prevent multiple initializations with the exact same script tag
+  if (document.getElementById("ga-gtag-script")) return;
 
   try {
     const scriptNode = document.createElement("script");
+    scriptNode.id = "ga-gtag-script";
     scriptNode.async = true;
-    scriptNode.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+    scriptNode.src = `https://www.googletagmanager.com/gtag/js?id=${activeId}`;
     document.head.appendChild(scriptNode);
 
     window.dataLayer = window.dataLayer || [];
@@ -47,11 +61,11 @@ export function initGA(force = false) {
     };
 
     window.gtag("js", new Date());
-    window.gtag("config", GA_MEASUREMENT_ID, {
+    window.gtag("config", activeId, {
       send_page_view: false, // Turn off automatic page views to support custom single page transitions
     });
     
-    console.log(`[Google Analytics] Initialized with ID: ${GA_MEASUREMENT_ID}`);
+    console.log(`[Google Analytics] Initialized with Measurement ID: ${activeId}`);
   } catch (error) {
     console.error("[Google Analytics] Initialization failed:", error);
   }

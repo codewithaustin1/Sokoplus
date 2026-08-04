@@ -1509,12 +1509,17 @@ app.post("/api/recommendations", async (req, res) => {
   }
 });
 
-// Gemini-powered AI Support Chat Assistant
+// Gemini-powered AI Support Chat Assistant with SSE Streaming
 app.post("/api/support-chat/ai", async (req, res) => {
   const { messages } = req.body;
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: "Invalid or missing messages array" });
   }
+
+  // Set SSE response headers
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
 
   // 1. Fetch live product catalog from Firestore securely using client body override or fallback REST API
   const productsData: any[] = [];
@@ -1556,7 +1561,9 @@ app.post("/api/support-chat/ai", async (req, res) => {
     console.warn("Support Chat: AI limit hit / cooldown active in server.ts. Instantly serving local heuristic fallback.");
     const lastUserMsg = messages[messages.length - 1]?.text || "";
     const fallbackText = generateLocalHeuristicResponse(lastUserMsg, productsData);
-    return res.json({ text: fallbackText });
+    res.write(`data: ${JSON.stringify({ chunk: fallbackText })}\n\n`);
+    res.write(`data: ${JSON.stringify({ done: true, mapsLinks: [] })}\n\n`);
+    return res.end();
   }
 
   try {
@@ -1582,7 +1589,7 @@ ${JSON.stringify(productsData)}
     }));
 
     const ai = getGenAI();
-    const response = await ai.models.generateContent({
+    const responseStream = await ai.models.generateContentStream({
       model: "gemini-3.6-flash",
       contents: contents,
       config: {
@@ -1599,26 +1606,34 @@ ${JSON.stringify(productsData)}
       },
     });
 
-    // Extract any Google Maps grounding links and send back to client for rendering
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     const mapsLinks: any[] = [];
-    groundingChunks.forEach((chunk: any) => {
-      if (chunk.maps) {
-        mapsLinks.push({
-          title: chunk.maps.title,
-          uri: chunk.maps.uri,
-          address: chunk.maps.address || ""
-        });
-      } else if (chunk.web && chunk.web.uri && chunk.web.uri.includes("google.com/maps")) {
-        mapsLinks.push({
-          title: chunk.web.title,
-          uri: chunk.web.uri,
-          address: ""
-        });
-      }
-    });
 
-    res.json({ text: response.text, mapsLinks });
+    for await (const chunk of responseStream) {
+      const textChunk = chunk.text;
+      if (textChunk) {
+        res.write(`data: ${JSON.stringify({ chunk: textChunk })}\n\n`);
+      }
+
+      const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      groundingChunks.forEach((gChunk: any) => {
+        if (gChunk.maps) {
+          mapsLinks.push({
+            title: gChunk.maps.title,
+            uri: gChunk.maps.uri,
+            address: gChunk.maps.address || ""
+          });
+        } else if (gChunk.web && gChunk.web.uri && gChunk.web.uri.includes("google.com/maps")) {
+          mapsLinks.push({
+            title: gChunk.web.title,
+            uri: gChunk.web.uri,
+            address: ""
+          });
+        }
+      });
+    }
+
+    res.write(`data: ${JSON.stringify({ done: true, mapsLinks })}\n\n`);
+    res.end();
   } catch (error: any) {
     const errStr = (error.message || "") + " " + JSON.stringify(error) + " " + String(error);
     const isQuotaOrOverloadError = 
@@ -1648,12 +1663,13 @@ ${JSON.stringify(productsData)}
     } else {
       console.error("Smart Support Chat Assistant Error caught in server.ts. Activating Offline fallback search:", error.message || error);
     }
-    
-    // Fall back to our local search instead of sending 429 or showing raw errors
+
     const lastUserMsg = messages[messages.length - 1]?.text || "";
     const fallbackText = generateLocalHeuristicResponse(lastUserMsg, productsData);
-    
-    res.json({ text: fallbackText, mapsLinks: [] });
+
+    res.write(`data: ${JSON.stringify({ chunk: fallbackText })}\n\n`);
+    res.write(`data: ${JSON.stringify({ done: true, mapsLinks: [] })}\n\n`);
+    res.end();
   }
 });
 
