@@ -282,9 +282,9 @@ export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng,
   }, [selectedCoords]);
 
   // Geolocation trigger
-  const handleLocateMe = () => {
+  const handleLocateMe = (isAuto = false) => {
     if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser.");
+      if (!isAuto) toast.error("Geolocation is not supported by your browser.");
       return;
     }
 
@@ -300,18 +300,53 @@ export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng,
           });
           markerRef.current.setLatLng([latitude, longitude]);
           setSelectedCoords({ lat: latitude, lng: longitude });
+        } else {
+          setSelectedCoords({ lat: latitude, lng: longitude });
         }
         setLoading(false);
-        toast.success("Successfully pinpointed your location!");
+        if (!isAuto) {
+          toast.success("Successfully pinpointed your location!");
+        }
       },
       (err) => {
         console.warn("Geolocation warning:", err);
-        toast.error("Could not access your physical location. Please select it manually on the map.");
+        if (!isAuto) {
+          toast.error("Could not access your physical location. Please select it manually on the map.");
+        }
         setLoading(false);
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
   };
+
+  // Automatically trigger Locate Me if location permission is enabled/granted
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.permissions && navigator.permissions.query) {
+      let statusObj: PermissionStatus | null = null;
+      navigator.permissions
+        .query({ name: "geolocation" })
+        .then((status) => {
+          statusObj = status;
+          if (status.state === "granted") {
+            handleLocateMe(true);
+          }
+          status.onchange = () => {
+            if (status.state === "granted") {
+              handleLocateMe(true);
+            }
+          };
+        })
+        .catch((err) => {
+          console.warn("Geolocation permission query error:", err);
+        });
+
+      return () => {
+        if (statusObj) {
+          statusObj.onchange = null;
+        }
+      };
+    }
+  }, []);
 
   const handleOpenMapsLocationSelect = (loc: SelectedLocationData) => {
     isExplicitUserPinRef.current = true;
@@ -343,7 +378,7 @@ export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng,
 
         <button
           type="button"
-          onClick={handleLocateMe}
+          onClick={() => handleLocateMe(false)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-black transition-all shadow-sm shrink-0 cursor-pointer"
         >
           <Compass className="w-3.5 h-3.5 animate-spin-slow" />

@@ -222,75 +222,18 @@ export default function Cart() {
                 <span>{t("Subtotal")}</span>
                 <span className="tabular-nums font-semibold">KES {total.toLocaleString()}</span>
               </div>
-              <div className="flex flex-col gap-1 text-gray-500 dark:text-gray-400">
-                <div className="flex justify-between">
-                  <span>{t("Shipping")}</span>
-                  <span className="font-bold text-gray-800 dark:text-gray-200 tabular-nums">
-                    {shippingFee === 0 ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 font-black uppercase text-[10px] bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">
-                        Free shipping
-                      </span>
-                    ) : (
-                      `KES ${shippingFee.toLocaleString()}`
-                    )}
-                  </span>
-                </div>
-                {/* Micro selector */}
-                <div className="flex items-center justify-between text-[11px] text-gray-450 dark:text-gray-400">
-                  <button
-                    onClick={() => setIsChangingLocation(!isChangingLocation)}
-                    className="flex items-center gap-1 text-orange-600 hover:text-orange-700 font-extrabold focus:outline-none cursor-pointer bg-transparent border-none"
-                  >
-                    <MapPin size={10} />
-                    <span>Deliver to: {selectedCity}</span>
-                    <ChevronDown size={10} className={`transform transition-transform ${isChangingLocation ? "rotate-180" : ""}`} />
-                  </button>
-                </div>
+              <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                <span>{t("Shipping")}</span>
+                <span className="font-bold text-gray-800 dark:text-gray-200 tabular-nums">
+                  {shippingFee === 0 ? (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-black uppercase text-[10px] bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">
+                      Free shipping
+                    </span>
+                  ) : (
+                    `KES ${shippingFee.toLocaleString()}`
+                  )}
+                </span>
               </div>
-
-              {/* Collapsible Selectors inside the Order Summary sidebar box itself */}
-              <AnimatePresence>
-                {isChangingLocation && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="bg-gray-50 dark:bg-gray-950 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2.5 my-1 text-xs">
-                      <div>
-                        <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-wider">County</label>
-                        <select
-                          value={selectedCounty}
-                          onChange={(e) => handleCountyChange(e.target.value)}
-                          className="w-full text-xs font-bold p-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-150 dark:border-gray-800 rounded-lg outline-none focus:ring-1 focus:ring-orange-500 transition-all cursor-pointer"
-                        >
-                          {counties.filter(c => !disabledCounties.includes(c.name)).map((c) => (
-                            <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
-                              {c.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-wider">City</label>
-                        <select
-                          value={selectedCity}
-                          onChange={(e) => setSelectedCity(e.target.value)}
-                          className="w-full text-xs font-bold p-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-150 dark:border-gray-800 rounded-lg outline-none focus:ring-1 focus:ring-orange-500 transition-all cursor-pointer"
-                        >
-                          {cities.map((city) => (
-                            <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
-                              {city}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
 
               <div className="border-t border-gray-100 dark:border-gray-800 pt-4 flex justify-between text-xl font-black text-gray-900 dark:text-white">
                 <span>{t("Total")}</span>
@@ -311,9 +254,9 @@ export default function Cart() {
                   }))
                 });
               }}
-              className="w-full block text-center bg-orange-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-orange-700 transition-all shadow-lg shadow-orange-100 dark:shadow-none flex items-center justify-center"
+              className="w-full block text-center bg-[#101828] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#1a2333] transition-all shadow-lg shadow-gray-200 dark:shadow-none flex items-center justify-center"
             >
-              {t("Secure Checkout")} <ArrowRight size={20} className="ml-2" />
+              {t("Checkout")} <ArrowRight size={20} className="ml-2" />
             </Link>
             <div className="flex items-center justify-center gap-1.5 mt-4 bg-[#32ba78]/10 dark:bg-[#32ba78]/5 px-3.5 py-2.5 rounded-2xl border border-[#32ba78]/20 w-full">
               <span className="flex h-2 w-2 relative shrink-0">

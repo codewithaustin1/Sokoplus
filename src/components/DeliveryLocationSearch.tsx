@@ -134,6 +134,81 @@ export default function DeliveryLocationSearch({
     }, 280);
   };
 
+  const handleLocateMe = (isAuto = false) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+
+    setIsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+            { headers: { "User-Agent": "SokoPlus-Kenya-Delivery-Applet" } }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.display_name) {
+              const addr = data.address || {};
+              const localPlace = addr.suburb || addr.neighbourhood || addr.village || addr.quarter || addr.commercial || addr.road || "";
+              const cityTown = addr.city || addr.town || addr.municipality || "Nairobi";
+              const countyRegion = addr.county || "Nairobi";
+              const cleanAddress = localPlace ? `${localPlace}, ${cityTown}` : data.display_name.split(",").slice(0, 2).join(",");
+
+              setQuery(cleanAddress);
+              onSelectLocation({
+                displayName: data.display_name,
+                shortAddress: cleanAddress,
+                lat: latitude,
+                lng: longitude,
+                city: cityTown,
+                county: countyRegion,
+                country: addr.country || "Kenya",
+                street: localPlace || cleanAddress,
+                raw: data,
+              });
+            }
+          }
+        } catch (err) {
+          console.warn("Locate me reverse geocode warning:", err);
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      (err) => {
+        console.warn("Locate me geolocation warning:", err);
+        setIsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.permissions && navigator.permissions.query) {
+      let statusObj: PermissionStatus | null = null;
+      navigator.permissions
+        .query({ name: "geolocation" })
+        .then((status) => {
+          statusObj = status;
+          if (status.state === "granted") {
+            handleLocateMe(true);
+          }
+          status.onchange = () => {
+            if (status.state === "granted") {
+              handleLocateMe(true);
+            }
+          };
+        })
+        .catch(() => {});
+
+      return () => {
+        if (statusObj) {
+          statusObj.onchange = null;
+        }
+      };
+    }
+  }, [showLocateMe]);
+
   const handleSelect = (item: OpenMapLocation) => {
     const addr = item.address || {};
     const lat = typeof item.lat === "number" ? item.lat : parseFloat(item.lat);
