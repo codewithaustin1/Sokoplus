@@ -1,99 +1,13 @@
-import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Trash2, ShoppingBag, Plus, Minus, ArrowRight, MapPin, ChevronDown, Check, ShieldCheck } from "lucide-react";
+import { Trash2, ShoppingBag, Plus, Minus, ArrowRight, ShieldCheck } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { trackEvent } from "../lib/analytics";
-import { counties } from "../data/counties";
-import { calculateShippingFee } from "../utils/delivery";
-import { db } from "../lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
 
 export default function Cart() {
   const { items, removeFromCart, updateQuantity, addToCart, total } = useCart();
   const { t } = useLanguage();
-
-  const [selectedCounty, setSelectedCounty] = useState<string>(() => {
-    return localStorage.getItem("sokoplus_delivery_county") || "Nairobi City County";
-  });
-  const [selectedCity, setSelectedCity] = useState<string>(() => {
-    return localStorage.getItem("sokoplus_delivery_city") || "Nairobi CBD";
-  });
-  const [disabledCounties, setDisabledCounties] = useState<string[]>([]);
-  const [disabledCities, setDisabledCities] = useState<string[]>([]);
-  const [isChangingLocation, setIsChangingLocation] = useState(false);
-
-  // Sync to local storage
-  useEffect(() => {
-    localStorage.setItem("sokoplus_delivery_county", selectedCounty);
-    localStorage.setItem("sokoplus_delivery_city", selectedCity);
-  }, [selectedCounty, selectedCity]);
-
-  // Fetch settings & adjust
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const docRef = doc(db, "settings", "homepage");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const disabledCo = data.disabledCounties || [];
-          const disabledCi = data.disabledCities || [];
-          setDisabledCounties(disabledCo);
-          setDisabledCities(disabledCi);
-
-          // Validate current county selection
-          let nextCounty = selectedCounty;
-          let nextCity = selectedCity;
-          let changed = false;
-
-          if (disabledCo.includes(nextCounty)) {
-            const firstEnabled = counties.find(c => !disabledCo.includes(c.name));
-            if (firstEnabled) {
-              nextCounty = firstEnabled.name;
-              changed = true;
-            }
-          }
-
-          const matchedCountyObj = counties.find(c => c.name === nextCounty);
-          if (matchedCountyObj) {
-            if (disabledCi.includes(nextCity) || !matchedCountyObj.cities.includes(nextCity)) {
-              const firstEnabledCity = matchedCountyObj.cities.find(c => !disabledCi.includes(c));
-              if (firstEnabledCity) {
-                nextCity = firstEnabledCity;
-                changed = true;
-              }
-            }
-          }
-
-          if (changed) {
-            setSelectedCounty(nextCounty);
-            setSelectedCity(nextCity);
-          }
-        }
-      } catch (e) {
-        console.warn("Delivery settings fetch bypassed in Cart (using defaults):", e);
-      }
-    };
-    fetchSettings();
-  }, []);
-
-  const selectedCountyData = counties.find((c) => c.name === selectedCounty) || counties[0];
-  const cities = selectedCountyData 
-    ? selectedCountyData.cities.filter(city => !disabledCities.includes(city)) 
-    : [];
-
-  const handleCountyChange = (val: string) => {
-    setSelectedCounty(val);
-    const matched = counties.find((c) => c.name === val);
-    const matchedCities = matched ? matched.cities : [];
-    const firstCity = matchedCities.find(c => !disabledCities.includes(c)) || matchedCities[0] || "";
-    setSelectedCity(firstCity);
-  };
-
-  const shippingFee = calculateShippingFee(selectedCounty, selectedCity, total);
-  const overallTotal = total + shippingFee;
 
   if (items.length === 0) {
     return (
@@ -222,22 +136,13 @@ export default function Cart() {
                 <span>{t("Subtotal")}</span>
                 <span className="tabular-nums font-semibold">KES {total.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-gray-500 dark:text-gray-400">
-                <span>{t("Shipping")}</span>
-                <span className="font-bold text-gray-800 dark:text-gray-200 tabular-nums">
-                  {shippingFee === 0 ? (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-black uppercase text-[10px] bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full">
-                      Free shipping
-                    </span>
-                  ) : (
-                    `KES ${shippingFee.toLocaleString()}`
-                  )}
-                </span>
-              </div>
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                {t("Shipping fee will be calculated at checkout after resolving your delivery location.")}
+              </p>
 
               <div className="border-t border-gray-100 dark:border-gray-800 pt-4 flex justify-between text-xl font-black text-gray-900 dark:text-white">
                 <span>{t("Total")}</span>
-                <span className="tabular-nums">KES {overallTotal.toLocaleString()}</span>
+                <span className="tabular-nums">KES {total.toLocaleString()}</span>
               </div>
             </div>
             <Link 

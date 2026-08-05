@@ -2114,71 +2114,75 @@ export default function Checkout({ user }: CheckoutProps) {
               </span>
             </div>
 
-          </div>   </div>
+          </div>
+        </div>
 
-               {/* RIGHT COLUMN: Sticky Predictive Calculation Summary Panel */}
+        {/* RIGHT COLUMN: Glassmorphic Order Summary Calculation Panel */}
         <div className="lg:col-span-4 sticky top-24 self-start hidden lg:block">
-          <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl dark:shadow-none space-y-6">
-            
-            <div className="flex items-center justify-between pb-3 border-b border-gray-50 dark:border-gray-800">
-              <h2 className="text-md font-black uppercase tracking-wider text-gray-955 dark:text-white flex items-center gap-2">
-                <Receipt size={16} className="text-orange-600 dark:text-orange-400" />
-                <span>Calculation Summary</span>
-              </h2>
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-extrabold uppercase">Dynamic predictions</span>
-            </div>
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="relative overflow-hidden rounded-[2.2rem] p-7 text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] border border-white/20 backdrop-blur-2xl bg-slate-900/80 dark:bg-slate-950/85 space-y-6"
+          >
+            {/* Soft ambient background accent glow */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
 
-            {/* Predictive Free Shipping progress tracker */}
-            <div className="space-y-2 bg-gray-50 dark:bg-gray-900/70 p-4 rounded-2xl border border-gray-200 dark:border-gray-800">
-              <div className="flex items-center justify-between text-xs font-bold leading-none">
-                <span className="text-gray-800 dark:text-gray-200 flex items-center gap-1.5 uppercase font-black text-[10px] tracking-wider">
-                  <Sparkles size={12} className="text-orange-600 dark:text-orange-400" />
-                  Free Delivery Status
-                </span>
-                <span className="text-orange-600 dark:text-orange-400 font-black text-[10px] uppercase">
-                  Threshold: KES 15,000
-                </span>
+            {/* Header Title */}
+            <h2 className="text-2xl font-normal tracking-tight text-white text-center font-sans">
+              Order Summary
+            </h2>
+
+            {/* Free Delivery Pill Banner */}
+            {remainingForFreeShipping <= 0 ? (
+              <motion.div 
+                initial={{ scale: 0.96 }}
+                animate={{ scale: [0.98, 1.02, 0.98] }}
+                transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+                className="w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-white font-medium text-sm py-3 px-6 rounded-full text-center shadow-lg shadow-emerald-500/30 flex items-center justify-center"
+              >
+                <span>Free Delivery Unlocked!</span>
+              </motion.div>
+            ) : (
+              <div className="w-full bg-white/10 border border-white/15 rounded-2xl p-3.5 space-y-2">
+                <div className="flex justify-between items-center text-xs font-medium text-slate-200">
+                  <span className="flex items-center">
+                    Free Delivery Progress
+                  </span>
+                  <span className="text-amber-300 font-bold">KES {remainingForFreeShipping.toLocaleString()} away</span>
+                </div>
+                <div className="w-full bg-white/20 rounded-full h-2 overflow-hidden">
+                  <motion.div 
+                    className="bg-gradient-to-r from-amber-400 to-emerald-400 h-full rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressToFreeShipping}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                  />
+                </div>
               </div>
+            )}
 
-              {/* Progress gauge */}
-              <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2 overflow-hidden mt-1.5">
-                <div 
-                  className="bg-orange-500 h-full rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${progressToFreeShipping}%` }}
-                />
-              </div>
-
-              {remainingForFreeShipping > 0 ? (
-                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold leading-relaxed mt-1">
-                  Add <span className="font-extrabold text-orange-600 dark:text-orange-400">KES {remainingForFreeShipping.toLocaleString()}</span> more to unlock <span className="font-extrabold">FREE shipping</span>.
-                </p>
-              ) : (
-                <p className="text-[10px] text-[#32ba78] font-bold flex items-center gap-1 mt-1 uppercase tracking-tight">
-                  <Check size={12} />
-                  <span>Unbelievable! You've unlocked FREE Delivery.</span>
-                </p>
-              )}
-            </div>
-
-            {/* Breakdown fields */}
-            <div className="space-y-4 text-xs font-semibold text-gray-500 dark:text-gray-400">
+            {/* Breakdown Fields */}
+            <div className="space-y-4 text-sm font-normal text-slate-200 pt-1">
               
-              <div className="flex justify-between">
-                <span>Items Subtotal</span>
-                <span className="font-black text-gray-900 dark:text-white">KES {total.toLocaleString()}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-300">Subtotal</span>
+                <span className="font-medium text-white tabular-nums text-base">KES {total.toLocaleString()}</span>
               </div>
 
               <div className="flex justify-between items-start">
                 <div>
-                  <span>Express Courier Fee</span>
-                  <p className="text-[9px] text-gray-450 dark:text-gray-400 font-bold mt-0.5 leading-none uppercase">
-                    {address.country !== "Kenya" ? address.country : address.county.split(" ")[0]} Area Rate
+                  <span className="text-slate-300">Express Courier</span>
+                  <p className="text-xs text-slate-400 font-normal mt-0.5">
+                    {address.city || (address.county ? address.county.split(" ")[0] : "Standard Area")}
                   </p>
                 </div>
-                <span className="font-black text-gray-900 dark:text-white">
+                <span className="font-medium text-white uppercase text-sm">
                   {shippingFee === 0 ? (
-                    <span className="text-[#32ba78] font-black uppercase text-[10px] bg-[#32ba78]/10 dark:bg-[#32ba78]/5 px-2 py-0.5 rounded-full">
-                      Free shipping
+                    <span className="text-emerald-400 font-semibold uppercase text-xs">
+                      FREE
                     </span>
                   ) : (
                     `KES ${shippingFee.toLocaleString()}`
@@ -2186,111 +2190,118 @@ export default function Checkout({ user }: CheckoutProps) {
                 </span>
               </div>
 
-              <div className="flex justify-between pt-1 border-t border-dashed border-gray-100 dark:border-gray-800 text-gray-400 dark:text-gray-500">
-                <span>Value Added Tax (16% VAT)</span>
-                <span className="font-bold">Included</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-300">VAT (16% tax)</span>
+                <span className="font-normal text-slate-300 text-sm">Included</span>
               </div>
 
               {/* STACKED DISCOUNTS WATERFALL BREAKDOWN */}
               {(level1VoucherDiscount > 0 || level2ReferralDiscount > 0 || level3PointsDiscount > 0) && (
-                <div className="space-y-2 pt-2 border-t border-dashed border-gray-100 dark:border-gray-800">
-                  <div className="flex items-center justify-between text-[10px] font-black uppercase text-gray-400 dark:text-gray-500 tracking-wider">
-                    <span>Stacked Savings Breakdown</span>
-                    <span className="text-[#32ba78]">Anti-Abuse Engine</span>
+                <div className="space-y-2.5 pt-3 border-t border-white/10 text-xs">
+                  <div className="flex items-center justify-between font-medium text-slate-400 uppercase tracking-wider text-[10px]">
+                    <span>Applied Discounts</span>
+                    <span className="text-emerald-400">Verified</span>
                   </div>
 
                   {level1VoucherDiscount > 0 && (
-                    <div className="flex justify-between items-center text-xs font-bold text-gray-700 dark:text-gray-300">
+                    <div className="flex justify-between items-center text-slate-200">
                       <span className="flex items-center gap-1.5">
-                        <Tag size={12} className="text-orange-500" />
-                        Level 1 Voucher ({appliedVoucher?.code})
+                        <Tag size={13} className="text-orange-400" />
+                        Voucher ({appliedVoucher?.code})
                       </span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">- KES {level1VoucherDiscount.toLocaleString()}</span>
+                      <span className="text-emerald-400 font-medium">- KES {level1VoucherDiscount.toLocaleString()}</span>
                     </div>
                   )}
 
                   {level2ReferralDiscount > 0 && !isExclusiveVoucherActive && (
-                    <div className="flex justify-between items-center text-xs font-bold text-gray-700 dark:text-gray-300">
+                    <div className="flex justify-between items-center text-slate-200">
                       <span className="flex items-center gap-1.5">
-                        <Gift size={12} className="text-amber-500" />
-                        Level 2 Referral ({appliedReferral?.code})
+                        <Gift size={13} className="text-amber-400" />
+                        Referral Pass
                       </span>
-                      <span className="text-amber-600 dark:text-amber-400 font-extrabold">- KES {level2ReferralDiscount.toLocaleString()}</span>
+                      <span className="text-amber-400 font-medium">- KES {level2ReferralDiscount.toLocaleString()}</span>
                     </div>
                   )}
 
                   {level3PointsDiscount > 0 && !isExclusiveVoucherActive && (
-                    <div className="flex justify-between items-center text-xs font-bold text-gray-700 dark:text-gray-300">
+                    <div className="flex justify-between items-center text-slate-200">
                       <span className="flex items-center gap-1.5">
-                        <Award size={12} className="text-emerald-500" />
-                        Level 3 Loyalty Points ({validRedeemedPoints} pts)
+                        <Award size={13} className="text-emerald-400" />
+                        Loyalty Points ({validRedeemedPoints} pts)
                       </span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">- KES {level3PointsDiscount.toLocaleString()}</span>
+                      <span className="text-emerald-400 font-medium">- KES {level3PointsDiscount.toLocaleString()}</span>
                     </div>
                   )}
 
                   {isCapExceeded && (
-                    <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 p-2.5 rounded-xl text-[10px] text-amber-900 dark:text-amber-200 font-semibold space-y-0.5">
-                      <div className="flex items-center gap-1.5 font-black uppercase text-amber-950 dark:text-amber-100">
-                        <ShieldCheck size={12} className="text-amber-600 shrink-0" />
-                        50% Cap Guard Rail Active
-                      </div>
-                      <p className="text-[9px] text-amber-800 dark:text-amber-300 leading-tight">
-                        Stacked discounts auto-capped to 50% max (KES {maxAllowedDiscountCap.toLocaleString()}) to protect vendor margins.
-                      </p>
+                    <div className="bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl text-[10px] text-amber-200">
+                      Discount capped to 50% max (KES {maxAllowedDiscountCap.toLocaleString()}).
                     </div>
                   )}
 
-                  <div className="flex justify-between items-center text-[#32ba78] font-black bg-[#32ba78]/10 dark:bg-[#32ba78]/5 px-3 py-2 rounded-xl border border-[#32ba78]/20">
-                    <span>Total Net Savings</span>
+                  <div className="flex justify-between items-center text-emerald-400 font-medium bg-emerald-500/10 px-3 py-2 rounded-xl border border-emerald-500/20">
+                    <span>Net Savings</span>
                     <span>- KES {appliedDiscount.toLocaleString()}</span>
                   </div>
                 </div>
               )}
-
-              <div className="border-t border-gray-100 dark:border-gray-800 pt-5 space-y-1">
-                <div className="flex justify-between items-baseline text-2xl font-black text-gray-950 dark:text-white">
-                  <span>Grand Total</span>
-                  <span className="text-orange-655 dark:text-orange-400 font-black">
-                    KES {overallTotal.toLocaleString()}
-                  </span>
-                </div>
-                <p className="text-[9px] text-gray-400 dark:text-gray-550 text-right font-medium leading-none">
-                  Fully transparent pricing details.
-                </p>
-              </div>
-
             </div>
 
-            <button 
+            {/* Divider Line */}
+            <div className="border-t border-white/15 pt-1" />
+
+            {/* Total Due */}
+            <div className="flex justify-between items-baseline">
+              <span className="text-2xl font-normal text-white">Total Due</span>
+              <span className="text-2xl font-semibold text-white tracking-tight tabular-nums">
+                KES {overallTotal.toLocaleString()}
+              </span>
+            </div>
+
+            {/* Paystack CTA Button */}
+            <motion.button 
+              whileHover={{ scale: 1.015 }}
+              whileTap={{ scale: 0.985 }}
               onClick={handleCheckout}
               disabled={loading || items.length === 0}
               type="button"
-              className="w-full bg-gray-900 dark:bg-orange-600 text-white py-5 rounded-3xl font-black text-md hover:bg-orange-600 dark:hover:bg-orange-700 focus:bg-orange-650 focus:bg-orange-600 transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer group shadow-lg shadow-gray-100 dark:shadow-none"
+              className="w-full bg-[#0b0f19] hover:bg-[#111827] text-white py-4 px-5 rounded-2xl font-semibold text-base border border-white/15 hover:border-white/30 transition-all flex items-center justify-between shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer group"
             >
               {loading ? (
-                <>
-                  <Loader2 className="mr-3 animate-spin" />
-                  Finalizing Order...
-                </>
+                <div className="w-full flex items-center justify-center gap-3">
+                  <Loader2 className="animate-spin text-teal-400" size={18} />
+                  <span>Processing Order...</span>
+                </div>
               ) : (
                 <>
-                  {paymentMethod === "cod" 
-                    ? `Pay Deposit (KES ${codDepositAmount.toLocaleString()})`
-                    : "Secure Payment with Paystack"
-                  }
-                  <ArrowRight className="ml-2.5 group-hover:translate-x-1 transition-transform" size={16} />
+                  <span className="flex items-center gap-1.5 text-sm sm:text-base font-semibold">
+                    <span>
+                      {paymentMethod === "cod" 
+                        ? `Pay Deposit (KES ${codDepositAmount.toLocaleString()}) with`
+                        : `Pay KES ${overallTotal.toLocaleString()} with`
+                      }
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-white font-bold ml-1">
+                      <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block shrink-0">
+                        <rect y="0" width="18" height="2.5" rx="1.25" fill="#00C3F7"/>
+                        <rect y="5.5" width="12" height="2.5" rx="1.25" fill="#00C3F7"/>
+                        <rect y="11" width="18" height="2.5" rx="1.25" fill="#00C3F7"/>
+                      </svg>
+                      Paystack
+                    </span>
+                  </span>
+                  <ArrowRight className="group-hover:translate-x-1 transition-transform text-white shrink-0" size={18} />
                 </>
               )}
-            </button>
+            </motion.button>
 
-            <div className="text-center">
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold leading-relaxed">
-                By clicking pay, you will be redirected to the secure gateway channel. Guaranteed protection by Paystack.
+            <div className="text-center pt-1">
+              <p className="text-[11px] text-slate-400 font-normal leading-relaxed">
+                Secured with 256-bit encryption. Guaranteed protection by Paystack.
               </p>
             </div>
 
-          </div>
+          </motion.div>
 
           {/* SokoPlus Buyer Protection Assurance Panel */}
           <div className="bg-gradient-to-br from-[#32ba78]/10 via-[#32ba78]/5 to-transparent border border-[#32ba78]/30 rounded-3xl p-6 space-y-4 shadow-sm mt-6">
