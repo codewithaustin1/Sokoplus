@@ -161,7 +161,7 @@ export default function Cart() {
               }}
               className="w-full block text-center bg-[#101828] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#1a2333] transition-all shadow-lg shadow-gray-200 dark:shadow-none flex items-center justify-center"
             >
-              {t("Checkout")} <ArrowRight size={20} className="ml-2" />
+              {t("Next")} <ArrowRight size={20} className="ml-2" />
             </Link>
             <div className="flex items-center justify-center gap-1.5 mt-4 bg-[#32ba78]/10 dark:bg-[#32ba78]/5 px-3.5 py-2.5 rounded-2xl border border-[#32ba78]/20 w-full">
               <span className="flex h-2 w-2 relative shrink-0">

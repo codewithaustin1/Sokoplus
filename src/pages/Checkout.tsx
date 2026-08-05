@@ -2278,7 +2278,7 @@ export default function Checkout({ user }: CheckoutProps) {
                     <span>
                       {paymentMethod === "cod" 
                         ? `Pay Deposit (KES ${codDepositAmount.toLocaleString()}) with`
-                        : `Pay KES ${overallTotal.toLocaleString()} with`
+                        : `Finish Order with`
                       }
                     </span>
                     <span className="inline-flex items-center gap-1 text-white font-bold ml-1">
@@ -2381,7 +2381,7 @@ export default function Checkout({ user }: CheckoutProps) {
               <span>
                 {paymentMethod === "cod" 
                   ? `Pay Deposit (KES ${codDepositAmount.toLocaleString()})`
-                  : "Checkout"
+                  : "Finish Order"
                 }
               </span>
               <ArrowRight size={14} />
