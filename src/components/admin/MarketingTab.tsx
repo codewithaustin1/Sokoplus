@@ -1,8 +1,16 @@
 import React, { memo } from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import { addDoc, collection, doc, updateDoc, getDocs, query, limit } from "firebase/firestore";
+import { addDoc, collection, doc, updateDoc, getDocs, getDocsFromCache, query, limit } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { db } from "../../lib/firebase";
+
+const getDocsCacheFirst = async (q: any) => {
+  try {
+    const snap = await getDocsFromCache(q);
+    if (snap && snap.docs && snap.docs.length > 0) return snap;
+  } catch (e) {}
+  return await getDocs(q);
+};
 
 interface MarketingTabProps {
   campaigns: any[];
@@ -146,15 +154,15 @@ export const MarketingTab: React.FC<MarketingTabProps> = memo(({
                       icon: "ℹ️"
                     });
                     
-                    // Fetch all users & carts client-side with full admin entitlements
+                    // Fetch users & carts client-side with cache-first strategy to conserve quota
                     const [usersSnap, cartsSnap] = await Promise.all([
-                      getDocs(query(collection(db, "users"), limit(100))),
-                      getDocs(query(collection(db, "carts"), limit(100)))
+                      getDocsCacheFirst(query(collection(db, "users"), limit(100))),
+                      getDocsCacheFirst(query(collection(db, "carts"), limit(100)))
                     ]);
                     
                     const allUsers: any[] = [];
-                    usersSnap.forEach((d) => {
-                      const data = d.data();
+                    usersSnap.forEach((d: any) => {
+                      const data: any = d.data();
                       allUsers.push({
                         uid: d.id,
                         email: data.email || null,
@@ -164,8 +172,8 @@ export const MarketingTab: React.FC<MarketingTabProps> = memo(({
                     });
                     
                     const allCarts: any[] = [];
-                    cartsSnap.forEach((d) => {
-                      const data = d.data();
+                    cartsSnap.forEach((d: any) => {
+                      const data: any = d.data();
                       allCarts.push({
                         userId: d.id,
                         email: data.email || null,

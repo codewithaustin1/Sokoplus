@@ -4,6 +4,7 @@ import { Review } from "../types";
 import {
   collection,
   getDocs,
+  getDocsFromCache,
   query,
   orderBy,
   deleteDoc,
@@ -75,7 +76,15 @@ export default function AdminReviewsManager() {
         orderBy("createdAt", "desc"),
         limit(50)
       );
-      const snapshot = await getDocs(q);
+      let snapshot;
+      try {
+        snapshot = await getDocsFromCache(q);
+        if (!snapshot || snapshot.empty) {
+          snapshot = await getDocs(q);
+        }
+      } catch (cacheErr) {
+        snapshot = await getDocs(q);
+      }
       const reviewsList: Review[] = [];
       snapshot.forEach((docSnapshot) => {
         reviewsList.push({

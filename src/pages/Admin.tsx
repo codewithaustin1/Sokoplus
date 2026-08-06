@@ -35,13 +35,15 @@ import {
   onSnapshot as realOnSnapshot,
   getCountFromServer as realGetCountFromServer,
   getAggregateFromServer as realGetAggregateFromServer,
+  getDocsFromCache,
+  getDocFromCache,
   sum,
   count,
 } from "firebase/firestore";
 
 // Custom intercepted wrappers to monitor live Firestore traffic in the Admin Dashboard
-const globalFsLogListeners: ((op: "Read" | "Write" | "Delete", path: string, count: number) => void)[] = [];
-const notifyFsLog = (op: "Read" | "Write" | "Delete", path: string, count: number) => {
+const globalFsLogListeners: ((op: "Read" | "Write" | "Delete" | "Read (Cache)", path: string, count: number) => void)[] = [];
+const notifyFsLog = (op: "Read" | "Write" | "Delete" | "Read (Cache)", path: string, count: number) => {
   globalFsLogListeners.forEach(l => l(op, path, count));
 };
 
@@ -102,6 +104,56 @@ const getDocs = async (q: any): Promise<any> => {
 const getDoc = async (ref: any): Promise<any> => {
   const snap = await realGetDoc(ref);
   let path = ref.path || "unknown";
+  notifyFsLog("Read", path, 1);
+  return snap as any;
+};
+
+/**
+ * Local Cache-First Firestore read strategy for non-essential administrative widgets.
+ * Prioritizes local IndexedDB cache reads (0 billable Firestore server reads)
+ * to conserve quota for mission-critical customer transactions (like checkout & payment processing).
+ * Gracefully falls back to network read if local cache is empty or missed.
+ */
+const getDocsCacheFirst = async (q: any): Promise<any> => {
+  let path = "unknown";
+  try {
+    if (q._query && q._query.path) {
+      path = q._query.path.segments.join("/");
+    } else if (q.path) {
+      path = q.path;
+    } else if (typeof q.type === "string" && q.type === "collection" && q.path) {
+      path = q.path;
+    }
+  } catch (e) {}
+
+  try {
+    const snap = await getDocsFromCache(q);
+    if (snap && snap.docs && snap.docs.length > 0) {
+      notifyFsLog("Read (Cache)", path, 0);
+      return snap;
+    }
+  } catch (cacheErr) {
+    // Local cache miss or cold start
+  }
+
+  const snap = await realGetDocs(q);
+  notifyFsLog("Read", path, snap.size || 1);
+  return snap as any;
+};
+
+const getDocCacheFirst = async (ref: any): Promise<any> => {
+  let path = ref.path || "unknown";
+  try {
+    const snap = await getDocFromCache(ref);
+    if (snap && snap.exists()) {
+      notifyFsLog("Read (Cache)", path, 0);
+      return snap;
+    }
+  } catch (cacheErr) {
+    // Local cache miss
+  }
+
+  const snap = await realGetDoc(ref);
   notifyFsLog("Read", path, 1);
   return snap as any;
 };
@@ -2216,17 +2268,17 @@ export default function Admin({ user }: AdminProps) {
       }
       setOrders(loadedOrders);
 
-      const tSnap = await getDocs(
+      const tSnap = await getDocsCacheFirst(
         query(collection(db, "support_tickets"), orderBy("createdAt", "desc"), limit(50)),
       );
       setTickets(
-        tSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as SupportTicket),
+        tSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }) as SupportTicket),
       );
 
       try {
-        const bSnap = await getDocs(query(collection(db, "blog"), orderBy("publishedAt", "desc"), limit(30)));
+        const bSnap = await getDocsCacheFirst(query(collection(db, "blog"), orderBy("publishedAt", "desc"), limit(30)));
         setBlogs(
-          bSnap.docs.map((d) => {
+          bSnap.docs.map((d: any) => {
             const data = d.data();
             return {
               id: d.id,
@@ -2251,7 +2303,7 @@ export default function Admin({ user }: AdminProps) {
 
       try {
         const settingsRef = doc(db, "settings", "homepage");
-        const settingsSnap = await getDoc(settingsRef);
+        const settingsSnap = await getDocCacheFirst(settingsRef);
         if (settingsSnap.exists()) {
           const settingsData = settingsSnap.data();
           if (settingsData.heroImageUrl) {
@@ -2336,18 +2388,18 @@ export default function Admin({ user }: AdminProps) {
       }
 
       try {
-        const jobsSnap = await getDocs(
+        const jobsSnap = await getDocsCacheFirst(
           query(collection(db, "job_offers"), orderBy("createdAt", "desc"), limit(50))
         );
         setJobOffers(
-          jobsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as JobOffer)
+          jobsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }) as JobOffer)
         );
 
-        const appsSnap = await getDocs(
+        const appsSnap = await getDocsCacheFirst(
           query(collection(db, "job_applications"), orderBy("createdAt", "desc"), limit(50))
         );
         setJobApplications(
-          appsSnap.docs.map((d) => {
+          appsSnap.docs.map((d: any) => {
             const data = d.data();
             return {
               id: d.id,
@@ -2370,49 +2422,49 @@ export default function Admin({ user }: AdminProps) {
       }
 
       try {
-        const mcSnap = await getDocs(
+        const mcSnap = await getDocsCacheFirst(
           query(collection(db, "marketing_campaigns"), orderBy("createdAt", "desc"), limit(50))
         );
         setCampaigns(
-          mcSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+          mcSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
         );
       } catch (mcError) {
         console.warn("Could not retrieve marketing campaigns: ", mcError);
       }
 
       try {
-        const mbSnap = await getDocs(
+        const mbSnap = await getDocsCacheFirst(
           query(collection(db, "marketing_banners"), orderBy("createdAt", "desc"), limit(50))
         );
         setMarketingBanners(
-          mbSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+          mbSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
         );
       } catch (mbError) {
         console.warn("Could not retrieve marketing banners: ", mbError);
       }
 
       try {
-        const sSnap = await getDocs(query(collection(db, "sellers"), limit(50)));
+        const sSnap = await getDocsCacheFirst(query(collection(db, "sellers"), limit(50)));
         setSellers(
-          sSnap.docs.map((d) => ({ uid: d.id, ...d.data() }))
+          sSnap.docs.map((d: any) => ({ uid: d.id, ...d.data() }))
         );
       } catch (sellersError) {
         console.warn("Could not load SokoPlus sellers Applications: ", sellersError);
       }
 
       try {
-        const pendingSnap = await getDocs(query(collection(db, "pending_products"), limit(50)));
+        const pendingSnap = await getDocsCacheFirst(query(collection(db, "pending_products"), limit(50)));
         setPendingProducts(
-          pendingSnap.docs.map((d) => ({ id: d.id, ...d.data(), isPending: true }) as Product)
+          pendingSnap.docs.map((d: any) => ({ id: d.id, ...d.data(), isPending: true }) as Product)
         );
       } catch (pendingError) {
         console.warn("Could not load SokoPlus pending products: ", pendingError);
       }
 
       try {
-        const uSnap = await getDocs(query(collection(db, "users"), limit(100)));
+        const uSnap = await getDocsCacheFirst(query(collection(db, "users"), limit(100)));
         setUsersList(
-          uSnap.docs.map((d) => {
+          uSnap.docs.map((d: any) => {
             const data = d.data();
             return {
               uid: d.id,

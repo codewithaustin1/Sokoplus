@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { LayoutGrid, Save, RotateCcw, Image as ImageIcon, Upload, Sparkles, Check, Search, Plus, Trash2 } from "lucide-react";
 import { DEFAULT_CATEGORY_IMAGES, FALLBACK_CATEGORY_IMAGE, getCategoryImageUrl } from "../lib/categoryImages";
 import { db } from "../lib/firebase";
-import { collection, query, limit, getDocs } from "firebase/firestore";
+import { collection, query, limit, getDocs, getDocsFromCache } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 
 interface AdminCategoryImagesManagerProps {
@@ -76,7 +76,13 @@ export default function AdminCategoryImagesManager({
     const fetchDbCats = async () => {
       try {
         const q = query(collection(db, "products"), limit(200));
-        const snap = await getDocs(q);
+        let snap;
+        try {
+          snap = await getDocsFromCache(q);
+          if (!snap || snap.empty) snap = await getDocs(q);
+        } catch (cacheErr) {
+          snap = await getDocs(q);
+        }
         const setOfCats = new Set<string>();
         snap.docs.forEach((d) => {
           const cat = d.data()?.category;
