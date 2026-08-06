@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, GitCompare, HelpCircle, Star, ShoppingBag, Trash2, ArrowRight } from "lucide-react";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useCart } from "../lib/CartContext";
-import { useSettings } from "../lib/SettingsContext";
 import { getCompareList, removeFromCompare, clearCompareList } from "../utils/compare";
 import { Product } from "../types";
 import { FastImage } from "./FastImage";
@@ -11,7 +10,6 @@ import { trackEvent } from "../lib/analytics";
 import toast from "react-hot-toast";
 
 export const ProductCompareDrawer: React.FC = () => {
-  const { settings } = useSettings();
   const [items, setItems] = useState<Product[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const { formatPrice } = useCurrency();
@@ -232,7 +230,7 @@ export const ProductCompareDrawer: React.FC = () => {
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Price</span>
                             <div className="text-right">
                               <span className="text-sm md:text-base font-black text-gray-900">{formatPrice(product.price)}</span>
-                              {settings.promotionalDiscountsEnabled !== false && product.originalPrice && product.originalPrice > product.price && (
+                              {product.originalPrice && product.originalPrice > product.price && (
                                 <span className="block text-[10px] sm:text-xs text-gray-400 line-through">
                                   {formatPrice(product.originalPrice)}
                                 </span>

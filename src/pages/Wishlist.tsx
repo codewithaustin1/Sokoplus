@@ -11,7 +11,6 @@ import EmptyState from "../components/EmptyState";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
-import { useSettings } from "../lib/SettingsContext";
 import { trackEvent } from "../lib/analytics";
 import { FastImage } from "../components/FastImage";
 import { productCache } from "../utils/productCache";
@@ -22,7 +21,6 @@ interface WishlistProps {
 }
 
 export default function Wishlist({ user }: WishlistProps) {
-  const { settings } = useSettings();
   const [products, setProducts] = useState<Product[]>([]);
   const [sortBy, setSortBy] = useState("default");
   const [loading, setLoading] = useState(true);
@@ -411,7 +409,7 @@ export default function Wishlist({ user }: WishlistProps) {
                 </span>
 
                 {/* Discount overlay badge */}
-                {settings.promotionalDiscountsEnabled !== false && product.originalPrice && product.originalPrice > product.price && (
+                {product.originalPrice && product.originalPrice > product.price && (
                   <span className="absolute top-4 left-4 bg-red-600 border border-red-700 text-white font-extrabold text-[10px] px-2.5 py-1 rounded-xl shadow-md z-10 animate-pulse-subtle">
                     -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 105 / 1.05)}%
                   </span>
@@ -433,7 +431,7 @@ export default function Wishlist({ user }: WishlistProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-2xl font-black text-gray-900 leading-none">{formatPrice(product.price)}</span>
-                    {settings.promotionalDiscountsEnabled !== false && product.originalPrice && product.originalPrice > product.price && (
+                    {product.originalPrice && product.originalPrice > product.price && (
                       <span className="text-xs text-gray-400 line-through mt-1 font-medium select-none">
                         {formatPrice(product.originalPrice)}
                       </span>

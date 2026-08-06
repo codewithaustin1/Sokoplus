@@ -7,7 +7,6 @@ import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
-import { useSettings } from "../lib/SettingsContext";
 import { AddToCartButton } from "../components/AddToCartButton";
 import { ProductAttributeConfigurator, SelectedConfig } from "../components/ProductAttributeConfigurator";
 import { DeliveryCountdown } from "../components/DeliveryCountdown";
@@ -31,7 +30,6 @@ interface ProductDetailsProps {
 const recommendationCache = new Map<string, { items: Product[]; source: "ai" | "category" }>();
 
 export default function ProductDetails({ user }: ProductDetailsProps) {
-  const { settings } = useSettings();
   const { sellerStudioEnabled } = useSellerStudio();
   const { id } = useParams();
   const location = useLocation();
@@ -749,7 +747,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
             <div className="flex items-baseline space-x-3">
               <p className="text-4xl font-black text-orange-600 dark:text-orange-550 tabular-nums">{formatPrice(product.price)}</p>
-              {settings.promotionalDiscountsEnabled !== false && product.originalPrice && product.originalPrice > product.price && (
+              {product.originalPrice && product.originalPrice > product.price && (
                 <div className="flex items-center space-x-2">
                   <span className="text-lg text-gray-400 dark:text-gray-500 line-through font-semibold tabular-nums">
                     {formatPrice(product.originalPrice)}
@@ -1412,7 +1410,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                     <span className="text-sm sm:text-base font-black text-orange-600 dark:text-orange-500">
                       {formatPrice(product.price)}
                     </span>
-                    {settings.promotionalDiscountsEnabled !== false && product.originalPrice && product.originalPrice > product.price && (
+                    {product.originalPrice && product.originalPrice > product.price && (
                       <span className="text-[10px] text-gray-400 line-through hidden sm:inline">
                         {formatPrice(product.originalPrice)}
                       </span>

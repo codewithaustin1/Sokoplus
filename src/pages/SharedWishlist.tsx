@@ -11,14 +11,12 @@ import EmptyState from "../components/EmptyState";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
-import { useSettings } from "../lib/SettingsContext";
 import { trackEvent } from "../lib/analytics";
 import { FastImage } from "../components/FastImage";
 import { productCache } from "../utils/productCache";
 import { AddToCartButton } from "../components/AddToCartButton";
 
 export default function SharedWishlist() {
-  const { settings } = useSettings();
   const { shareId } = useParams<{ shareId: string }>();
   const [products, setProducts] = useState<Product[]>([]);
   const [ownerName, setOwnerName] = useState<string>("");
@@ -146,7 +144,7 @@ export default function SharedWishlist() {
                   </span>
 
                   {/* Discount Tag */}
-                  {settings.promotionalDiscountsEnabled !== false && product.originalPrice && product.originalPrice > product.price && (
+                  {product.originalPrice && product.originalPrice > product.price && (
                     <span className="absolute top-4 left-4 bg-red-600 border border-red-700 text-white font-extrabold text-[10px] px-2.5 py-1 rounded-xl shadow-md z-10">
                       -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
                     </span>
@@ -168,7 +166,7 @@ export default function SharedWishlist() {
                       <span className="text-2xl font-black text-gray-900 dark:text-white leading-none">
                         {formatPrice(product.price)}
                       </span>
-                      {settings.promotionalDiscountsEnabled !== false && product.originalPrice && product.originalPrice > product.price && (
+                      {product.originalPrice && product.originalPrice > product.price && (
                         <span className="text-xs text-gray-400 dark:text-gray-500 line-through mt-1 font-medium select-none">
                           {formatPrice(product.originalPrice)}
                         </span>
