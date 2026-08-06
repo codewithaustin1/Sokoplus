@@ -566,35 +566,41 @@ export default function Checkout({ user }: CheckoutProps) {
   let level2ReferralDiscount = 0;
   let level3PointsDiscount = 0;
   const isExclusiveVoucherActive = Boolean(appliedVoucher?.isExclusive);
+  const isPromotionalDiscountsEnabled = settings.promotionalDiscountsEnabled !== false;
 
-  // Level 1: Primary Voucher Calculation
-  if (appliedVoucher) {
-    if (appliedVoucher.id === "free-shipping" || appliedVoucher.code === "SOKO-SHIP-FREE-NEXT") {
-      shippingFee = 0;
-    } else if (appliedVoucher.id === "gift-voucher" || appliedVoucher.code === "SOKO-VOUCH-500K") {
-      level1VoucherDiscount = 500;
-    } else if (appliedVoucher.code === "SOKO-SAVE-20") {
-      level1VoucherDiscount = Math.round(total * 0.20);
-    } else if (appliedVoucher.code === "SOKO-VIP-EXCLUSIVE" || appliedVoucher.isExclusive) {
-      level1VoucherDiscount = Math.round(total * 0.40);
-    }
-    level1VoucherDiscount = Math.min(level1VoucherDiscount, total);
-  }
-
-  const subtotalAfterLevel1 = Math.max(0, total - level1VoucherDiscount);
-
-  // Level 2: Referral Bonus Credit Calculation
-  if (appliedReferral && !isExclusiveVoucherActive) {
-    level2ReferralDiscount = Math.min(appliedReferral.discount, subtotalAfterLevel1);
-  }
-
-  const subtotalAfterLevel2 = Math.max(0, subtotalAfterLevel1 - level2ReferralDiscount);
-
-  // Level 3: Loyalty Points Redemption Calculation (1 Point = KES 1)
   const userAvailablePoints = user?.loyaltyPoints || 0;
-  const maxUsablePoints = !isExclusiveVoucherActive ? Math.min(userAvailablePoints, subtotalAfterLevel2) : 0;
-  const validRedeemedPoints = Math.min(redeemedPoints, maxUsablePoints);
-  level3PointsDiscount = validRedeemedPoints;
+  let maxUsablePoints = 0;
+  let validRedeemedPoints = 0;
+
+  if (isPromotionalDiscountsEnabled) {
+    // Level 1: Primary Voucher Calculation
+    if (appliedVoucher) {
+      if (appliedVoucher.id === "free-shipping" || appliedVoucher.code === "SOKO-SHIP-FREE-NEXT") {
+        shippingFee = 0;
+      } else if (appliedVoucher.id === "gift-voucher" || appliedVoucher.code === "SOKO-VOUCH-500K") {
+        level1VoucherDiscount = 500;
+      } else if (appliedVoucher.code === "SOKO-SAVE-20") {
+        level1VoucherDiscount = Math.round(total * 0.20);
+      } else if (appliedVoucher.code === "SOKO-VIP-EXCLUSIVE" || appliedVoucher.isExclusive) {
+        level1VoucherDiscount = Math.round(total * 0.40);
+      }
+      level1VoucherDiscount = Math.min(level1VoucherDiscount, total);
+    }
+
+    const subtotalAfterLevel1 = Math.max(0, total - level1VoucherDiscount);
+
+    // Level 2: Referral Bonus Credit Calculation
+    if (appliedReferral && !isExclusiveVoucherActive) {
+      level2ReferralDiscount = Math.min(appliedReferral.discount, subtotalAfterLevel1);
+    }
+
+    const subtotalAfterLevel2 = Math.max(0, subtotalAfterLevel1 - level2ReferralDiscount);
+
+    // Level 3: Loyalty Points Redemption Calculation (1 Point = KES 1)
+    maxUsablePoints = !isExclusiveVoucherActive ? Math.min(userAvailablePoints, subtotalAfterLevel2) : 0;
+    validRedeemedPoints = Math.min(redeemedPoints, maxUsablePoints);
+    level3PointsDiscount = validRedeemedPoints;
+  }
 
   // Raw Combined Discount Total
   const rawTotalDiscount = level1VoucherDiscount + level2ReferralDiscount + level3PointsDiscount;
@@ -1361,7 +1367,15 @@ export default function Checkout({ user }: CheckoutProps) {
             )}
 
             {/* 3-TIER STACKING INPUT PANELS */}
-            <div className="space-y-6">
+            {settings.promotionalDiscountsEnabled === false ? (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 p-4 rounded-2xl flex items-center gap-3 text-amber-900 dark:text-amber-200 shadow-sm">
+                <AlertTriangle size={18} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                <p className="text-xs font-bold leading-relaxed">
+                  Promotional discounts and voucher redemptions are currently paused storewide. Standard item pricing applies.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
 
               {/* TIER 1: VOUCHER CODE (LEVEL 1) */}
               <div className="bg-gray-50/70 dark:bg-gray-950/50 p-5 rounded-2xl border border-gray-150 dark:border-gray-800 space-y-3">
@@ -1644,9 +1658,9 @@ export default function Checkout({ user }: CheckoutProps) {
                   </div>
                 )}
               </div>
-
             </div>
-          </div>
+          )}
+        </div>
 
           {/* STEP 4: Interactive Payment gateway selector */}
           <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl dark:shadow-none space-y-6 relative overflow-hidden">

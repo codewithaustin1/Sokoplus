@@ -25,7 +25,7 @@ export default function MarketingBanner() {
 
   // Fetch marketing banners from Firestore
   useEffect(() => {
-    if (!settings.promotionalBannersEnabled) {
+    if (!settings.promotionalBannersEnabled || settings.promotionalDiscountsEnabled === false) {
       setLoading(false);
       return;
     }
@@ -80,7 +80,7 @@ export default function MarketingBanner() {
     return () => clearInterval(interval);
   }, [activeAndVisibleBanners.length]);
 
-  if (!settings.promotionalBannersEnabled || loading || activeAndVisibleBanners.length === 0) {
+  if (!settings.promotionalBannersEnabled || settings.promotionalDiscountsEnabled === false || loading || activeAndVisibleBanners.length === 0) {
     return null;
   }
 

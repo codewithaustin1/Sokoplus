@@ -23,6 +23,7 @@ export interface HomepageSettings {
   sellerStudioEnabled: boolean;
   showAudioBubble: boolean;
   promotionalBannersEnabled: boolean;
+  promotionalDiscountsEnabled: boolean;
   googleMapsLink: string;
   googleMapsLinks: { name: string; url: string }[];
   updatedAt: any;
@@ -48,6 +49,7 @@ const defaultSettings: HomepageSettings = {
   sellerStudioEnabled: true,
   showAudioBubble: true,
   promotionalBannersEnabled: true,
+  promotionalDiscountsEnabled: true,
   googleMapsLink: "",
   googleMapsLinks: [],
   updatedAt: null,
@@ -116,6 +118,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           sellerStudioEnabled: data.sellerStudioEnabled !== undefined ? data.sellerStudioEnabled : true,
           showAudioBubble: data.showAudioBubble !== undefined ? data.showAudioBubble : true,
           promotionalBannersEnabled: data.promotionalBannersEnabled !== undefined ? data.promotionalBannersEnabled : true,
+          promotionalDiscountsEnabled: data.promotionalDiscountsEnabled !== undefined ? data.promotionalDiscountsEnabled : true,
           googleMapsLink: data.googleMapsLink || "",
           googleMapsLinks: mapsLinks,
           updatedAt: data.updatedAt || null,

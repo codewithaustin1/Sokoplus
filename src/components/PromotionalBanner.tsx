@@ -11,7 +11,7 @@ export default function PromotionalBanner() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    if (!settings.promotionalBannersEnabled) {
+    if (!settings.promotionalBannersEnabled || settings.promotionalDiscountsEnabled === false) {
       setLoading(false);
       return;
     }
@@ -59,7 +59,7 @@ export default function PromotionalBanner() {
     return () => clearInterval(interval);
   }, [promos.length]);
 
-  if (!settings.promotionalBannersEnabled || loading || promos.length === 0) {
+  if (!settings.promotionalBannersEnabled || settings.promotionalDiscountsEnabled === false || loading || promos.length === 0) {
     return null;
   }
 

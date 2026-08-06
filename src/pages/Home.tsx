@@ -1039,7 +1039,7 @@ export default function Home({ user }: HomeProps) {
                       <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[9px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
                         {p.category}
                       </div>
-                      {p.originalPrice && p.originalPrice > p.price && (
+                      {settings.promotionalDiscountsEnabled !== false && p.originalPrice && p.originalPrice > p.price && (
                         <div className="bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
                           -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
                         </div>
@@ -1103,7 +1103,7 @@ export default function Home({ user }: HomeProps) {
                     <div className="flex flex-col mt-2">
                       <div className="flex items-baseline gap-1.5 mb-2">
                         <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
-                        {p.originalPrice && p.originalPrice > p.price && (
+                        {settings.promotionalDiscountsEnabled !== false && p.originalPrice && p.originalPrice > p.price && (
                           <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through font-medium select-none">
                             {formatPrice(p.originalPrice)}
                           </span>
@@ -1643,7 +1643,7 @@ export default function Home({ user }: HomeProps) {
                     <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[9px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
                       {p.category}
                     </div>
-                    {p.originalPrice && p.originalPrice > p.price && (
+                    {settings.promotionalDiscountsEnabled !== false && p.originalPrice && p.originalPrice > p.price && (
                       <div className="bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
                         -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
                       </div>
@@ -1707,7 +1707,7 @@ export default function Home({ user }: HomeProps) {
                   <div className="flex flex-col mt-2">
                     <div className="flex items-baseline gap-1.5 mb-2">
                       <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
-                      {p.originalPrice && p.originalPrice > p.price && (
+                      {settings.promotionalDiscountsEnabled !== false && p.originalPrice && p.originalPrice > p.price && (
                         <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through font-medium select-none">
                           {formatPrice(p.originalPrice)}
                         </span>

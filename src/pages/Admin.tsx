@@ -265,6 +265,9 @@ import {
   Gauge,
   Activity,
   ShieldAlert,
+  Tag,
+  Percent,
+  AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSellerStudio } from "../lib/SellerStudioContext";
@@ -1765,6 +1768,7 @@ export default function Admin({ user }: AdminProps) {
   const [googleMapsLinks, setGoogleMapsLinks] = useState<{ name: string; url: string }[]>([]);
   const [showAudioBubble, setShowAudioBubble] = useState<boolean>(true);
   const [promotionalBannersEnabled, setPromotionalBannersEnabled] = useState<boolean>(true);
+  const [promotionalDiscountsEnabled, setPromotionalDiscountsEnabled] = useState<boolean>(true);
   const [brandLogoUrl, setBrandLogoUrl] = useState<string>("");
   const [faviconUrl, setFaviconUrl] = useState<string>("");
   const [seoTitle, setSeoTitle] = useState<string>("");
@@ -2328,6 +2332,9 @@ export default function Admin({ user }: AdminProps) {
           if (settingsData.promotionalBannersEnabled !== undefined) {
             setPromotionalBannersEnabled(settingsData.promotionalBannersEnabled);
           }
+          if (settingsData.promotionalDiscountsEnabled !== undefined) {
+            setPromotionalDiscountsEnabled(settingsData.promotionalDiscountsEnabled);
+          }
           if (settingsData.brandLogoUrl) {
             setBrandLogoUrl(settingsData.brandLogoUrl);
           }
@@ -2830,6 +2837,7 @@ export default function Admin({ user }: AdminProps) {
         googleMapsLinks: googleMapsLinks,
         showAudioBubble: showAudioBubble,
         promotionalBannersEnabled: promotionalBannersEnabled,
+        promotionalDiscountsEnabled: promotionalDiscountsEnabled,
         brandLogoUrl: brandLogoUrl,
         faviconUrl: faviconUrl,
         seoTitle: seoTitle,
@@ -2896,6 +2904,8 @@ export default function Admin({ user }: AdminProps) {
           googleMapsLink: "",
           googleMapsLinks: [],
           showAudioBubble: true,
+          promotionalBannersEnabled: true,
+          promotionalDiscountsEnabled: true,
           brandLogoUrl: "",
           faviconUrl: "",
           seoTitle: "",
@@ -7402,6 +7412,54 @@ export default function Admin({ user }: AdminProps) {
                     />
                   </button>
                 </div>
+              </div>
+
+              {/* Master Control: Storewide Promotional Discounts */}
+              <div className={`p-6 rounded-3xl border transition-all space-y-4 ${
+                promotionalDiscountsEnabled
+                  ? "bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-900/40"
+                  : "bg-red-50/30 dark:bg-red-950/20 border-red-200/60 dark:border-red-900/40"
+              }`}>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-black text-gray-900 dark:text-white flex items-center">
+                        <Tag size={16} className={`mr-2 ${promotionalDiscountsEnabled ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`} />
+                        All Promotional Discounts & Vouchers
+                      </h3>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full tracking-wider uppercase ${
+                        promotionalDiscountsEnabled
+                          ? "bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                          : "bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800"
+                      }`}>
+                        {promotionalDiscountsEnabled ? "ENABLED" : "OFF / DISABLED"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
+                      Turn On or Off all promotional discounts instantly. When OFF, strikethrough original prices, discount percentage tags (-20% OFF), flash sale tags, promo banners, and checkout vouchers are immediately removed from customer view.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPromotionalDiscountsEnabled(!promotionalDiscountsEnabled)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      promotionalDiscountsEnabled ? "bg-emerald-600 dark:bg-emerald-500" : "bg-gray-300 dark:bg-gray-700"
+                    }`}
+                    id="promotional-discounts-toggle"
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        promotionalDiscountsEnabled ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+                {!promotionalDiscountsEnabled && (
+                  <div className="text-xs font-semibold text-red-700 dark:text-red-300 bg-red-100/70 dark:bg-red-900/40 p-3 rounded-2xl flex items-center gap-2 border border-red-200/50 dark:border-red-800/40">
+                    <AlertTriangle size={15} className="shrink-0 text-red-600 dark:text-red-400" />
+                    <span>Promotional discounts are currently <strong>DISABLED storewide</strong>. All items show standard price only, and promo voucher redemptions are paused.</span>
+                  </div>
+                )}
               </div>
 
               {/* Sizing, Aspect, and Placement safety guidance */}
