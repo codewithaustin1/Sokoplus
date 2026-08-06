@@ -1686,12 +1686,12 @@ export default function Checkout({ user }: CheckoutProps) {
                       <p className="font-extrabold text-sm text-gray-955 dark:text-white truncate">
                         {paymentMethod === "mpesa" && "M-Pesa / Mobile Money"}
                         {paymentMethod === "card" && "Credit / Debit Cards"}
-                        {paymentMethod === "cod" && "Cash on Delivery (COD)"}
+                        {paymentMethod === "cod" && "Pay on Delivery & Inspect"}
                       </p>
                       <p className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold truncate">
                         {paymentMethod === "mpesa" && "Instant STK Push (Safaricom / Airtel / Telkom)"}
                         {paymentMethod === "card" && "Visa, Mastercard & American Express"}
-                        {paymentMethod === "cod" && (overallTotal * 0.1 > 700 ? `10% Deposit (Capped at KES 700)` : `10% Deposit (KES ${codDepositAmount.toLocaleString()})`)}
+                        {paymentMethod === "cod" && `Inspect Package Before Final Payment — KES ${codDepositAmount.toLocaleString()} Security Hold`}
                       </p>
                     </div>
                   </div>
@@ -1776,9 +1776,9 @@ export default function Checkout({ user }: CheckoutProps) {
                             <Banknote size={18} />
                           </div>
                           <div>
-                            <p className="text-xs font-black uppercase tracking-tight">Cash on Delivery (COD)</p>
+                            <p className="text-xs font-black uppercase tracking-tight">Pay on Delivery & Inspect</p>
                             <p className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">
-                              {overallTotal * 0.1 > 700 ? `10% Deposit (Capped at KES 700)` : `10% Deposit (KES ${codDepositAmount.toLocaleString()})`}
+                              Inspect Package Before Final Payment — KES {codDepositAmount.toLocaleString()} Security Hold
                             </p>
                           </div>
                         </div>
@@ -1882,7 +1882,7 @@ export default function Checkout({ user }: CheckoutProps) {
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-extrabold text-xs tracking-tight text-gray-955 dark:text-white uppercase leading-snug">Cash on Delivery</span>
+                  <span className="font-extrabold text-xs tracking-tight text-gray-955 dark:text-white uppercase leading-snug">Pay on Delivery & Inspect</span>
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
                     paymentMethod === "cod" ? "border-orange-500 bg-orange-500" : "border-gray-300 dark:border-gray-700"
                   }`}>
@@ -1918,11 +1918,11 @@ export default function Checkout({ user }: CheckoutProps) {
                     </svg>
                   </div>
                   <div className="space-y-0.5 min-w-0">
-                    <p className="text-[8px] text-gray-400 dark:text-gray-550 font-black uppercase tracking-widest leading-none">
-                      Requires 10% deposit {overallTotal * 0.1 > 700 ? "(Capped at KES 700)" : ""}
+                    <p className="text-[8px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest leading-none">
+                      100% Inspection Guarantee
                     </p>
                     <p className="text-[10px] text-gray-650 dark:text-gray-450 font-bold leading-tight">
-                      Requires 10% deposit of total cart value{overallTotal * 0.1 > 700 ? " (capped at KES 700)" : ""} (KES {codDepositAmount.toLocaleString()})
+                      Inspect Package Before Final Payment — KES {codDepositAmount.toLocaleString()} Security Hold
                     </p>
                   </div>
                 </div>
@@ -2103,16 +2103,6 @@ export default function Checkout({ user }: CheckoutProps) {
                 </div>
               </motion.div>
             )}
-
-            <div className="bg-[#32ba78]/10 dark:bg-[#32ba78]/5 p-4 rounded-2xl border border-[#32ba78]/25 flex items-center gap-3 text-xs text-gray-700 dark:text-gray-300 font-semibold justify-between mt-2">
-              <div className="flex items-center gap-2">
-                <Lock size={14} className="text-[#32ba78]" />
-                <span className="font-extrabold text-[#32ba78] uppercase tracking-wide text-[10px]">100% Secure Checkout powered by Paystack.</span>
-              </div>
-              <span className="text-[10px] bg-white dark:bg-gray-900 border border-[#32ba78]/30 text-[#32ba78] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider shadow-sm shrink-0">
-                PCI-DSS Compliant
-              </span>
-            </div>
 
           </div>
         </div>
@@ -2303,47 +2293,7 @@ export default function Checkout({ user }: CheckoutProps) {
 
           </motion.div>
 
-          {/* SokoPlus Buyer Protection Assurance Panel */}
-          <div className="bg-gradient-to-br from-[#32ba78]/10 via-[#32ba78]/5 to-transparent border border-[#32ba78]/30 rounded-3xl p-6 space-y-4 shadow-sm mt-6">
-            <div className="flex items-center space-x-3 text-[#32ba78]">
-              <ShieldCheck size={22} className="shrink-0" />
-              <h4 className="font-extrabold text-sm uppercase tracking-wider text-gray-950 dark:text-white">Buyer Protection Guarantee</h4>
-            </div>
-            <ul className="space-y-3.5 text-xs text-gray-600 dark:text-gray-400 font-semibold leading-relaxed">
-              <li className="flex items-start gap-2.5 text-left">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#32ba78] mt-1.5 shrink-0" />
-                <span>
-                  {sellerStudioEnabled ? (
-                    <>
-                      <strong className="text-gray-900 dark:text-white">Direct-to-Artisan support:</strong> 100% of purchase goes to the certified craft maker with fair-wage protection.
-                    </>
-                  ) : (
-                    <>
-                      <strong className="text-gray-900 dark:text-white">Direct Quality Sourcing:</strong> 100% genuine products sourced directly from trusted workshops with quality assurances.
-                    </>
-                  )}
-                </span>
-              </li>
-              {sellerStudioEnabled && (
-                <li className="flex items-start gap-2.5 text-left">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#32ba78] mt-1.5 shrink-0" />
-                  <span>
-                    <strong className="text-gray-900 dark:text-white">Escrow Payment Protection:</strong> Payments are safely held in escrow and only released to sellers after dispatch confirmation.
-                  </span>
-                </li>
-              )}
-              <li className="flex items-start gap-2.5 text-left">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#32ba78] mt-1.5 shrink-0" />
-                <span>
-                  <strong className="text-gray-900 dark:text-white">7-Day Free Returns:</strong> Simple, hassle-free replacement or full refund if you're not completely in love.
-                </span>
-              </li>
-            </ul>
-            <div className="border-t border-gray-150 dark:border-gray-800/60 pt-3 flex items-center justify-between text-[10px] text-gray-400 font-extrabold uppercase">
-              <span>{sellerStudioEnabled ? "Verified Artisan Seller Guild" : "Verified Quality Guarantee"}</span>
-              <span className="text-[#32ba78]">● Active Protection</span>
-            </div>
-          </div>
+
 
         </div>
 
@@ -2380,7 +2330,7 @@ export default function Checkout({ user }: CheckoutProps) {
             <span className="flex items-center gap-1.5 uppercase tracking-wide text-xs">
               <span>
                 {paymentMethod === "cod" 
-                  ? `Pay Deposit (KES ${codDepositAmount.toLocaleString()})`
+                  ? `Inspect Package Before Payment (KES ${codDepositAmount.toLocaleString()} Hold)`
                   : "Finish Order"
                 }
               </span>

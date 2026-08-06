@@ -220,7 +220,7 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
               </span>
             </div>
             <h4 className="text-lg font-black text-gray-900 dark:text-white mt-1.5 leading-snug">
-              Delivered by <span className="text-orange-600 dark:text-orange-500">{prediction.time}</span>
+              Expected Time to Receive: <span className="text-orange-600 dark:text-orange-500">{prediction.time}</span>
             </h4>
             <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5 max-w-sm">
               {prediction.desc}
@@ -228,27 +228,16 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
           </div>
         </div>
 
-        {/* Visual Countdown Timer */}
-        <div className="flex flex-col items-start sm:items-end justify-center py-2 px-4 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100/60 dark:border-gray-800 min-w-[200px]">
-          <span className="text-[10px] font-black uppercase text-gray-455 dark:text-gray-500 tracking-wider flex items-center gap-1">
-            <Clock size={11} className={isUrgent ? "text-red-500 animate-spin" : ""} /> Dispatch Cutoff Timer
+        {/* Customer-First Expected Arrival Badge */}
+        <div className="flex flex-col items-start sm:items-end justify-center py-2.5 px-4 rounded-xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-teal-500/10 border border-emerald-500/20 dark:border-emerald-500/30 min-w-[210px]">
+          <span className="text-[10px] font-extrabold uppercase text-emerald-700 dark:text-emerald-400 tracking-wider flex items-center gap-1">
+            <Sparkles size={12} className="text-emerald-500" /> Expected Arrival
           </span>
-          <div className="flex items-baseline gap-1 mt-1 font-mono tabular-nums">
-            <span className={`text-2xl font-black tracking-tight ${isUrgent ? "text-red-600 animate-pulse" : "text-gray-800 dark:text-gray-200"}`}>
-              {countdown.hours.toString().padStart(2, "0")}
-            </span>
-            <span className="text-xs font-bold text-gray-400 dark:text-gray-500">h</span>
-            <span className={`text-2xl font-black tracking-tight ${isUrgent ? "text-red-600 animate-pulse" : "text-gray-800 dark:text-gray-200"}`}>
-              {countdown.minutes.toString().padStart(2, "0")}
-            </span>
-            <span className="text-xs font-bold text-gray-400 dark:text-gray-500">m</span>
-            <span className={`text-sm font-black tracking-tight text-gray-505 dark:text-gray-400`}>
-              {countdown.seconds.toString().padStart(2, "0")}
-            </span>
-            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">s</span>
+          <div className="text-base font-black text-emerald-950 dark:text-emerald-100 mt-1">
+            {prediction.time}
           </div>
-          <p className="text-[9px] text-gray-400 dark:text-gray-505 font-bold mt-0.5 leading-none">
-            {isUrgent ? "⚡ Order within the hour!" : "Order in time for today's dispatch"}
+          <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400/80 mt-0.5 leading-none">
+            Direct to your door in {selectedCity}
           </p>
         </div>
       </div>

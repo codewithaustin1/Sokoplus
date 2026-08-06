@@ -1724,26 +1724,7 @@ export default function Home({ user }: HomeProps) {
         )}
       </section>
 
-      {/* Trust Banner */}
-      <section className="bg-gray-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
-           <div className="space-y-3">
-              <div className="text-orange-500 flex justify-center"><Star size={32} /></div>
-              <h3 className="text-xl font-bold">Trusted in Kenya</h3>
-              <p className="text-gray-400 text-sm">Join thousands of happy customers shopping securely with Sokoplus.</p>
-           </div>
-           <div className="space-y-3">
-              <div className="text-orange-500 flex justify-center"><ShoppingBag size={32} /></div>
-              <h3 className="text-xl font-bold">Efficient Logistics</h3>
-              <p className="text-gray-400 text-sm">Next day delivery in Nairobi and Kiambu. Efficient across 47 counties.</p>
-           </div>
-           <div className="space-y-3">
-              <div className="text-orange-500 flex justify-center"><Star size={32} /></div>
-              <h3 className="text-xl font-bold">Safe Payments</h3>
-              <p className="text-gray-400 text-sm">Integrated with Paystack & M-Pesa for seamless, secure transactions.</p>
-           </div>
-        </div>
-      </section>
+
 
       {/* Mission Modal */}
       {showMission && (

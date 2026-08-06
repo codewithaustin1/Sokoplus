@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
-import { doc, onSnapshot, getDoc } from "firebase/firestore";
+import { doc, onSnapshot, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useLanguage } from "../lib/LanguageContext";
 import { useCurrency } from "../lib/CurrencyContext";
@@ -26,7 +26,13 @@ import {
   HelpCircle,
   Compass,
   Zap,
-  QrCode
+  QrCode,
+  Edit3,
+  PlusCircle,
+  XCircle,
+  Sliders,
+  X,
+  ShoppingBag
 } from "lucide-react";
 import { calculateDelivery, DeliveryPrediction } from "../utils/delivery";
 import QRScannerModal from "../components/QRScannerModal";
@@ -88,6 +94,194 @@ export default function TrackOrder() {
 
   // Swahili translations helper
   const isSw = language === "sw";
+
+  // Post-Purchase Self-Service Control States
+  const [selfServiceSecondsLeft, setSelfServiceSecondsLeft] = useState<number>(1800); // 30-min window
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [isAddItemsModalOpen, setIsAddItemsModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isSubmittingSelfService, setIsSubmittingSelfService] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  const [addressForm, setAddressForm] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    addressLine: "",
+    city: "",
+    county: ""
+  });
+
+  const quickAddons = [
+    {
+      productId: "addon-tote-bag",
+      name: "SokoPlus Organic Cotton Tote Bag",
+      price: 350,
+      category: "Accessories",
+      desc: "Heavy-duty reusable Kenyan canvas tote with double-stitched reinforced handles."
+    },
+    {
+      productId: "addon-priority-pass",
+      name: "Express Priority Dispatch Pass",
+      price: 250,
+      category: "Service",
+      desc: "Bypasses order queue & guarantees top priority same-day rider dispatch."
+    },
+    {
+      productId: "addon-gift-packaging",
+      name: "Deluxe Eco Gift Packaging & Note",
+      price: 200,
+      category: "Packaging",
+      desc: "Artisan Kenyan gift wrap with a personalized handwritten greeting card."
+    },
+    {
+      productId: "addon-warranty-protect",
+      name: "1-Year All-Inclusive Damage Protection",
+      price: 500,
+      category: "Protection",
+      desc: "Hassle-free 100% instant product replacement for accidental drops or defects."
+    }
+  ];
+
+  // Pre-fill address form & calculate self-service window remaining time
+  useEffect(() => {
+    if (order?.shippingAddress) {
+      setAddressForm({
+        firstName: order.shippingAddress.firstName || "",
+        lastName: order.shippingAddress.lastName || "",
+        phone: order.shippingAddress.phone || "",
+        addressLine: order.shippingAddress.addressLine || "",
+        city: order.shippingAddress.city || "",
+        county: order.shippingAddress.county || ""
+      });
+    }
+
+    if (order?.createdAt) {
+      let createdTimeMillis = Date.now();
+      if (order.createdAt?.toMillis) {
+        createdTimeMillis = order.createdAt.toMillis();
+      } else if (order.createdAt?.seconds) {
+        createdTimeMillis = order.createdAt.seconds * 1000;
+      } else if (typeof order.createdAt === "number") {
+        createdTimeMillis = order.createdAt;
+      } else if (typeof order.createdAt === "string") {
+        createdTimeMillis = new Date(order.createdAt).getTime();
+      }
+      const elapsedSeconds = Math.floor((Date.now() - createdTimeMillis) / 1000);
+      const remaining = Math.max(0, 1800 - elapsedSeconds);
+      setSelfServiceSecondsLeft(remaining > 0 ? remaining : 1800);
+    }
+  }, [order]);
+
+  // Self-service 30-min countdown ticker
+  useEffect(() => {
+    if (selfServiceSecondsLeft <= 0) return;
+    const timer = setInterval(() => {
+      setSelfServiceSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [selfServiceSecondsLeft]);
+
+  const formatSelfServiceCountdown = (totalSecs: number) => {
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const handleSaveShippingAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderId || !order) return;
+    setIsSubmittingSelfService(true);
+    try {
+      const updatedAddress = {
+        ...order.shippingAddress,
+        ...addressForm
+      };
+      const orderRef = doc(db, "orders", orderId);
+      await updateDoc(orderRef, { shippingAddress: updatedAddress });
+      setOrder({ ...order, shippingAddress: updatedAddress as any });
+      setActionFeedback({
+        type: "success",
+        msg: isSw ? "Anwani ya uwasilishaji imesasishwa kwa mafanikio!" : "Delivery address updated in real-time! Courier rider notified."
+      });
+      setIsAddressModalOpen(false);
+    } catch (err) {
+      console.error("Error updating shipping address:", err);
+      setActionFeedback({
+        type: "error",
+        msg: isSw ? "Imeshindwa kusasisha anwani." : "Failed to update address. Please try again."
+      });
+    } finally {
+      setIsSubmittingSelfService(false);
+    }
+  };
+
+  const handle1ClickAddItem = async (addon: { name: string; price: number; productId: string; category?: string }) => {
+    if (!order || !orderId) return;
+    setIsSubmittingSelfService(true);
+    try {
+      const newItem: OrderItem = {
+        productId: addon.productId,
+        name: addon.name,
+        price: addon.price,
+        quantity: 1,
+        category: addon.category || "Add-on"
+      };
+      const updatedItems = [...(order.items || []), newItem];
+      const updatedTotal = (order.totalAmount || 0) + addon.price;
+
+      const orderRef = doc(db, "orders", orderId);
+      await updateDoc(orderRef, {
+        items: updatedItems,
+        totalAmount: updatedTotal
+      });
+
+      setOrder({
+        ...order,
+        items: updatedItems,
+        totalAmount: updatedTotal
+      });
+
+      setActionFeedback({
+        type: "success",
+        msg: isSw 
+          ? `Bidhaa "${addon.name}" imeongezwa kwa mguso 1!` 
+          : `Added "${addon.name}" to your order in 1 click!`
+      });
+      setIsAddItemsModalOpen(false);
+    } catch (err) {
+      console.error("Error adding item to order:", err);
+      setActionFeedback({
+        type: "error",
+        msg: isSw ? "Imeshindwa kuongeza bidhaa." : "Failed to add item to order."
+      });
+    } finally {
+      setIsSubmittingSelfService(false);
+    }
+  };
+
+  const handle1ClickCancelOrder = async () => {
+    if (!orderId || !order) return;
+    setIsSubmittingSelfService(true);
+    try {
+      const orderRef = doc(db, "orders", orderId);
+      await updateDoc(orderRef, { status: "cancelled" });
+      setOrder({ ...order, status: "cancelled" });
+      setActionFeedback({
+        type: "success",
+        msg: isSw ? "Agizo limefutwa. Rejesho la pesa linafanyiwa kazi." : "Order cancelled successfully. Full refund initiated."
+      });
+      setIsCancelModalOpen(false);
+    } catch (err) {
+      console.error("Error cancelling order:", err);
+      setActionFeedback({
+        type: "error",
+        msg: isSw ? "Imeshindwa kufuta agizo." : "Failed to cancel order."
+      });
+    } finally {
+      setIsSubmittingSelfService(false);
+    }
+  };
   const str = {
     title: isSw ? "Ufuatiliaji wa Mzigo" : "Live Delivery Tracking",
     subtitle: isSw ? "Fuatilia agizo lako kwa wakati halisi kutoka duka letu hadi mlango wako" : "Track your order in real-time from our fulfillment center to your doorstep.",
@@ -121,36 +315,41 @@ export default function TrackOrder() {
     estimatedCount: isSw ? "Muda Unaosalia kufika" : "Estimated Delivery Countdown"
   };
 
-  // Timeline list of stages with custom copy in English/Swahili
+  // Location helpers for customer-centric status
+  const destCounty = order?.shippingAddress?.county || "Nairobi City County";
+  const destCity = order?.shippingAddress?.city || "Nairobi CBD";
+  const prediction: DeliveryPrediction = calculateDelivery(destCounty, destCity);
+
+  // Timeline list of stages focused on customer destination and arrival
   const stages = [
     {
-      title: isSw ? "Agizo Limepokelewa" : "Order Received",
-      desc: isSw ? "Agizo lako limethibitishwa na malipo kupokelewa salama." : "Order verified and payment cleared. Allocation of your artisan items completed.",
-      estDuration: isSw ? "Dakika chache zilizopita" : "A few minutes ago",
+      title: isSw ? "Agizo Limethibitishwa" : "Order Confirmed",
+      desc: isSw ? `Agizo lako limethibitishwa na linatayarishwa kuletwa ${destCity}.` : `Your order is confirmed and being prepared for delivery to ${destCity}.`,
+      estDuration: isSw ? "Muda mfupi" : "Confirmed",
       color: "border-orange-500 text-orange-600"
     },
     {
-      title: isSw ? "Inafungashwa kwa Usafiri" : "Packaged for Dispatch",
-      desc: isSw ? "Bidhaa zinakaguliwa ubora na kufungwa kwa lebo na vifuniko salama vyenye kufungwa maalum." : "Items undergo premium safety checks and are packed with SokoPlus tamper-evident security tape.",
-      estDuration: isSw ? "Inatayarishwa" : "Ready for Departure",
+      title: isSw ? "Inatayarishwa kwa Safari" : "Packing Your Items",
+      desc: isSw ? `Bidhaa zako zinakaguliwa na kufungwa kwa makini kwa ajili ya safari ya kwenda ${destCity}.` : `Your items are carefully verified and packed to ensure safe arrival in ${destCity}.`,
+      estDuration: isSw ? "Inatayarishwa" : "Preparing",
       color: "border-blue-500 text-blue-600"
     },
     {
-      title: isSw ? "Imekabidhiwa Msafirishaji" : "Assigned to Local Courier",
-      desc: isSw ? "Mwendesha bodaboda au msafirishaji wa SokoPlus amekabidhiwa kifurushi chako jijini." : "Handed over to a dedicated SokoPlus express courier rider representing Kenya local logistics network.",
-      estDuration: isSw ? "Imepangiwa" : "Courier Dispatched",
+      title: isSw ? `Njia Kuelekea ${destCity}` : `On Its Way to ${destCity}`,
+      desc: isSw ? `Mzigo wako uko njiani kuelekea ${destCity} — unatarajiwa kuwasili ${prediction.time}.` : `Your package is on its way to ${destCity} — rider arrival expected by ${prediction.time}.`,
+      estDuration: isSw ? "Safarini" : "On Its Way",
       color: "border-indigo-500 text-indigo-600"
     },
     {
-      title: isSw ? "Njia Kuelekea Kwako" : "Out for Delivery",
-      desc: isSw ? "Rider wetu yuko barabarani sasa akifuata mawasiliano ya ramani kuelekea kwako." : "The courier rider is in transit and navigating directly to your exact address. Keep your line on!",
-      estDuration: isSw ? "Inawasili hivi sasa" : "In Transit",
+      title: isSw ? `Rider Anakaribia ${destCity}` : `Rider Approaching ${destCity}`,
+      desc: isSw ? `Rider wetu yuko karibu na eneo lako huko ${destCity}. Tafadhali weka simu yako wazi!` : `Our courier rider is navigating to your address in ${destCity}. Please keep your phone reachable!`,
+      estDuration: isSw ? "Anawasili hivi sasa" : "Arriving Soon",
       color: "border-pink-500 text-pink-600"
     },
     {
-      title: isSw ? "Imefikishwa Kikamilifu" : "Delivered Successfully",
-      desc: isSw ? "Kifurushi kimekabidhiwa mikononi mwako salama. Asante sana kwa kuunga mkono wasanii wa Kenya!" : "Delivered safely onto your hands. Thank you for empowering local Kenyan craftsmanship and communities!",
-      estDuration: isSw ? "Kazi Imekamilika" : "Delivered",
+      title: isSw ? "Imekabidhiwa Mikononi Mwako" : "Delivered to You",
+      desc: isSw ? `Mzigo wako umefika salama ${destCity}. Asante sana kwa kuweka agizo na SokoPlus!` : `Your package has been delivered safely to you in ${destCity}. Thank you for shopping with SokoPlus!`,
+      estDuration: isSw ? "Imekamilika" : "Delivered",
       color: "border-green-500 text-green-600"
     }
   ];
@@ -396,10 +595,7 @@ export default function TrackOrder() {
   }
 
   // Derived location values
-  const destCounty = order.shippingAddress?.county || "Nairobi City County";
-  const destCity = order.shippingAddress?.city || "Nairobi CBD";
   const destAddress = order.shippingAddress?.addressLine || "Nairobi Central";
-  const prediction: DeliveryPrediction = calculateDelivery(destCounty, destCity);
 
   // Math countdown remaining variables
   const getSimulatedMinutes = () => {
@@ -500,6 +696,120 @@ export default function TrackOrder() {
                   {isSw ? "Imehakikiwa" : "Live Feed Connected"}
                 </div>
               </div>
+
+              {/* Customer-Centric Live Delivery Status Banner */}
+              <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-orange-500/10 border border-orange-200/60 dark:border-orange-800/40 rounded-2xl p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <Truck size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-extrabold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
+                      {isSw ? "Hali ya Mzigo Wako" : "Customer Arrival Guarantee"}
+                    </p>
+                    <p className="text-xs sm:text-sm font-black text-gray-900 dark:text-white mt-0.5">
+                      {isSw 
+                        ? `Mzigo wako uko njiani kuelekea ${destCity} — Rider ataagiza kabla ya ${prediction.time}` 
+                        : `Your package is on its way to ${destCity} — Rider standard arrival by ${prediction.time}`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* POST-PURCHASE SELF-SERVICE CONTROL PANEL */}
+              {order && order.status !== "cancelled" && order.status !== "delivered" && (
+                <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-indigo-500/10 border-2 border-orange-200/80 dark:border-orange-800/60 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm relative overflow-hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-orange-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                        <Sliders size={20} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest bg-orange-100 dark:bg-orange-950/60 px-2.5 py-0.5 rounded-md border border-orange-200/50">
+                            {isSw ? "Udhibiti wa Agizo la Wateja" : "Post-Purchase Self-Service Control"}
+                          </span>
+                        </div>
+                        <h4 className="text-sm sm:text-base font-black text-gray-900 dark:text-white mt-1 leading-snug">
+                          {isSw 
+                            ? "Je, unahitaji kubadilisha kitu? Unayo dakika 30 kurekebisha anwani yako au kuongeza bidhaa kwa mguso 1." 
+                            : "Need to change something? You have 30 minutes to edit your delivery address or add items in 1 click."}
+                        </h4>
+                      </div>
+                    </div>
+
+                    {/* Countdown timer badge */}
+                    {selfServiceSecondsLeft > 0 && (
+                      <div className="flex items-center gap-2 bg-orange-600 text-white px-3.5 py-2 rounded-2xl shadow-sm shrink-0 self-start sm:self-auto">
+                        <Clock size={16} className="animate-pulse" />
+                        <div className="text-right">
+                          <p className="text-[8px] uppercase tracking-wider font-bold opacity-80">{isSw ? "Muda Unaosalia" : "Self-Service Window"}</p>
+                          <p className="text-xs font-mono font-black">{formatSelfServiceCountdown(selfServiceSecondsLeft)}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Self-Service Action Buttons */}
+                  {selfServiceSecondsLeft > 0 ? (
+                    <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-orange-200/40 dark:border-orange-900/30">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddressModalOpen(true)}
+                        className="px-4 py-2.5 bg-white dark:bg-gray-900 hover:bg-orange-50 dark:hover:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+                      >
+                        <Edit3 size={15} className="text-orange-600" />
+                        {isSw ? "Badilisha Anwani" : "Edit Delivery Address"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsAddItemsModalOpen(true)}
+                        className="px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+                      >
+                        <PlusCircle size={15} />
+                        {isSw ? "Ongeza Bidhaa (Mguso 1)" : "Add Items in 1 Click"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsCancelModalOpen(true)}
+                        className="px-4 py-2.5 bg-red-50 dark:bg-red-950/20 hover:bg-red-100 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/40 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-colors cursor-pointer ml-auto"
+                      >
+                        <XCircle size={15} />
+                        {isSw ? "Futa Agizo" : "Cancel Order"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 font-medium pt-1">
+                      {isSw 
+                        ? "Dirisha la kujihudumia limeshafungwa kwani mzigo uko njiani kufungwa na kusafirishwa. Tafadhali wasiliana na rider wako moja kwa moja hapo chini." 
+                        : "Self-service modification window has closed as rider dispatch is in progress. Please contact your courier rider directly below."}
+                    </p>
+                  )}
+
+                  {/* Action Feedback Toast */}
+                  {actionFeedback && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`p-3 rounded-xl text-xs font-bold flex items-center justify-between gap-2 ${
+                        actionFeedback.type === "success" 
+                          ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200" 
+                          : "bg-red-50 text-red-800 border border-red-200"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <CheckCircle2 size={16} className="text-emerald-600" />
+                        {actionFeedback.msg}
+                      </span>
+                      <button onClick={() => setActionFeedback(null)} className="text-gray-400 hover:text-gray-600">
+                        <X size={14} />
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
+              )}
 
               {/* VERTICAL DESIGN PROGRESS TRACKING */}
               <div className="relative pl-6 sm:pl-10 space-y-10">
@@ -871,6 +1181,252 @@ export default function TrackOrder() {
         </div>
 
       </div>
+
+      {/* EDIT DELIVERY ADDRESS MODAL */}
+      <AnimatePresence>
+        {isAddressModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-6 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-orange-100 dark:bg-orange-950 text-orange-600 rounded-xl">
+                    <MapPin size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                      {isSw ? "Badilisha Anwani ya Mzigo" : "Edit Delivery Address"}
+                    </h3>
+                    <p className="text-xs text-gray-400 font-semibold">
+                      {isSw ? "Sasisha anwani yako bure ndani ya dakika 30" : "Real-time post-purchase address modification"}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsAddressModalOpen(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveShippingAddress} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-extrabold uppercase text-gray-400 mb-1">First Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={addressForm.firstName}
+                      onChange={(e) => setAddressForm({ ...addressForm, firstName: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-extrabold uppercase text-gray-400 mb-1">Last Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={addressForm.lastName}
+                      onChange={(e) => setAddressForm({ ...addressForm, lastName: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase text-gray-400 mb-1">Contact Phone</label>
+                  <input
+                    type="text"
+                    required
+                    value={addressForm.phone}
+                    onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase text-gray-400 mb-1">Street Address / Building / Landmark</label>
+                  <input
+                    type="text"
+                    required
+                    value={addressForm.addressLine}
+                    onChange={(e) => setAddressForm({ ...addressForm, addressLine: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-extrabold uppercase text-gray-400 mb-1">City / Town</label>
+                    <input
+                      type="text"
+                      required
+                      value={addressForm.city}
+                      onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-extrabold uppercase text-gray-400 mb-1">County</label>
+                    <input
+                      type="text"
+                      required
+                      value={addressForm.county}
+                      onChange={(e) => setAddressForm({ ...addressForm, county: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddressModalOpen(false)}
+                    className="w-1/2 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold text-xs uppercase rounded-xl transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingSelfService}
+                    className="w-1/2 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs uppercase rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isSubmittingSelfService ? "Saving..." : "Save & Notify Rider"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ADD ITEMS IN 1 CLICK MODAL */}
+      <AnimatePresence>
+        {isAddItemsModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-6 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-orange-100 dark:bg-orange-950 text-orange-600 rounded-xl">
+                    <PlusCircle size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                      {isSw ? "Ongeza Bidhaa kwa Mguso 1" : "Add Items in 1 Click"}
+                    </h3>
+                    <p className="text-xs text-gray-400 font-semibold">
+                      {isSw ? "Sasa bidhaa moja kwa moja kwenye agizo hili kabla halijatoka" : "Seamlessly append add-ons to your package before rider dispatch"}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsAddItemsModalOpen(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-3.5 max-h-80 overflow-y-auto pr-1">
+                {quickAddons.map((addon) => (
+                  <div 
+                    key={addon.productId}
+                    className="p-4 bg-gray-50 dark:bg-gray-800/60 border border-gray-150 dark:border-gray-700/60 rounded-2xl flex items-center justify-between gap-3"
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/50 px-2 py-0.5 rounded-md">
+                        {addon.category}
+                      </span>
+                      <p className="font-extrabold text-xs text-gray-900 dark:text-white truncate mt-1">
+                        {addon.name}
+                      </p>
+                      <p className="text-[10px] text-gray-500 leading-snug">
+                        {addon.desc}
+                      </p>
+                      <p className="font-black text-xs text-gray-900 dark:text-white pt-1">
+                        {formatPrice(addon.price)}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isSubmittingSelfService}
+                      onClick={() => handle1ClickAddItem(addon)}
+                      className="px-3.5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-black uppercase shrink-0 transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <PlusCircle size={14} />
+                      Add
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-2 text-center">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                  No extra shipping fee added • Consolidates with current package
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CANCEL ORDER MODAL */}
+      <AnimatePresence>
+        {isCancelModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-6 shadow-2xl relative text-center"
+            >
+              <div className="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+                <XCircle size={28} />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                  {isSw ? "Je, una uhakika wa kufuta agizo hili?" : "Cancel Order Self-Service?"}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                  {isSw 
+                    ? "Ufutiliaji ni wa papo hapo. Pesa zako zitarudishwa moja kwa moja bila kuhitaji kupigia huduma kwa wateja simu." 
+                    : "Self-service cancellation is immediate. Your full payment refund will be initiated instantly without needing to contact vendor support."}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCancelModalOpen(false)}
+                  className="w-1/2 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold text-xs uppercase rounded-xl transition-colors cursor-pointer"
+                >
+                  Keep Order
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmittingSelfService}
+                  onClick={handle1ClickCancelOrder}
+                  className="w-1/2 py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  {isSubmittingSelfService ? "Cancelling..." : "Confirm Cancel"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <QRScannerModal
         isOpen={isQRModalOpen}

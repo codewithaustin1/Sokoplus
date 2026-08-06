@@ -57,8 +57,8 @@ export function calculateDelivery(
         // Sunday: No dispatch today, arrives Monday
         tier = isCentral ? "Express Same-Day" : "Standard Nairobi";
         desc = isCentral 
-          ? "Direct courier dispatch. Dispatches Monday morning." 
-          : "Fast dispatch through our central hub riders. Dispatches Monday.";
+          ? "Direct rider delivery right to your door on Monday morning." 
+          : "Direct rider delivery scheduled for Monday.";
         daysToAdd = 1; // Arrives Monday
       } else {
         const isWeekend = dayOfWeek === 6; // Saturday
@@ -69,14 +69,14 @@ export function calculateDelivery(
         if (currentHour < cutoffHour) {
           tier = isCentral ? "Express Same-Day" : "Standard Nairobi";
           desc = isCentral 
-            ? "Direct courier dispatch. Order now for same-day delivery!" 
-            : "Fast dispatch through our central hub riders.";
+            ? "Direct rider delivery straight to your doorstep today!" 
+            : "Scheduled rider delivery straight to your address.";
           daysToAdd = 0; // Arrives today
         } else {
           tier = isCentral ? "Express Same-Day" : "Standard Nairobi";
           desc = isCentral 
-            ? "Next-day dispatch direct to your door." 
-            : "Central hub dispatch. Sent next business day.";
+            ? "Next-day direct rider delivery right to your door." 
+            : "Scheduled rider delivery for next business day.";
           
           // If ordered after cutoff on Saturday (6), next delivery is Monday (dayOfWeek 1)
           daysToAdd = dayOfWeek === 6 ? 2 : 1;
@@ -84,7 +84,7 @@ export function calculateDelivery(
       }
     } else if (metroCounties.includes(county)) {
       tier = "Metro Priority";
-      desc = "Regular regional feeder shuttle service.";
+      desc = "Dedicated local rider delivery directly to your address.";
       cutoffHour = 14; // 2:00 PM cutoff
 
       if (dayOfWeek === 0) {

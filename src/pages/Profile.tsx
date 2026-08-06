@@ -9,6 +9,7 @@ import { auth } from "../lib/firebase";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
 import { downloadReceipt } from "../utils/pdfGenerator";
+import { calculateDelivery } from "../utils/delivery";
 import { useLanguage } from "../lib/LanguageContext";
 import { useTheme } from "../lib/ThemeContext";
 import { useCurrency } from "../lib/CurrencyContext";
@@ -971,7 +972,7 @@ export default function Profile({ user }: ProfileProps) {
 
                   <div className="space-y-6">
                     {/* Tracking Timeline */}
-                    <div className="relative pt-2 pb-4">
+                    <div className="relative pt-2 pb-2">
                       <div className="absolute top-[22px] left-0 w-full h-0.5 bg-gray-100" />
                       <div 
                         className="absolute top-[22px] left-0 h-0.5 bg-orange-600 transition-all duration-500" 
@@ -985,10 +986,10 @@ export default function Profile({ user }: ProfileProps) {
                       
                       <div className="relative flex justify-between">
                         {[
-                          { label: t('Pending'), key: 'pending' },
-                          { label: t('Processing'), key: 'processing' },
-                          { label: t('Shipped'), key: 'shipped' },
-                          { label: t('Delivered'), key: 'delivered' }
+                          { label: language === 'sw' ? 'Imethibitishwa' : 'Confirmed', key: 'pending' },
+                          { label: language === 'sw' ? 'Inafungashwa' : 'Packing', key: 'processing' },
+                          { label: language === 'sw' ? 'Iko Njiani' : 'On Its Way', key: 'shipped' },
+                          { label: language === 'sw' ? 'Imefika' : 'Delivered', key: 'delivered' }
                         ].map((step, idx) => {
                           const statuses = ['pending', 'processing', 'shipped', 'delivered'];
                           const currentIdx = statuses.indexOf(order.status);
@@ -1010,6 +1011,30 @@ export default function Profile({ user }: ProfileProps) {
                         })}
                       </div>
                     </div>
+
+                    {/* Customer-Centric Delivery Status Message */}
+                    {(() => {
+                      const city = order.shippingAddress?.city || "your location";
+                      const county = order.shippingAddress?.county || "Nairobi City County";
+                      const pred = calculateDelivery(county, city);
+                      return (
+                        <div className="bg-orange-50/70 border border-orange-100 rounded-2xl p-3 text-xs text-orange-950 font-medium leading-relaxed">
+                          {order.status === 'delivered' ? (
+                            <span>
+                              <strong className="font-bold text-emerald-700">Safely Handed to You:</strong> Package arrived at {city}.
+                            </span>
+                          ) : order.status === 'cancelled' ? (
+                            <span className="text-red-700">
+                              Order was cancelled. Contact support if you need assistance.
+                            </span>
+                          ) : (
+                            <span>
+                              Your package is on its way to <strong className="font-bold text-orange-700">{city}</strong> — Rider arrival expected by <strong className="font-bold text-orange-700">{pred.time}</strong>.
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                   <div className="flex items-center text-gray-500 text-sm">
                     <Clock size={16} className="mr-2" />
