@@ -16,6 +16,35 @@ interface DeliveryCountdownProps {
   className?: string;
 }
 
+/**
+ * Helper to resolve and show only the nearest town name,
+ * dropping county, district, location, sub-location, etc.
+ */
+export function resolveNearestTown(rawLocation: string): string {
+  if (!rawLocation) return "";
+  
+  // 1. Split by comma or slash if county/district/sub-location is appended
+  let town = rawLocation.split(/[,/]/)[0].trim();
+  
+  // 2. Remove parenthetical extra info (e.g. "Mombasa City (CBD/Island)" -> "Mombasa City")
+  town = town.replace(/\s*\(.*?\)/g, "").trim();
+
+  // 3. Drop administrative terms/suffixes like "County", "Sub-County", "Sub County", "District", "Location", "Sub-Location", "Division", "Municipality", "Ward", "Province"
+  town = town.replace(/\s+(Sub-County|Sub County|County|District|Sub-Location|Sub Location|Location|Division|Municipality|Province|Ward)\b/gi, "").trim();
+
+  // 4. Drop redundant "Town" or "City" appended to the town name
+  if (/^nairobi cbd$/i.test(town)) {
+    return "Nairobi";
+  }
+  
+  const strippedTown = town.replace(/\s+(Town|City)\b/gi, "").trim();
+  if (strippedTown.length > 0) {
+    town = strippedTown;
+  }
+
+  return town || rawLocation;
+}
+
 export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
   county,
   city,
@@ -216,11 +245,11 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
                 {prediction.tier}
               </span>
               <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold flex items-center gap-1">
-                <MapPin size={11} /> {selectedCity}
+                <MapPin size={11} /> {resolveNearestTown(selectedCity || selectedCounty)}
               </span>
             </div>
             <h4 className="text-lg font-black text-gray-900 dark:text-white mt-1.5 leading-snug">
-              Expected Time to Receive: <span className="text-orange-600 dark:text-orange-500">{prediction.time}</span>
+              Receive By: <span className="text-orange-600 dark:text-orange-500">{prediction.time}</span>
             </h4>
             <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5 max-w-sm">
               {prediction.desc}
@@ -228,18 +257,6 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
           </div>
         </div>
 
-        {/* Customer-First Expected Arrival Badge */}
-        <div className="flex flex-col items-start sm:items-end justify-center py-2.5 px-4 rounded-xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-teal-500/10 border border-emerald-500/20 dark:border-emerald-500/30 min-w-[210px]">
-          <span className="text-[10px] font-extrabold uppercase text-emerald-700 dark:text-emerald-400 tracking-wider flex items-center gap-1">
-            <Sparkles size={12} className="text-emerald-500" /> Expected Arrival
-          </span>
-          <div className="text-base font-black text-emerald-950 dark:text-emerald-100 mt-1">
-            {prediction.time}
-          </div>
-          <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400/80 mt-0.5 leading-none">
-            Direct to your door in {selectedCity}
-          </p>
-        </div>
       </div>
 
       {/* Location Changer Toggle & Form */}
@@ -253,7 +270,7 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
               <MapPin size={12} />
               <span>Shipping to: </span>
               <span className="text-gray-700 dark:text-gray-300 font-black border-b border-dashed border-gray-400 dark:border-gray-600 hover:border-orange-600 dark:hover:border-orange-500 pb-0.5">
-                {selectedCounty}, {selectedCity}
+                {resolveNearestTown(selectedCity || selectedCounty)}
               </span>
               <ChevronDown size={12} className={`transition-transform duration-250 ${isChangingLocation ? "rotate-180" : ""}`} />
             </button>
