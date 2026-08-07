@@ -530,7 +530,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
 
                   {/* Cart Badge */}
                   {item.badge !== undefined && (
-                    <span className="absolute -top-1.5 -right-2 bg-gray-900 dark:bg-white text-white dark:text-gray-950 text-[9px] font-black min-w-[16px] h-[16px] rounded-full flex items-center justify-center px-1 border-2 border-white dark:border-gray-950 shadow-xs tabular-nums">
+                    <span className="absolute -top-1.5 -right-2 bg-[#FDD017] text-gray-950 text-[9px] font-black min-w-[16px] h-[16px] rounded-full flex items-center justify-center px-1 border-2 border-white dark:border-gray-950 shadow-xs tabular-nums">
                       {item.badge}
                     </span>
                   )}

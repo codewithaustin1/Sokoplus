@@ -877,7 +877,7 @@ export default function Navbar({ user }: NavbarProps) {
                     key={itemCount}
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="absolute -top-1 -right-2.5 bg-amber-400 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[16px] text-center shadow-md tabular-nums"
+                    className="absolute -top-1 -right-2.5 bg-[#FDD017] text-gray-950 text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[16px] text-center shadow-md tabular-nums"
                   >
                     {itemCount}
                   </motion.span>
