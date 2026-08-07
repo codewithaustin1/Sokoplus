@@ -24,6 +24,8 @@ import {
   Lock, 
   ChevronDown, 
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Receipt,
   HelpCircle,
   ArrowRight,
@@ -83,6 +85,40 @@ export default function Checkout({ user }: CheckoutProps) {
   const [isPaymentDropdownOpen, setIsPaymentDropdownOpen] = useState(false);
   const [showMobilSummaryDrawer, setShowMobilSummaryDrawer] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
+
+  const mobilePaymentScrollerRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToPaymentMethod = (method: "mpesa" | "card" | "cod") => {
+    setPaymentMethod(method);
+    if (mobilePaymentScrollerRef.current) {
+      const el = mobilePaymentScrollerRef.current.querySelector(`[data-payment-method="${method}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      }
+    }
+  };
+
+  const handleMobileScrollerScroll = () => {
+    if (!mobilePaymentScrollerRef.current) return;
+    const container = mobilePaymentScrollerRef.current;
+    const containerCenter = container.scrollLeft + container.clientWidth / 2;
+    const cards = container.querySelectorAll<HTMLElement>("[data-payment-method]");
+    let closestMethod: "mpesa" | "card" | "cod" | null = null;
+    let minDistance = Infinity;
+
+    cards.forEach((card) => {
+      const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+      const distance = Math.abs(containerCenter - cardCenter);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestMethod = card.getAttribute("data-payment-method") as any;
+      }
+    });
+
+    if (closestMethod && closestMethod !== paymentMethod) {
+      setPaymentMethod(closestMethod);
+    }
+  };
   
   // Interactive credit card mockup states
   const [cardNumber, setCardNumber] = useState("");
@@ -1664,129 +1700,266 @@ export default function Checkout({ user }: CheckoutProps) {
               </div>
             </div>
 
-            {/* MOBILE INTERACTIVE PAYMENT SELECTION DROPDOWN */}
-            <div className="md:hidden space-y-3">
-              <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Select Payment Gateway
-              </label>
-              
-              <div className="relative">
+            {/* MOBILE INTERACTIVE PAYMENT HORIZONTAL CARDS SCROLLER */}
+            <div className="md:hidden space-y-3.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-black text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                  Select Payment Gateway
+                </label>
+                <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-full flex items-center gap-1 border border-orange-200/50 dark:border-orange-900/30">
+                  <SlidersHorizontal size={10} /> Swipe left/right
+                </span>
+              </div>
+
+              {/* QUICK SELECT TAB CHIPS SCROLLER */}
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1">
                 <button
                   type="button"
-                  onClick={() => setIsPaymentDropdownOpen(!isPaymentDropdownOpen)}
-                  className="w-full p-4 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-sm"
+                  onClick={() => scrollToPaymentMethod("mpesa")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 border ${
+                    paymentMethod === "mpesa"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20"
+                      : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100"
+                  }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 font-bold">
-                      {paymentMethod === "mpesa" && <Smartphone size={20} />}
-                      {paymentMethod === "card" && <CreditCard size={20} />}
-                      {paymentMethod === "cod" && <Banknote size={20} />}
-                    </div>
-                    <div className="min-w-0 pr-2">
-                      <p className="font-extrabold text-sm text-gray-955 dark:text-white truncate">
-                        {paymentMethod === "mpesa" && "M-Pesa / Mobile Money"}
-                        {paymentMethod === "card" && "Credit / Debit Cards"}
-                        {paymentMethod === "cod" && "Pay on Delivery & Inspect"}
-                      </p>
-                      <p className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold truncate">
-                        {paymentMethod === "mpesa" && "Instant STK Push (Safaricom / Airtel / Telkom)"}
-                        {paymentMethod === "card" && "Visa, Mastercard & American Express"}
-                        {paymentMethod === "cod" && `Inspect Package Before Final Payment — KES ${codDepositAmount.toLocaleString()} Security Hold`}
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronDown size={20} className={`text-gray-400 shrink-0 transition-transform duration-200 ${isPaymentDropdownOpen ? "rotate-180 text-orange-500" : ""}`} />
+                  <Smartphone size={13} />
+                  <span>M-Pesa / Mobile</span>
                 </button>
 
-                {/* Dropdown Menu Options Overlay */}
-                <AnimatePresence>
-                  {isPaymentDropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute z-30 left-0 right-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-2 divide-y divide-gray-100 dark:divide-gray-800 max-h-56 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700"
-                    >
-                      {/* Option 1: M-Pesa */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaymentMethod("mpesa");
-                          setIsPaymentDropdownOpen(false);
-                        }}
-                        className={`w-full p-3.5 rounded-xl flex items-center justify-between transition-all text-left ${
-                          paymentMethod === "mpesa"
-                            ? "bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 font-extrabold"
-                            : "hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-800 dark:text-gray-200"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
-                            <Smartphone size={18} />
-                          </div>
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-tight">M-Pesa / Mobile Money</p>
-                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">Safaricom STK push to mobile</p>
-                          </div>
-                        </div>
-                        {paymentMethod === "mpesa" && <Check size={16} className="text-orange-500 stroke-[3]" />}
-                      </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToPaymentMethod("card")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 border ${
+                    paymentMethod === "card"
+                      ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20"
+                      : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <CreditCard size={13} />
+                  <span>Cards</span>
+                </button>
 
-                      {/* Option 2: Credit / Debit Card */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaymentMethod("card");
-                          setIsPaymentDropdownOpen(false);
-                        }}
-                        className={`w-full p-3.5 rounded-xl flex items-center justify-between transition-all text-left ${
-                          paymentMethod === "card"
-                            ? "bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 font-extrabold"
-                            : "hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-800 dark:text-gray-200"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
-                            <CreditCard size={18} />
-                          </div>
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-tight">Credit / Debit Cards</p>
-                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">Visa, Mastercard, Amex</p>
-                          </div>
-                        </div>
-                        {paymentMethod === "card" && <Check size={16} className="text-orange-500 stroke-[3]" />}
-                      </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToPaymentMethod("cod")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 border ${
+                    paymentMethod === "cod"
+                      ? "bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-600/20"
+                      : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <Banknote size={13} />
+                  <span>Pay on Delivery</span>
+                </button>
+              </div>
 
-                      {/* Option 3: Cash on Delivery */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaymentMethod("cod");
-                          setIsPaymentDropdownOpen(false);
-                        }}
-                        className={`w-full p-3.5 rounded-xl flex items-center justify-between transition-all text-left ${
-                          paymentMethod === "cod"
-                            ? "bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 font-extrabold"
-                            : "hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-800 dark:text-gray-200"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400">
-                            <Banknote size={18} />
-                          </div>
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-tight">Pay on Delivery & Inspect</p>
-                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">
-                              Inspect Package Before Final Payment — KES {codDepositAmount.toLocaleString()} Security Hold
-                            </p>
-                          </div>
+              {/* HORIZONTAL SWIPEABLE CARD CONTAINER */}
+              <div className="relative group">
+                {/* Left/Right Arrow Controls */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (paymentMethod === "card") scrollToPaymentMethod("mpesa");
+                    else if (paymentMethod === "cod") scrollToPaymentMethod("card");
+                  }}
+                  className={`absolute left-1 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 dark:bg-gray-900/90 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-md flex items-center justify-center transition-all ${
+                    paymentMethod === "mpesa" ? "opacity-30 pointer-events-none" : "opacity-90 hover:scale-105"
+                  }`}
+                  aria-label="Previous payment option"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (paymentMethod === "mpesa") scrollToPaymentMethod("card");
+                    else if (paymentMethod === "card") scrollToPaymentMethod("cod");
+                  }}
+                  className={`absolute right-1 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 dark:bg-gray-900/90 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-md flex items-center justify-center transition-all ${
+                    paymentMethod === "cod" ? "opacity-30 pointer-events-none" : "opacity-90 hover:scale-105"
+                  }`}
+                  aria-label="Next payment option"
+                >
+                  <ChevronRight size={16} />
+                </button>
+
+                <div 
+                  ref={mobilePaymentScrollerRef}
+                  onScroll={handleMobileScrollerScroll}
+                  className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-none py-2 px-1 -mx-1 scroll-smooth"
+                >
+                  {/* Card 1: M-Pesa */}
+                  <div
+                    data-payment-method="mpesa"
+                    onClick={() => scrollToPaymentMethod("mpesa")}
+                    className={`min-w-[85vw] sm:min-w-[290px] snap-center shrink-0 p-4 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
+                      paymentMethod === "mpesa"
+                        ? "border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20 ring-2 ring-emerald-500/25 shadow-lg shadow-emerald-500/10"
+                        : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-inner">
+                          <Smartphone size={20} />
                         </div>
-                        {paymentMethod === "cod" && <Check size={16} className="text-orange-500 stroke-[3]" />}
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                        <div>
+                          <p className="font-extrabold text-sm text-gray-950 dark:text-white leading-tight">M-Pesa / Mobile Money</p>
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Instant STK Push</p>
+                        </div>
+                      </div>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                        paymentMethod === "mpesa" ? "border-emerald-500 bg-emerald-500 text-white shadow-sm" : "border-gray-300 dark:border-gray-700"
+                      }`}>
+                        {paymentMethod === "mpesa" && <Check size={14} className="stroke-[3]" />}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mt-3 leading-relaxed">
+                      Safaricom M-Pesa, Airtel & Telkom instant checkout prompt directly on your phone.
+                    </p>
+
+                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-150 dark:border-gray-800">
+                      <div className="flex items-center gap-1">
+                        <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[8px] font-black flex items-center justify-center">S</span>
+                        <span className="w-4 h-4 rounded-full bg-red-600 text-white text-[8px] font-black flex items-center justify-center">A</span>
+                        <span className="w-4 h-4 rounded-full bg-sky-500 text-white text-[8px] font-black flex items-center justify-center">T</span>
+                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 ml-1">Supported Telcos</span>
+                      </div>
+                      {paymentMethod === "mpesa" && (
+                        <span className="text-[9px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card 2: Credit / Debit Cards */}
+                  <div
+                    data-payment-method="card"
+                    onClick={() => scrollToPaymentMethod("card")}
+                    className={`min-w-[85vw] sm:min-w-[290px] snap-center shrink-0 p-4 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
+                      paymentMethod === "card"
+                        ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/20 ring-2 ring-blue-500/25 shadow-lg shadow-blue-500/10"
+                        : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-inner">
+                          <CreditCard size={20} />
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-sm text-gray-950 dark:text-white leading-tight">Credit / Debit Cards</p>
+                          <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">Visa, MC & Amex</p>
+                        </div>
+                      </div>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                        paymentMethod === "card" ? "border-blue-500 bg-blue-500 text-white shadow-sm" : "border-gray-300 dark:border-gray-700"
+                      }`}>
+                        {paymentMethod === "card" && <Check size={14} className="stroke-[3]" />}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mt-3 leading-relaxed">
+                      Automatic 256-bit encrypted card payments processed securely through Paystack.
+                    </p>
+
+                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-150 dark:border-gray-800">
+                      <div className="flex items-center gap-1.5">
+                        <div className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-[9px] font-black italic text-[#1A1F71] shadow-2xs">VISA</div>
+                        <div className="px-1.5 py-0.5 bg-[#141414] rounded text-[8px] font-bold text-white flex items-center gap-0.5 shadow-2xs">
+                          <span className="w-2 h-2 rounded-full bg-[#EB001B] inline-block"></span>
+                          <span className="w-2 h-2 rounded-full bg-[#F79E1B] inline-block -ml-1"></span>
+                        </div>
+                        <div className="px-1.5 py-0.5 bg-[#007BC1] rounded text-[8px] font-black text-white shadow-2xs">AMEX</div>
+                      </div>
+                      {paymentMethod === "card" && (
+                        <span className="text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card 3: Pay on Delivery */}
+                  <div
+                    data-payment-method="cod"
+                    onClick={() => scrollToPaymentMethod("cod")}
+                    className={`min-w-[85vw] sm:min-w-[290px] snap-center shrink-0 p-4 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
+                      paymentMethod === "cod"
+                        ? "border-amber-500 bg-amber-50/20 dark:bg-amber-950/20 ring-2 ring-amber-500/25 shadow-lg shadow-amber-500/10"
+                        : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-inner">
+                          <Banknote size={20} />
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-sm text-gray-950 dark:text-white leading-tight">Pay on Delivery</p>
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Inspect & Pay</p>
+                        </div>
+                      </div>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                        paymentMethod === "cod" ? "border-amber-500 bg-amber-500 text-white shadow-sm" : "border-gray-300 dark:border-gray-700"
+                      }`}>
+                        {paymentMethod === "cod" && <Check size={14} className="stroke-[3]" />}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mt-3 leading-relaxed">
+                      Inspect package before final payment. KES {codDepositAmount.toLocaleString()} security deposit hold required.
+                    </p>
+
+                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-150 dark:border-gray-800">
+                      <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1">
+                        <ShieldCheck size={12} /> Inspection Guarantee
+                      </span>
+                      {paymentMethod === "cod" && (
+                        <span className="text-[9px] font-black bg-amber-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* PAGINATION DOTS & COUNTER INDICATOR */}
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => scrollToPaymentMethod("mpesa")}
+                      className={`h-2 rounded-full transition-all ${
+                        paymentMethod === "mpesa" ? "w-6 bg-emerald-500" : "w-2 bg-gray-300 dark:bg-gray-700"
+                      }`}
+                      aria-label="Select M-Pesa"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => scrollToPaymentMethod("card")}
+                      className={`h-2 rounded-full transition-all ${
+                        paymentMethod === "card" ? "w-6 bg-blue-500" : "w-2 bg-gray-300 dark:bg-gray-700"
+                      }`}
+                      aria-label="Select Credit/Debit Card"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => scrollToPaymentMethod("cod")}
+                      className={`h-2 rounded-full transition-all ${
+                        paymentMethod === "cod" ? "w-6 bg-amber-500" : "w-2 bg-gray-300 dark:bg-gray-700"
+                      }`}
+                      aria-label="Select Pay on Delivery"
+                    />
+                  </div>
+
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
+                    Option {paymentMethod === "mpesa" ? "1" : paymentMethod === "card" ? "2" : "3"} of 3
+                  </span>
+                </div>
               </div>
             </div>
 

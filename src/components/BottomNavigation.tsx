@@ -134,7 +134,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
   // Determine active states
   const isCategoriesActive = isCategoriesDrawerOpen || (location.pathname === "/" && (location.search.includes("category") || location.search.includes("collection") || location.search.includes("categories")));
   const isHomeActive = location.pathname === "/" && !isCategoriesActive && !location.search.includes("search");
-  const isProfileActive = location.pathname === "/profile";
+  const isProfileActive = location.pathname === "/profile" || location.pathname === "/login";
   const isCartActive = location.pathname === "/cart";
 
   // Generate initials for logged-in user without custom avatar
@@ -460,12 +460,13 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
                 whileTap={{ scale: 0.94 }}
                 className="relative flex flex-col items-center justify-center flex-1 h-13 py-1 text-center group cursor-pointer focus:outline-none bg-transparent border-none"
               >
-                {/* Active Soft Orange Capsule Pill */}
+                {/* Active Emphasized Gray Capsule Pill */}
                 {item.isActive && (
                   <motion.span
                     layoutId="bottom-nav-pill"
-                    transition={{ type: "spring", stiffness: 420, damping: 32 }}
-                    className="absolute inset-x-1 sm:inset-x-2 top-0.5 bottom-0.5 bg-[#FFF3EB] dark:bg-orange-950/50 rounded-2xl border border-orange-200/50 dark:border-orange-800/30 -z-10 shadow-xs"
+                    layout="x"
+                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                    className="absolute inset-x-1 sm:inset-x-2 top-0.5 bottom-0.5 bg-gray-200/80 dark:bg-gray-800 rounded-2xl border border-gray-300/70 dark:border-gray-700 -z-10 shadow-xs"
                   />
                 )}
 
@@ -481,7 +482,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
                         transition={{ type: "spring", stiffness: 400, damping: 25 }}
                         className={`w-5.5 h-5.5 rounded-full object-cover transition-all duration-200 ring-2 ${
                           item.isActive
-                            ? "ring-orange-500"
+                            ? "ring-gray-900 dark:ring-white"
                             : "ring-gray-300 dark:ring-gray-700"
                         }`}
                         referrerPolicy="no-referrer"
@@ -492,7 +493,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
                         transition={{ type: "spring", stiffness: 450, damping: 22 }}
                         className={`w-5.5 h-5.5 rounded-full bg-slate-900 dark:bg-slate-800 text-white flex items-center justify-center font-black text-[9px] tracking-tight transition-all ring-1.5 ${
                           item.isActive
-                            ? "ring-orange-500 text-orange-400"
+                            ? "ring-gray-900 dark:ring-white text-white"
                             : "ring-gray-300 dark:ring-gray-700 text-slate-200"
                         }`}
                       >
@@ -504,7 +505,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
                         transition={{ type: "spring", stiffness: 450, damping: 22 }}
                         className={`w-5.5 h-5.5 rounded-full flex items-center justify-center transition-all ring-1.5 ${
                           item.isActive
-                            ? "bg-orange-500 text-white ring-orange-500"
+                            ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 ring-gray-900 dark:ring-white"
                             : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-gray-400 ring-slate-300 dark:ring-gray-700"
                         }`}
                       >
@@ -520,7 +521,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
                         size={21}
                         className={`transition-colors duration-200 ${
                           item.isActive
-                            ? "text-orange-600 dark:text-orange-500 stroke-[2.2]"
+                            ? "text-gray-950 dark:text-white stroke-[2.4]"
                             : "text-slate-400 dark:text-gray-400 group-hover:text-slate-600 dark:group-hover:text-gray-200 stroke-[1.8]"
                         }`}
                       />
@@ -529,7 +530,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
 
                   {/* Cart Badge */}
                   {item.badge !== undefined && (
-                    <span className="absolute -top-1.5 -right-2 bg-orange-600 text-white text-[9px] font-black min-w-[16px] h-[16px] rounded-full flex items-center justify-center px-1 border-2 border-white dark:border-gray-950 shadow-xs tabular-nums">
+                    <span className="absolute -top-1.5 -right-2 bg-gray-900 dark:bg-white text-white dark:text-gray-950 text-[9px] font-black min-w-[16px] h-[16px] rounded-full flex items-center justify-center px-1 border-2 border-white dark:border-gray-950 shadow-xs tabular-nums">
                       {item.badge}
                     </span>
                   )}
@@ -539,7 +540,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
                 <span
                   className={`text-[11px] mt-0.5 tracking-tight transition-all duration-200 ${
                     item.isActive
-                      ? "text-orange-600 dark:text-orange-500 font-bold"
+                      ? "text-gray-950 dark:text-white font-black"
                       : "text-slate-500 dark:text-gray-400 font-medium group-hover:text-slate-700 dark:group-hover:text-gray-200"
                   }`}
                 >

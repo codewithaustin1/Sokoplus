@@ -914,13 +914,6 @@ export default function Home({ user }: HomeProps) {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/10 transition-opacity duration-300 group-hover:via-black/45" />
               </div>
 
-              {/* Tag/Category marker on top left */}
-              <div className="absolute top-4 left-4 z-10">
-                <span className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-sm">
-                  {col.category}
-                </span>
-              </div>
-
               {/* Content bottom details */}
               <div className="absolute bottom-0 left-0 right-0 p-6 z-10 flex flex-col justify-end text-white h-[120px]">
                 <h3 className="text-lg sm:text-xl font-bold tracking-tight text-white mb-2 group-hover:text-orange-400 transition-colors duration-200">
