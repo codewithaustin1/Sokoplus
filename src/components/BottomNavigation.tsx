@@ -466,7 +466,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
                     layoutId="bottom-nav-pill"
                     layout="x"
                     transition={{ type: "spring", stiffness: 450, damping: 35 }}
-                    className="absolute inset-x-1 sm:inset-x-2 top-0.5 bottom-0.5 bg-gray-200/80 dark:bg-gray-800 rounded-2xl border border-gray-300/70 dark:border-gray-700 -z-10 shadow-xs"
+                    className="absolute inset-x-1 sm:inset-x-2 top-0.5 bottom-0.5 bg-gray-200/55 dark:bg-gray-800/60 rounded-2xl border border-gray-300/45 dark:border-gray-700/45 -z-10 shadow-2xs"
                   />
                 )}
 
