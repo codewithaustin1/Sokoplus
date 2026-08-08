@@ -3,9 +3,10 @@ import { Navigate, Link } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs, doc, deleteDoc, updateDoc, limit } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order, Voucher } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload, Settings, Sun, Moon, Globe, Coins, Gift, Copy, Check, Shield, ShieldCheck, ShieldAlert, QrCode, Key } from "lucide-react";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload, Settings, Sun, Moon, Globe, Coins, Gift, Copy, Check, Shield, ShieldCheck, ShieldAlert, QrCode, Key, Eye, EyeOff, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import SEO from "../components/SEO";
 import EmptyState from "../components/EmptyState";
 import { downloadReceipt } from "../utils/pdfGenerator";
@@ -18,6 +19,7 @@ import SellerStudio from "../components/SellerStudio";
 import { useSellerStudio } from "../lib/SellerStudioContext";
 import { generateSecret, verifyTOTP } from "../utils/totp";
 import { UserDataErasureModal } from "../components/UserDataErasureModal";
+import PasswordStrengthIndicator from "../components/PasswordStrengthIndicator";
 
 function getVoucherBgImage(voucherId: string, code: string): string {
   const id = (voucherId || "").toLowerCase();
@@ -172,6 +174,58 @@ export default function Profile({ user }: ProfileProps) {
   const [is2FAVerifying, setIs2FAVerifying] = useState(false);
   const [showDisable2FAModal, setShowDisable2FAModal] = useState(false);
   const [disable2FACode, setDisable2FACode] = useState("");
+
+  // Password Management State
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth.currentUser) return;
+
+    if (!newPassword) {
+      toast.error(language === "sw" ? "Tafadhali weka nenosiri jipya" : "Please enter a new password");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error(language === "sw" ? "Nenosiri lazima liwe na angalau herufi 8" : "Password must be at least 8 characters long");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast.error(language === "sw" ? "Manenosiri hayafanani" : "Passwords do not match");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      if (currentPassword && auth.currentUser.email) {
+        const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
+        await reauthenticateWithCredential(auth.currentUser, credential);
+      }
+      await updatePassword(auth.currentUser, newPassword);
+      toast.success(language === "sw" ? "Nenosiri limesasishwa kikamilifu!" : "Password updated successfully!");
+      setNewPassword("");
+      setCurrentPassword("");
+      setConfirmNewPassword("");
+      setShowChangePasswordModal(false);
+    } catch (err: any) {
+      console.error("Error updating password:", err);
+      if (err.code === "auth/requires-recent-login") {
+        toast.error(language === "sw" ? "Tafadhali ingia tena kabla ya kubadilisha nenosiri" : "Please sign in again before updating your password");
+      } else if (err.code === "auth/wrong-password") {
+        toast.error(language === "sw" ? "Nenosiri la sasa si sahihi" : "Current password is incorrect");
+      } else {
+        toast.error(err.message || (language === "sw" ? "Imeshindwa kusasisha nenosiri" : "Failed to update password"));
+      }
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
   
   const [showClearModal, setShowClearModal] = useState(false);
   const [selectedClearLimit, setSelectedClearLimit] = useState<number | "all" | null>(null);
@@ -1273,6 +1327,39 @@ export default function Profile({ user }: ProfileProps) {
               </div>
             </div>
 
+            {/* Password Security & Strength Card */}
+            <div className="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 p-6 rounded-2xl flex flex-col justify-between space-y-4 md:col-span-2 lg:col-span-1">
+              <div className="space-y-1">
+                <div className="w-10 h-10 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-xl flex items-center justify-center font-bold">
+                  <Key size={20} />
+                </div>
+                <h3 className="text-base font-black text-gray-900 dark:text-gray-100 pt-2">
+                  {language === "sw" ? "Usalama wa Nenosiri" : "Password Security"}
+                </h3>
+                <p className="text-xs text-gray-400 font-medium leading-relaxed">
+                  {language === "sw"
+                    ? "Badilisha nenosiri la akaunti yako na uhakiki nguvu ya nenosiri kwa kutumia kiashiria cha wakati halisi."
+                    : "Update your account password and evaluate strength in real-time with visual security criteria."}
+                </p>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmNewPassword("");
+                    setShowChangePasswordModal(true);
+                  }}
+                  className="w-full px-4 py-3 bg-gray-900 hover:bg-black dark:bg-gray-800 dark:hover:bg-gray-700 text-white rounded-xl text-xs font-black transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                >
+                  <Lock size={14} />
+                  <span>{language === "sw" ? "Badilisha Nenosiri" : "Change Password"}</span>
+                </button>
+              </div>
+            </div>
+
             {/* Privacy & Data Erasure Card */}
             <div className="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 p-6 rounded-2xl flex flex-col justify-between space-y-4 md:col-span-2 lg:col-span-1">
               <div className="space-y-1">
@@ -1634,6 +1721,150 @@ export default function Profile({ user }: ProfileProps) {
                   )}
                 </button>
               </div>
+            </motion.div>
+          </>
+        )}
+
+        {/* Change Password Modal */}
+        {showChangePasswordModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (!isUpdatingPassword) {
+                  setShowChangePasswordModal(false);
+                }
+              }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-lg bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 p-6 sm:p-8 rounded-3xl shadow-2xl z-[101] space-y-6 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-start gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
+                <div className="w-12 h-12 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-2xl flex items-center justify-center shrink-0 border border-orange-100 dark:border-orange-900/30">
+                  <Key size={24} />
+                </div>
+                <div className="space-y-1 flex-1">
+                  <h3 className="text-xl font-black text-gray-900 dark:text-gray-100 leading-tight">
+                    {language === "sw" ? "Badilisha Nenosiri" : "Change Password"}
+                  </h3>
+                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
+                    {language === "sw" ? "Usalama wa Akaunti Meta" : "Account Security Protection"}
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                {/* Current Password Field */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {language === "sw" ? "Nenosiri la Sasa (Ikiwa lipo)" : "Current Password (If set)"}
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl py-3 pl-10 pr-10 text-xs font-medium text-gray-900 dark:text-gray-100 focus:outline-none focus:border-orange-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    >
+                      {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password Field */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {language === "sw" ? "Nenosiri Jipya" : "New Password"}
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl py-3 pl-10 pr-10 text-xs font-medium text-gray-900 dark:text-gray-100 focus:outline-none focus:border-orange-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    >
+                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  {/* Real-time Password Strength Visual Indicator */}
+                  {newPassword.length > 0 && (
+                    <PasswordStrengthIndicator
+                      password={newPassword}
+                      showRequirements={true}
+                      language={language as "en" | "sw"}
+                    />
+                  )}
+                </div>
+
+                {/* Confirm New Password Field */}
+                <div className="space-y-1.5 pt-1">
+                  <label className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {language === "sw" ? "Thibitisha Nenosiri Jipya" : "Confirm New Password"}
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input
+                      type="password"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl py-3 pl-10 pr-4 text-xs font-medium text-gray-900 dark:text-gray-100 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  {confirmNewPassword && newPassword !== confirmNewPassword && (
+                    <p className="text-[11px] font-extrabold text-red-500 pt-1">
+                      {language === "sw" ? "Manenosiri hayafanani" : "Passwords do not match"}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex gap-2.5 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
+                  <button
+                    type="button"
+                    disabled={isUpdatingPassword}
+                    onClick={() => setShowChangePasswordModal(false)}
+                    className="px-5 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 text-gray-700 dark:text-gray-300 font-black rounded-2xl text-xs cursor-pointer border-none transition-colors"
+                  >
+                    {language === "sw" ? "Ghairi" : "Cancel"}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUpdatingPassword || !newPassword || newPassword !== confirmNewPassword}
+                    className="px-5 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 dark:disabled:bg-gray-800 text-white font-black rounded-2xl text-xs cursor-pointer border-none transition-all shadow-md shadow-orange-600/10 flex items-center gap-1.5"
+                  >
+                    {isUpdatingPassword ? (
+                      <span>{language === "sw" ? "Inasasisha..." : "Updating..."}</span>
+                    ) : (
+                      <>
+                        <ShieldCheck size={14} />
+                        <span>{language === "sw" ? "Hifadhi Nenosiri" : "Save Password"}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </>
         )}

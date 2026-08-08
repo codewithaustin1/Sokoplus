@@ -87,7 +87,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
     let isMounted = true;
     const fetchCategories = async () => {
       try {
-        const q = query(collection(db, "products"), limit(250));
+        const q = query(collection(db, "products"), limit(50));
         const snap = await getDocs(q);
         const setOfCats = new Set<string>();
         const counts: Record<string, number> = {};

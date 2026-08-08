@@ -401,8 +401,8 @@ export default function TrackOrder() {
   const fetchByReference = async (refVal: string) => {
     try {
       // Fallback: search by paymentReference
-      const { collection, query, where, getDocs } = await import("firebase/firestore");
-      const q = query(collection(db, "orders"), where("paymentReference", "==", refVal));
+      const { collection, query, where, getDocs, limit } = await import("firebase/firestore");
+      const q = query(collection(db, "orders"), where("paymentReference", "==", refVal), limit(1));
       const snap = await getDocs(q);
       if (!snap.empty) {
         const first = snap.docs[0];

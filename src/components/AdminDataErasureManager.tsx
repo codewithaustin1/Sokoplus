@@ -88,7 +88,7 @@ export const AdminDataErasureManager: React.FC = () => {
   // Listen to data_erasure_requests collection
   useEffect(() => {
     setLoading(true);
-    const q = query(collection(db, "data_erasure_requests"), orderBy("requestDate", "desc"));
+    const q = query(collection(db, "data_erasure_requests"), orderBy("requestDate", "desc"), limit(50));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -159,66 +159,66 @@ export const AdminDataErasureManager: React.FC = () => {
       // 1. Users
       let usersFound = 0;
       if (targetUid) {
-        const uSnap = await getDocs(query(collection(db, "users"), where("email", "==", targetEmail)));
+        const uSnap = await getDocs(query(collection(db, "users"), where("email", "==", targetEmail), limit(10)));
         usersFound = uSnap.size > 0 ? uSnap.size : 1;
       }
 
       // 2. Orders
       let ordersFound = 0;
       if (targetUid) {
-        const oSnap = await getDocs(query(collection(db, "orders"), where("userId", "==", targetUid)));
+        const oSnap = await getDocs(query(collection(db, "orders"), where("userId", "==", targetUid), limit(50)));
         ordersFound = oSnap.size;
       } else if (targetEmail) {
-        const oSnap = await getDocs(query(collection(db, "orders"), where("userEmail", "==", targetEmail)));
+        const oSnap = await getDocs(query(collection(db, "orders"), where("userEmail", "==", targetEmail), limit(50)));
         ordersFound = oSnap.size;
       }
 
       // 3. Support Tickets
       let ticketsFound = 0;
       if (targetEmail) {
-        const tSnap = await getDocs(query(collection(db, "support_tickets"), where("email", "==", targetEmail)));
+        const tSnap = await getDocs(query(collection(db, "support_tickets"), where("email", "==", targetEmail), limit(50)));
         ticketsFound = tSnap.size;
       }
 
       // 4. Reviews
       let reviewsFound = 0;
       if (targetUid) {
-        const rSnap = await getDocs(query(collection(db, "reviews"), where("userId", "==", targetUid)));
+        const rSnap = await getDocs(query(collection(db, "reviews"), where("userId", "==", targetUid), limit(50)));
         reviewsFound = rSnap.size;
       }
 
       // 5. Comments
       let commentsFound = 0;
       if (targetUid) {
-        const cSnap = await getDocs(query(collection(db, "comments"), where("userId", "==", targetUid)));
+        const cSnap = await getDocs(query(collection(db, "comments"), where("userId", "==", targetUid), limit(50)));
         commentsFound = cSnap.size;
       }
 
       // 6. User Notifications
       let notificationsFound = 0;
       if (targetUid) {
-        const nSnap = await getDocs(collection(db, "users", targetUid, "notifications"));
+        const nSnap = await getDocs(query(collection(db, "users", targetUid, "notifications"), limit(50)));
         notificationsFound = nSnap.size;
       }
 
       // 7. Carts
       let cartsFound = 0;
       if (targetUid) {
-        const cartSnap = await getDocs(query(collection(db, "carts"), where("userId", "==", targetUid)));
+        const cartSnap = await getDocs(query(collection(db, "carts"), where("userId", "==", targetUid), limit(50)));
         cartsFound = cartSnap.size;
       }
 
       // 8. Price Drop Alerts
       let priceAlertsFound = 0;
       if (targetEmail) {
-        const paSnap = await getDocs(query(collection(db, "price_drop_alerts"), where("email", "==", targetEmail)));
+        const paSnap = await getDocs(query(collection(db, "price_drop_alerts"), where("email", "==", targetEmail), limit(50)));
         priceAlertsFound = paSnap.size;
       }
 
       // 9. Job Applications
       let jobAppsFound = 0;
       if (targetUid) {
-        const jaSnap = await getDocs(query(collection(db, "job_applications"), where("userId", "==", targetUid)));
+        const jaSnap = await getDocs(query(collection(db, "job_applications"), where("userId", "==", targetUid), limit(50)));
         jobAppsFound = jaSnap.size;
       }
 
@@ -319,9 +319,9 @@ export const AdminDataErasureManager: React.FC = () => {
       log("Processing associated Order records...");
       let oSnap;
       if (targetUid) {
-        oSnap = await getDocs(query(collection(db, "orders"), where("userId", "==", targetUid)));
+        oSnap = await getDocs(query(collection(db, "orders"), where("userId", "==", targetUid), limit(100)));
       } else {
-        oSnap = await getDocs(query(collection(db, "orders"), where("userEmail", "==", targetEmail)));
+        oSnap = await getDocs(query(collection(db, "orders"), where("userEmail", "==", targetEmail), limit(100)));
       }
 
       for (const orderDoc of oSnap.docs) {
@@ -349,7 +349,7 @@ export const AdminDataErasureManager: React.FC = () => {
 
       // Step 4: Support Tickets
       log("Processing Support Tickets...");
-      const tSnap = await getDocs(query(collection(db, "support_tickets"), where("email", "==", targetEmail)));
+      const tSnap = await getDocs(query(collection(db, "support_tickets"), where("email", "==", targetEmail), limit(100)));
       for (const tDoc of tSnap.docs) {
         if (erasureType === "full_deletion") {
           await deleteDoc(doc(db, "support_tickets", tDoc.id));
@@ -368,7 +368,7 @@ export const AdminDataErasureManager: React.FC = () => {
       // Step 5: Reviews & Comments
       log("Scrubbing product reviews & blog comments...");
       if (targetUid) {
-        const rSnap = await getDocs(query(collection(db, "reviews"), where("userId", "==", targetUid)));
+        const rSnap = await getDocs(query(collection(db, "reviews"), where("userId", "==", targetUid), limit(100)));
         for (const rDoc of rSnap.docs) {
           if (erasureType === "full_deletion") {
             await deleteDoc(doc(db, "reviews", rDoc.id));
@@ -381,7 +381,7 @@ export const AdminDataErasureManager: React.FC = () => {
           reviewsScrubbed++;
         }
 
-        const cSnap = await getDocs(query(collection(db, "comments"), where("userId", "==", targetUid)));
+        const cSnap = await getDocs(query(collection(db, "comments"), where("userId", "==", targetUid), limit(100)));
         for (const cDoc of cSnap.docs) {
           if (erasureType === "full_deletion") {
             await deleteDoc(doc(db, "comments", cDoc.id));
@@ -400,18 +400,18 @@ export const AdminDataErasureManager: React.FC = () => {
       // Step 6: Delete Notifications, Carts, Price Alerts, Job Applications
       log("Purging transient notifications, carts, price alerts & job applications...");
       if (targetUid) {
-        const nSnap = await getDocs(collection(db, "users", targetUid, "notifications"));
+        const nSnap = await getDocs(query(collection(db, "users", targetUid, "notifications"), limit(100)));
         for (const nDoc of nSnap.docs) {
           await deleteDoc(doc(db, "users", targetUid, "notifications", nDoc.id));
           notificationsDeleted++;
         }
 
-        const cartSnap = await getDocs(query(collection(db, "carts"), where("userId", "==", targetUid)));
+        const cartSnap = await getDocs(query(collection(db, "carts"), where("userId", "==", targetUid), limit(100)));
         for (const cDoc of cartSnap.docs) {
           await deleteDoc(doc(db, "carts", cDoc.id));
         }
 
-        const jaSnap = await getDocs(query(collection(db, "job_applications"), where("userId", "==", targetUid)));
+        const jaSnap = await getDocs(query(collection(db, "job_applications"), where("userId", "==", targetUid), limit(100)));
         for (const jDoc of jaSnap.docs) {
           await deleteDoc(doc(db, "job_applications", jDoc.id));
           jobAppsScrubbed++;
@@ -419,7 +419,7 @@ export const AdminDataErasureManager: React.FC = () => {
       }
 
       if (targetEmail) {
-        const paSnap = await getDocs(query(collection(db, "price_drop_alerts"), where("email", "==", targetEmail)));
+        const paSnap = await getDocs(query(collection(db, "price_drop_alerts"), where("email", "==", targetEmail), limit(100)));
         for (const paDoc of paSnap.docs) {
           await deleteDoc(doc(db, "price_drop_alerts", paDoc.id));
         }

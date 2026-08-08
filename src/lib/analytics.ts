@@ -45,7 +45,13 @@ export function initGA(force = false, customId?: string) {
   }
 
   // Prevent multiple initializations with the exact same script tag
-  if (document.getElementById("ga-gtag-script")) return;
+  const existingScript = document.getElementById("ga-gtag-script");
+  if (existingScript) {
+    if (window.gtag && activeId && activeId !== "G-MEASURE-ID" && activeId.startsWith("G-")) {
+      window.gtag("config", activeId, { send_page_view: false });
+    }
+    return;
+  }
 
   try {
     const scriptNode = document.createElement("script");

@@ -16,6 +16,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { ShoppingBag, Mail, Lock, ChevronRight, UserPlus, LogIn, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "motion/react";
+import PasswordStrengthIndicator from "../components/PasswordStrengthIndicator";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -450,6 +451,11 @@ export default function Login() {
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                     </div>
+
+                    {/* Real-time Password Strength Visual Indicator */}
+                    {password.length > 0 && (
+                      <PasswordStrengthIndicator password={password} showRequirements={isSignUp} />
+                    )}
                   </div>
 
                   <button

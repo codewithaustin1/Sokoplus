@@ -1,4 +1,4 @@
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 export interface MarketingBannerData {
@@ -31,7 +31,8 @@ export async function fetchMarketingBanners(): Promise<MarketingBannerData[]> {
   cachedBannersPromise = (async () => {
     const bannersQuery = query(
       collection(db, "marketing_banners"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
+      limit(20)
     );
     try {
       // Attempt to fetch data from Firestore (uses cache when offline automatically)

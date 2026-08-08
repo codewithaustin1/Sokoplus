@@ -443,7 +443,8 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
       const q = query(
         collection(db, "reviews"),
         where("productId", "==", id),
-        orderBy("createdAt", "desc")
+        orderBy("createdAt", "desc"),
+        limit(50)
       );
       const snap = await getDocs(q);
       setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() } as Review)));

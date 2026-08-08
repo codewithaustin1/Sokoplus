@@ -518,7 +518,8 @@ export default function SellerStudio({ user }: SellerStudioProps) {
           const qExist = query(
             collection(db, "pending_products"),
             where("originalProductId", "==", editingProduct.id),
-            where("sellerId", "==", profile.uid)
+            where("sellerId", "==", profile.uid),
+            limit(5)
           );
           const existSnap = await getDocs(qExist);
           if (!existSnap.empty) {
@@ -560,7 +561,8 @@ export default function SellerStudio({ user }: SellerStudioProps) {
           const qExist = query(
             collection(db, "pending_products"),
             where("originalProductId", "==", product.id),
-            where("sellerId", "==", profile.uid)
+            where("sellerId", "==", profile.uid),
+            limit(5)
           );
           const existSnap = await getDocs(qExist);
           for (const d of existSnap.docs) {

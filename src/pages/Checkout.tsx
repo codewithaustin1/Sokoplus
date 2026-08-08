@@ -1124,14 +1124,9 @@ export default function Checkout({ user }: CheckoutProps) {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-                  Landmark / Rural Directions (Optional)
-                </label>
-                <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
-                  Recommended for Rural & Non-Street Locations
-                </span>
-              </div>
+              <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                Nearest Landmark (Optional)
+              </label>
               <input 
                 type="text" 
                 value={address.landmarkNotes || ""}

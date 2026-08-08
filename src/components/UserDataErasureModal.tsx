@@ -17,6 +17,7 @@ import {
   query,
   where,
   onSnapshot,
+  limit,
   addDoc,
   deleteDoc,
   doc,
@@ -50,7 +51,8 @@ export const UserDataErasureModal: React.FC<UserDataErasureModalProps> = ({
 
     const q = query(
       collection(db, "data_erasure_requests"),
-      where("userId", "==", auth.currentUser.uid)
+      where("userId", "==", auth.currentUser.uid),
+      limit(5)
     );
 
     const unsubscribe = onSnapshot(

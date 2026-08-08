@@ -75,7 +75,7 @@ export default function AdminCategoryImagesManager({
     let isMounted = true;
     const fetchDbCats = async () => {
       try {
-        const q = query(collection(db, "products"), limit(200));
+        const q = query(collection(db, "products"), limit(50));
         let snap;
         try {
           snap = await getDocsFromCache(q);

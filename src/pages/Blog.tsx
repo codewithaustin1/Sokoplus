@@ -153,22 +153,24 @@ export default function Blog({ user }: { user: UserProfile | null }) {
       return;
     }
 
+    let isMounted = true;
     setLoadingComments(true);
-    const q = query(
-      collection(db, "comments"),
-      where("postId", "==", selectedPost.id),
-      limit(50)
-    );
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
+    const fetchComments = async () => {
+      try {
+        const q = query(
+          collection(db, "comments"),
+          where("postId", "==", selectedPost.id),
+          limit(50)
+        );
+        const snapshot = await getDocs(q);
+        if (!isMounted) return;
+
         const fetched = snapshot.docs.map((docSnap) => ({
           id: docSnap.id,
           ...docSnap.data(),
         })) as BlogComment[];
 
-        // Client-side sorting because we can't assume composite index exists
         fetched.sort((a, b) => {
           const tA = new Date(a.createdAt).getTime();
           const tB = new Date(b.createdAt).getTime();
@@ -176,15 +178,18 @@ export default function Blog({ user }: { user: UserProfile | null }) {
         });
 
         setComments(fetched);
-        setLoadingComments(false);
-      },
-      (error) => {
-        console.warn("Notice listening to comments (using local/fallback state):", error);
-        setLoadingComments(false);
+      } catch (error) {
+        console.warn("Notice fetching comments:", error);
+      } finally {
+        if (isMounted) setLoadingComments(false);
       }
-    );
+    };
 
-    return unsubscribe;
+    fetchComments();
+
+    return () => {
+      isMounted = false;
+    };
   }, [selectedPost]);
 
   const handleOpenPost = (post: BlogPost) => {
@@ -243,14 +248,16 @@ export default function Blog({ user }: { user: UserProfile | null }) {
 
     setSubmittingComment(true);
     try {
-      await addDoc(collection(db, "comments"), {
+      const newCommentData = {
         postId: selectedPost.id,
         userId: user.uid,
         userName: user.displayName || user.email?.split("@")[0] || "User",
         content: newCommentText.trim(),
         createdAt: new Date().toISOString(),
         replies: []
-      });
+      };
+      const docRef = await addDoc(collection(db, "comments"), newCommentData);
+      setComments(prev => [...prev, { id: docRef.id, ...newCommentData }]);
       setNewCommentText("");
       toast.success("Comment added!");
     } catch (err) {
@@ -284,6 +291,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
       await updateDoc(doc(db, "comments", comment.id), {
         replies: updatedReplies
       });
+      setComments(prev => prev.map(c => c.id === comment.id ? { ...c, replies: updatedReplies } : c));
       setNewReplyText("");
       setReplyingToCommentId(null);
       toast.success("Reply added!");
@@ -299,6 +307,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
     if (window.confirm("Are you sure you want to delete this comment?")) {
       try {
         await deleteDoc(doc(db, "comments", commentId));
+        setComments(prev => prev.filter(c => c.id !== commentId));
         toast.success("Comment deleted!");
       } catch (err) {
         console.error("Error deleting comment:", err);
@@ -314,6 +323,7 @@ export default function Blog({ user }: { user: UserProfile | null }) {
         await updateDoc(doc(db, "comments", comment.id), {
           replies: updatedReplies
         });
+        setComments(prev => prev.map(c => c.id === comment.id ? { ...c, replies: updatedReplies } : c));
         toast.success("Reply deleted!");
       } catch (err) {
         console.error("Error deleting reply:", err);

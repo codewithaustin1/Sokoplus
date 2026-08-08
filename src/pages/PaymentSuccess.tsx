@@ -3,7 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import axios from "axios";
 import { CheckCircle, XCircle, ShoppingBag, ArrowRight, Truck, UserCheck, Lock, Mail, Sparkles, ShieldCheck, Loader2 } from "lucide-react";
 import { useCart } from "../lib/CartContext";
-import { doc, updateDoc, setDoc, collection, query, where, getDocs, increment, writeBatch, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, setDoc, collection, query, where, getDocs, limit, increment, writeBatch, serverTimestamp } from "firebase/firestore";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { db, auth } from "../lib/firebase";
 import { motion } from "motion/react";
@@ -69,7 +69,7 @@ export default function PaymentSuccess() {
 
           // 2. Attempt Firestore sync in try/catch so quota limits do not break payment success
           try {
-            const snap = await getDocs(query(collection(db, "orders"), where("paymentReference", "==", reference)));
+            const snap = await getDocs(query(collection(db, "orders"), where("paymentReference", "==", reference), limit(1)));
             if (!snap.empty) {
               const orderDoc = snap.docs[0];
               const orderData = orderDoc.data();

@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, writeBatch, doc, updateDoc, increment } from "firebase/firestore";
+import { collection, query, where, getDocs, limit, writeBatch, doc, updateDoc, increment } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 const GUEST_TOKEN_KEY = "sokoplus_guest_session_token";
@@ -51,12 +51,12 @@ export async function claimGuestOrdersForUser(userId: string, userEmail: string)
     const ordersRef = collection(db, "orders");
 
     // Search by email or guest session token
-    const emailQuery = query(ordersRef, where("userEmail", "==", userEmail.toLowerCase().trim()), where("userId", "==", "guest"));
+    const emailQuery = query(ordersRef, where("userEmail", "==", userEmail.toLowerCase().trim()), where("userId", "==", "guest"), limit(50));
     const emailSnap = await getDocs(emailQuery);
 
     let tokenSnapDocs: any[] = [];
     if (guestToken) {
-      const tokenQuery = query(ordersRef, where("guestSessionToken", "==", guestToken), where("userId", "==", "guest"));
+      const tokenQuery = query(ordersRef, where("guestSessionToken", "==", guestToken), where("userId", "==", "guest"), limit(50));
       const tokenSnap = await getDocs(tokenQuery);
       tokenSnapDocs = tokenSnap.docs;
     }

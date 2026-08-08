@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff, ChevronRight, ChevronDown, Globe, Moon, Sun, Grid, Check } from "lucide-react";
+import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff, ChevronRight, ChevronDown, Globe, Moon, Sun, Grid, Check, Coins } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -314,7 +314,7 @@ export default function Navbar({ user }: NavbarProps) {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const q = query(collection(db, "products"), limit(100));
+        const q = query(collection(db, "products"), limit(40));
         
         // 1. Instant local-first retrieval using Firestore local cache
         try {
@@ -1234,6 +1234,33 @@ export default function Navbar({ user }: NavbarProps) {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Mobile Currency Quick Switcher */}
+              <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-900 border border-gray-150 dark:border-gray-800 p-3 rounded-2xl">
+                <div className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300">
+                  <Coins size={15} className="text-orange-500" />
+                  <span>{language === "sw" ? "Matawi ya Pesa:" : "Site Currency:"}</span>
+                </div>
+                <div className="flex bg-gray-200 dark:bg-gray-800 p-0.5 rounded-xl">
+                  {(["KES", "USD"] as const).map((curr) => (
+                    <button
+                      key={curr}
+                      type="button"
+                      onClick={() => {
+                        setCurrency(curr);
+                        toast.success(`Currency changed to ${curr}`);
+                      }}
+                      className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                        currency === curr
+                          ? "bg-orange-600 text-white shadow-xs"
+                          : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                      }`}
+                    >
+                      {curr}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* Category tag for organization */}
               <div className="text-[10px] uppercase font-black tracking-widest text-orange-600 dark:text-orange-500 px-1 py-0.5 select-none pt-2 opacity-80">
