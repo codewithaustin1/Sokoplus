@@ -154,7 +154,7 @@ export async function downloadReceipt(order: Order, user: UserProfile) {
   doc.text(order.status.toUpperCase(), margin + 100, currentY + 13);
 
   doc.setTextColor(charcoalColor.r, charcoalColor.g, charcoalColor.b);
-  doc.text("Paystack (Secure)", margin + 140, currentY + 13);
+  doc.text("SokoPay Gateway", margin + 140, currentY + 13);
 
   currentY += 28;
 

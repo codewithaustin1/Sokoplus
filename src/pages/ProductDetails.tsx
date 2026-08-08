@@ -725,8 +725,20 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         {/* Info */}
         <div className="space-y-8">
           <div className="space-y-4">
-            <div className="inline-block px-3 py-1 bg-orange-100 dark:bg-orange-950 text-orange-650 dark:text-orange-400 rounded-full text-xs font-bold uppercase tracking-widest">
-              {product.category}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-block px-3 py-1 bg-orange-100 dark:bg-orange-950 text-orange-650 dark:text-orange-400 rounded-full text-xs font-bold uppercase tracking-widest">
+                {product.category}
+              </div>
+              {product.sku && (
+                <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-mono font-bold">
+                  SKU: {product.sku}
+                </div>
+              )}
+              {product.isDigital && (
+                <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded-full text-xs font-extrabold uppercase tracking-wide">
+                  💻 Digital {product.digitalFormat?.toUpperCase() || "ASSET"} Download
+                </div>
+              )}
             </div>
             <h1 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">{product.name}</h1>
             {product.artisan && (

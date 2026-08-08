@@ -254,7 +254,7 @@ export default function Footer() {
               {t("Payment methods")}
             </h4>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium max-w-sm">
-              {t("Securely processed with standard East African gateways (Paystack, M-Pesa, Airtel, Equitel, credit cards, Apple Pay).")}
+              {t("Securely processed with standard East African gateways (M-Pesa, Airtel, Equitel, credit cards, Apple Pay).")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">

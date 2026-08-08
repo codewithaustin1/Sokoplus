@@ -1,5 +1,6 @@
 export interface Product {
   id: string;
+  sku?: string;
   name: string;
   description: string;
   price: number;
@@ -7,6 +8,10 @@ export interface Product {
   category: string;
   images: string[];
   stock: number;
+  isDigital?: boolean;
+  digitalFormat?: "pdf" | "video" | "audio" | "zip" | "ebook" | "software" | "other";
+  digitalFileUrl?: string;
+  digitalFileSize?: string;
   rating?: number;
   reviewCount?: number;
   active?: boolean;

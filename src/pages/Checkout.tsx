@@ -80,7 +80,7 @@ export default function Checkout({ user }: CheckoutProps) {
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [redirectStage, setRedirectStage] = useState("Securing Connection");
-  const [redirectDescription, setRedirectDescription] = useState("We are connecting you securely to Paystack to finalize your payment options.");
+  const [redirectDescription, setRedirectDescription] = useState("We are connecting you securely to complete your payment options.");
   const [paymentMethod, setPaymentMethod] = useState<"mpesa" | "card" | "cod">("mpesa");
   const [isPaymentDropdownOpen, setIsPaymentDropdownOpen] = useState(false);
   const [showMobilSummaryDrawer, setShowMobilSummaryDrawer] = useState(false);
@@ -643,8 +643,53 @@ export default function Checkout({ user }: CheckoutProps) {
   const appliedDiscount = isCapExceeded ? maxAllowedDiscountCap : rawTotalDiscount;
   const overallTotal = Math.max(0, total + shippingFee - appliedDiscount);
 
-  // Pay on Delivery (COD) requires 10% deposit, strictly capped at KES 700 max
-  const codDepositAmount = Math.min(700, Math.round(overallTotal * 0.1));
+  // Server-Enforced POD Eligibility & Deposit Calculation State
+  const [podEvaluation, setPodEvaluation] = useState<{
+    isEligible: boolean;
+    depositAmount: number;
+    remainingBalance: number;
+    reason?: string;
+  }>({
+    isEligible: true,
+    depositAmount: Math.min(700, Math.round(overallTotal * 0.1)),
+    remainingBalance: Math.max(0, overallTotal - Math.min(700, Math.round(overallTotal * 0.1)))
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    const evaluatePODServer = async () => {
+      try {
+        const res = await fetch("/api/pod/calculate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderTotal: overallTotal,
+            items: items,
+            isUnverifiedUser: !user
+          })
+        });
+        const data = await res.json();
+        if (isMounted && data.success) {
+          setPodEvaluation({
+            isEligible: Boolean(data.isEligible),
+            depositAmount: typeof data.depositAmount === "number" ? data.depositAmount : Math.min(700, Math.round(overallTotal * 0.1)),
+            remainingBalance: typeof data.remainingBalance === "number" ? data.remainingBalance : Math.max(0, overallTotal - Math.min(700, Math.round(overallTotal * 0.1))),
+            reason: data.reason
+          });
+          if (!data.isEligible && paymentMethod === "cod") {
+            setPaymentMethod("mpesa");
+          }
+        }
+      } catch (err) {
+        // Fallback gracefully
+      }
+    };
+
+    evaluatePODServer();
+    return () => { isMounted = false; };
+  }, [overallTotal, items, user, paymentMethod]);
+
+  const codDepositAmount = podEvaluation.depositAmount;
 
   // Free shipping progress variables
   const progressToFreeShipping = Math.min((total / FREE_SHIPPING_LIMIT) * 100, 100);
@@ -731,7 +776,7 @@ export default function Checkout({ user }: CheckoutProps) {
       }
 
       setRedirectStage("Securing Connection");
-      setRedirectDescription("Drafting Paystack billing configuration securely for instant payment validation...");
+      setRedirectDescription("Drafting billing configuration securely for instant payment validation...");
 
       // 2. Initialize Paystack
       const payAmount = paymentMethod === "cod" ? codDepositAmount : overallTotal;
@@ -868,7 +913,7 @@ export default function Checkout({ user }: CheckoutProps) {
       }
 
       // 4. Smooth Redirect
-      setRedirectStage("Redirecting to Paystack");
+      setRedirectStage("Redirecting to Secure Gateway");
       setRedirectDescription("Navigating you securely to final portal Checkout...");
       
       setTimeout(() => {
@@ -939,7 +984,6 @@ export default function Checkout({ user }: CheckoutProps) {
           
           {/* STEP 1: Delivery Location Card */}
           <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl dark:shadow-none space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 bg-gradient-to-r from-orange-500 to-amber-500 h-1.5 w-full"></div>
             
             {!user && (
               <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/60 px-4 py-2.5 rounded-2xl border border-gray-100 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-300 font-medium">
@@ -1228,7 +1272,6 @@ export default function Checkout({ user }: CheckoutProps) {
 
           {/* STEP 2: Product Review & Interactive Quantities */}
           <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl dark:shadow-none space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 bg-[#32ba78] h-1.5 w-full"></div>
             
             <div className="flex items-start justify-between gap-4 border-b border-gray-50 dark:border-gray-800 pb-4">
               <div className="flex items-start gap-4">
@@ -1339,7 +1382,6 @@ export default function Checkout({ user }: CheckoutProps) {
 
           {/* STEP 3: Promo Stacking & Anti-Abuse Engine */}
           <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl dark:shadow-none space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 h-1.5 w-full"></div>
             
             <div className="flex items-start justify-between gap-4 border-b border-gray-50 dark:border-gray-800 pb-4">
               <div className="flex items-start gap-4">
@@ -1681,7 +1723,6 @@ export default function Checkout({ user }: CheckoutProps) {
 
           {/* STEP 4: Interactive Payment gateway selector */}
           <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl dark:shadow-none space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 bg-gradient-to-r from-blue-500 to-indigo-500 h-1.5 w-full"></div>
             
             <div className="flex items-start gap-4">
               <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 p-2.5 rounded-2xl shrink-0">
@@ -1690,7 +1731,7 @@ export default function Checkout({ user }: CheckoutProps) {
               <div className="space-y-1">
                 <h3 className="text-lg font-black tracking-tight text-gray-955 dark:text-white">4. Preferred Payment Method</h3>
                 <p className="text-xs text-gray-400 dark:text-gray-550 font-semibold uppercase tracking-wider">
-                  BOTH CHANNELS PROCESSED AUTOMATICALLY & SECURELY THROUGH PAYSTACK
+                  BOTH CHANNELS PROCESSED AUTOMATICALLY & SECURELY VIA BANK-GRADE GATEWAY
                 </p>
               </div>
             </div>
@@ -1858,7 +1899,7 @@ export default function Checkout({ user }: CheckoutProps) {
                     </div>
 
                     <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mt-3 leading-relaxed">
-                      Automatic 256-bit encrypted card payments processed securely through Paystack.
+                      Automatic 256-bit encrypted card payments processed securely.
                     </p>
 
                     <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-150 dark:border-gray-800">
@@ -2439,13 +2480,9 @@ export default function Checkout({ user }: CheckoutProps) {
                         : `Finish Order with`
                       }
                     </span>
-                    <span className="inline-flex items-center gap-1 text-white font-bold ml-1">
-                      <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block shrink-0">
-                        <rect y="0" width="18" height="2.5" rx="1.25" fill="#00C3F7"/>
-                        <rect y="5.5" width="12" height="2.5" rx="1.25" fill="#00C3F7"/>
-                        <rect y="11" width="18" height="2.5" rx="1.25" fill="#00C3F7"/>
-                      </svg>
-                      Paystack
+                    <span className="inline-flex items-center gap-1.5 text-white font-extrabold ml-1.5">
+                      <ShieldCheck className="text-emerald-400 shrink-0" size={18} />
+                      SokoPay Gateway
                     </span>
                   </span>
                   <ArrowRight className="group-hover:translate-x-1 transition-transform text-white shrink-0" size={18} />
@@ -2455,7 +2492,7 @@ export default function Checkout({ user }: CheckoutProps) {
 
             <div className="text-center pt-1">
               <p className="text-[11px] text-slate-400 font-normal leading-relaxed">
-                Secured with 256-bit encryption. Guaranteed protection by Paystack.
+                Secured with 256-bit encryption. Guaranteed buyer protection.
               </p>
             </div>
 

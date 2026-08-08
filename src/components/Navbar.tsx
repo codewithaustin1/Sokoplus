@@ -1090,7 +1090,7 @@ export default function Navbar({ user }: NavbarProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
+              transition={{ duration: 0.225 }}
               onClick={() => setIsMobileMenuOpen(false)}
               className="fixed inset-0 bg-black/65 backdrop-blur-lg z-[140] md:hidden"
             />
@@ -1099,7 +1099,7 @@ export default function Navbar({ user }: NavbarProps) {
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 240, restDelta: 0.5 }}
+              transition={{ type: "spring", damping: 31, stiffness: 296, restDelta: 0.5 }}
               drag="x"
               dragConstraints={{ left: 0, right: 320 }}
               dragElastic={{ left: 0, right: 0.6 }}
@@ -1108,7 +1108,7 @@ export default function Navbar({ user }: NavbarProps) {
                   setIsMobileMenuOpen(false);
                 }
               }}
-              className="fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-950 shadow-2xl z-[150] md:hidden p-6 flex flex-col space-y-6 touch-pan-y transition-all duration-300 border-l border-gray-100 dark:border-gray-850"
+              className="fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-950 shadow-2xl z-[150] md:hidden p-6 flex flex-col space-y-6 touch-pan-y transition-all duration-[270ms] border-l border-gray-100 dark:border-gray-850"
             >
               <div className="flex justify-between items-center">
                 <span className="text-xl font-bold tracking-tighter text-gray-900 dark:text-gray-100 flex items-center space-x-2">

@@ -3,6 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import ReactMarkdown from "react-markdown";
 import { UserProfile, Product, Order, SupportTicket, BlogPost, JobOffer, JobApplication, Review } from "../types";
 import { executeOrQueueFirestoreMutation } from "../utils/offlineSyncQueue";
+import { validateSkuFormat, validateSkuUniqueness, generateSuggestedSku } from "../utils/skuValidator";
 import { OrderRefundManager } from "../components/OrderRefundManager";
 import { AdminDataErasureManager } from "../components/AdminDataErasureManager";
 import { db, auth } from "../lib/firebase";
@@ -16,6 +17,7 @@ const SellersTab = lazy(() => import("../components/admin/SellersTab"));
 const ApprovalQueueTab = lazy(() => import("../components/admin/ApprovalQueueTab"));
 const MarketingTab = lazy(() => import("../components/admin/MarketingTab"));
 const CareersTab = lazy(() => import("../components/admin/CareersTab"));
+const PodConfigTab = lazy(() => import("../components/admin/PodConfigTab"));
 import { motion, AnimatePresence } from "motion/react";
 import {
   collection,
@@ -889,6 +891,7 @@ function AdminProductsTable({
         productSearchTerm.trim() !== "" &&
         !p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
         !p.category.toLowerCase().includes(productSearchTerm.toLowerCase()) &&
+        !(p.sku || "").toLowerCase().includes(productSearchTerm.toLowerCase()) &&
         !(p.artisan || "").toLowerCase().includes(productSearchTerm.toLowerCase())
       ) {
         return false;
@@ -1150,6 +1153,16 @@ function AdminProductsTable({
                         <div className="flex flex-col space-y-1">
                           <div className="font-bold flex items-center gap-2 flex-wrap">
                             <span>{p.name}</span>
+                            {p.sku && (
+                              <span className="font-mono text-[10px] bg-gray-100 text-gray-800 font-bold px-1.5 py-0.5 rounded border border-gray-200" title="Product SKU">
+                                SKU: {p.sku}
+                              </span>
+                            )}
+                            {p.isDigital && (
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200" title="Digital Downloadable Item">
+                                💻 Digital ({p.digitalFormat?.toUpperCase() || "ASSET"})
+                              </span>
+                            )}
                             {(!p.approvalStatus || p.approvalStatus === "approved") ? (
                               <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-100">
                                 Approved
@@ -1732,7 +1745,7 @@ export default function Admin({ user }: AdminProps) {
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue" | "privacy_erasure"
+    "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue" | "privacy_erasure" | "pod_config"
   >("inventory");
 
   useEffect(() => {
@@ -2035,12 +2048,17 @@ export default function Admin({ user }: AdminProps) {
   const [selectedColorsEdit, setSelectedColorsEdit] = useState<string[]>([]);
 
   const [newProduct, setNewProduct] = useState({
+    sku: "",
     name: "",
     description: "",
     price: 0,
     originalPrice: 0,
     category: "Fashion",
     stock: 10,
+    isDigital: false,
+    digitalFormat: "pdf" as "pdf" | "video" | "audio" | "zip" | "ebook" | "software" | "other",
+    digitalFileUrl: "",
+    digitalFileSize: "",
     images: [""],
     artisan: "",
     buyingPrice: 0,
@@ -3026,6 +3044,19 @@ export default function Admin({ user }: AdminProps) {
       newErrors.stock = "Stock cannot be negative";
     }
 
+    // SKU Format & Uniqueness Validation
+    let targetSku = newProduct.sku ? newProduct.sku.trim() : "";
+    if (!targetSku) {
+      targetSku = generateSuggestedSku(newProduct.category, newProduct.name);
+    }
+
+    const skuResult = await validateSkuUniqueness(targetSku);
+    if (!skuResult.isUnique) {
+      newErrors.sku = skuResult.error || "SKU format is invalid or duplicate exists";
+    } else {
+      targetSku = skuResult.normalizedSku;
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -3038,6 +3069,7 @@ export default function Admin({ user }: AdminProps) {
       );
       await addDoc(collection(db, "products"), {
         ...newProduct,
+        sku: targetSku,
         images: sanitizedImages.length > 0 ? sanitizedImages : [],
         originalPrice: newProduct.originalPrice && newProduct.originalPrice > 0 ? newProduct.originalPrice : null,
         rating: 4.5,
@@ -3045,17 +3077,22 @@ export default function Admin({ user }: AdminProps) {
         createdAt: new Date().toISOString(),
         availableColors: hasColorsAdd ? selectedColorsAdd : [],
       });
-      toast.success("Product added successfully!");
+      toast.success(`Product added with SKU: ${targetSku}!`);
       setShowAddModal(false);
       setHasColorsAdd(false);
       setSelectedColorsAdd([]);
       setNewProduct({
+        sku: "",
         name: "",
         description: "",
         price: 0,
         originalPrice: 0,
         category: "Fashion",
         stock: 10,
+        isDigital: false,
+        digitalFormat: "pdf",
+        digitalFileUrl: "",
+        digitalFileSize: "",
         images: [""],
         artisan: "",
         buyingPrice: 0,
@@ -3181,6 +3218,17 @@ export default function Admin({ user }: AdminProps) {
       newErrors.price = "Price must be greater than zero";
     if (editingProduct.stock < 0) newErrors.stock = "Stock cannot be negative";
 
+    let targetSku = editingProduct.sku ? editingProduct.sku.trim() : "";
+    if (!targetSku) {
+      targetSku = generateSuggestedSku(editingProduct.category, editingProduct.name);
+    }
+    const skuResult = await validateSkuUniqueness(targetSku, editingProduct.id);
+    if (!skuResult.isUnique) {
+      newErrors.sku = skuResult.error || "SKU format is invalid or duplicate exists";
+    } else {
+      targetSku = skuResult.normalizedSku;
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -3198,6 +3246,7 @@ export default function Admin({ user }: AdminProps) {
 
       await updateDoc(doc(db, "products", id), {
         ...updateData,
+        sku: targetSku,
         images: sanitizedImages.length > 0 ? sanitizedImages : [],
         originalPrice: editingProduct.originalPrice && editingProduct.originalPrice > 0 ? editingProduct.originalPrice : null,
         availableColors: hasColorsEdit ? selectedColorsEdit : [],
@@ -5302,6 +5351,13 @@ export default function Admin({ user }: AdminProps) {
           className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "settings" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
           Admin Settings
+        </button>
+        <button
+          onClick={() => setActiveTab("pod_config")}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-1.5 shrink-0 md:shrink-0 ${activeTab === "pod_config" ? "bg-white dark:bg-gray-800 shadow-sm text-amber-600 dark:text-amber-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+        >
+          <Truck size={16} />
+          <span>Pay on Delivery (POD)</span>
         </button>
         <button
           onClick={() => setActiveTab("marketing")}
@@ -7778,6 +7834,143 @@ export default function Admin({ user }: AdminProps) {
                   </p>
                 )}
               </div>
+
+              {/* Product SKU Validation Field */}
+              <div className="col-span-2 bg-orange-50/50 border border-orange-100/80 p-4 rounded-2xl">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-black uppercase text-gray-700 tracking-wide flex items-center gap-1.5">
+                    <span>Product SKU / Unique Identifier</span>
+                    <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-extrabold">Required</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const suggested = generateSuggestedSku(newProduct.category, newProduct.name);
+                      setNewProduct({ ...newProduct, sku: suggested });
+                      if (errors.sku) setErrors({ ...errors, sku: "" });
+                      toast(`Suggested SKU auto-filled: ${suggested}`, { icon: "⚡" });
+                    }}
+                    className="text-xs font-bold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    ⚡ Auto-Generate SKU
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="e.g. SOKO-FAS-9281"
+                  className={`w-full p-3.5 bg-white border rounded-xl font-mono text-sm uppercase tracking-wider outline-none focus:ring-2 transition-all ${
+                    errors.sku ? "border-red-500 focus:ring-red-500" : "border-orange-200 focus:ring-orange-600"
+                  }`}
+                  value={newProduct.sku}
+                  onChange={(e) => {
+                    const raw = e.target.value.toUpperCase();
+                    setNewProduct({ ...newProduct, sku: raw });
+                    const fmt = validateSkuFormat(raw);
+                    if (!fmt.isValid && raw.length > 0) {
+                      setErrors({ ...errors, sku: fmt.error || "Invalid SKU format" });
+                    } else {
+                      if (errors.sku) setErrors({ ...errors, sku: "" });
+                    }
+                  }}
+                />
+                {errors.sku ? (
+                  <p className="text-red-500 text-xs mt-1.5 font-bold flex items-center gap-1">
+                    ⚠️ {errors.sku}
+                  </p>
+                ) : newProduct.sku ? (
+                  <p className="text-emerald-600 text-xs mt-1 font-semibold flex items-center gap-1">
+                    ✓ SKU format valid: <span className="font-mono font-bold">{newProduct.sku}</span>
+                  </p>
+                ) : (
+                  <p className="text-gray-400 text-[11px] mt-1 font-medium">
+                    SKU must be unique (3-20 uppercase chars, numbers, hyphens or underscores).
+                  </p>
+                )}
+              </div>
+
+              {/* Digital Downloadable Product Engine */}
+              <div className="col-span-2 border border-blue-100 bg-blue-50/40 p-4 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-blue-900 tracking-wide">
+                      Digital Downloadable Product Engine
+                    </h4>
+                    <p className="text-[11px] text-gray-500 font-medium">
+                      Allow SokoPlus customers to download digital assets (PDF, MP4, Audio, eBooks, Software) upon checkout.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    id="isDigitalAdd"
+                    className="w-5 h-5 accent-blue-600 rounded cursor-pointer"
+                    checked={newProduct.isDigital || false}
+                    onChange={(e) =>
+                      setNewProduct({ ...newProduct, isDigital: e.target.checked })
+                    }
+                  />
+                </div>
+
+                {newProduct.isDigital && (
+                  <div className="mt-4 pt-4 border-t border-blue-100 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold uppercase text-gray-600">
+                        File Format
+                      </label>
+                      <select
+                        className="w-full p-3 bg-white border border-blue-200 rounded-xl text-xs font-semibold text-gray-800 outline-none"
+                        value={newProduct.digitalFormat || "pdf"}
+                        onChange={(e) =>
+                          setNewProduct({
+                            ...newProduct,
+                            digitalFormat: e.target.value as any,
+                          })
+                        }
+                      >
+                        <option value="pdf">PDF Document (.pdf)</option>
+                        <option value="video">Video Lecture / File (.mp4)</option>
+                        <option value="audio">Audio / Podcast (.mp3, .wav)</option>
+                        <option value="zip">ZIP / Compressed Bundle (.zip)</option>
+                        <option value="ebook">eBook (.epub, .mobi)</option>
+                        <option value="software">Software / App Installer</option>
+                        <option value="other">Other Format</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold uppercase text-gray-600">
+                        File Size (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 15.4 MB"
+                        className="w-full p-3 bg-white border border-blue-200 rounded-xl text-xs font-semibold outline-none"
+                        value={newProduct.digitalFileSize || ""}
+                        onChange={(e) =>
+                          setNewProduct({ ...newProduct, digitalFileSize: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="text-[11px] font-bold uppercase text-gray-600">
+                        Digital Asset Download URL / Cloud Storage Link
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://storage.googleapis.com/.../file.pdf"
+                        className="w-full p-3 bg-white border border-blue-200 rounded-xl text-xs outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                        value={newProduct.digitalFileUrl || ""}
+                        onChange={(e) =>
+                          setNewProduct({ ...newProduct, digitalFileUrl: e.target.value })
+                        }
+                      />
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        🔒 Customers receive a secure download link in their order confirmation once payment is verified.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400">
                   Category
@@ -8066,6 +8259,143 @@ export default function Admin({ user }: AdminProps) {
                   <p className="text-red-500 text-xs mt-1 font-medium">
                     {errors.name}
                   </p>
+                )}
+              </div>
+
+              {/* Product SKU Validation Field (Edit Modal) */}
+              <div className="col-span-2 bg-orange-50/50 border border-orange-100/80 p-4 rounded-2xl">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-black uppercase text-gray-700 tracking-wide flex items-center gap-1.5">
+                    <span>Product SKU / Unique Identifier</span>
+                    <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-extrabold">Required</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const suggested = generateSuggestedSku(editingProduct.category, editingProduct.name);
+                      setEditingProduct({ ...editingProduct, sku: suggested });
+                      if (errors.sku) setErrors({ ...errors, sku: "" });
+                      toast(`Suggested SKU auto-filled: ${suggested}`, { icon: "⚡" });
+                    }}
+                    className="text-xs font-bold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    ⚡ Auto-Generate SKU
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="e.g. SOKO-FAS-9281"
+                  className={`w-full p-3.5 bg-white border rounded-xl font-mono text-sm uppercase tracking-wider outline-none focus:ring-2 transition-all ${
+                    errors.sku ? "border-red-500 focus:ring-red-500" : "border-orange-200 focus:ring-orange-600"
+                  }`}
+                  value={editingProduct.sku || ""}
+                  onChange={(e) => {
+                    const raw = e.target.value.toUpperCase();
+                    setEditingProduct({ ...editingProduct, sku: raw });
+                    const fmt = validateSkuFormat(raw);
+                    if (!fmt.isValid && raw.length > 0) {
+                      setErrors({ ...errors, sku: fmt.error || "Invalid SKU format" });
+                    } else {
+                      if (errors.sku) setErrors({ ...errors, sku: "" });
+                    }
+                  }}
+                />
+                {errors.sku ? (
+                  <p className="text-red-500 text-xs mt-1.5 font-bold flex items-center gap-1">
+                    ⚠️ {errors.sku}
+                  </p>
+                ) : editingProduct.sku ? (
+                  <p className="text-emerald-600 text-xs mt-1 font-semibold flex items-center gap-1">
+                    ✓ SKU format valid: <span className="font-mono font-bold">{editingProduct.sku}</span>
+                  </p>
+                ) : (
+                  <p className="text-gray-400 text-[11px] mt-1 font-medium">
+                    SKU must be unique across products (3-20 uppercase chars, numbers, hyphens or underscores).
+                  </p>
+                )}
+              </div>
+
+              {/* Digital Downloadable Product Engine (Edit Modal) */}
+              <div className="col-span-2 border border-blue-100 bg-blue-50/40 p-4 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-blue-900 tracking-wide">
+                      Digital Downloadable Product Engine
+                    </h4>
+                    <p className="text-[11px] text-gray-500 font-medium">
+                      Allow SokoPlus customers to download digital assets (PDF, MP4, Audio, eBooks, Software) upon checkout.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    id="isDigitalEdit"
+                    className="w-5 h-5 accent-blue-600 rounded cursor-pointer"
+                    checked={editingProduct.isDigital || false}
+                    onChange={(e) =>
+                      setEditingProduct({ ...editingProduct, isDigital: e.target.checked })
+                    }
+                  />
+                </div>
+
+                {editingProduct.isDigital && (
+                  <div className="mt-4 pt-4 border-t border-blue-100 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold uppercase text-gray-600">
+                        File Format
+                      </label>
+                      <select
+                        className="w-full p-3 bg-white border border-blue-200 rounded-xl text-xs font-semibold text-gray-800 outline-none"
+                        value={editingProduct.digitalFormat || "pdf"}
+                        onChange={(e) =>
+                          setEditingProduct({
+                            ...editingProduct,
+                            digitalFormat: e.target.value as any,
+                          })
+                        }
+                      >
+                        <option value="pdf">PDF Document (.pdf)</option>
+                        <option value="video">Video Lecture / File (.mp4)</option>
+                        <option value="audio">Audio / Podcast (.mp3, .wav)</option>
+                        <option value="zip">ZIP / Compressed Bundle (.zip)</option>
+                        <option value="ebook">eBook (.epub, .mobi)</option>
+                        <option value="software">Software / App Installer</option>
+                        <option value="other">Other Format</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold uppercase text-gray-600">
+                        File Size (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 15.4 MB"
+                        className="w-full p-3 bg-white border border-blue-200 rounded-xl text-xs font-semibold outline-none"
+                        value={editingProduct.digitalFileSize || ""}
+                        onChange={(e) =>
+                          setEditingProduct({ ...editingProduct, digitalFileSize: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="text-[11px] font-bold uppercase text-gray-600">
+                        Digital Asset Download URL / Cloud Storage Link
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://storage.googleapis.com/.../file.pdf"
+                        className="w-full p-3 bg-white border border-blue-200 rounded-xl text-xs outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                        value={editingProduct.digitalFileUrl || ""}
+                        onChange={(e) =>
+                          setEditingProduct({ ...editingProduct, digitalFileUrl: e.target.value })
+                        }
+                      />
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        🔒 Customers receive a secure download link in their order confirmation once payment is verified.
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
               <div>
@@ -8681,6 +9011,12 @@ export default function Admin({ user }: AdminProps) {
             setNewJob={setNewJob}
             setShowJobAddModal={setShowJobAddModal}
           />
+        </Suspense>
+      )}
+
+      {activeTab === "pod_config" && (
+        <Suspense fallback={<div className="p-8 text-center text-gray-500 font-bold">Loading Pay on Delivery Rule Matrix...</div>}>
+          <PodConfigTab />
         </Suspense>
       )}
 

@@ -1249,6 +1249,296 @@ app.get("/api/paystack/verify/:reference", async (req, res) => {
   }
 });
 
+// =========================================================
+// PAY ON DELIVERY (POD) RULE ENGINE & CONFIGURATION API
+// =========================================================
+
+export interface PODTier {
+  id: string;
+  name: string;
+  minOrderValue: number;
+  maxOrderValue: number;
+  depositPercentage: number;
+  maxDepositCap: number;
+  isPrepaidOnly?: boolean;
+}
+
+export interface PODConfig {
+  enabled: boolean;
+  selectedPreset: "balanced" | "conservative" | "growth" | "tiered_safeguard" | "custom";
+  customTiers?: PODTier[];
+  maxOrderValueForPOD: number;
+  restrictedCategories: string[];
+  restrictedLocations: string[];
+  unverifiedUserExtraDeposit: number;
+  lastUpdatedBy?: string;
+  updatedAt?: string;
+}
+
+const DEFAULT_POD_PRESETS_SERVER: Record<string, { name: string; description: string; tiers: PODTier[]; maxOrderValueForPOD: number; restrictedCategories: string[]; unverifiedUserExtraDeposit: number }> = {
+  balanced: {
+    name: "Balanced Standard",
+    description: "Optimal balance of customer conversion and seller delivery protection. 10% deposit capped at KES 700 for orders under KES 20k, 20% deposit capped at KES 2,500 for orders up to KES 50k.",
+    maxOrderValueForPOD: 100000,
+    restrictedCategories: ["Digital", "Gift Cards"],
+    unverifiedUserExtraDeposit: 0,
+    tiers: [
+      { id: "b1", name: "Tier 1 (Standard Volume)", minOrderValue: 0, maxOrderValue: 19999, depositPercentage: 10, maxDepositCap: 700 },
+      { id: "b2", name: "Tier 2 (Mid-Range Value)", minOrderValue: 20000, maxOrderValue: 49999, depositPercentage: 20, maxDepositCap: 2500 },
+      { id: "b3", name: "Tier 3 (High Value)", minOrderValue: 50000, maxOrderValue: 100000, depositPercentage: 30, maxDepositCap: 6000 }
+    ]
+  },
+  conservative: {
+    name: "Low Risk / Conservative",
+    description: "Maximum risk mitigation for high-value logistics and unverified delivery locations.",
+    maxOrderValueForPOD: 60000,
+    restrictedCategories: ["Digital", "Gift Cards", "Jewelry", "Electronics"],
+    unverifiedUserExtraDeposit: 5,
+    tiers: [
+      { id: "c1", name: "Tier 1 (Small Basket)", minOrderValue: 0, maxOrderValue: 10000, depositPercentage: 15, maxDepositCap: 1000 },
+      { id: "c2", name: "Tier 2 (Moderate Basket)", minOrderValue: 10001, maxOrderValue: 30000, depositPercentage: 25, maxDepositCap: 3000 },
+      { id: "c3", name: "Tier 3 (Substantial Value)", minOrderValue: 30001, maxOrderValue: 60000, depositPercentage: 40, maxDepositCap: 8000 }
+    ]
+  },
+  growth: {
+    name: "Growth & Conversion First",
+    description: "Low-friction buyer experience to maximize order checkout velocity and buyer trust.",
+    maxOrderValueForPOD: 150000,
+    restrictedCategories: ["Digital"],
+    unverifiedUserExtraDeposit: 0,
+    tiers: [
+      { id: "g1", name: "Tier 1 (Low Deposit Hold)", minOrderValue: 0, maxOrderValue: 25000, depositPercentage: 5, maxDepositCap: 500 },
+      { id: "g2", name: "Tier 2 (Standard Growth)", minOrderValue: 25001, maxOrderValue: 75000, depositPercentage: 10, maxDepositCap: 1500 },
+      { id: "g3", name: "Tier 3 (High Conversion)", minOrderValue: 75001, maxOrderValue: 150000, depositPercentage: 15, maxDepositCap: 4000 }
+    ]
+  },
+  tiered_safeguard: {
+    name: "Tiered High-Value Safeguard",
+    description: "4-stage progressive deposit scale with strict mandatory pre-payment for orders over KES 100,000.",
+    maxOrderValueForPOD: 100000,
+    restrictedCategories: ["Digital", "Gift Cards"],
+    unverifiedUserExtraDeposit: 0,
+    tiers: [
+      { id: "s1", name: "Tier 1 (Light Hold)", minOrderValue: 0, maxOrderValue: 15000, depositPercentage: 10, maxDepositCap: 500 },
+      { id: "s2", name: "Tier 2 (Medium Hold)", minOrderValue: 15001, maxOrderValue: 50000, depositPercentage: 15, maxDepositCap: 2000 },
+      { id: "s3", name: "Tier 3 (High Hold)", minOrderValue: 50001, maxOrderValue: 100000, depositPercentage: 25, maxDepositCap: 5000 },
+      { id: "s4", name: "Tier 4 (Prepaid Only)", minOrderValue: 100001, maxOrderValue: 999999, depositPercentage: 100, maxDepositCap: 0, isPrepaidOnly: true }
+    ]
+  },
+  custom: {
+    name: "Custom Rule Matrix",
+    description: "Fully customizable multi-tier matrix configured specifically by store administrators.",
+    maxOrderValueForPOD: 100000,
+    restrictedCategories: ["Digital"],
+    unverifiedUserExtraDeposit: 0,
+    tiers: [
+      { id: "custom1", name: "Custom Tier 1", minOrderValue: 0, maxOrderValue: 19999, depositPercentage: 10, maxDepositCap: 700 },
+      { id: "custom2", name: "Custom Tier 2", minOrderValue: 20000, maxOrderValue: 49999, depositPercentage: 20, maxDepositCap: 2500 }
+    ]
+  }
+};
+
+const DEFAULT_POD_CONFIG_SERVER: PODConfig = {
+  enabled: true,
+  selectedPreset: "balanced",
+  maxOrderValueForPOD: 100000,
+  restrictedCategories: ["Digital", "Gift Cards"],
+  restrictedLocations: [],
+  unverifiedUserExtraDeposit: 0,
+  customTiers: DEFAULT_POD_PRESETS_SERVER.balanced.tiers
+};
+
+// Helper: Fetch current POD config from Firestore or fallback
+async function getActivePODConfig(): Promise<PODConfig> {
+  try {
+    if (adminDb) {
+      const docSnap = await adminDb.collection("settings").doc("pod_config").get();
+      if (docSnap.exists) {
+        return { ...DEFAULT_POD_CONFIG_SERVER, ...docSnap.data() } as PODConfig;
+      }
+    }
+    const docData = await executeFirestoreREST("get", "/settings/pod_config");
+    const parsed = parseFirestoreDocument(docData);
+    if (parsed) {
+      return { ...DEFAULT_POD_CONFIG_SERVER, ...parsed } as PODConfig;
+    }
+  } catch (err: any) {
+    // Return default config if document not yet created
+  }
+  return DEFAULT_POD_CONFIG_SERVER;
+}
+
+// Server-Side POD Calculation Function
+function calculatePODServerLogic(
+  config: PODConfig,
+  orderTotal: number,
+  items: any[] = [],
+  isUnverifiedUser: boolean = false
+) {
+  if (!config.enabled) {
+    return {
+      isEligible: false,
+      reason: "Pay on Delivery is currently unavailable.",
+      depositAmount: 0,
+      remainingBalance: orderTotal,
+      ruleSetApplied: config.selectedPreset
+    };
+  }
+
+  const maxLimit = config.maxOrderValueForPOD || 100000;
+  if (orderTotal > maxLimit) {
+    return {
+      isEligible: false,
+      reason: `Orders exceeding KES ${maxLimit.toLocaleString()} require full pre-payment.`,
+      depositAmount: 0,
+      remainingBalance: orderTotal,
+      ruleSetApplied: config.selectedPreset
+    };
+  }
+
+  // Check restricted categories
+  if (items && Array.isArray(items) && items.length > 0) {
+    const restricted = config.restrictedCategories || ["Digital", "Gift Cards"];
+    const hasRestricted = items.some((item: any) => {
+      const cat = (item.category || item.categoryName || "").toLowerCase();
+      return restricted.some((r: string) => cat.includes(r.toLowerCase()));
+    });
+    if (hasRestricted) {
+      return {
+        isEligible: false,
+        reason: "Your cart contains digital or restricted items that require full pre-payment.",
+        depositAmount: 0,
+        remainingBalance: orderTotal,
+        ruleSetApplied: config.selectedPreset
+      };
+    }
+  }
+
+  // Determine tiers to evaluate
+  let activeTiers: PODTier[] = [];
+  if (config.selectedPreset === "custom" && config.customTiers && config.customTiers.length > 0) {
+    activeTiers = config.customTiers;
+  } else {
+    const presetObj = DEFAULT_POD_PRESETS_SERVER[config.selectedPreset] || DEFAULT_POD_PRESETS_SERVER.balanced;
+    activeTiers = presetObj.tiers;
+  }
+
+  // Match tier based on orderTotal
+  let matchedTier = activeTiers.find(
+    (t) => orderTotal >= t.minOrderValue && orderTotal <= t.maxOrderValue
+  );
+
+  if (!matchedTier) {
+    matchedTier = activeTiers[activeTiers.length - 1];
+  }
+
+  if (matchedTier && matchedTier.isPrepaidOnly) {
+    return {
+      isEligible: false,
+      reason: "Orders in this range require full pre-payment.",
+      depositAmount: 0,
+      remainingBalance: orderTotal,
+      ruleSetApplied: config.selectedPreset
+    };
+  }
+
+  const basePct = matchedTier ? matchedTier.depositPercentage : 10;
+  const extraPct = isUnverifiedUser ? (config.unverifiedUserExtraDeposit || 0) : 0;
+  const totalPct = basePct + extraPct;
+
+  let rawDeposit = Math.round(orderTotal * (totalPct / 100));
+  let depositAmount = rawDeposit;
+
+  if (matchedTier && matchedTier.maxDepositCap > 0 && rawDeposit > matchedTier.maxDepositCap) {
+    depositAmount = matchedTier.maxDepositCap;
+  }
+
+  depositAmount = Math.max(0, Math.min(orderTotal, depositAmount));
+  const remainingBalance = Math.max(0, orderTotal - depositAmount);
+
+  return {
+    isEligible: true,
+    depositAmount,
+    remainingBalance,
+    ruleSetApplied: config.selectedPreset,
+    tierAppliedName: matchedTier ? matchedTier.name : "Default Tier",
+    effectivePercentage: totalPct,
+    maxCapApplied: Boolean(matchedTier && matchedTier.maxDepositCap > 0 && rawDeposit > matchedTier.maxDepositCap),
+    maxCapValue: matchedTier ? matchedTier.maxDepositCap : 0
+  };
+}
+
+// GET /api/pod/config
+app.get("/api/pod/config", async (req, res) => {
+  try {
+    const config = await getActivePODConfig();
+    res.json({ success: true, config, presets: DEFAULT_POD_PRESETS_SERVER });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to load POD configuration", details: err.message });
+  }
+});
+
+// POST /api/pod/config (Super Admin only)
+app.post("/api/pod/config", requireSuperAdmin, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader ? authHeader.split("Bearer ")[1] : undefined;
+
+  try {
+    const newConfig: PODConfig = {
+      ...DEFAULT_POD_CONFIG_SERVER,
+      ...req.body,
+      updatedAt: new Date().toISOString(),
+      lastUpdatedBy: (req as any).user.email
+    };
+
+    try {
+      await adminDb.collection("settings").doc("pod_config").set(newConfig, { merge: true });
+      await logAuditAction(
+        (req as any).user.uid,
+        (req as any).user.email,
+        "update_pod_config",
+        `Updated Pay on Delivery rule configuration: preset="${newConfig.selectedPreset}", enabled=${newConfig.enabled}, maxLimit=KES ${newConfig.maxOrderValueForPOD}`,
+        "pod_config",
+        "POD Configuration",
+        token
+      );
+      res.json({ success: true, message: "Pay on Delivery rule configuration updated successfully", config: newConfig });
+    } catch (adminErr: any) {
+      const firestoreDoc = toFirestoreDocument(newConfig);
+      await executeFirestoreREST("patch", "/settings/pod_config", token, firestoreDoc);
+      await logAuditAction(
+        (req as any).user.uid,
+        (req as any).user.email,
+        "update_pod_config",
+        `Updated Pay on Delivery rule configuration via REST: preset="${newConfig.selectedPreset}"`,
+        "pod_config",
+        "POD Configuration",
+        token
+      );
+      res.json({ success: true, message: "Pay on Delivery rule configuration updated via REST", config: newConfig });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to update POD configuration", details: err.message });
+  }
+});
+
+// POST /api/pod/calculate (Public & Authenticated Checkout evaluation)
+app.post("/api/pod/calculate", async (req, res) => {
+  try {
+    const { orderTotal, items, isUnverifiedUser } = req.body;
+    if (typeof orderTotal !== "number" || isNaN(orderTotal) || orderTotal < 0) {
+      return res.status(400).json({ error: "Invalid orderTotal provided" });
+    }
+
+    const config = await getActivePODConfig();
+    const result = calculatePODServerLogic(config, orderTotal, items || [], Boolean(isUnverifiedUser));
+
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to calculate POD eligibility", details: err.message });
+  }
+});
+
 // XML Sitemap Endpoint: Queries products & blogs dynamically from Firestore
 app.get("/sitemap.xml", async (req, res) => {
   try {

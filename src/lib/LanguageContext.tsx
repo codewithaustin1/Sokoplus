@@ -224,7 +224,7 @@ const swahiliOverrideMap: Record<string, string> = {
   "pay with card": "Lipa kwa Kadi ya Benki",
   "pay now": "Lipa Sasa Hivi",
   "secure checkout": "Lipia Salama Sasa",
-  "payments secured via paystack. trusted across 47 counties.": "Malipo yanalindwa kupitia Paystack. Tunaaminika katika kaunti zote 47.",
+  "payments secured via paystack. trusted across 47 counties.": "Malipo yanalindwa kupitia mfumo wa SokoPay. Tunaaminika katika kaunti zote 47.",
   "shipping info": "Taarifa za Usafirishaji",
   "returns & exchanges": "Kurudisha & Kubadilisha Bidhaa",
   "faq": "Maswali Yanayoulizwa Sana",

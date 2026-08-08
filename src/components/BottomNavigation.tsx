@@ -427,7 +427,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
 
                           {/* Text Overlay at bottom left */}
                           <div className="absolute bottom-0 left-0 right-0 p-3.5 sm:p-4 text-white z-10 flex flex-col justify-end">
-                            <h3 className="text-base sm:text-lg font-extrabold text-white leading-tight drop-shadow-xs">
+                            <h3 className="text-base sm:text-lg font-extrabold text-white group-hover:text-amber-400 transition-colors leading-tight drop-shadow-xs">
                               {cat.label}
                             </h3>
                             <span className="text-xs font-medium text-white/85 mt-0.5 block">

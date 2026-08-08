@@ -916,7 +916,7 @@ export default function Home({ user }: HomeProps) {
 
               {/* Content bottom details */}
               <div className="absolute bottom-0 left-0 right-0 p-6 z-10 flex flex-col justify-end text-white h-[120px]">
-                <h3 className="text-lg sm:text-xl font-bold tracking-tight text-white mb-2 group-hover:text-orange-400 transition-colors duration-200">
+                <h3 className="text-lg sm:text-xl font-bold tracking-tight text-white mb-2 group-hover:text-amber-400 transition-colors duration-200">
                   {col.title}
                 </h3>
                 <div className="flex items-center gap-1.5 text-xs text-orange-200 font-bold uppercase tracking-wider opacity-90 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300">

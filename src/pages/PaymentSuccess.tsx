@@ -293,7 +293,7 @@ export default function PaymentSuccess() {
           <div className="space-y-3">
             <h2 className="text-3xl font-black italic text-gray-900 dark:text-white tracking-tight">Finalizing...</h2>
             <p className="text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
-              We're verifying your transaction with Paystack and securing your items. This won't take long!
+              We're verifying your transaction securely and reserving your items. This won't take long!
             </p>
           </div>
 
