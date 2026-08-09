@@ -67,10 +67,13 @@ export function CacheWarmerNotifier({
       const newStatus = getNetworkSpeedStatus();
       setSpeedStatus(newStatus);
       if (newStatus.isHighSpeed && !newStatus.saveData) {
-        toast.success(`⚡ High-speed connection detected (${newStatus.speedLabel}). Refreshing category cache...`, {
-          id: "high-speed-detected",
-          duration: 3000,
-        });
+        const alreadyNotified = sessionStorage.getItem("sokoplus_cache_warmer_notified");
+        if (!alreadyNotified) {
+          toast.success(`⚡ High-speed connection detected (${newStatus.speedLabel}). Refreshing category cache...`, {
+            id: "high-speed-detected",
+            duration: 3000,
+          });
+        }
         executeWarming();
       }
     };
@@ -93,12 +96,17 @@ export function CacheWarmerNotifier({
     const unsubscribe = subscribeToCacheWarmEvents((eventData) => {
       setLastWarmedInfo(eventData);
       setIsWarming(false);
-      setShowToastBanner(true);
 
-      // Auto-hide toast banner after 6 seconds
-      setTimeout(() => {
-        setShowToastBanner(false);
-      }, 6000);
+      const alreadyNotified = sessionStorage.getItem("sokoplus_cache_warmer_notified");
+      if (!alreadyNotified) {
+        sessionStorage.setItem("sokoplus_cache_warmer_notified", "true");
+        setShowToastBanner(true);
+
+        // Auto-hide toast banner after 6 seconds
+        setTimeout(() => {
+          setShowToastBanner(false);
+        }, 6000);
+      }
     });
 
     return unsubscribe;
