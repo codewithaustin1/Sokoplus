@@ -200,52 +200,53 @@ export default function Checkout({ user }: CheckoutProps) {
     let matchedCity = "";
 
     if (matchedCountry === "Kenya") {
-      // Check if city matches any specific city in our counties dataset
-      let foundCountyByCity: (typeof counties)[0] | undefined;
-      for (const cObj of counties) {
-        const cityHit = cObj.cities.find(ct => 
-          rawCity.includes(ct.toLowerCase()) || 
-          rawFull.includes(ct.toLowerCase())
-        );
-        if (cityHit) {
-          foundCountyByCity = cObj;
-          matchedCity = cityHit;
-          break;
-        }
-      }
+      // 1. First attempt to match county by rawCounty or rawFull
+      const countyByRaw = counties.find(cObj => {
+        const cNorm = cObj.name.toLowerCase().replace("county", "").trim();
+        return rawCounty.includes(cNorm) || (cNorm.length > 3 && rawFull.includes(cNorm));
+      });
 
-      if (foundCountyByCity) {
-        matchedCounty = foundCountyByCity.name;
+      if (countyByRaw) {
+        matchedCounty = countyByRaw.name;
       } else {
-        // Check county name match
-        const countyHit = counties.find(cObj => {
-          const cNorm = cObj.name.toLowerCase().replace("county", "").trim();
-          return rawCounty.includes(cNorm) || rawFull.includes(cNorm);
-        });
-        if (countyHit) {
-          matchedCounty = countyHit.name;
-        }
-      }
-
-      // Pick city if not yet matched
-      const activeCountyObj = counties.find(cObj => cObj.name === matchedCounty);
-      if (activeCountyObj) {
-        if (!matchedCity) {
-          const candidateCity = activeCountyObj.cities.find(ct => 
+        // Fallback: check if any city in our dataset matches
+        for (const cObj of counties) {
+          const cityHit = cObj.cities.find(ct => 
             rawCity.includes(ct.toLowerCase()) || 
             rawFull.includes(ct.toLowerCase())
           );
-          matchedCity = candidateCity || activeCountyObj.cities[0] || "";
+          if (cityHit) {
+            matchedCounty = cObj.name;
+            break;
+          }
         }
+      }
+
+      // 2. Extract resolved town directly, disregarding county-level town restrictions
+      const resolvedTownRaw = 
+        loc.city || 
+        loc.raw?.address?.town || 
+        loc.raw?.address?.city || 
+        loc.raw?.address?.municipality || 
+        loc.raw?.address?.suburb || 
+        loc.street || 
+        "";
+
+      if (resolvedTownRaw && resolvedTownRaw.trim()) {
+        matchedCity = resolvedTownRaw.trim();
+      } else {
+        const activeCountyObj = counties.find(cObj => cObj.name === matchedCounty);
+        matchedCity = activeCountyObj?.cities[0] || "Standard Area";
       }
     } else {
       // Non-Kenya countries
       const countryCities = CITIES_BY_COUNTRY[matchedCountry] || [];
-      const candidateCity = countryCities.find(ct => 
-        rawCity.includes(ct.toLowerCase()) || 
-        rawFull.includes(ct.toLowerCase())
-      );
-      matchedCity = candidateCity || countryCities[0] || "";
+      const resolvedTownRaw = loc.city || loc.street || "";
+      if (resolvedTownRaw && resolvedTownRaw.trim()) {
+        matchedCity = resolvedTownRaw.trim();
+      } else {
+        matchedCity = countryCities[0] || "";
+      }
     }
 
     return {
@@ -261,6 +262,8 @@ export default function Checkout({ user }: CheckoutProps) {
     addressText?: string, 
     locData?: SelectedLocationData
   ) => {
+    let resolvedRegion: { country: string; county: string; city: string } | null = null;
+
     setAddress(prev => {
       const updated = { ...prev, lat, lng };
       if (addressText) {
@@ -268,14 +271,14 @@ export default function Checkout({ user }: CheckoutProps) {
       }
 
       if (locData) {
-        const region = matchRegionFromOSM(locData);
-        updated.country = region.country;
-        updated.county = region.county;
-        updated.city = region.city;
+        resolvedRegion = matchRegionFromOSM(locData);
+        updated.country = resolvedRegion.country;
+        updated.county = resolvedRegion.county;
+        updated.city = resolvedRegion.city; // Overrides initially set delivery town with resolved town
 
-        localStorage.setItem("sokoplus_delivery_country", region.country);
-        if (region.county) localStorage.setItem("sokoplus_delivery_county", region.county);
-        if (region.city) localStorage.setItem("sokoplus_delivery_city", region.city);
+        localStorage.setItem("sokoplus_delivery_country", resolvedRegion.country);
+        if (resolvedRegion.county) localStorage.setItem("sokoplus_delivery_county", resolvedRegion.county);
+        if (resolvedRegion.city) localStorage.setItem("sokoplus_delivery_city", resolvedRegion.city);
       }
 
       return updated;
@@ -289,6 +292,23 @@ export default function Checkout({ user }: CheckoutProps) {
         delete nextErrs.street;
         return nextErrs;
       });
+    }
+
+    if (locData) {
+      const region = matchRegionFromOSM(locData);
+      if (region.county && disabledCounties.includes(region.county)) {
+        setValidationErrors(prev => ({
+          ...prev,
+          county: "County is currently not supported"
+        }));
+        toast.error("County is currently not supported");
+      } else {
+        setValidationErrors(prev => {
+          const nextErrs = { ...prev };
+          delete nextErrs.county;
+          return nextErrs;
+        });
+      }
     }
   };
 
@@ -343,19 +363,15 @@ export default function Checkout({ user }: CheckoutProps) {
 
             // 2. Adjust county if Kenya is selected
             if (nextCountry === "Kenya") {
-              if (!nextCounty || disabledCountiesList.includes(nextCounty)) {
-                const firstEnabledCountyObj = counties.find(c => !disabledCountiesList.includes(c.name));
-                if (firstEnabledCountyObj) {
-                  nextCounty = firstEnabledCountyObj.name;
-                  changed = true;
-                }
+              if (disabledCountiesList.includes(nextCounty)) {
+                setValidationErrors(p => ({ ...p, county: "County is currently not supported" }));
               }
 
-              // 3. Adjust city for Kenya county
-              const matchedCountyObj = counties.find(c => c.name === nextCounty);
-              if (matchedCountyObj) {
-                const firstEnabledCity = matchedCountyObj.cities.find(c => !disabledCitiesList.includes(c));
-                if (!nextCity || disabledCitiesList.includes(nextCity) || !matchedCountyObj.cities.includes(nextCity)) {
+              // 3. Adjust city only if missing or explicitly disabled; disregard county-level town restrictions
+              if (!nextCity || disabledCitiesList.includes(nextCity)) {
+                const matchedCountyObj = counties.find(c => c.name === nextCounty);
+                if (matchedCountyObj) {
+                  const firstEnabledCity = matchedCountyObj.cities.find(c => !disabledCitiesList.includes(c));
                   if (firstEnabledCity) {
                     nextCity = firstEnabledCity;
                     changed = true;
@@ -366,7 +382,7 @@ export default function Checkout({ user }: CheckoutProps) {
               // 4. Adjust city for non-Kenya countries
               const countryCities = CITIES_BY_COUNTRY[nextCountry] || [];
               const firstEnabledCountryCity = countryCities.find(c => !disabledCitiesList.includes(c));
-              if (!nextCity || disabledCitiesList.includes(nextCity) || !countryCities.includes(nextCity)) {
+              if (!nextCity || disabledCitiesList.includes(nextCity)) {
                 if (firstEnabledCountryCity) {
                   nextCity = firstEnabledCountryCity;
                   changed = true;
@@ -732,7 +748,13 @@ export default function Checkout({ user }: CheckoutProps) {
     if (!address.email) {
       errors.email = "An email is required for secure payment receipts.";
     }
+    if (address.country === "Kenya" && disabledCounties.includes(address.county)) {
+      errors.county = "County is currently not supported";
+    }
     setValidationErrors(errors);
+    if (errors.county) {
+      toast.error("County is currently not supported");
+    }
     return Object.keys(errors).length === 0;
   };
 
@@ -1028,10 +1050,18 @@ export default function Checkout({ user }: CheckoutProps) {
             </div>
 
             {/* Auto-detected Shipping Region Badge & Fallback Edit Toggle */}
-            <div className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl space-y-2">
+            <div className={`p-4 bg-gray-50 dark:bg-gray-900 border rounded-2xl space-y-2 transition-colors ${
+              validationErrors.county 
+                ? "border-red-500 bg-red-50/50 dark:bg-red-950/20" 
+                : "border-gray-200 dark:border-gray-800"
+            }`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  {validationErrors.county ? (
+                    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  )}
                   <div className="text-xs font-semibold text-gray-800 dark:text-gray-200">
                     <span className="text-gray-500 dark:text-gray-400 font-normal">Auto-detected Region: </span>
                     <span className="font-bold text-gray-900 dark:text-white">
@@ -1055,6 +1085,13 @@ export default function Checkout({ user }: CheckoutProps) {
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showManualRegionEdit ? "rotate-180" : ""}`} />
                 </button>
               </div>
+
+              {validationErrors.county && (
+                <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400 text-xs font-bold pt-1">
+                  <AlertTriangle size={14} className="shrink-0" />
+                  <span>{validationErrors.county}</span>
+                </div>
+              )}
 
               {/* Fallback Edit Accordion */}
               <AnimatePresence>
