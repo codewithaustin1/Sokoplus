@@ -16,6 +16,7 @@ import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
 import { matchesFuzzyQuery, normalizeSearchQuery } from "../utils/searchFuzzy";
 import DeliveryLocationSearch, { SelectedLocationData } from "./DeliveryLocationSearch";
+import { LocalWeatherWidget } from "./LocalWeatherWidget";
 
 interface NavbarProps {
   user: UserProfile | null;
@@ -458,6 +459,8 @@ export default function Navbar({ user }: NavbarProps) {
               <ChevronDown size={11} className="text-gray-400" />
             </div>
             <span className="text-gray-700">|</span>
+            <LocalWeatherWidget deliveryCity={deliveryCity} deliveryCountry={deliveryCountry} />
+            <span className="text-gray-700">|</span>
             <div className="text-gray-400 hover:text-white transition-colors flex items-center gap-1">
               🚚 Express Delivery
             </div>
@@ -630,6 +633,9 @@ export default function Navbar({ user }: NavbarProps) {
                   <>Sokoplus<span className="text-white">.</span></>
                 )}
               </Link>
+              <div className="md:hidden flex items-center">
+                <LocalWeatherWidget deliveryCity={deliveryCity} deliveryCountry={deliveryCountry} compact />
+              </div>
             </div>
 
             {/* Centered Desktop Search */}
