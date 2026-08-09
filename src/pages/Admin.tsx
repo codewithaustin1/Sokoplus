@@ -319,6 +319,7 @@ import { downloadReceipt } from "../utils/pdfGenerator";
 import SecurityManager from "../components/SecurityManager";
 import AdminReviewsManager from "../components/AdminReviewsManager";
 import { clearAllOfflineCache } from "../utils/offlineDb";
+import { warmCategoryCache, getNetworkSpeedStatus } from "../utils/cacheWarmer";
 import { counties } from "../data/counties";
 import {
   ComposedChart,
@@ -1969,11 +1970,28 @@ export default function Admin({ user }: AdminProps) {
   // Quick Actions States & Handlers
   const [isRefetching, setIsRefetching] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
+  const [isWarmingCache, setIsWarmingCache] = useState(false);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastTitle, setBroadcastTitle] = useState("System Advisory");
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [strictQuotaMode, setStrictQuotaMode] = useState(true);
+
+  const handleWarmCache = async () => {
+    setIsWarmingCache(true);
+    try {
+      const res = await warmCategoryCache(categoryImages, products);
+      if (res.triggered) {
+        toast.success(`⚡ High-Speed Cache Warmer Active! Pre-warming ${res.urlCount} assets for popular categories.`);
+      } else {
+        toast.error(`Cache warming skipped: ${res.reason}`);
+      }
+    } catch (err: any) {
+      toast.error("Error warming category cache: " + err.message);
+    } finally {
+      setIsWarmingCache(false);
+    }
+  };
 
   const handleClearCache = async () => {
     setIsClearingCache(true);
@@ -4749,8 +4767,8 @@ export default function Admin({ user }: AdminProps) {
           </div>
         </div>
 
-        {/* 4 Action Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 5 Action Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           
           {/* Action 1: Cache Clear */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-all flex flex-col justify-between space-y-3">
@@ -4775,7 +4793,30 @@ export default function Admin({ user }: AdminProps) {
             </button>
           </div>
 
-          {/* Action 2: Force Data Re-fetch */}
+          {/* Action 2: Category Cache Warmer */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-all flex flex-col justify-between space-y-3">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-300 uppercase tracking-wider">High Speed Sync</span>
+                <Zap size={16} className="text-amber-400" />
+              </div>
+              <h3 className="font-bold text-sm text-white">Category Cache Warmer</h3>
+              <p className="text-[11px] text-gray-300 leading-snug">
+                Prefetches popular categories & image assets into Service Worker cache when high-speed internet is detected.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleWarmCache}
+              disabled={isWarmingCache}
+              className="w-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Zap size={14} className={isWarmingCache ? "animate-spin" : ""} />
+              <span>{isWarmingCache ? "Warming Cache..." : "Warm Popular Categories"}</span>
+            </button>
+          </div>
+
+          {/* Action 3: Force Data Re-fetch */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-all flex flex-col justify-between space-y-3">
             <div className="space-y-1">
               <div className="flex items-center justify-between">
@@ -4798,7 +4839,7 @@ export default function Admin({ user }: AdminProps) {
             </button>
           </div>
 
-          {/* Action 3: Broadcast System Message */}
+          {/* Action 4: Broadcast System Message */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-all flex flex-col justify-between space-y-3">
             <div className="space-y-1">
               <div className="flex items-center justify-between">
@@ -4820,7 +4861,7 @@ export default function Admin({ user }: AdminProps) {
             </button>
           </div>
 
-          {/* Action 4: Traffic & Quota Telemetry */}
+          {/* Action 5: Traffic & Quota Telemetry */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-all flex flex-col justify-between space-y-3">
             <div className="space-y-1">
               <div className="flex items-center justify-between">

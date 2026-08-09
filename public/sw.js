@@ -1,4 +1,5 @@
-const CACHE_NAME = "sokoplus-pwa-cache-v1";
+const CACHE_NAME = "sokoplus-pwa-cache-v2";
+const CATEGORY_CACHE_NAME = "sokoplus-category-cache-v1";
 const OFFLINE_URL = "/index.html";
 
 // Static assets to match initial shell
@@ -24,7 +25,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
+          if (cache !== CACHE_NAME && cache !== CATEGORY_CACHE_NAME) {
             console.log("[Service Worker] Removing old cache storage:", cache);
             return caches.delete(cache);
           }
@@ -44,73 +45,79 @@ function isFirebaseRequest(url) {
   );
 }
 
+// Helper: Check if domain is allowed for caching (same-origin, Google Fonts, Unsplash / CDNs, or images)
+function isCacheableRequest(request, url) {
+  if (request.method !== "GET" || isFirebaseRequest(request.url)) {
+    return false;
+  }
+  if (url.startsWith(self.location.origin)) return true;
+  if (url.startsWith("https://fonts.googleapis.com") || url.startsWith("https://fonts.gstatic.com")) return true;
+  if (url.includes("images.unsplash.com") || request.destination === "image") return true;
+  return false;
+}
+
 // Intercept requests
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  const url = new URL(request.url);
+  const url = request.url;
 
-  // Avoid intercepting non-GET, chrome extension requests, or raw firestore network streams
-  if (
-    request.method !== "GET" ||
-    isFirebaseRequest(request.url) ||
-    !request.url.startsWith(self.location.origin) && !request.url.startsWith("https://fonts.googleapis.com") && !request.url.startsWith("https://fonts.gstatic.com")
-  ) {
+  if (!isCacheableRequest(request, url)) {
     return;
   }
 
-  // Handle asset-first, network-fallbacks vs network-first depending on content
+  // Cache-first with network background revalidation strategy for images and category assets
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Return cached hit, but fetch fresh content in background for static components
-        if (url.pathname.endsWith(".css") || url.pathname.endsWith(".js") || url.pathname.includes("/assets/")) {
-          fetch(request)
-            .then((networkResponse) => {
-              if (networkResponse.status === 200) {
-                caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
-              }
-            })
-            .catch(() => {/* Ignore background error offline */});
-          return cachedResponse;
-        }
+        // Background revalidation for CSS, JS, assets, and images
+        fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && (networkResponse.status === 200 || networkResponse.type === "opaque")) {
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
+            }
+          })
+          .catch(() => {/* Offline fallback, preserve cached response */});
+        return cachedResponse;
       }
 
-      // If not cached, or is index/documents, attempt network API fetch with offline fallback
-      return fetch(request)
-        .then((networkResponse) => {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== "basic") {
-            return networkResponse;
-          }
+      // Check category pre-warmed cache storage if not found in primary cache
+      return caches.open(CATEGORY_CACHE_NAME).then((categoryCache) => {
+        return categoryCache.match(request).then((catCached) => {
+          if (catCached) return catCached;
 
-          // Caching clones of newly accessed assets
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
+          // Network request with cache store on success
+          return fetch(request)
+            .then((networkResponse) => {
+              if (!networkResponse || (networkResponse.status !== 200 && networkResponse.type !== "opaque")) {
+                return networkResponse;
+              }
 
-          return networkResponse;
-        })
-        .catch(() => {
-          // If offline and request fails, fall back to cached version
-          if (cachedResponse) {
-            return cachedResponse;
-          }
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, responseToCache);
+              });
 
-          // If navigation document failed, return index.html shell
-          if (request.mode === "navigate") {
-            return caches.match(OFFLINE_URL);
-          }
+              return networkResponse;
+            })
+            .catch(() => {
+              if (cachedResponse) return cachedResponse;
+              if (request.mode === "navigate") {
+                return caches.match(OFFLINE_URL);
+              }
+            });
         });
+      });
     })
   );
 });
 
-// Listener for receiving explicit local triggers from the React front-end application
+// Listener for messages from the React client (Notifications & Cache Warmer)
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SHOW_NOTIFICATION") {
+  if (!event.data) return;
+
+  // 1. Local OS Notification trigger
+  if (event.data.type === "SHOW_NOTIFICATION") {
     const { title, options } = event.data;
-    
-    // Ensure that self.registration is accessible and Notification permission exists
     if (self.registration) {
       event.waitUntil(
         self.registration.showNotification(title, {
@@ -122,26 +129,51 @@ self.addEventListener("message", (event) => {
       );
     }
   }
-});
 
-// Listener for when a user clicks the SokoPlus local OS/browser notification
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  const deepLinkPath = event.notification.data?.url || "/profile";
-  
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        const clientUrl = new URL(client.url);
-        if (clientUrl.origin === self.location.origin && "focus" in client) {
-          client.navigate(deepLinkPath);
-          return client.focus();
-        }
-      }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(deepLinkPath);
-      }
-    })
-  );
-});
+  // 2. High-Speed Internet Category Cache Warmer
+  if (event.data.type === "WARM_CATEGORY_CACHE") {
+    const { urls, categories, networkSpeed } = event.data;
+    console.log(`[Service Worker Cache Warmer] Received cache warming command for ${categories?.length || 0} popular categories on ${networkSpeed || 'high-speed'} connection.`);
 
+    if (Array.isArray(urls) && urls.length > 0) {
+      event.waitUntil(
+        caches.open(CATEGORY_CACHE_NAME).then((categoryCache) => {
+          return Promise.allSettled(
+            urls.map((targetUrl) => {
+              const fetchOptions = targetUrl.startsWith(self.location.origin) 
+                ? { cache: "reload" } 
+                : { mode: "no-cors" };
+
+              return fetch(targetUrl, fetchOptions)
+                .then((res) => {
+                  if (res && (res.status === 200 || res.type === "opaque")) {
+                    return categoryCache.put(targetUrl, res);
+                  }
+                })
+                .catch((err) => {
+                  console.warn("[Cache Warmer] Could not prefetch asset:", targetUrl, err);
+                });
+            })
+          ).then((results) => {
+            const successCount = results.filter((r) => r.status === "fulfilled").length;
+            console.log(`[Service Worker Cache Warmer] Successfully pre-warmed ${successCount}/${urls.length} category assets into persistent cache!`);
+
+            // Notify all open client tabs of completed cache warming
+            return self.clients.matchAll({ type: "window" }).then((clients) => {
+              clients.forEach((client) => {
+                client.postMessage({
+                  type: "CACHE_WARM_COMPLETE",
+                  categories,
+                  prefetchedCount: successCount,
+                  totalUrls: urls.length,
+                  timestamp: Date.now(),
+                  networkSpeed
+                });
+              });
+            });
+          });
+        })
+      );
+    }
+  }
+});

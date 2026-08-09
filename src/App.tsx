@@ -51,6 +51,7 @@ import CookieConsentBanner from "./components/CookieConsentBanner";
 import { OfflineNotifier } from "./components/OfflineNotifier";
 import { OfflineSyncQueueBanner } from "./components/OfflineSyncQueueBanner";
 import { NotificationManager } from "./components/NotificationManager";
+import { CacheWarmerNotifier } from "./components/CacheWarmerNotifier";
 import { motion, AnimatePresence } from "motion/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { claimGuestOrdersForUser } from "./utils/guestSession";
@@ -875,6 +876,7 @@ export default function App() {
               <ProductCompareDrawer />
               <OfflineNotifier />
               <NotificationManager user={user} />
+              <CacheWarmerNotifier />
               <Toaster position="bottom-right" />
               </div>
             </Router>
