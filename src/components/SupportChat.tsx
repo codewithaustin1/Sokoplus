@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { UserProfile, SupportTicket } from "../types";
 import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp, getDocs, query, limit, onSnapshot, where, updateDoc, doc } from "firebase/firestore";
-import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity, ArrowLeft, Clock, CheckCircle2, Check, CheckCheck, MapPin, ExternalLink } from "lucide-react";
+import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity, ArrowLeft, Clock, CheckCircle2, Check, CheckCheck, MapPin, ExternalLink, Globe } from "lucide-react";
 import toast from "react-hot-toast";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
@@ -18,6 +18,7 @@ interface Message {
   sender: "user" | "bot";
   text: string;
   mapsLinks?: any[];
+  searchSources?: any[];
 }
 
 const DEFAULT_AI_PRODUCTS_FALLBACK = [
@@ -280,6 +281,7 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
       const decoder = new TextDecoder("utf-8");
       let accumulatedText = "";
       let mapsLinks: any[] = [];
+      let searchSources: any[] = [];
       let buffer = "";
 
       while (true) {
@@ -308,9 +310,14 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
             }
             if (data.mapsLinks && Array.isArray(data.mapsLinks)) {
               mapsLinks = data.mapsLinks;
+            }
+            if (data.searchSources && Array.isArray(data.searchSources)) {
+              searchSources = data.searchSources;
+            }
+            if (data.mapsLinks || data.searchSources) {
               setAiMessages((prev) =>
                 prev.map((msg) =>
-                  msg.id === botMsgId ? { ...msg, mapsLinks } : msg
+                  msg.id === botMsgId ? { ...msg, mapsLinks, searchSources } : msg
                 )
               );
             }
@@ -330,9 +337,12 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
           if (data.mapsLinks) {
             mapsLinks = data.mapsLinks;
           }
+          if (data.searchSources) {
+            searchSources = data.searchSources;
+          }
           setAiMessages((prev) =>
             prev.map((msg) =>
-              msg.id === botMsgId ? { ...msg, text: accumulatedText, mapsLinks } : msg
+              msg.id === botMsgId ? { ...msg, text: accumulatedText, mapsLinks, searchSources } : msg
             )
           );
         } catch (_) {}
@@ -601,6 +611,29 @@ Please check out our featured products catalog on the home page, or connect with
                                 Get Directions &rarr;
                               </span>
                             </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {msg.sender !== "user" && msg.searchSources && msg.searchSources.length > 0 && (
+                    <div className="mt-2.5 w-full space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <p className="text-[9px] font-black text-blue-600 dark:text-blue-400 flex items-center gap-1 uppercase tracking-wider ml-1">
+                        <Globe size={9} /> Grounded Web Sources
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 w-full">
+                        {msg.searchSources.map((src: any, idx: number) => (
+                          <a
+                            key={idx}
+                            href={src.uri}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50/70 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200/60 dark:border-blue-800/50 rounded-xl text-[11px] font-semibold text-blue-800 dark:text-blue-300 transition-all no-underline"
+                          >
+                            <Globe size={10} className="shrink-0 text-blue-500" />
+                            <span className="truncate max-w-[200px]">{src.title || "Web Citation"}</span>
+                            <ExternalLink size={9} className="shrink-0 opacity-70" />
                           </a>
                         ))}
                       </div>

@@ -9,6 +9,7 @@ interface FastImageProps {
   className?: string;
   fallbackIconSize?: number;
   priority?: boolean; // Set to true for hero banners or critical above-the-fold images
+  aspectRatio?: string; // Optional custom aspect ratio class, e.g. "aspect-square" or "aspect-video"
 }
 
 // Built-in base64 SVG premium skeleton sequence to prevent layout shifts
@@ -20,6 +21,7 @@ export function FastImage({
   className = "w-full h-full object-cover",
   fallbackIconSize = 40,
   priority = false,
+  aspectRatio = "aspect-square",
 }: FastImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -74,9 +76,13 @@ export function FastImage({
     };
   }, [cleanSrc, isLoaded, priority]);
 
+  // Helper to determine if className already specifies custom aspect
+  const hasCustomAspect = className.includes("aspect-") || className.includes("h-");
+  const aspectClass = hasCustomAspect ? "" : aspectRatio;
+
   if (!cleanSrc) {
     return (
-      <div className="w-full h-full bg-gray-50 flex items-center justify-center text-gray-300">
+      <div className={`w-full h-full ${aspectClass} bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 rounded-inherit overflow-hidden`}>
         <ShoppingBag size={fallbackIconSize} />
       </div>
     );
@@ -85,7 +91,7 @@ export function FastImage({
   return (
     <div 
       ref={containerRef} 
-      className="relative w-full h-full overflow-hidden select-none"
+      className={`relative w-full h-full ${aspectClass} bg-gray-100 dark:bg-gray-800 overflow-hidden select-none shrink-0`}
       style={{
         backgroundImage: `url("${PLACEHOLDER_SVG}")`,
         backgroundSize: "cover"
@@ -108,7 +114,7 @@ export function FastImage({
 
       {/* Immediate blur state or error state if fails to load */}
       {hasError && (
-        <div className="absolute inset-0 bg-gray-50 flex items-center justify-center text-gray-300 z-10">
+        <div className="absolute inset-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 z-10">
           <ShoppingBag size={fallbackIconSize} />
         </div>
       )}

@@ -126,7 +126,7 @@ const ApplePayLogo = () => (
 
 export default function Footer() {
   const [email, setEmail] = useState("");
-  const { settings } = useSettings();
+  const { settings, loading: settingsLoading } = useSettings();
   const googleMapsLink = settings.googleMapsLink;
   const googleMapsLinks = settings.googleMapsLinks;
   const [showLocationsModal, setShowLocationsModal] = useState(false);
@@ -148,6 +148,8 @@ export default function Footer() {
             <div className="space-y-4">
               {settings.brandLogoUrl ? (
                 <img src={settings.brandLogoUrl} alt="SokoPlus" className="h-10 w-auto object-contain animate-fade-in" referrerPolicy="no-referrer" />
+              ) : settingsLoading ? (
+                <div className="h-10 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
               ) : (
                 <h2 className="text-2xl font-black tracking-tighter text-gray-900 dark:text-white uppercase animate-fade-in">
                   Soko<span className="text-orange-600">plus.</span>

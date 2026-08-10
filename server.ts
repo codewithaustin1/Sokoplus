@@ -1880,23 +1880,16 @@ ${JSON.stringify(productsData)}
 
     const ai = getGenAI();
     const responseStream = await ai.models.generateContentStream({
-      model: "gemini-3.6-flash",
+      model: "gemini-3.5-flash",
       contents: contents,
       config: {
         systemInstruction,
-        tools: [{ googleMaps: {} }],
-        toolConfig: (req.body.latitude && req.body.longitude) ? {
-          retrievalConfig: {
-            latLng: {
-              latitude: req.body.latitude,
-              longitude: req.body.longitude,
-            }
-          }
-        } : undefined
+        tools: [{ googleSearch: {} }],
       },
     });
 
     const mapsLinks: any[] = [];
+    const searchSources: any[] = [];
 
     for await (const chunk of responseStream) {
       const textChunk = chunk.text;
@@ -1906,23 +1899,25 @@ ${JSON.stringify(productsData)}
 
       const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
       groundingChunks.forEach((gChunk: any) => {
+        if (gChunk.web && gChunk.web.uri) {
+          if (!searchSources.some((s) => s.uri === gChunk.web.uri)) {
+            searchSources.push({
+              title: gChunk.web.title || "Web Source",
+              uri: gChunk.web.uri,
+            });
+          }
+        }
         if (gChunk.maps) {
           mapsLinks.push({
             title: gChunk.maps.title,
             uri: gChunk.maps.uri,
             address: gChunk.maps.address || ""
           });
-        } else if (gChunk.web && gChunk.web.uri && gChunk.web.uri.includes("google.com/maps")) {
-          mapsLinks.push({
-            title: gChunk.web.title,
-            uri: gChunk.web.uri,
-            address: ""
-          });
         }
       });
     }
 
-    res.write(`data: ${JSON.stringify({ done: true, mapsLinks })}\n\n`);
+    res.write(`data: ${JSON.stringify({ done: true, mapsLinks, searchSources })}\n\n`);
     res.end();
   } catch (error: any) {
     const errStr = (error.message || "") + " " + JSON.stringify(error) + " " + String(error);
@@ -1960,6 +1955,43 @@ ${JSON.stringify(productsData)}
     res.write(`data: ${JSON.stringify({ chunk: fallbackText })}\n\n`);
     res.write(`data: ${JSON.stringify({ done: true, mapsLinks: [] })}\n\n`);
     res.end();
+  }
+});
+
+// Google Search Grounded Market Insights API
+app.post("/api/market-insights", async (req, res) => {
+  const { query } = req.body || {};
+  if (!query || typeof query !== "string") {
+    return res.status(400).json({ error: "Search query parameter is required" });
+  }
+
+  try {
+    const ai = getGenAI();
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: `You are an expert market analyst for Sokoplus e-commerce. Provide an up-to-date, grounded analysis for this market or product query in Kenya: "${query}". Focus on current market prices, authentic material origins, shipping considerations, and live consumer trends. Format with concise markdown bullet points.`,
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    const text = response.text || "";
+    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const searchSources = groundingChunks
+      .filter((c: any) => c.web && c.web.uri)
+      .map((c: any) => ({
+        title: c.web.title || "Web Citation",
+        uri: c.web.uri,
+      }));
+
+    return res.json({
+      success: true,
+      insight: text,
+      sources: searchSources,
+    });
+  } catch (error: any) {
+    console.error("Market Insights Error:", error);
+    return res.status(500).json({ error: error.message || "Failed to generate search-grounded market insights" });
   }
 });
 

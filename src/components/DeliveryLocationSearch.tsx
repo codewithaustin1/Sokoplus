@@ -270,8 +270,12 @@ export default function DeliveryLocationSearch({
           type="text"
           value={query}
           onChange={handleInputChange}
-          onFocus={() => {
+          onFocus={(e) => {
             if (suggestions.length > 0) setIsOpen(true);
+            const target = e.target;
+            setTimeout(() => {
+              target.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 150);
           }}
           placeholder={placeholder}
           className={`w-full pl-10 pr-9 py-2.5 text-xs font-semibold rounded-xl transition-all focus:outline-none ${

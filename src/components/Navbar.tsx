@@ -47,7 +47,7 @@ export default function Navbar({ user }: NavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { items } = useCart();
-  const { settings } = useSettings();
+  const { settings, loading: settingsLoading } = useSettings();
   const { language, setLanguage, t } = useLanguage();
   const { currency, setCurrency, exchangeRate, formatPrice } = useCurrency();
   const { theme, setTheme } = useTheme();
@@ -633,6 +633,8 @@ export default function Navbar({ user }: NavbarProps) {
               <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="text-xl sm:text-2xl font-bold tracking-tighter text-orange-600 select-none cursor-pointer hover:opacity-90 flex items-center">
                 {settings.brandLogoUrl ? (
                   <img src={settings.brandLogoUrl} alt="Sokoplus" className={`${isNavCompact ? "h-7" : "h-8 md:h-10"} w-auto object-contain transition-all`} referrerPolicy="no-referrer" />
+                ) : settingsLoading ? (
+                  <div className={`${isNavCompact ? "h-7" : "h-8 md:h-10"} w-28 bg-gray-800/30 dark:bg-gray-800/50 rounded animate-pulse`} />
                 ) : (
                   <>Sokoplus<span className="text-white">.</span></>
                 )}

@@ -409,6 +409,12 @@ export default function Login() {
                         placeholder="name@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        onFocus={(e) => {
+                          const target = e.target;
+                          setTimeout(() => {
+                            target.scrollIntoView({ behavior: "smooth", block: "center" });
+                          }, 150);
+                        }}
                         className="w-full bg-white dark:bg-gray-950 text-gray-950 dark:text-white border border-gray-200 dark:border-gray-800 focus:border-orange-500 dark:focus:border-orange-500 rounded-xl py-3.5 pl-12 pr-4 text-sm transition-all outline-none"
                         required
                       />
@@ -440,6 +446,12 @@ export default function Login() {
                         placeholder=""
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        onFocus={(e) => {
+                          const target = e.target;
+                          setTimeout(() => {
+                            target.scrollIntoView({ behavior: "smooth", block: "center" });
+                          }, 150);
+                        }}
                         className="w-full bg-white dark:bg-gray-950 text-gray-950 dark:text-white border border-gray-200 dark:border-gray-800 focus:border-orange-500 dark:focus:border-orange-500 rounded-xl py-3.5 pl-12 pr-12 text-sm transition-all outline-none"
                         required
                       />

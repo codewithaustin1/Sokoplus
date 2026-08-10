@@ -85,6 +85,37 @@ export default function Checkout({ user }: CheckoutProps) {
   const [isPaymentDropdownOpen, setIsPaymentDropdownOpen] = useState(false);
   const [showMobilSummaryDrawer, setShowMobilSummaryDrawer] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+  // Monitor visualViewport height change to anchor primary payment button to the top of virtual keyboard layout
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.visualViewport) {
+      const handleVisualViewportChange = () => {
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
+        if (keyboardHeight > 80) {
+          setKeyboardOffset(Math.max(0, keyboardHeight));
+        } else {
+          setKeyboardOffset(0);
+        }
+      };
+
+      window.visualViewport.addEventListener("resize", handleVisualViewportChange);
+      window.visualViewport.addEventListener("scroll", handleVisualViewportChange);
+      return () => {
+        window.visualViewport?.removeEventListener("resize", handleVisualViewportChange);
+        window.visualViewport?.removeEventListener("scroll", handleVisualViewportChange);
+      };
+    }
+  }, []);
+
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const target = e.target;
+    setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+  };
 
   const mobilePaymentScrollerRef = React.useRef<HTMLDivElement>(null);
 
@@ -1212,6 +1243,7 @@ export default function Checkout({ user }: CheckoutProps) {
                 type="text" 
                 value={address.landmarkNotes || ""}
                 onChange={(e) => setAddress({...address, landmarkNotes: e.target.value})}
+                onFocus={handleInputFocus}
                 placeholder="e.g. 200m past Total Energies Petrol Station, blue gate opposite Green Mosque" 
                 className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border border-gray-150 dark:border-gray-800 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all text-xs"
               />
@@ -1231,6 +1263,7 @@ export default function Checkout({ user }: CheckoutProps) {
                     required
                     type="tel" 
                     value={address.phone}
+                    onFocus={handleInputFocus}
                     onChange={(e) => {
                       let val = e.target.value;
                       // Keep only digits
@@ -1273,6 +1306,7 @@ export default function Checkout({ user }: CheckoutProps) {
                   required
                   type="email" 
                   value={address.email}
+                  onFocus={handleInputFocus}
                   onChange={(e) => {
                     setAddress({...address, email: e.target.value});
                     if (e.target.value.trim()) {
@@ -2289,6 +2323,7 @@ export default function Checkout({ user }: CheckoutProps) {
                           type="text"
                           maxLength={19}
                           value={cardNumber}
+                          onFocus={handleInputFocus}
                           onChange={(e) => {
                             const val = e.target.value.replace(/\D/g, "");
                             setCardNumber(val);
@@ -2303,6 +2338,7 @@ export default function Checkout({ user }: CheckoutProps) {
                         <input
                           type="text"
                           value={cardName}
+                          onFocus={handleInputFocus}
                           onChange={(e) => setCardName(e.target.value)}
                           placeholder="e.g. Jane A. Doe"
                           className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-500 uppercase"
@@ -2315,6 +2351,7 @@ export default function Checkout({ user }: CheckoutProps) {
                           type="text"
                           maxLength={5}
                           value={cardExpiry}
+                          onFocus={handleInputFocus}
                           onChange={(e) => {
                             let val = e.target.value.replace(/\D/g, "");
                             if (val.length > 2) {
@@ -2337,7 +2374,10 @@ export default function Checkout({ user }: CheckoutProps) {
                             const val = e.target.value.replace(/\D/g, "");
                             setCardCvv(val);
                           }}
-                          onFocus={() => setCardFocused(true)}
+                          onFocus={(e) => {
+                            setCardFocused(true);
+                            handleInputFocus(e);
+                          }}
                           onBlur={() => setCardFocused(false)}
                           placeholder="123"
                           className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-xs font-bold outline-none focus:ring-1 focus:ring-orange-500"
@@ -2541,8 +2581,11 @@ export default function Checkout({ user }: CheckoutProps) {
 
       </div>
 
-           {/* MOBILE STICKY BOTTOM CHECKOUT SUMMARY DISPLAY BAR (Exclusive to small/medium views) */}
-      <div className="fixed sm:static lg:hidden inset-x-0 bottom-0 z-40 bg-white dark:bg-gray-950 shadow-[-5px_-10px_35px_rgba(0,0,0,0.08)] dark:shadow-none border-t border-gray-100 dark:border-gray-800 p-4 md:p-6 pb-6 flex items-center justify-between gap-4 font-sans max-w-full">
+      {/* MOBILE STICKY BOTTOM CHECKOUT SUMMARY DISPLAY BAR (Exclusive to small/medium views) */}
+      <div 
+        style={{ bottom: `${keyboardOffset}px` }}
+        className="fixed sm:static lg:hidden inset-x-0 z-40 bg-white dark:bg-gray-950 shadow-[-5px_-10px_35px_rgba(0,0,0,0.08)] dark:shadow-none border-t border-gray-100 dark:border-gray-800 p-4 md:p-6 pb-6 flex items-center justify-between gap-4 font-sans max-w-full transition-[bottom] duration-150 ease-out"
+      >
         <div className="min-w-0 pr-2">
           <div className="flex items-center gap-1 pb-1.5" onClick={() => setShowMobilSummaryDrawer(!showMobilSummaryDrawer)}>
             <span className="text-[9px] text-gray-400 dark:text-gray-500 font-extrabold uppercase tracking-widest">Grand Total</span>

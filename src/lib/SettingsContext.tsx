@@ -37,12 +37,17 @@ export interface HomepageSettings {
   featuredCollections?: { title: string; imageUrl: string; category: string }[];
   socialLinks?: SocialLinks;
   categoryImages?: Record<string, string>;
+  disabledCounties?: string[];
+  disabledCities?: string[];
+  disabledCountries?: string[];
 }
 
 interface SettingsContextType {
   settings: HomepageSettings;
   loading: boolean;
 }
+
+const SETTINGS_CACHE_KEY = "sokoplus_homepage_settings_cache_v1";
 
 const defaultSettings: HomepageSettings = {
   sellerStudioEnabled: true,
@@ -60,6 +65,10 @@ const defaultSettings: HomepageSettings = {
   gaMeasurementId: "",
   freeShippingThreshold: 15000,
   featuredCollections: [],
+  categoryImages: {},
+  disabledCounties: [],
+  disabledCities: [],
+  disabledCountries: [],
   socialLinks: {
     facebook: "",
     instagram: "",
@@ -78,10 +87,31 @@ const defaultSettings: HomepageSettings = {
   },
 };
 
+function loadCachedSettings(): HomepageSettings {
+  if (typeof window === "undefined") return defaultSettings;
+  try {
+    const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...defaultSettings,
+        ...parsed,
+        socialLinks: {
+          ...defaultSettings.socialLinks,
+          ...(parsed.socialLinks || {}),
+        },
+      };
+    }
+  } catch (e) {
+    console.warn("Failed to read settings from localStorage cache:", e);
+  }
+  return defaultSettings;
+}
+
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<HomepageSettings>(defaultSettings);
+  const [settings, setSettings] = useState<HomepageSettings>(() => loadCachedSettings());
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -112,7 +142,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        setSettings({
+        const newSettings: HomepageSettings = {
           sellerStudioEnabled: data.sellerStudioEnabled !== undefined ? data.sellerStudioEnabled : true,
           showAudioBubble: data.showAudioBubble !== undefined ? data.showAudioBubble : true,
           promotionalBannersEnabled: data.promotionalBannersEnabled !== undefined ? data.promotionalBannersEnabled : true,
@@ -129,6 +159,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           freeShippingThreshold: data.freeShippingThreshold !== undefined ? Number(data.freeShippingThreshold) : 15000,
           featuredCollections: data.featuredCollections || [],
           categoryImages: data.categoryImages || {},
+          disabledCounties: data.disabledCounties || [],
+          disabledCities: data.disabledCities || [],
+          disabledCountries: data.disabledCountries || [],
           socialLinks: data.socialLinks ? {
             facebook: data.socialLinks.facebook || "",
             instagram: data.socialLinks.instagram || "",
@@ -145,7 +178,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             whatsappVisible: data.socialLinks.whatsappVisible !== undefined ? data.socialLinks.whatsappVisible : true,
             youtubeVisible: data.socialLinks.youtubeVisible !== undefined ? data.socialLinks.youtubeVisible : true,
           } : defaultSettings.socialLinks,
-        });
+        };
+
+        setSettings(newSettings);
+        try {
+          localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(newSettings));
+        } catch (e) {
+          console.warn("Failed to write homepage settings to localStorage cache:", e);
+        }
       } else {
         setSettings(defaultSettings);
       }
