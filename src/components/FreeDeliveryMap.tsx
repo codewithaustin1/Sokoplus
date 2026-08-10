@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { MapPin, Navigation, Compass, Search, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "react-hot-toast";
 import DeliveryLocationSearch, { SelectedLocationData } from "./DeliveryLocationSearch";
+import { formatCleanLocationDisplay } from "../utils/delivery";
 
 // Inline pin SVG to avoid broken default asset URLs in bundlers
 const PIN_SVG = `
@@ -240,10 +241,7 @@ export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng,
           const cityTown = addr.city || addr.town || addr.municipality || "";
           const countyRegion = addr.county || "";
           
-          let cleanAddress = data.display_name;
-          if (localPlace) {
-            cleanAddress = `${localPlace}${cityTown ? `, ${cityTown}` : ""}`;
-          }
+          let cleanAddress = formatCleanLocationDisplay(data.display_name) || (localPlace ? `${localPlace}${cityTown ? `, ${cityTown}` : ""}` : data.display_name);
 
           const parsedLocation: SelectedLocationData = {
             displayName: data.display_name,
@@ -257,7 +255,7 @@ export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng,
             raw: data,
           };
 
-          setResolvedAddress(data.display_name);
+          setResolvedAddress(cleanAddress);
           setSearchInputValue(cleanAddress);
           onChange(selectedCoords.lat, selectedCoords.lng, cleanAddress, parsedLocation);
         } else {

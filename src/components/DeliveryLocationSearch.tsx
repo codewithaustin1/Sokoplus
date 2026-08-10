@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Search, MapPin, Loader2, X, Navigation } from "lucide-react";
 import axios from "axios";
+import { formatCleanLocationDisplay } from "../utils/delivery";
 
 export interface OpenMapLocation {
   place_id?: number | string;
@@ -153,7 +154,7 @@ export default function DeliveryLocationSearch({
               const localPlace = addr.suburb || addr.neighbourhood || addr.village || addr.quarter || addr.commercial || addr.road || "";
               const cityTown = addr.city || addr.town || addr.municipality || "Nairobi";
               const countyRegion = addr.county || "Nairobi";
-              const cleanAddress = localPlace ? `${localPlace}, ${cityTown}` : data.display_name.split(",").slice(0, 2).join(",");
+              const cleanAddress = formatCleanLocationDisplay(data.display_name) || (localPlace ? `${localPlace}, ${cityTown}` : data.display_name.split(",").slice(0, 2).join(","));
 
               setQuery(cleanAddress);
               onSelectLocation({
@@ -230,10 +231,10 @@ export default function DeliveryLocationSearch({
       addr.commercial ||
       item.display_name.split(",")[0];
 
-    // Build concise short address
-    const shortAddress = street
+    // Build concise short address via decoupled display formatter
+    const shortAddress = formatCleanLocationDisplay(item.display_name) || (street
       ? `${street}${city && city !== street ? `, ${city}` : ""}`
-      : item.display_name.split(",").slice(0, 2).join(",");
+      : item.display_name.split(",").slice(0, 2).join(","));
 
     setQuery(shortAddress);
     setIsOpen(false);
@@ -316,12 +317,13 @@ export default function DeliveryLocationSearch({
 
           {suggestions.map((item, idx) => {
             const primaryName =
-              item.name || item.display_name.split(",")[0] || "Location";
-            const secondaryAddress = item.display_name
+              item.name || item.address?.suburb || item.display_name.split(",")[0] || "Location";
+            const secondaryRaw = item.display_name
               .split(",")
               .slice(1)
               .join(",")
               .trim();
+            const secondaryAddress = formatCleanLocationDisplay(secondaryRaw);
 
             return (
               <button

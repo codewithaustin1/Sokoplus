@@ -233,3 +233,37 @@ export function getCutoffCountdown(cutoffHour: number, baseDate: Date = new Date
       .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`,
   };
 }
+
+/**
+ * Decouples location display from backend payload.
+ * Strips redundant governmental and administrative extensions for modern, concise UI presentation
+ * while preserving 100% of the raw backend state payload (coordinates, zone keys, address details).
+ */
+export function formatCleanLocationDisplay(rawDisplayName: string): string {
+  if (!rawDisplayName || typeof rawDisplayName !== "string") return "";
+
+  const parts = rawDisplayName.split(",").map((p) => p.trim());
+  const cleanedParts: string[] = [];
+
+  for (const part of parts) {
+    if (!part) continue;
+
+    // Filter out postcodes (e.g. 00100, 00200) or pure numeric codes
+    if (/^\d{4,6}$/.test(part)) continue;
+
+    // Strip administrative labels
+    let cleaned = part
+      .replace(/\s+(Sub-County|Sub County|Constituency|Ward|Division|District|Province|County|City County|Municipality|Municipal Council)\b/gi, "")
+      .replace(/\b(Sub-County|Sub County|Constituency|Ward|Division|District|Province|County|City County)\s+/gi, "")
+      .trim();
+
+    // Prevent duplicate consecutive labels (e.g., "Nairobi, Nairobi")
+    if (cleaned && !cleanedParts.some((existing) => existing.toLowerCase() === cleaned.toLowerCase())) {
+      cleanedParts.push(cleaned);
+    }
+  }
+
+  // Return concise 2 to 3 part location summary (e.g., "Kilimani, Nairobi, Kenya")
+  return cleanedParts.slice(0, 3).join(", ");
+}
+
