@@ -318,6 +318,7 @@ export default function Navbar({ user }: NavbarProps) {
         const q = query(collection(db, "products"), limit(40));
         
         // 1. Instant local-first retrieval using Firestore local cache
+        let loadedFromCache = false;
         try {
           const cacheSnapshot = await getDocsFromCache(q);
           if (!cacheSnapshot.empty) {
@@ -327,13 +328,16 @@ export default function Navbar({ user }: NavbarProps) {
             if (cachedList.length > 0) {
               setAllProducts(cachedList);
               cachedList.forEach(p => productCache.set(p.id, p));
+              loadedFromCache = true;
             }
           }
         } catch {
           // Cache miss on cold boot - fallback to network fetch
         }
 
-        // 2. Fetch/sync fresh network snapshot to keep cache updated
+        if (loadedFromCache) return;
+
+        // 2. Fetch network snapshot only if cache was empty
         const snapshot = await getDocs(q);
         const fetched = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Product))
@@ -746,7 +750,6 @@ export default function Navbar({ user }: NavbarProps) {
                                 </div>
                                 <div className="flex-grow min-w-0">
                                   <p className="text-xs font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-amber-500 transition-colors">{p.name}</p>
-                                  <p className="text-[9px] text-gray-450 font-bold uppercase tracking-wide">{p.category}</p>
                                 </div>
                                 <div className="text-xs font-extrabold text-gray-950 dark:text-gray-50 whitespace-nowrap tabular-nums">
                                   {formatPrice(p.price)}
@@ -1073,7 +1076,6 @@ export default function Navbar({ user }: NavbarProps) {
                       </div>
                       <div className="flex-grow min-w-0">
                         <p className="text-xs font-bold text-gray-950 dark:text-gray-100 truncate">{p.name}</p>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{p.category}</p>
                       </div>
                       <div className="text-xs font-black text-gray-900 dark:text-gray-100 whitespace-nowrap tabular-nums">
                         {formatPrice(p.price)}
@@ -1228,7 +1230,6 @@ export default function Navbar({ user }: NavbarProps) {
                             </div>
                             <div className="flex-grow min-w-0">
                               <p className="text-xs font-bold text-gray-950 dark:text-gray-100 truncate">{p.name}</p>
-                              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{p.category}</p>
                             </div>
                             <div className="text-xs font-black text-gray-900 dark:text-gray-100 whitespace-nowrap tabular-nums">
                               {formatPrice(p.price)}

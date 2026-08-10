@@ -50,7 +50,7 @@ export const CareersTab: React.FC<CareersTabProps> = memo(({
   setShowJobAddModal,
 }) => {
   return (
-    <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-8 animate-fade-in text-gray-950 font-sans">
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6 sm:space-y-8 animate-fade-in text-gray-950 font-sans">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-50 pb-6">
         <div>
           <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">

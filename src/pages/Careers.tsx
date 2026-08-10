@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLanguage } from "../lib/LanguageContext";
 import { db, auth } from "../lib/firebase";
-import { collection, getDocs, addDoc, query, where, orderBy, limit } from "firebase/firestore";
+import { collection, getDocs, getDocsFromCache, addDoc, query, where, orderBy, limit } from "firebase/firestore";
 import { JobOffer, JobApplication, UserProfile } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -199,7 +199,17 @@ export default function Careers({ user }: CareersProps) {
     setLoading(true);
     try {
       const q = query(collection(db, "job_offers"), orderBy("createdAt", "desc"), limit(30));
-      const snap = await getDocs(q);
+      let snap;
+      try {
+        const cacheSnap = await getDocsFromCache(q);
+        if (!cacheSnap.empty) {
+          snap = cacheSnap;
+        } else {
+          snap = await getDocs(q);
+        }
+      } catch {
+        snap = await getDocs(q);
+      }
       const dbJobs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as JobOffer));
 
       if (dbJobs.length === 0) {

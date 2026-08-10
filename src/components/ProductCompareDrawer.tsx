@@ -214,9 +214,6 @@ export const ProductCompareDrawer: React.FC = () => {
                           </div>
 
                           <div className="space-y-1">
-                            <span className="text-[10px] font-black uppercase text-orange-600 tracking-wider bg-orange-50 px-2 py-0.5 rounded-md">
-                              {product.category}
-                            </span>
                             <h4 className="text-sm md:text-base font-black text-gray-900 line-clamp-1 mt-1">
                               {product.name}
                             </h4>

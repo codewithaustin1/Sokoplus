@@ -319,9 +319,9 @@ export const AdminDataErasureManager: React.FC = () => {
       log("Processing associated Order records...");
       let oSnap;
       if (targetUid) {
-        oSnap = await getDocs(query(collection(db, "orders"), where("userId", "==", targetUid), limit(100)));
+        oSnap = await getDocs(query(collection(db, "orders"), where("userId", "==", targetUid), limit(50)));
       } else {
-        oSnap = await getDocs(query(collection(db, "orders"), where("userEmail", "==", targetEmail), limit(100)));
+        oSnap = await getDocs(query(collection(db, "orders"), where("userEmail", "==", targetEmail), limit(50)));
       }
 
       for (const orderDoc of oSnap.docs) {
@@ -349,7 +349,7 @@ export const AdminDataErasureManager: React.FC = () => {
 
       // Step 4: Support Tickets
       log("Processing Support Tickets...");
-      const tSnap = await getDocs(query(collection(db, "support_tickets"), where("email", "==", targetEmail), limit(100)));
+      const tSnap = await getDocs(query(collection(db, "support_tickets"), where("email", "==", targetEmail), limit(50)));
       for (const tDoc of tSnap.docs) {
         if (erasureType === "full_deletion") {
           await deleteDoc(doc(db, "support_tickets", tDoc.id));
@@ -368,7 +368,7 @@ export const AdminDataErasureManager: React.FC = () => {
       // Step 5: Reviews & Comments
       log("Scrubbing product reviews & blog comments...");
       if (targetUid) {
-        const rSnap = await getDocs(query(collection(db, "reviews"), where("userId", "==", targetUid), limit(100)));
+        const rSnap = await getDocs(query(collection(db, "reviews"), where("userId", "==", targetUid), limit(50)));
         for (const rDoc of rSnap.docs) {
           if (erasureType === "full_deletion") {
             await deleteDoc(doc(db, "reviews", rDoc.id));
@@ -381,7 +381,7 @@ export const AdminDataErasureManager: React.FC = () => {
           reviewsScrubbed++;
         }
 
-        const cSnap = await getDocs(query(collection(db, "comments"), where("userId", "==", targetUid), limit(100)));
+        const cSnap = await getDocs(query(collection(db, "comments"), where("userId", "==", targetUid), limit(50)));
         for (const cDoc of cSnap.docs) {
           if (erasureType === "full_deletion") {
             await deleteDoc(doc(db, "comments", cDoc.id));
@@ -400,18 +400,18 @@ export const AdminDataErasureManager: React.FC = () => {
       // Step 6: Delete Notifications, Carts, Price Alerts, Job Applications
       log("Purging transient notifications, carts, price alerts & job applications...");
       if (targetUid) {
-        const nSnap = await getDocs(query(collection(db, "users", targetUid, "notifications"), limit(100)));
+        const nSnap = await getDocs(query(collection(db, "users", targetUid, "notifications"), limit(50)));
         for (const nDoc of nSnap.docs) {
           await deleteDoc(doc(db, "users", targetUid, "notifications", nDoc.id));
           notificationsDeleted++;
         }
 
-        const cartSnap = await getDocs(query(collection(db, "carts"), where("userId", "==", targetUid), limit(100)));
+        const cartSnap = await getDocs(query(collection(db, "carts"), where("userId", "==", targetUid), limit(50)));
         for (const cDoc of cartSnap.docs) {
           await deleteDoc(doc(db, "carts", cDoc.id));
         }
 
-        const jaSnap = await getDocs(query(collection(db, "job_applications"), where("userId", "==", targetUid), limit(100)));
+        const jaSnap = await getDocs(query(collection(db, "job_applications"), where("userId", "==", targetUid), limit(50)));
         for (const jDoc of jaSnap.docs) {
           await deleteDoc(doc(db, "job_applications", jDoc.id));
           jobAppsScrubbed++;
@@ -419,7 +419,7 @@ export const AdminDataErasureManager: React.FC = () => {
       }
 
       if (targetEmail) {
-        const paSnap = await getDocs(query(collection(db, "price_drop_alerts"), where("email", "==", targetEmail), limit(100)));
+        const paSnap = await getDocs(query(collection(db, "price_drop_alerts"), where("email", "==", targetEmail), limit(50)));
         for (const paDoc of paSnap.docs) {
           await deleteDoc(doc(db, "price_drop_alerts", paDoc.id));
         }

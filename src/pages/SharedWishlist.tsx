@@ -153,9 +153,6 @@ export default function SharedWishlist() {
 
                 <div className="p-6 space-y-4 flex-grow flex flex-col justify-between">
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider block mb-1">
-                      {product.category}
-                    </span>
                     <Link to={`/product/${product.id}`} state={{ product }} className="text-xl font-bold text-gray-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 transition-colors line-clamp-1">
                       {product.name}
                     </Link>

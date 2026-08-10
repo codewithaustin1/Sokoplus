@@ -1,4 +1,4 @@
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { collection, getDocs, getDocsFromCache, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 export interface MarketingBannerData {
@@ -35,7 +35,21 @@ export async function fetchMarketingBanners(): Promise<MarketingBannerData[]> {
       limit(20)
     );
     try {
-      // Attempt to fetch data from Firestore (uses cache when offline automatically)
+      // 1. Try Cache-First
+      try {
+        const cacheSnap = await getDocsFromCache(bannersQuery);
+        if (!cacheSnap.empty) {
+          const fetchedBanners: MarketingBannerData[] = [];
+          cacheSnap.forEach((docSnap) => {
+            fetchedBanners.push({ id: docSnap.id, ...docSnap.data() } as MarketingBannerData);
+          });
+          return fetchedBanners;
+        }
+      } catch {
+        // Cache miss
+      }
+
+      // 2. Network Fallback
       const snapshot = await getDocs(bannersQuery);
       const fetchedBanners: MarketingBannerData[] = [];
       

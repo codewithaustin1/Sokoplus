@@ -726,9 +726,6 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         <div className="space-y-8">
           <div className="space-y-4">
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="inline-block px-3 py-1 bg-orange-100 dark:bg-orange-950 text-orange-650 dark:text-orange-400 rounded-full text-xs font-bold uppercase tracking-widest">
-                {product.category}
-              </div>
               {product.sku && (
                 <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-mono font-bold">
                   SKU: {product.sku}
@@ -1131,9 +1128,6 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                 
                 <div className="p-5 flex flex-col flex-grow justify-between space-y-3">
                    <div className="space-y-1">
-                     <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider">
-                       {p.category}
-                     </span>
                      <Link 
                        to={`/product/${p.id}`} 
                        state={{ product: p }}

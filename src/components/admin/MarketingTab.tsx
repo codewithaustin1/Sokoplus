@@ -60,42 +60,42 @@ export const MarketingTab: React.FC<MarketingTabProps> = memo(({
   return (
     <div className="space-y-8 animate-fade-in text-gray-950 font-sans">
       {/* Header & Stats Banner */}
-      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <span className="text-[10px] font-black uppercase text-orange-600 tracking-widest bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100/50">
               CRM Marketing Automation
             </span>
-            <h1 className="text-3xl font-black text-gray-950 tracking-tight mt-3">
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-950 tracking-tight mt-3">
               Targeted Marketing Campaigns
             </h1>
-            <p className="text-sm text-gray-500 font-medium mt-1">
+            <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
               Send high-conversion, behavior-triggered push alerts and email newsletters based on cart contents or wishlists.
             </p>
           </div>
         </div>
 
         {/* Micro Stats Indicators */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
-          <div className="p-5 bg-gray-50 rounded-2xl border border-gray-100">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Campaigns</p>
-            <p className="text-2xl font-black text-gray-900 mt-1">{campaigns.length}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 pt-4 border-t border-gray-100">
+          <div className="p-3.5 sm:p-5 bg-gray-50 rounded-2xl border border-gray-100">
+            <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider">Total Campaigns</p>
+            <p className="text-xl sm:text-2xl font-black text-gray-900 mt-1">{campaigns.length}</p>
           </div>
-          <div className="p-5 bg-green-50/50 rounded-2xl border border-green-100/30">
-            <p className="text-xs font-bold text-green-700/70 uppercase tracking-wider">Completed Sends</p>
-            <p className="text-2xl font-black text-green-700 mt-1">
+          <div className="p-3.5 sm:p-5 bg-green-50/50 rounded-2xl border border-green-100/30">
+            <p className="text-[10px] sm:text-xs font-bold text-green-700/70 uppercase tracking-wider">Completed Sends</p>
+            <p className="text-xl sm:text-2xl font-black text-green-700 mt-1">
               {campaigns.filter((c) => c.status === "completed").length}
             </p>
           </div>
-          <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100/30">
-            <p className="text-xs font-bold text-blue-700/70 uppercase tracking-wider">Processing / Pending</p>
-            <p className="text-2xl font-black text-blue-700 mt-1">
+          <div className="p-3.5 sm:p-5 bg-blue-50/50 rounded-2xl border border-blue-100/30">
+            <p className="text-[10px] sm:text-xs font-bold text-blue-700/70 uppercase tracking-wider">Processing</p>
+            <p className="text-xl sm:text-2xl font-black text-blue-700 mt-1">
               {campaigns.filter((c) => c.status === "processing" || c.status === "pending").length}
             </p>
           </div>
-          <div className="p-5 bg-orange-50/50 rounded-2xl border border-orange-100/30">
-            <p className="text-xs font-bold text-orange-700/70 uppercase tracking-wider">Recipients Reached</p>
-            <p className="text-2xl font-black text-orange-700 mt-1">
+          <div className="p-3.5 sm:p-5 bg-orange-50/50 rounded-2xl border border-orange-100/30">
+            <p className="text-[10px] sm:text-xs font-bold text-orange-700/70 uppercase tracking-wider">Recipients</p>
+            <p className="text-xl sm:text-2xl font-black text-orange-700 mt-1">
               {campaigns.reduce((acc, curr) => acc + (curr.sentCount || 0), 0).toLocaleString()}
             </p>
           </div>

@@ -39,8 +39,8 @@ export const OrdersTab: React.FC<OrdersTabProps> = memo(({
   onPrevOrdersPage,
 }) => {
   return (
-    <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-xl font-bold">Recent Orders</h2>
           <p className="text-xs text-emerald-700 font-semibold mt-0.5 flex items-center gap-1.5">
@@ -48,11 +48,11 @@ export const OrdersTab: React.FC<OrdersTabProps> = memo(({
             Server-side constraints active (limit, orderBy, where)
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-3 w-full md:w-auto">
           <select
             value={orderStatusFilter}
             onChange={(e) => setOrderStatusFilter(e.target.value)}
-            className="bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
+            className="w-full sm:w-auto bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
           >
             <option value="all">All Orders</option>
             <option value="guest">Guest Checkout Orders</option>
@@ -65,19 +65,19 @@ export const OrdersTab: React.FC<OrdersTabProps> = memo(({
           <select
             value={orderSortBy}
             onChange={(e) => setOrderSortBy(e.target.value)}
-            className="bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
+            className="w-full sm:w-auto bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-1 focus:ring-orange-600 cursor-pointer"
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
           </select>
-          <div className="relative group flex-grow max-w-sm">
+          <div className="relative group flex-grow w-full sm:w-auto sm:max-w-sm">
             <Search
               className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors"
               size={18}
             />
             <input
               type="text"
-              placeholder="Search Receipt ID, Email, Name, Phone, or M-Pesa Ref..."
+              placeholder="Search Receipt ID, Email, Name..."
               value={orderSearchTerm}
               onChange={(e) => setOrderSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm font-medium"
@@ -87,14 +87,14 @@ export const OrdersTab: React.FC<OrdersTabProps> = memo(({
             type="button"
             id="admin-download-csv-btn"
             onClick={handleDownloadCSV}
-            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 rounded-2xl text-sm font-bold shadow-sm flex items-center space-x-2 transition-all cursor-pointer hover:shadow"
+            className="w-full sm:w-auto justify-center bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 rounded-2xl text-sm font-bold shadow-sm flex items-center space-x-2 transition-all cursor-pointer hover:shadow"
           >
             <Download size={16} />
             <span>Download CSV</span>
           </button>
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto no-scrollbar">
         <table className="w-full text-left min-w-[680px]">
           <thead>
             <tr className="text-xs font-bold text-gray-400 border-b border-gray-50">

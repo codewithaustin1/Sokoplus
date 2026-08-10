@@ -267,6 +267,10 @@ import {
   Gauge,
   Activity,
   ShieldAlert,
+  LayoutGrid,
+  ChevronRight,
+  Smartphone,
+  ArrowLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSellerStudio } from "../lib/SellerStudioContext";
@@ -967,7 +971,7 @@ function AdminProductsTable({
   };
 
   return (
-    <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden space-y-6">
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-50 pb-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Inventory Management</h2>
@@ -1515,7 +1519,7 @@ function AdminUsersTable({
   };
 
   return (
-    <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden space-y-6">
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl overflow-hidden space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-50 pb-6">
         <div>
           <div className="flex items-center gap-2">
@@ -1748,6 +1752,7 @@ export default function Admin({ user }: AdminProps) {
   const [activeTab, setActiveTab] = useState<
     "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue" | "privacy_erasure" | "pod_config"
   >("inventory");
+  const [showMobileModuleDrawer, setShowMobileModuleDrawer] = useState(false);
 
   useEffect(() => {
     if (!sellerStudioEnabled && (activeTab === "sellers" || activeTab === "approval_queue")) {
@@ -2222,7 +2227,7 @@ export default function Admin({ user }: AdminProps) {
 
   const fetchData = async () => {
     try {
-      const pSnap = await getDocs(query(collection(db, "products"), limit(100)));
+      const pSnap = await getDocs(query(collection(db, "products"), limit(50)));
       setProducts(
         pSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as Product),
       );
@@ -2230,12 +2235,12 @@ export default function Admin({ user }: AdminProps) {
       let loadedOrders: any[] = [];
       try {
         const oSnap = await getDocs(
-          query(collection(db, "orders"), orderBy("createdAt", "desc"), limit(100)),
+          query(collection(db, "orders"), orderBy("createdAt", "desc"), limit(50)),
         );
         loadedOrders = oSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
       } catch (oErr) {
         console.warn("[Admin Fetch] Fallback to unindexed orders read:", oErr);
-        const oSnap = await getDocs(query(collection(db, "orders"), limit(100)));
+        const oSnap = await getDocs(query(collection(db, "orders"), limit(50)));
         loadedOrders = oSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
       }
 
@@ -2498,7 +2503,7 @@ export default function Admin({ user }: AdminProps) {
       }
 
       try {
-        const uSnap = await getDocsCacheFirst(query(collection(db, "users"), limit(100)));
+        const uSnap = await getDocsCacheFirst(query(collection(db, "users"), limit(50)));
         setUsersList(
           uSnap.docs.map((d: any) => {
             const data = d.data();
@@ -3275,7 +3280,8 @@ export default function Admin({ user }: AdminProps) {
           const q = query(
             collection(db, "price_drop_alerts"),
             where("productId", "==", id),
-            where("status", "==", "active")
+            where("status", "==", "active"),
+            limit(50)
           );
           const alertsSnap = await getDocs(q);
           if (!alertsSnap.empty) {
@@ -4636,85 +4642,85 @@ export default function Admin({ user }: AdminProps) {
       </div>
 
       {/* Stats Cards - Powered by High-Efficiency Firestore Server Aggregates */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2 relative overflow-hidden">
-          <div className="text-orange-600 bg-orange-50 w-10 h-10 rounded-xl flex items-center justify-center">
-            <TrendingUp size={20} />
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-6">
+        <div className="bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm space-y-1.5 sm:space-y-2 relative overflow-hidden">
+          <div className="text-orange-600 bg-orange-50 w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center">
+            <TrendingUp size={18} />
           </div>
           <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-gray-500 uppercase">
+            <p className="text-[10px] sm:text-sm font-bold text-gray-500 uppercase">
               Total Sales
             </p>
-            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-              sum() aggregate
+            <span className="hidden sm:inline-block text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+              sum()
             </span>
           </div>
-          <p className="text-2xl font-black">
+          <p className="text-base sm:text-2xl font-black truncate">
             KES {(serverAggregates.totalSalesSum > 0 ? serverAggregates.totalSalesSum : totalSales).toLocaleString()}
           </p>
         </div>
-        <div className="bg-orange-950/5 p-6 rounded-3xl border border-orange-100/50 shadow-sm space-y-2 relative overflow-hidden">
-          <div className="absolute right-2 top-2 text-[9px] uppercase font-black text-orange-650 bg-orange-100 px-2.5 py-1 rounded-full border border-orange-200/50 tracking-tighter">
+        <div className="bg-orange-950/5 p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-orange-100/50 shadow-sm space-y-1.5 sm:space-y-2 relative overflow-hidden">
+          <div className="absolute right-2 top-2 text-[8px] sm:text-[9px] uppercase font-black text-orange-650 bg-orange-100 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-orange-200/50 tracking-tighter">
             Internal
           </div>
-          <div className="text-orange-655 bg-orange-100/50 w-10 h-10 rounded-xl flex items-center justify-center">
-            <Coins size={20} />
+          <div className="text-orange-655 bg-orange-100/50 w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center">
+            <Coins size={18} />
           </div>
-          <p className="text-xs font-bold text-gray-550 uppercase">
-            Est. Gross Profit
+          <p className="text-[10px] sm:text-xs font-bold text-gray-550 uppercase">
+            Gross Profit
           </p>
-          <p className="text-2xl font-black text-orange-850">
+          <p className="text-base sm:text-2xl font-black text-orange-850 truncate">
             KES {totalProfit.toLocaleString()}
           </p>
-          <p className="text-[11px] font-bold text-orange-600 uppercase tracking-tight">
-            ★ Avg Margin: {averageMarginPercentage.toFixed(1)}%
+          <p className="text-[9px] sm:text-[11px] font-bold text-orange-600 uppercase tracking-tight truncate">
+            Avg: {averageMarginPercentage.toFixed(1)}%
           </p>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-          <div className="text-blue-600 bg-blue-50 w-10 h-10 rounded-xl flex items-center justify-center">
-            <Package size={20} />
+        <div className="bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm space-y-1.5 sm:space-y-2">
+          <div className="text-blue-600 bg-blue-50 w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center">
+            <Package size={18} />
           </div>
           <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-gray-500 uppercase">
+            <p className="text-[10px] sm:text-sm font-bold text-gray-500 uppercase">
               Total Orders
             </p>
-            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-              count() aggregate
+            <span className="hidden sm:inline-block text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+              count()
             </span>
           </div>
-          <p className="text-2xl font-black">
+          <p className="text-base sm:text-2xl font-black">
             {serverAggregates.totalOrdersCount > 0 ? serverAggregates.totalOrdersCount : orders.length}
           </p>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-          <div className="text-green-600 bg-green-50 w-10 h-10 rounded-xl flex items-center justify-center">
-            <ShoppingBag size={20} />
+        <div className="bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm space-y-1.5 sm:space-y-2">
+          <div className="text-green-600 bg-green-50 w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center">
+            <ShoppingBag size={18} />
           </div>
           <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-gray-500 uppercase">
+            <p className="text-[10px] sm:text-sm font-bold text-gray-500 uppercase">
               Unique Products
             </p>
-            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">
-              count() aggregate
+            <span className="hidden sm:inline-block text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">
+              count()
             </span>
           </div>
-          <p className="text-2xl font-black">
+          <p className="text-base sm:text-2xl font-black">
             {serverAggregates.totalProductsCount > 0 ? serverAggregates.totalProductsCount : products.length}
           </p>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-          <div className="text-purple-600 bg-purple-50 w-10 h-10 rounded-xl flex items-center justify-center">
-            <BookOpen size={20} />
+        <div className="col-span-2 sm:col-span-1 bg-white p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm space-y-1.5 sm:space-y-2">
+          <div className="text-purple-600 bg-purple-50 w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center">
+            <BookOpen size={18} />
           </div>
           <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-gray-500 uppercase">
+            <p className="text-[10px] sm:text-sm font-bold text-gray-500 uppercase">
               Blog Stories
             </p>
-            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
-              count() aggregate
+            <span className="hidden sm:inline-block text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+              count()
             </span>
           </div>
-          <p className="text-2xl font-black">
+          <p className="text-base sm:text-2xl font-black">
             {serverAggregates.totalBlogsCount > 0 ? serverAggregates.totalBlogsCount : blogs.length}
           </p>
         </div>
@@ -5340,6 +5346,388 @@ export default function Admin({ user }: AdminProps) {
           </div>
         </div>
       </div>
+
+      {/* Mobile Admin Quick Operations Header Card (md:hidden) */}
+      <div className="md:hidden bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-4 rounded-3xl shadow-lg space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-orange-600/10 text-orange-600 dark:text-orange-400 flex items-center justify-center font-black shadow-inner shrink-0">
+              <LayoutGrid size={20} />
+            </div>
+            <div>
+              <span className="text-[10px] font-extrabold uppercase text-orange-600 dark:text-orange-400 tracking-wider block">
+                Mobile Admin Engine
+              </span>
+              <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
+                <span>
+                  {activeTab === "analytics" && "BI Analytics"}
+                  {activeTab === "inventory" && "Inventory Catalog"}
+                  {activeTab === "orders" && "Orders Stream"}
+                  {activeTab === "users" && "User Accounts"}
+                  {activeTab === "inbox" && "Support Inbox"}
+                  {activeTab === "blogs" && "Blog Manager"}
+                  {activeTab === "settings" && "Admin Settings"}
+                  {activeTab === "pod_config" && "Pay on Delivery"}
+                  {activeTab === "marketing" && "Marketing & CRM"}
+                  {activeTab === "careers" && "Careers Board"}
+                  {activeTab === "reviews" && "Product Reviews"}
+                  {activeTab === "sellers" && "Marketplace Sellers"}
+                  {activeTab === "approval_queue" && "Approval Queue"}
+                  {activeTab === "privacy_erasure" && "Data Erasure Queue"}
+                  {activeTab === "security" && "Roles & Admins"}
+                </span>
+                {activeTab === "inbox" && tickets.filter((t) => t.status === "open").length > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
+                    {tickets.filter((t) => t.status === "open").length}
+                  </span>
+                )}
+                {activeTab === "sellers" && sellers.filter((s) => s.status === "pending").length > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
+                    {sellers.filter((s) => s.status === "pending").length}
+                  </span>
+                )}
+                {activeTab === "approval_queue" && pendingProducts.filter((p) => p.approvalStatus === "pending").length > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
+                    {pendingProducts.filter((p) => p.approvalStatus === "pending").length}
+                  </span>
+                )}
+              </h3>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowMobileModuleDrawer(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl text-xs font-black shadow-md shadow-orange-600/20 transition-all cursor-pointer shrink-0"
+          >
+            <Smartphone size={14} />
+            <span>Modules (15)</span>
+            <ChevronDown size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Drawer Overlay */}
+      <AnimatePresence>
+        {showMobileModuleDrawer && (
+          <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, y: 60 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 60 }}
+              className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[88vh] overflow-hidden flex flex-col shadow-2xl"
+            >
+              {/* Header */}
+              <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/80 dark:bg-gray-950/40">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-orange-600 text-white shadow-md">
+                    <LayoutGrid size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-gray-900 dark:text-white">Admin Module Switcher</h3>
+                    <p className="text-xs text-gray-400 font-semibold">15 Mobile-Optimized Operations Modules</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowMobileModuleDrawer(false)}
+                  className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-xl bg-gray-100 dark:bg-gray-800 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Module Categories List */}
+              <div className="p-4 sm:p-5 overflow-y-auto space-y-5 flex-1 divide-y divide-gray-100 dark:divide-gray-800">
+                {/* Section 1: Core Operations */}
+                <div className="space-y-2.5 pt-1">
+                  <span className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider block">
+                    🚀 Core Operations & Analytics
+                  </span>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("analytics"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "analytics" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <TrendingUp size={18} className="text-orange-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">BI Analytics</div>
+                          <div className="text-[11px] text-gray-400">Sales velocity, margins & stock recommendations</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("orders"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "orders" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <ShoppingBag size={18} className="text-orange-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">Orders Stream</div>
+                          <div className="text-[11px] text-gray-400">Manage receipts, M-Pesa refs & fulfillment</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("inbox"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "inbox" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <MessageSquare size={18} className="text-orange-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm flex items-center gap-2">
+                            <span>Support Inbox</span>
+                            {tickets.filter((t) => t.status === "open").length > 0 && (
+                              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
+                                {tickets.filter((t) => t.status === "open").length}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-gray-400">Customer tickets & support conversations</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("pod_config"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "pod_config" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Truck size={18} className="text-amber-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">Pay on Delivery (POD)</div>
+                          <div className="text-[11px] text-gray-400">Risk tiers, deposit limits & regional rules</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section 2: Catalog & Marketplace */}
+                <div className="space-y-2.5 pt-4">
+                  <span className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider block">
+                    📦 Catalog & Marketplace
+                  </span>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("inventory"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "inventory" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Package size={18} className="text-orange-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">Inventory Catalog</div>
+                          <div className="text-[11px] text-gray-400">Manage SKUs, stock levels & batch operations</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+
+                    {sellerStudioEnabled && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setActiveTab("approval_queue"); setShowMobileModuleDrawer(false); }}
+                          className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "approval_queue" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <CheckSquare size={18} className="text-orange-600 shrink-0" />
+                            <div>
+                              <div className="font-bold text-sm flex items-center gap-2">
+                                <span>Approval Queue</span>
+                                {pendingProducts.filter((p) => p.approvalStatus === "pending").length > 0 && (
+                                  <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
+                                    {pendingProducts.filter((p) => p.approvalStatus === "pending").length}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-gray-400">Clear artisan submission proposals</div>
+                            </div>
+                          </div>
+                          <ChevronRight size={16} className="text-gray-400" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setActiveTab("sellers"); setShowMobileModuleDrawer(false); }}
+                          className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "sellers" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Store size={18} className="text-orange-600 shrink-0" />
+                            <div>
+                              <div className="font-bold text-sm flex items-center gap-2">
+                                <span>Marketplace Sellers</span>
+                                {sellers.filter((s) => s.status === "pending").length > 0 && (
+                                  <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
+                                    {sellers.filter((s) => s.status === "pending").length}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-gray-400">Audit merchant shop applications & fees</div>
+                            </div>
+                          </div>
+                          <ChevronRight size={16} className="text-gray-400" />
+                        </button>
+                      </>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("reviews"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "reviews" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Star size={18} className="text-amber-500 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">Product Reviews</div>
+                          <div className="text-[11px] text-gray-400">Customer feedback & star ratings</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section 3: Users & Engagement */}
+                <div className="space-y-2.5 pt-4">
+                  <span className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider block">
+                    👥 Users & Engagement
+                  </span>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("users"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "users" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Users size={18} className="text-blue-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">User Accounts</div>
+                          <div className="text-[11px] text-gray-400">User directory, activity & roles</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("marketing"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "marketing" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Megaphone size={18} className="text-orange-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">Marketing & CRM</div>
+                          <div className="text-[11px] text-gray-400">Push blasts, coupons & newsletters</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("blogs"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "blogs" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <BookOpen size={18} className="text-purple-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">Blog Stories</div>
+                          <div className="text-[11px] text-gray-400">Artisan stories & shopping guides</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("careers"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "careers" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Briefcase size={18} className="text-emerald-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">Careers Board</div>
+                          <div className="text-[11px] text-gray-400">Job postings & applicant submissions</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section 4: Governance & Security */}
+                <div className="space-y-2.5 pt-4 pb-2">
+                  <span className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider block">
+                    ⚙️ Governance & Security
+                  </span>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("privacy_erasure"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "privacy_erasure" ? "bg-red-50/80 border-red-300 dark:bg-red-950/30 text-red-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <ShieldAlert size={18} className="text-red-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">Data Erasure Queue</div>
+                          <div className="text-[11px] text-gray-400">GDPR compliance & account deletion</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+
+                    {user?.email === "upfrontretaile@gmail.com" && (
+                      <button
+                        type="button"
+                        onClick={() => { setActiveTab("security"); setShowMobileModuleDrawer(false); }}
+                        className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "security" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <ShieldAlert size={18} className="text-orange-600 shrink-0" />
+                          <div>
+                            <div className="font-bold text-sm">Roles & Admins (RBAC)</div>
+                            <div className="text-[11px] text-gray-400">Admin privileges & master access control</div>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-gray-400" />
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("settings"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "settings" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Settings size={18} className="text-gray-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">Admin Settings</div>
+                          <div className="text-[11px] text-gray-400">Global store settings & social media</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Tabs */}
       <div className="flex items-center space-x-1.5 bg-gray-100 dark:bg-gray-900 p-1.5 rounded-2xl w-full max-w-full overflow-x-auto no-scrollbar whitespace-nowrap scroll-smooth md:w-fit md:flex-wrap md:whitespace-normal">
@@ -9629,6 +10017,57 @@ export default function Admin({ user }: AdminProps) {
           </div>
         </div>
       )}
+
+      {/* Mobile Floating Sticky Quick Navigation Bar (md:hidden) */}
+      <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 bg-gray-900/90 backdrop-blur-md text-white p-2.5 rounded-2xl border border-gray-800 shadow-2xl flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab("analytics")}
+          className={`flex-1 py-2 px-1 rounded-xl flex flex-col items-center justify-center text-[10px] font-extrabold transition-all ${activeTab === "analytics" ? "bg-orange-600 text-white" : "text-gray-400 hover:text-white"}`}
+        >
+          <TrendingUp size={16} />
+          <span className="mt-0.5">Stats</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("inventory")}
+          className={`flex-1 py-2 px-1 rounded-xl flex flex-col items-center justify-center text-[10px] font-extrabold transition-all ${activeTab === "inventory" ? "bg-orange-600 text-white" : "text-gray-400 hover:text-white"}`}
+        >
+          <Package size={16} />
+          <span className="mt-0.5">Catalog</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("orders")}
+          className={`flex-1 py-2 px-1 rounded-xl flex flex-col items-center justify-center text-[10px] font-extrabold transition-all ${activeTab === "orders" ? "bg-orange-600 text-white" : "text-gray-400 hover:text-white"}`}
+        >
+          <ShoppingBag size={16} />
+          <span className="mt-0.5">Orders</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("inbox")}
+          className={`flex-1 py-2 px-1 rounded-xl flex flex-col items-center justify-center text-[10px] font-extrabold transition-all relative ${activeTab === "inbox" ? "bg-orange-600 text-white" : "text-gray-400 hover:text-white"}`}
+        >
+          <MessageSquare size={16} />
+          <span className="mt-0.5">Inbox</span>
+          {tickets.filter((t) => t.status === "open").length > 0 && (
+            <span className="absolute -top-1 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowMobileModuleDrawer(true)}
+          className="py-2 px-2.5 rounded-xl bg-orange-600/20 text-orange-400 border border-orange-500/30 flex flex-col items-center justify-center text-[10px] font-extrabold hover:bg-orange-600 hover:text-white transition-all cursor-pointer shrink-0"
+        >
+          <LayoutGrid size={16} />
+          <span className="mt-0.5">More</span>
+        </button>
+      </div>
     </div>
   );
 }

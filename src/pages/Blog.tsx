@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy, onSnapshot, where, addDoc, updateDoc, deleteDoc, doc, limit } from "firebase/firestore";
+import { collection, getDocs, getDocsFromCache, query, orderBy, onSnapshot, where, addDoc, updateDoc, deleteDoc, doc, limit } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { 
   ShoppingBag, ArrowRight, Search, Calendar, User, Clock, X, ArrowLeft, 
@@ -335,7 +335,19 @@ export default function Blog({ user }: { user: UserProfile | null }) {
   useEffect(() => {
     async function fetchPosts() {
       try {
-        const snap = await getDocs(query(collection(db, "blog"), orderBy("publishedAt", "desc"), limit(20)));
+        const blogQuery = query(collection(db, "blog"), orderBy("publishedAt", "desc"), limit(20));
+        let snap;
+        try {
+          const cacheSnap = await getDocsFromCache(blogQuery);
+          if (!cacheSnap.empty) {
+            snap = cacheSnap;
+          } else {
+            snap = await getDocs(blogQuery);
+          }
+        } catch {
+          snap = await getDocs(blogQuery);
+        }
+
         const fetched: BlogPost[] = snap.docs.map(d => {
           const data = d.data();
           return {

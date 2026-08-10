@@ -39,35 +39,35 @@ export const SellersTab: React.FC<SellersTabProps> = memo(({
   return (
     <div className="space-y-8 animate-fade-in text-gray-950 font-sans">
       {/* Header Card */}
-      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-4">
-        <h1 className="text-3xl font-black text-gray-950 tracking-tight">Marketplace Governance</h1>
-        <p className="text-sm text-gray-500 font-medium">
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-3">
+        <h1 className="text-2xl sm:text-3xl font-black text-gray-950 tracking-tight">Marketplace Governance</h1>
+        <p className="text-xs sm:text-sm text-gray-500 font-medium">
           Review third-party merchant seller proposals, audit shop configurations, process approvals or rejections, and oversee platform commissions.
         </p>
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <span className="text-xs text-gray-400 font-bold uppercase block">Pending Audits</span>
-          <p className="text-3xl font-black text-orange-600 mt-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <span className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase block">Pending Audits</span>
+          <p className="text-xl sm:text-3xl font-black text-orange-600 mt-1">
             {sellers.filter(s => s.status === "pending").length} proposals
           </p>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <span className="text-xs text-gray-400 font-bold uppercase block">Approved Partners</span>
-          <p className="text-3xl font-black text-green-600 mt-1">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <span className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase block">Approved Partners</span>
+          <p className="text-xl sm:text-3xl font-black text-green-600 mt-1">
             {sellers.filter(s => s.status === "approved").length} merchants
           </p>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <span className="text-xs text-gray-400 font-bold uppercase block">Marketplace Commission Fee</span>
-          <p className="text-3xl font-black text-gray-900 mt-1">10.0% flat</p>
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <span className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase block">Marketplace Commission Fee</span>
+          <p className="text-xl sm:text-3xl font-black text-gray-900 mt-1">10.0% flat</p>
         </div>
       </div>
 
       {/* List of Proposals */}
-      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-6">
         <div className="flex justify-between items-center border-b border-gray-100 pb-4">
           <h3 className="text-lg font-black text-gray-900">Active Proposals & Merchants</h3>
           <p className="text-xs text-gray-400">Total registered profiles loaded: {sellers.length}</p>

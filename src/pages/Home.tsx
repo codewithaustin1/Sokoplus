@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, limit, query, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
+import { collection, getDocs, getDocsFromCache, limit, query, doc, updateDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
@@ -437,6 +437,25 @@ export default function Home({ user }: HomeProps) {
       // Online Flow Path
       try {
         const q = query(collection(db, "products"), limit(20));
+
+        // 1. Try Cache-First
+        try {
+          const cacheSnap = await getDocsFromCache(q);
+          if (!cacheSnap.empty) {
+            const cachedList = cacheSnap.docs
+              .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+              .filter(p => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved"));
+            if (cachedList.length > 0) {
+              setIsOfflineView(false);
+              cachedList.forEach(p => productCache.set(p.id, p));
+              return cachedList;
+            }
+          }
+        } catch {
+          // Cache miss - proceed to network
+        }
+
+        // 2. Network Fallback
         const snapshot = await getDocs(q);
         const fetched = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Product))
@@ -1028,16 +1047,11 @@ export default function Home({ user }: HomeProps) {
                       alt={p.name} 
                       fallbackIconSize={40}
                     />
-                    <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
-                      <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[9px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
-                        {p.category}
+                    {p.originalPrice && p.originalPrice > p.price && (
+                      <div className="absolute top-2 right-2 z-10 bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
+                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
                       </div>
-                      {p.originalPrice && p.originalPrice > p.price && (
-                        <div className="bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
-                          -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
-                        </div>
-                      )}
-                    </div>
+                    )}
                     <motion.button
                       whileHover={{ scale: 1.18 }}
                       whileTap={{ scale: 0.8 }}
@@ -1632,16 +1646,11 @@ export default function Home({ user }: HomeProps) {
                     alt={p.name} 
                     fallbackIconSize={40}
                   />
-                  <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
-                    <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[9px] font-bold text-gray-600 dark:text-gray-300 shadow-sm border border-transparent dark:border-gray-800">
-                      {p.category}
+                  {p.originalPrice && p.originalPrice > p.price && (
+                    <div className="absolute top-2 right-2 z-10 bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
+                      -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
                     </div>
-                    {p.originalPrice && p.originalPrice > p.price && (
-                      <div className="bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
-                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
-                      </div>
-                    )}
-                  </div>
+                  )}
                   <motion.button
                     whileHover={{ scale: 1.18 }}
                     whileTap={{ scale: 0.8 }}

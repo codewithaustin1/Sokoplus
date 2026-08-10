@@ -31,37 +31,37 @@ export const ApprovalQueueTab: React.FC<ApprovalQueueTabProps> = memo(({
   return (
     <div className="space-y-8 animate-fade-in text-gray-950 font-sans">
       {/* Header Card */}
-      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl space-y-4">
-        <h1 className="text-3xl font-black text-gray-950 tracking-tight">Product Clearance Control</h1>
-        <p className="text-sm text-gray-500 font-medium">
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-gray-100 shadow-xl space-y-3">
+        <h1 className="text-2xl sm:text-3xl font-black text-gray-950 tracking-tight">Product Clearance Control</h1>
+        <p className="text-xs sm:text-sm text-gray-500 font-medium">
           Oversee artisan submissions. Review descriptions, catalog categories, price consistency, and stock levels before making their listings active in the main shopping index.
         </p>
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-          <span className="text-xs text-gray-400 font-bold uppercase block">Total Submission Slots</span>
-          <p className="text-3xl font-black text-orange-600 mt-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase block">Total Submission Slots</span>
+          <p className="text-xl sm:text-3xl font-black text-orange-600 mt-1">
             {pendingProducts.length} listings
           </p>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-          <span className="text-xs text-gray-400 font-bold uppercase block">Pending Clearance</span>
-          <p className="text-3xl font-black text-amber-500 mt-1">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase block">Pending Clearance</span>
+          <p className="text-xl sm:text-3xl font-black text-amber-500 mt-1">
             {pendingProducts.filter(p => !p.approvalStatus || p.approvalStatus === "pending").length} items
           </p>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-          <span className="text-xs text-gray-400 font-bold uppercase block">Corrective Adjustments</span>
-          <p className="text-3xl font-black text-red-500 mt-1">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase block">Corrective Adjustments</span>
+          <p className="text-xl sm:text-3xl font-black text-red-500 mt-1">
             {pendingProducts.filter(p => p.approvalStatus === "rejected").length} items
           </p>
         </div>
       </div>
 
       {/* Queue View */}
-      <div className="bg-white p-8 rounded-3xl border border-gray-150 shadow-xl space-y-6">
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-gray-150 shadow-xl space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-50">
           <h2 className="font-black text-lg text-gray-950">Pending Review Pipeline</h2>
           <div className="text-xs text-gray-400">

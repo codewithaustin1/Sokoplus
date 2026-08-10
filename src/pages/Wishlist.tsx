@@ -418,11 +418,6 @@ export default function Wishlist({ user }: WishlistProps) {
               
               <div className="p-6 space-y-4 flex-grow flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                      {product.category}
-                    </span>
-                  </div>
                   <Link to={`/product/${product.id}`} state={{ product }} className="text-xl font-bold text-gray-900 hover:text-orange-600 transition-colors line-clamp-1">
                     {product.name}
                   </Link>

@@ -412,7 +412,8 @@ export default function Profile({ user }: ProfileProps) {
     try {
       const q = query(
         collection(db, "orders"),
-        where("userId", "==", user.uid)
+        where("userId", "==", user.uid),
+        limit(50)
       );
       const snap = await getDocs(q);
       const userOrders = snap.docs.map(d => {
