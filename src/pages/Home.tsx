@@ -19,6 +19,7 @@ import { trackEvent } from "../lib/analytics";
 import heroImage from "../assets/images/sokoplus_hero_bg_1782815259030.jpg";
 import { FastImage } from "../components/FastImage";
 import { AddToCartButton } from "../components/AddToCartButton";
+import { CardStarRating } from "../components/AnimatedStarRating";
 import ProductCardSkeleton from "../components/ProductCardSkeleton";
 import { prefetchProductAssets, prefetchImageUrl } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
@@ -1212,9 +1213,9 @@ export default function Home({ user }: HomeProps) {
                   <div className="space-y-1 flex-1 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center text-yellow-400">
-                           <Star size={13} fill="currentColor" />
-                           <span className="text-gray-500 dark:text-gray-400 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
+                        <div className="flex items-center gap-1">
+                          <CardStarRating rating={p.rating || 4.5} size={12} />
+                          <span className="text-gray-500 dark:text-gray-400 text-xs ml-0.5 font-bold tabular-nums">{p.rating || 4.5}</span>
                         </div>
                         <div>
                           {p.stock === 0 ? (
@@ -1893,9 +1894,9 @@ export default function Home({ user }: HomeProps) {
                 <div className="space-y-1 flex-1 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center text-yellow-400">
-                         <Star size={13} fill="currentColor" />
-                         <span className="text-gray-500 dark:text-gray-400 text-xs ml-1 font-medium">{p.rating || 4.5}</span>
+                      <div className="flex items-center gap-1">
+                        <CardStarRating rating={p.rating || 4.5} size={12} />
+                        <span className="text-gray-500 dark:text-gray-400 text-xs ml-0.5 font-bold tabular-nums">{p.rating || 4.5}</span>
                       </div>
                       <div>
                         {p.stock === 0 ? (

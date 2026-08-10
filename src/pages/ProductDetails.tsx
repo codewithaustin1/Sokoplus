@@ -8,6 +8,7 @@ import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
 import { AddToCartButton } from "../components/AddToCartButton";
+import { AnimatedStarRating, CardStarRating } from "../components/AnimatedStarRating";
 import { ProductAttributeConfigurator, SelectedConfig } from "../components/ProductAttributeConfigurator";
 import { DeliveryCountdown } from "../components/DeliveryCountdown";
 import toast from "react-hot-toast";
@@ -757,13 +758,12 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                 <span className="font-extrabold text-orange-600 dark:text-orange-500">{product.artisan}</span>
               </div>
             )}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center text-yellow-400 font-bold text-sm">
-                <Star fill="currentColor" size={20} className="text-yellow-400" />
-                <span className="ml-1 text-gray-900 dark:text-white font-black">{product.rating || 4.5}</span>
-              </div>
-              <span className="text-gray-300 dark:text-gray-750 font-bold">•</span>
-              <span className="text-gray-500 dark:text-gray-440 font-semibold text-sm">{product.reviewCount || 12} Happy Customers</span>
+            <div className="flex items-center space-x-3 py-1">
+              <AnimatedStarRating
+                rating={product.rating || 4.5}
+                reviewCount={product.reviewCount || 12}
+                size="lg"
+              />
             </div>
           </div>
 
@@ -1168,7 +1168,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
       )}
 
       {/* Reviews Section */}
-      <section className="mt-24 grid grid-cols-1 lg:grid-cols-3 gap-12 border-t border-gray-100 dark:border-gray-800 pt-16">
+      <section id="customer-reviews" className="mt-24 grid grid-cols-1 lg:grid-cols-3 gap-12 border-t border-gray-100 dark:border-gray-800 pt-16">
         <div className="lg:col-span-1 space-y-8">
           <div className="space-y-4">
             <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white font-sans">Customer Reviews</h2>
