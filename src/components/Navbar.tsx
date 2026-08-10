@@ -871,28 +871,25 @@ export default function Navbar({ user }: NavbarProps) {
               </Link>
 
               {/* Cart Link */}
-              <Link to="/cart" className="relative flex items-center gap-2.5 text-gray-300 hover:text-white transition-colors py-1 group select-none">
+              <Link to="/cart" className="relative flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors py-1 group select-none">
                 <motion.div
                   animate={isBouncing ? { scale: [1, 1.4, 0.85, 1.15, 0.95, 1] } : { scale: 1 }}
                   transition={{ duration: 0.6, ease: "easeInOut" }}
-                  className="relative"
+                  className="relative flex items-center justify-center min-w-[32px] h-[28px]"
                 >
-                  <ShoppingCart size={22} className="text-gray-300 group-hover:text-amber-400 transition-colors" />
-                </motion.div>
-                <div className="text-left">
-                  <span className="text-[9px] uppercase font-black tracking-wider text-gray-400 block leading-none mb-0.5">YOUR CART</span>
-                  <span className="text-xs font-black text-white leading-none">SHOPPING</span>
-                </div>
-                {itemCount > 0 && (
+                  <ShoppingCart size={26} className="text-gray-200 group-hover:text-amber-400 transition-colors stroke-[2]" />
                   <motion.span
                     key={itemCount}
-                    initial={{ scale: 0.5, opacity: 0 }}
+                    initial={{ scale: 0.6, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="absolute -top-1 -right-2.5 bg-[#FDD017] text-gray-950 text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[16px] text-center shadow-md tabular-nums"
+                    className="absolute -top-1.5 left-[10px] text-amber-400 font-extrabold text-[12px] leading-none tabular-nums drop-shadow-xs"
                   >
                     {itemCount}
                   </motion.span>
-                )}
+                </motion.div>
+                <span className="text-sm font-black text-white group-hover:text-amber-400 transition-colors self-end pb-0.5 tracking-tight">
+                  Cart
+                </span>
               </Link>
             </div>
 
