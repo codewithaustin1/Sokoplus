@@ -336,18 +336,16 @@ body, div, section, header, footer, nav, button, input {
   animation: ambient-glow 3s infinite ease-in-out;
 }
 
-/* Micro-interaction: High-Fidelity Card Elevation & Spotlight Border */
+/* Micro-interaction: High-Fidelity Card Elevation */
 .premium-card-spotlight {
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .premium-card-spotlight:hover {
   transform: translateY(-4px) scale(1.01);
-  border-color: rgba(234, 88, 12, 0.35) !important;
-  box-shadow: 0 20px 30px -10px rgba(15, 23, 42, 0.1), 0 0 15px 1px rgba(234, 88, 12, 0.05);
+  box-shadow: 0 20px 30px -10px rgba(15, 23, 42, 0.12);
 }
 .dark .premium-card-spotlight:hover {
-  border-color: rgba(234, 88, 12, 0.5) !important;
-  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.5), 0 0 15px 1px rgba(234, 88, 12, 0.12);
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.5);
 }
 
 /* Beautiful custom tooltips and details indicators */

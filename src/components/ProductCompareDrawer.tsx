@@ -258,15 +258,15 @@ export const ProductCompareDrawer: React.FC = () => {
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Availability</span>
                             <div>
                               {product.stock === 0 ? (
-                                <span className="text-[9px] sm:text-[10px] font-extrabold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
+                                <span className="text-[9px] sm:text-[10px] font-extrabold text-white bg-[#D32F2F] px-2 py-0.5 rounded-full">
                                   Out of Stock
                                 </span>
                               ) : product.stock <= 5 ? (
-                                <span className="text-[9px] sm:text-[10px] font-extrabold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                                <span className="text-[9px] sm:text-[10px] font-extrabold text-white bg-[#FF8C00] px-2 py-0.5 rounded-full">
                                   Low ({product.stock})
                                 </span>
                               ) : (
-                                <span className="text-[9px] sm:text-[10px] font-extrabold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                                <span className="text-[9px] sm:text-[10px] font-extrabold text-white bg-gradient-to-r from-[#28b45b] to-[#16a34a] px-2 py-0.5 rounded-full">
                                   {product.stock} In Stock
                                 </span>
                               )}

@@ -651,7 +651,7 @@ export default function Navbar({ user }: NavbarProps) {
                     value={search}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     onFocus={() => setShowDesktopSuggestions(true)}
-                    placeholder="What are you looking for?"
+                    placeholder={language === "sw" ? "Tafuta Sokoplus..." : "Search Sokoplus"}
                     className="block w-full h-10 px-4 rounded-l-md border-none leading-5 bg-white placeholder-gray-450 text-gray-900 focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm font-semibold transition-all"
                   />
                   <div className="absolute inset-y-0 right-3 flex items-center space-x-1.5">
@@ -992,7 +992,7 @@ export default function Navbar({ user }: NavbarProps) {
             onFocus={() => setIsMobileSearchFocused(true)}
             onBlur={() => setTimeout(() => setIsMobileSearchFocused(false), 200)}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder={language === "sw" ? "Tafuta bidhaa bora za Kenya..." : "Search products in Kenya..."}
+            placeholder={language === "sw" ? "Tafuta Sokoplus..." : "Search Sokoplus"}
             className={`block w-full pl-9 pr-14 border border-gray-200/80 dark:border-gray-800 rounded-xl leading-5 bg-gray-50/80 dark:bg-gray-900/80 placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-100 font-medium focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all shadow-inner-sm ${
               isMobileSearchFocused ? "py-2.5 text-sm ring-2 ring-amber-500/50" : "py-1.5 text-xs"
             }`}

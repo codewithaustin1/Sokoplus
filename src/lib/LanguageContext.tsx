@@ -11,7 +11,7 @@ interface LanguageContextType {
 const translations: Record<Language, Record<string, string>> = {
   en: {
     // Navbar & Search
-    searchPlaceholder: "Search products in Kenya...",
+    searchPlaceholder: "Search Sokoplus",
     home: "Home",
     blog: "Blog",
     admin: "Admin",
@@ -88,7 +88,7 @@ const translations: Record<Language, Record<string, string>> = {
   },
   sw: {
     // Navbar & Search
-    searchPlaceholder: "Tafuta bidhaa na kazi safi za mikono sokoni...",
+    searchPlaceholder: "Tafuta Sokoplus...",
     home: "Nyumbani (Karibu)",
     blog: "Hadithi Zetu",
     admin: "Usimamizi wa Soko",
@@ -280,7 +280,10 @@ const swahiliOverrideMap: Record<string, string> = {
   "no orders found in this selection.": "Bado hujaagiza katika kundi hili.",
   "about sokoplus": "Kuhusu SokoPlus Kenya",
   "quick links": "Viungo vya Haraka",
-  "customer support": "Tuko Hapa Kukusaidia (Msaada)"
+  "customer support": "Tuko Hapa Kukusaidia (Msaada)",
+  "recently viewed": "Ulichotazama Hivi Karibuni",
+  "clear history": "Futa Historia",
+  "products you have browsed recently.": "Bidhaa ulizotazama hivi karibuni."
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);

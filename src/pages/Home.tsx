@@ -5,7 +5,7 @@ import { db } from "../lib/firebase";
 import { Product, UserProfile } from "../types";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff, Search, Loader2, Check, GitCompare, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Star, ShoppingBag, Heart, Filter, X, ChevronDown, WifiOff, Search, Loader2, Check, GitCompare, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -148,6 +148,135 @@ export default function Home({ user }: HomeProps) {
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
   const [recLoading, setRecLoading] = useState<boolean>(true);
   const [hasHistory, setHasHistory] = useState<boolean>(false);
+
+  // Recently Viewed State
+  const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
+  const [recentlyViewedLoading, setRecentlyViewedLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadRecentlyViewed() {
+      setRecentlyViewedLoading(true);
+      try {
+        // Try reading full product objects from localStorage cache
+        const cachedProductsJson = localStorage.getItem("sokoplus_recently_viewed_products");
+        let cachedProducts: Product[] = cachedProductsJson ? JSON.parse(cachedProductsJson) : [];
+        if (!Array.isArray(cachedProducts)) {
+          cachedProducts = [];
+        }
+
+        const historyJson = localStorage.getItem("sokoplus_browsing_history");
+        const historyIds: string[] = historyJson ? JSON.parse(historyJson) : [];
+        if (!Array.isArray(historyIds) || historyIds.length === 0) {
+          setRecentlyViewed([]);
+          setRecentlyViewedLoading(false);
+          return;
+        }
+
+        // Limit to last 5 products as requested
+        const top5Ids = historyIds.slice(0, 5);
+
+        // Resolve from local storage cache, current products list, memory product cache, or IndexedDB
+        const resolvedProducts: Product[] = [];
+        const missingIds: string[] = [];
+
+        top5Ids.forEach(id => {
+          // Check local storage full product objects cache
+          const inLocalStorage = cachedProducts.find(p => p.id === id);
+          if (inLocalStorage) {
+            resolvedProducts.push(inLocalStorage);
+            return;
+          }
+
+          // Check products prop/state
+          const found = products.find(p => p.id === id);
+          if (found) {
+            resolvedProducts.push(found);
+            return;
+          }
+
+          // Check memory cache
+          const cachedMemory = productCache.get(id);
+          if (cachedMemory) {
+            resolvedProducts.push(cachedMemory);
+            return;
+          }
+
+          missingIds.push(id);
+        });
+
+        if (missingIds.length > 0) {
+          try {
+            const cachedDbProducts = await getCachedProducts();
+            missingIds.forEach(id => {
+              const found = cachedDbProducts.find(p => p.id === id);
+              if (found) {
+                resolvedProducts.push(found);
+              }
+            });
+          } catch (err) {
+            console.warn("Failed to load missing recently viewed from IndexedDB", err);
+          }
+        }
+
+        // Clean up duplicates and filter active & approved
+        const finalOrdered = top5Ids
+          .map(id => resolvedProducts.find(p => p.id === id))
+          .filter((p): p is Product => !!p && p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved"));
+
+        const fullyResolvedIds = finalOrdered.map(p => p.id);
+        const stillMissingIds = top5Ids.filter(id => !fullyResolvedIds.includes(id));
+
+        if (stillMissingIds.length > 0 && navigator.onLine) {
+          try {
+            const fetchPromises = stillMissingIds.map(async (id) => {
+              const docRef = doc(db, "products", id);
+              const snap = await getDoc(docRef);
+              if (snap.exists()) {
+                const p = { id: snap.id, ...snap.data() } as Product;
+                productCache.set(id, p);
+                return p;
+              }
+              return null;
+            });
+            const fetchedProducts = (await Promise.all(fetchPromises)).filter((p): p is Product => !!p && p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved"));
+            
+            // Save newly fetched products to localStorage cache
+            try {
+              const updatedCache = [...cachedProducts];
+              fetchedProducts.forEach(p => {
+                if (!updatedCache.some(uc => uc.id === p.id)) {
+                  updatedCache.push(p);
+                }
+              });
+              localStorage.setItem("sokoplus_recently_viewed_products", JSON.stringify(updatedCache.slice(0, 10)));
+            } catch (err) {
+              console.warn("Failed to update cache", err);
+            }
+
+            const allResolved = [...resolvedProducts, ...fetchedProducts];
+            const finalOrderedWithFetched = top5Ids
+              .map(id => allResolved.find(p => p.id === id))
+              .filter((p): p is Product => !!p);
+
+            setRecentlyViewed(finalOrderedWithFetched);
+          } catch (err) {
+            console.warn("Could not fetch missing recently viewed products from Firestore (possibly quota/offline):", err);
+            setRecentlyViewed(finalOrdered);
+          }
+        } else {
+          setRecentlyViewed(finalOrdered);
+        }
+      } catch (err) {
+        console.warn("Error loading recently viewed products", err);
+      } finally {
+        setRecentlyViewedLoading(false);
+      }
+    }
+
+    if (products.length > 0) {
+      loadRecentlyViewed();
+    }
+  }, [products]);
 
   // Animated Auto-scroll Effect for Recommended products
   useEffect(() => {
@@ -1089,15 +1218,15 @@ export default function Home({ user }: HomeProps) {
                         </div>
                         <div>
                           {p.stock === 0 ? (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#D32F2F] text-white">
                               {t("Out of Stock")}
                             </span>
                           ) : p.stock <= 5 ? (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#FF8C00] text-white">
                               {t("Low Stock")} ({p.stock})
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-gradient-to-r from-[#28b45b] to-[#16a34a] text-white">
                               {p.stock} {t("In Stock")}
                             </span>
                           )}
@@ -1127,6 +1256,88 @@ export default function Home({ user }: HomeProps) {
           </div>
         )}
       </section>
+
+      {/* Recently Viewed Section */}
+      {recentlyViewed.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 border-t border-b border-gray-100 dark:border-gray-850 bg-gray-50/5 dark:bg-gray-900/5 rounded-3xl mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
+                <span>{t("Recently Viewed")}</span>
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium text-xs sm:text-sm">
+                {t("products you have browsed recently.")}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  localStorage.removeItem("sokoplus_browsing_history");
+                  localStorage.removeItem("sokoplus_recently_viewed_products");
+                  setRecentlyViewed([]);
+                  toast.success(language === "sw" ? "Historia imefutwa!" : "History cleared!");
+                } catch (err) {
+                  console.warn(err);
+                }
+              }}
+              className="flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wider text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-350 bg-red-50 dark:bg-red-950/25 px-4.5 py-2.5 rounded-2xl transition-all cursor-pointer border border-red-100 dark:border-red-900/30 w-full sm:w-auto self-start"
+            >
+              <Trash2 size={14} />
+              <span>{t("clear history")}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+            {recentlyViewed.map((p) => (
+              <motion.div
+                whileHover={{ y: -4 }}
+                key={`recent-${p.id}`}
+                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm transition-all flex flex-col justify-between"
+              >
+                <Link
+                  to={`/product/${p.id}`}
+                  state={{ product: p }}
+                  onMouseEnter={() => prefetchProductAssets(p)}
+                  onTouchStart={() => prefetchProductAssets(p)}
+                  className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-3 relative group shrink-0"
+                >
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
+                  <FastImage
+                    src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""}
+                    alt={p.name}
+                    fallbackIconSize={30}
+                  />
+                  {p.originalPrice && p.originalPrice > p.price && (
+                    <div className="absolute top-2 right-2 z-10 bg-red-600 text-white font-extrabold text-[8px] px-1.5 py-0.5 rounded shadow-xs">
+                      -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
+                    </div>
+                  )}
+                </Link>
+                <div className="space-y-1 flex-1 flex flex-col justify-between">
+                  <div>
+                    <Link
+                      to={`/product/${p.id}`}
+                      state={{ product: p }}
+                      className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1 leading-snug"
+                    >
+                      {p.name}
+                    </Link>
+                  </div>
+                  <div className="flex flex-col mt-2.5 pt-2.5 border-t border-gray-100 dark:border-gray-800/60">
+                    <div className="flex items-baseline gap-1.5 mb-2">
+                      <span className="text-xs sm:text-sm font-black text-gray-900 dark:text-white">{formatPrice(p.price)}</span>
+                    </div>
+                    <div className="w-full">
+                      <AddToCartButton product={p} className="w-full text-[10px] py-1.5 h-auto" size="sm" />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Product Grid */}
       <section id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
@@ -1688,15 +1899,15 @@ export default function Home({ user }: HomeProps) {
                       </div>
                       <div>
                         {p.stock === 0 ? (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#D32F2F] text-white">
                             Out of Stock
                           </span>
                         ) : p.stock <= 5 ? (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#FF8C00] text-white">
                             Low Stock ({p.stock})
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-gradient-to-r from-[#28b45b] to-[#16a34a] text-white">
                             {p.stock} In Stock
                           </span>
                         )}

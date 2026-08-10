@@ -394,15 +394,15 @@ export default function Wishlist({ user }: WishlistProps) {
                 {/* Stock Tag on image overlay */}
                 <span className="absolute bottom-4 left-4 z-10">
                   {product.stock === 0 ? (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700 shadow-sm border border-red-200/50">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#D32F2F] text-white shadow-sm">
                       {t("Out of Stock")}
                     </span>
                   ) : product.stock <= 5 ? (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 shadow-sm border border-amber-200/50">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FF8C00] text-white shadow-sm">
                       {t("Low Stock")} ({product.stock})
                     </span>
                   ) : (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-700 shadow-sm border border-green-200/50">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-gradient-to-r from-[#28b45b] to-[#16a34a] text-white shadow-sm">
                       {product.stock} {t("In Stock")}
                     </span>
                   )}

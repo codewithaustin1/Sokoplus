@@ -6596,11 +6596,11 @@ export default function Admin({ user }: AdminProps) {
                           </td>
                           <td className="py-3 text-center">
                             {item.stock <= 0 ? (
-                              <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-red-100 text-red-700">Out of Stock</span>
+                              <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-[#D32F2F] text-white">Out of Stock</span>
                             ) : item.stock < 10 ? (
-                              <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-amber-100 text-amber-700">Low Stock ({item.stock})</span>
+                              <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-[#FF8C00] text-white">Low Stock ({item.stock})</span>
                             ) : (
-                              <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-50 text-emerald-700">Good ({item.stock})</span>
+                              <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-gradient-to-r from-[#28b45b] to-[#16a34a] text-white">Good ({item.stock})</span>
                             )}
                           </td>
                           <td className="py-3 text-right font-black text-gray-950">

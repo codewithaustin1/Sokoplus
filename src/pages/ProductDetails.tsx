@@ -312,8 +312,21 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
           historyList = historyList.slice(0, 20);
         }
         localStorage.setItem("sokoplus_browsing_history", JSON.stringify(historyList));
+
+        // Save full product objects to "sokoplus_recently_viewed_products"
+        const productsJson = localStorage.getItem("sokoplus_recently_viewed_products");
+        let productsList: Product[] = productsJson ? JSON.parse(productsJson) : [];
+        if (!Array.isArray(productsList)) {
+          productsList = [];
+        }
+        productsList = productsList.filter(p => p.id !== product.id);
+        productsList.unshift(product);
+        if (productsList.length > 10) {
+          productsList = productsList.slice(0, 10);
+        }
+        localStorage.setItem("sokoplus_recently_viewed_products", JSON.stringify(productsList));
       } catch (err) {
-        console.error("Error saving browsing history:", err);
+        console.warn("Error saving browsing history:", err);
       }
     }
   }, [product]);
@@ -1111,15 +1124,15 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                    {/* Stock Badge Overlay */}
                    <span className="absolute top-3 left-3 z-10">
                      {p.stock === 0 ? (
-                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200/20 dark:border-red-900/30 shadow-sm">
+                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#D32F2F] text-white shadow-sm">
                          Out of Stock
                        </span>
                      ) : p.stock <= 5 ? (
-                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-450 border border-amber-200/20 dark:border-amber-900/30 shadow-sm">
+                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FF8C00] text-white shadow-sm">
                          Low Stock ({p.stock})
                        </span>
                      ) : (
-                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#32ba78]/10 text-[#32ba78] border-[#32ba78]/30 shadow-sm font-extrabold uppercase tracking-wide">
+                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-[#28b45b] to-[#16a34a] text-white shadow-sm font-extrabold tracking-wide">
                          {p.stock} In Stock
                        </span>
                      )}
