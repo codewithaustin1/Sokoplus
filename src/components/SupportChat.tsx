@@ -388,36 +388,35 @@ ${JSON.stringify(products.map(p => ({
             parts: [{ text: m.text }],
           }));
 
-          const responseStream = await aiInstance.models.generateContentStream({
-            model: "gemini-3.6-flash",
-            contents: contents,
-            config: {
-              systemInstruction,
-              tools: [{ googleMaps: {} }],
-              toolConfig: userLocation ? {
-                retrievalConfig: {
-                  latLng: {
-                    latitude: userLocation.latitude,
-                    longitude: userLocation.longitude,
-                  }
-                }
-              } : undefined
-            },
-          });
+          const candidateModels = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"];
+          let clientText = "";
 
-          let accumulatedText = "";
-          for await (const chunk of responseStream) {
-            if (chunk.text) {
-              accumulatedText += chunk.text;
-              setAiMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === botMsgId ? { ...msg, text: accumulatedText } : msg
-                )
-              );
+          for (const modelName of candidateModels) {
+            try {
+              const responseStream = await aiInstance.models.generateContentStream({
+                model: modelName,
+                contents: contents,
+                config: {
+                  systemInstruction,
+                },
+              });
+
+              for await (const chunk of responseStream) {
+                if (chunk.text) {
+                  clientText += chunk.text;
+                  setAiMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === botMsgId ? { ...msg, text: clientText } : msg
+                    )
+                  );
+                }
+              }
+
+              if (clientText.trim()) return;
+            } catch (mErr) {
+              console.warn(`[Client Gemini Fallback] Model ${modelName} failed:`, mErr);
             }
           }
-
-          if (accumulatedText.trim()) return;
         } catch (clientErr) {
           console.error("Direct client-side Gemini fallback stream failed:", clientErr);
         }

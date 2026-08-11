@@ -1256,48 +1256,38 @@ app.post(["/api/recommendations", "/recommendations"], async (req, res) => {
       Return only a JSON array of product IDs.
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: prompt,
-    });
+    const candidateModels = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"];
+    let recommendationIds: string[] = [];
 
-    const text = response.text || "[]";
-    const jsonMatch = text.match(/\[.*\]/s);
-    const recommendationIds = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
-    
+    for (const modelName of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+        });
+
+        const text = response.text || "[]";
+        const jsonMatch = text.match(/\[.*\]/s);
+        if (jsonMatch) {
+          recommendationIds = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(recommendationIds) && recommendationIds.length > 0) {
+            break;
+          }
+        }
+      } catch (mErr: any) {
+        console.warn(`[Recommendations] Model ${modelName} call failed:`, mErr?.message || mErr);
+      }
+    }
+
     if (recommendationIds.length > 0) {
       recommendationCache.set(cacheKey, recommendationIds);
+      return res.json({ recommendationIds });
     }
     
-    res.json({ recommendationIds });
+    res.json({ recommendationIds: getLocalFallbackRecommendations() });
   } catch (error: any) {
-    const errStr = (error.message || "") + " " + JSON.stringify(error) + " " + String(error);
-    const isQuotaOrOverloadError = 
-      error.status === "RESOURCE_EXHAUSTED" || 
-      error.status === 429 || 
-      error.code === 429 || 
-      error.error?.code === 429 ||
-      error.error?.status === "RESOURCE_EXHAUSTED" ||
-      error.status === "UNAVAILABLE" ||
-      error.status === 503 ||
-      error.code === 503 ||
-      error.error?.code === 503 ||
-      error.error?.status === "UNAVAILABLE" ||
-      errStr.toLowerCase().includes("429") || 
-      errStr.toLowerCase().includes("503") || 
-      errStr.toLowerCase().includes("quota") || 
-      errStr.toLowerCase().includes("resource_exhausted") ||
-      errStr.toLowerCase().includes("exhausted") ||
-      errStr.toLowerCase().includes("unavailable") ||
-      errStr.toLowerCase().includes("high demand") ||
-      errStr.toLowerCase().includes("overloaded") ||
-      errStr.toLowerCase().includes("experiencing high demand");
-
-    if (isQuotaOrOverloadError) {
-      quotaCooldownUntil = Date.now() + (10 * 60 * 1000); // 10 minutes cooldown
-      console.warn("[Recommendations] Gemini quota limit or high demand overloaded status reached in index.ts. Activating 10-minute local backup recommendations.");
-    } else if (error.message === "GEMINI_API_KEY is missing") {
-      console.info("[Sokoplus Recommendations] Gemini API Key is not configured yet. Utilizing SokoSmart high-performance local recommendation fallback engine. Add GEMINI_API_KEY in the Settings panel to activate AI recommendations.");
+    if (error.message === "GEMINI_API_KEY is missing") {
+      console.info("[Sokoplus Recommendations] Gemini API Key is not configured yet. Utilizing SokoSmart high-performance local recommendation fallback engine.");
     } else {
       console.warn("Recommendations Gemini error, utilizing local recommendation fallback engine in index.ts:", error.message || error);
     }
@@ -1347,19 +1337,10 @@ app.post(["/api/support-chat/ai", "/support-chat/ai"], async (req, res) => {
     }
   }
 
-  // Check if we are currently on cooldown
-  if (Date.now() < quotaCooldownUntil) {
-    console.warn("Support Chat: AI limit hit / cooldown active. Instantly serving local heuristic fallback.");
-    const lastUserMsg = messages[messages.length - 1]?.text || "";
-    const fallbackText = generateLocalHeuristicResponse(lastUserMsg, productsData);
-    return res.json({ text: fallbackText });
-  }
-
-  try {
-    const systemInstruction = `You are "SokoSmart", the intelligent, friendly, and helpful Customer Support Assistant for Sokoplus, a premier Kenyan e-commerce marketplace. 
+  const systemInstruction = `You are "SokoSmart", the intelligent, friendly, and helpful AI Customer Support Assistant for Sokoplus, a premier Kenyan e-commerce marketplace. 
 
 Your objectives:
-1. Provide accurate, context-aware information about the products in our storefront catalog.
+1. Provide accurate, context-aware information about products in our storefront catalog.
 2. Help users find suitable products, answer questions about product features, pricing (expressed in KES / Kenyan Shillings), availability/stock, and categories.
 3. Be extremely polite and show genuine warm Kenyan hospitality. Use words like "Habari" (Hello), "Karibu" (Welcome), or "Asante" (Thank you) when welcoming or thanking the customer. Keep your responses primarily in English.
 4. Keep answers nicely styled with clean markdown bullets, but concise and reader-friendly. Avoid overly long walls of text.
@@ -1370,57 +1351,37 @@ Here is the current active Sokoplus product catalog:
 ${JSON.stringify(productsData)}
 `;
 
-    const contents = messages.map((m: any) => ({
-      role: m.sender === "user" ? "user" : "model",
-      parts: [{ text: m.text }],
-    }));
+  const contents = messages.map((m: any) => ({
+    role: m.sender === "user" ? "user" : "model",
+    parts: [{ text: m.text }],
+  }));
 
-    const ai = getGenAI();
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: contents,
-      config: {
-        systemInstruction,
-      },
-    });
+  const candidateModels = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"];
 
-    res.json({ text: response.text });
-  } catch (error: any) {
-    const errStr = (error.message || "") + " " + JSON.stringify(error) + " " + String(error);
-    const isQuotaOrOverloadError = 
-      error.status === "RESOURCE_EXHAUSTED" || 
-      error.status === 429 || 
-      error.code === 429 || 
-      error.error?.code === 429 ||
-      error.error?.status === "RESOURCE_EXHAUSTED" ||
-      error.status === "UNAVAILABLE" ||
-      error.status === 503 ||
-      error.code === 503 ||
-      error.error?.code === 503 ||
-      error.error?.status === "UNAVAILABLE" ||
-      errStr.toLowerCase().includes("429") || 
-      errStr.toLowerCase().includes("503") || 
-      errStr.toLowerCase().includes("quota") || 
-      errStr.toLowerCase().includes("resource_exhausted") ||
-      errStr.toLowerCase().includes("exhausted") ||
-      errStr.toLowerCase().includes("unavailable") ||
-      errStr.toLowerCase().includes("high demand") ||
-      errStr.toLowerCase().includes("overloaded") ||
-      errStr.toLowerCase().includes("experiencing high demand");
+  for (const modelName of candidateModels) {
+    try {
+      const ai = getGenAI();
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: contents,
+        config: {
+          systemInstruction,
+        },
+      });
 
-    if (isQuotaOrOverloadError) {
-      quotaCooldownUntil = Date.now() + (10 * 60 * 1000); // 10 minutes cooldown
-      console.warn("[SokoSmart] Gemini quota rate-limited or high demand overloaded status detected in index.ts. Operating in High-Performance Local Search mode.");
-    } else {
-      console.error("Smart Support Chat Assistant Error caught in index.ts. Activating Offline fallback search:", error.message || error);
+      if (response.text) {
+        return res.json({ text: response.text });
+      }
+    } catch (mErr: any) {
+      console.warn(`[SokoSmart Support Chat] Model ${modelName} error in index.ts:`, mErr?.message || mErr);
     }
-    
-    // Fall back to our local search instead of sending 429
-    const lastUserMsg = messages[messages.length - 1]?.text || "";
-    const fallbackText = generateLocalHeuristicResponse(lastUserMsg, productsData);
-    
-    res.json({ text: fallbackText });
   }
+  
+  // Fall back to local heuristic if all AI models fail
+  const lastUserMsg = messages[messages.length - 1]?.text || "";
+  const fallbackText = generateLocalHeuristicResponse(lastUserMsg, productsData);
+  
+  res.json({ text: fallbackText });
 });
 
 // Fallback response for unhandled API calls
