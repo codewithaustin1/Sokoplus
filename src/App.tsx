@@ -41,7 +41,7 @@ import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, limit } from "firebase/firestore";
 import { useSettings } from "./lib/SettingsContext";
 import { UserProfile } from "./types";
-import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X, Key, LogOut, ShieldCheck, Clock, BarChart2 } from "lucide-react";
+import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X, Key, LogOut, ShieldCheck, Clock, BarChart2, Sparkles } from "lucide-react";
 import { verifyTOTP } from "./utils/totp";
 import toast from "react-hot-toast";
 import SupportChat from "./components/SupportChat";
@@ -256,6 +256,17 @@ export default function App() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollTopBg, setScrollTopBg] = useState("rgb(234, 88, 12)"); // Dynamic background color
   const [unreadSupportCount, setUnreadSupportCount] = useState<number>(0);
+  const [showChatNotification, setShowChatNotification] = useState(false);
+  const [chatNotifDismissed, setChatNotifDismissed] = useState(false);
+
+  // Auto-trigger welcome chat notification after 1.5 seconds on website visit
+  useEffect(() => {
+    if (chatNotifDismissed || isSupportOpen) return;
+    const timer = setTimeout(() => {
+      setShowChatNotification(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [chatNotifDismissed, isSupportOpen]);
   const [quotaExceededInfo, setQuotaExceededInfo] = useState<{ error: string; path: string | null } | null>(null);
   const { settings } = useSettings();
   const showAudioBubble = settings.showAudioBubble;
@@ -480,7 +491,11 @@ export default function App() {
   };
 
   useEffect(() => {
-    const handleOpenSupport = () => setIsSupportOpen(true);
+    const handleOpenSupport = () => {
+      setIsSupportOpen(true);
+      setShowChatNotification(false);
+      setChatNotifDismissed(true);
+    };
     window.addEventListener("open-support-chat", handleOpenSupport);
     return () => {
       window.removeEventListener("open-support-chat", handleOpenSupport);
@@ -854,7 +869,14 @@ export default function App() {
                 <button 
                   id="support-chat-trigger"
                   className={`p-4 rounded-full shadow-2xl transition-all group flex items-center cursor-pointer relative ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
-                  onClick={() => setIsSupportOpen(!isSupportOpen)}
+                  onClick={() => {
+                    const nextOpen = !isSupportOpen;
+                    setIsSupportOpen(nextOpen);
+                    if (nextOpen) {
+                      setShowChatNotification(false);
+                      setChatNotifDismissed(true);
+                    }
+                  }}
                 >
                   <MessageCircle size={24} />
                   {!isSupportOpen && (
@@ -862,9 +884,9 @@ export default function App() {
                       Help & Support
                     </span>
                   )}
-                  {!isSupportOpen && unreadSupportCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border border-white animate-bounce shadow">
-                      {unreadSupportCount}
+                  {!isSupportOpen && (showChatNotification || unreadSupportCount > 0) && (
+                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900 animate-bounce shadow">
+                      {showChatNotification ? 1 : unreadSupportCount}
                     </span>
                   )}
                 </button>

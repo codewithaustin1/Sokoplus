@@ -3,7 +3,8 @@ import { Navigate, Link } from "react-router-dom";
 import { collection, query, where, orderBy, getDocs, doc, deleteDoc, updateDoc, limit } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { UserProfile, Order, Voucher } from "../types";
-import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload, Settings, Sun, Moon, Globe, Coins, Gift, Copy, Check, Shield, ShieldCheck, ShieldAlert, QrCode, Key, Eye, EyeOff, Lock } from "lucide-react";
+import { User, Mail, Award, Package, ArrowRight, ShoppingBag, Clock, LogOut, Phone, Download, Bell, CheckCircle, Store, Truck, Trash2, Camera, Upload, Settings, Sun, Moon, Globe, Coins, Gift, Copy, Check, Shield, ShieldCheck, ShieldAlert, QrCode, Key, Eye, EyeOff, Lock, Volume2, VolumeX } from "lucide-react";
+import { getChatSoundsEnabled, setChatSoundsEnabled, playReceiveMessageSound } from "../utils/chatAudio";
 import { motion, AnimatePresence } from "motion/react";
 import { auth } from "../lib/firebase";
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
@@ -167,6 +168,26 @@ export default function Profile({ user }: ProfileProps) {
   }, [sellerStudioEnabled, profileTab]);
   const { theme, setTheme } = useTheme();
   const { currency, setCurrency } = useCurrency();
+  const [chatSounds, setChatSounds] = useState<boolean>(getChatSoundsEnabled());
+
+  useEffect(() => {
+    const handleSoundsChanged = () => {
+      setChatSounds(getChatSoundsEnabled());
+    };
+    window.addEventListener("chat-sounds-changed", handleSoundsChanged);
+    return () => window.removeEventListener("chat-sounds-changed", handleSoundsChanged);
+  }, []);
+
+  const handleToggleChatSounds = (enabled: boolean) => {
+    setChatSoundsEnabled(enabled);
+    setChatSounds(enabled);
+    if (enabled) {
+      playReceiveMessageSound();
+      toast.success(language === "sw" ? "Sauti za gumzo zimewashwa!" : "Chat assistant sounds enabled!");
+    } else {
+      toast.success(language === "sw" ? "Sauti za gumzo zimezimwa" : "Chat assistant sounds muted");
+    }
+  };
 
   const [isConfiguring2FA, setIsConfiguring2FA] = useState(false);
   const [totpSecret, setTotpSecret] = useState("");
@@ -1271,6 +1292,55 @@ export default function Profile({ user }: ProfileProps) {
                 >
                   <span>USD</span>
                   <span>{language === "sw" ? "Dola" : "Dollar"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Chat Assistant Sounds Card */}
+            <div className="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 p-6 rounded-2xl flex flex-col justify-between space-y-4 md:col-span-2 lg:col-span-1">
+              <div className="space-y-1">
+                <div className="w-10 h-10 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-xl flex items-center justify-center font-bold">
+                  {chatSounds ? <Volume2 size={20} /> : <VolumeX size={20} />}
+                </div>
+                <div className="flex items-center gap-2 pt-2">
+                  <h3 className="text-base font-black text-gray-900 dark:text-gray-100">
+                    {language === "sw" ? "Sauti za Msaidizi" : "Chat Assistant Sounds"}
+                  </h3>
+                  <span className={`text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full ${chatSounds ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400" : "bg-gray-200 dark:bg-gray-800 text-gray-500"}`}>
+                    {chatSounds ? (language === "sw" ? "Zimewashwa" : "Enabled") : (language === "sw" ? "Zimezimwa" : "Disabled")}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 font-medium leading-relaxed">
+                  {language === "sw"
+                    ? "Washa au zima sauti za arifa unapotuma au kupokea ujumbe kutoka kwa msaidizi wa SokoSmart."
+                    : "Toggle audio chime cues on or off when sending and receiving support messages."}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleToggleChatSounds(true)}
+                  className={`px-4 py-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    chatSounds
+                      ? "bg-orange-600 text-white shadow-md shadow-orange-600/10"
+                      : "bg-white dark:bg-gray-800 text-gray-750 dark:text-gray-300 border border-gray-150 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <Volume2 size={14} />
+                  <span>{language === "sw" ? "Sauti On" : "Sounds On"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleChatSounds(false)}
+                  className={`px-4 py-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    !chatSounds
+                      ? "bg-orange-600 text-white shadow-md shadow-orange-600/10"
+                      : "bg-white dark:bg-gray-800 text-gray-750 dark:text-gray-300 border border-gray-150 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <VolumeX size={14} />
+                  <span>{language === "sw" ? "Kimya" : "Mute"}</span>
                 </button>
               </div>
             </div>

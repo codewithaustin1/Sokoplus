@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { UserProfile, SupportTicket } from "../types";
 import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp, getDocs, query, limit, onSnapshot, where, updateDoc, doc } from "firebase/firestore";
-import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity, ArrowLeft, Clock, CheckCircle2, Check, CheckCheck, MapPin, ExternalLink, Globe } from "lucide-react";
+import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity, ArrowLeft, Clock, CheckCircle2, Check, CheckCheck, MapPin, ExternalLink, Globe, Volume2, VolumeX } from "lucide-react";
+import { playSendMessageSound, playReceiveMessageSound, getChatSoundsEnabled, setChatSoundsEnabled } from "../utils/chatAudio";
 import toast from "react-hot-toast";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
@@ -32,6 +33,27 @@ const DEFAULT_AI_PRODUCTS_FALLBACK = [
 export default function Support({ user, isOpen, onClose }: SupportProps) {
   // Tabs: "ai" for custom Gemini product assistant; "whatsapp" for direct live chat; "email" for Firestore ticketing helpdesk
   const [mode, setMode] = useState<"ai" | "whatsapp" | "email">("ai");
+  const [soundsEnabled, setSoundsEnabled] = useState<boolean>(getChatSoundsEnabled());
+
+  useEffect(() => {
+    const handleSoundsChanged = () => {
+      setSoundsEnabled(getChatSoundsEnabled());
+    };
+    window.addEventListener("chat-sounds-changed", handleSoundsChanged);
+    return () => window.removeEventListener("chat-sounds-changed", handleSoundsChanged);
+  }, []);
+
+  const toggleSounds = () => {
+    const nextVal = !soundsEnabled;
+    setChatSoundsEnabled(nextVal);
+    setSoundsEnabled(nextVal);
+    if (nextVal) {
+      playReceiveMessageSound();
+      toast.success("Chat sounds enabled");
+    } else {
+      toast.success("Chat sounds muted");
+    }
+  };
   
   // Traditional form states
   const [email, setEmail] = useState("");
@@ -121,6 +143,7 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
         status: "open" // reopen / keep open
       });
 
+      playSendMessageSound();
       setClientReplyText((prev) => ({ ...prev, [ticketId]: "" }));
       toast.success("Message sent to Soplus Support.");
     } catch (error) {
@@ -220,6 +243,7 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+      playSendMessageSound();
       toast.success("Support ticket submitted! We'll get back to you soon.");
       setMessage("");
       onClose();
@@ -257,6 +281,9 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
     ]);
     setChatInput("");
     setAiLoading(true);
+    playSendMessageSound();
+
+    let hasRungReceiveSound = false;
 
     try {
       const response = await fetch("/api/support-chat/ai", {
@@ -301,6 +328,10 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
           try {
             const data = JSON.parse(jsonStr);
             if (data.chunk) {
+              if (!hasRungReceiveSound) {
+                hasRungReceiveSound = true;
+                playReceiveMessageSound();
+              }
               accumulatedText += data.chunk;
               setAiMessages((prev) =>
                 prev.map((msg) =>
@@ -456,9 +487,19 @@ Please check out our featured products catalog on the home page, or connect with
               <p className="text-xs text-gray-400">Usually replies instantly</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-all cursor-pointer bg-transparent border-none text-white outline-none">
-            <X size={20} />
-          </button>
+          <div className="flex items-center space-x-1">
+            <button
+              type="button"
+              onClick={toggleSounds}
+              title={soundsEnabled ? "Mute chat sounds" : "Enable chat sounds"}
+              className="p-2 hover:bg-white/10 rounded-xl transition-all cursor-pointer bg-transparent border-none text-white outline-none"
+            >
+              {soundsEnabled ? <Volume2 size={18} className="text-orange-400" /> : <VolumeX size={18} className="text-gray-400" />}
+            </button>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-all cursor-pointer bg-transparent border-none text-white outline-none">
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Support Modes Navigation Pills */}
