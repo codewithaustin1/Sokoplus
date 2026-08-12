@@ -31,7 +31,6 @@ export interface CacheWarmNotification {
 export const POPULAR_CATEGORIES = [
   "Local Crafts",
   "Fashion & Apparel",
-  "Groceries & Fresh Food",
   "Electronics & Tech",
   "Beauty & Personal Care",
   "Home & Office Décor",

@@ -24,7 +24,7 @@ interface Message {
 const DEFAULT_AI_PRODUCTS_FALLBACK = [
   { id: "f1", name: "Handcrafted Maasai Beaded Necklace", category: "Local Crafts", price: 3500, inStock: true, description: "Authentic handmade Kenyan beaded jewelry." },
   { id: "f2", name: "Premium Kitenge Cotton Dress", category: "Fashion", price: 4800, inStock: true, description: "Vibrant African Kitenge print tailored dress." },
-  { id: "f3", name: "Organic Kenyan Macadamia Nuts 500g", category: "Groceries", price: 1200, inStock: true, description: "Freshly roasted local macadamia nuts." },
+  { id: "f3", name: "Kisii Soapstone Carved Bowl", category: "Local Crafts", price: 2200, inStock: true, description: "Hand-carved soapstone decorative bowl from Tabaka, Kisii." },
   { id: "f4", name: "Solar Powered Portable Power Bank 20,000mAh", category: "Electronics", price: 3200, inStock: true, description: "High-capacity outdoor solar charger." },
   { id: "f5", name: "Pure Shea & Coconut Body Butter", category: "Beauty & Personal Care", price: 1500, inStock: true, description: "Nourishing natural skin butter." },
 ];

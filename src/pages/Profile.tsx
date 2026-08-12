@@ -1186,7 +1186,7 @@ export default function Profile({ user }: ProfileProps) {
                   }`}
                 >
                   <span className="text-base mt-0.5">🇰🇪</span>
-                  <span>Kiswahili</span>
+                  <span>Swahili</span>
                 </button>
               </div>
             </div>

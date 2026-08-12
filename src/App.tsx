@@ -852,7 +852,7 @@ export default function App() {
                 </AnimatePresence>
 
                 <button 
-                  id="unified-support-trigger-btn"
+                  id="support-chat-trigger"
                   className={`p-4 rounded-full shadow-2xl transition-all group flex items-center cursor-pointer relative ${isSupportOpen ? 'bg-orange-600 text-white rotate-90 scale-110' : 'bg-gray-900 text-white hover:bg-orange-600'}`}
                   onClick={() => setIsSupportOpen(!isSupportOpen)}
                 >

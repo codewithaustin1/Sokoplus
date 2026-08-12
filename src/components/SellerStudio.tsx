@@ -56,7 +56,6 @@ interface SellerStudioProps {
 const PRODUCT_CATEGORIES = [
   "Local Crafts",
   "Fashion",
-  "Groceries",
   "Electronics",
   "Beauty & Personal Care (Skincare, Haircare, Cosmetics)",
   "Home & Office Décor (Small Scale & Gadgets)",

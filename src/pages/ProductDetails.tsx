@@ -817,31 +817,13 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
               </p>
             </div>
 
-            {product.stock > 0 && (
-              <>
-                <div className="flex items-center space-x-2 bg-rose-50/50 dark:bg-rose-950/20 px-4 py-2.5 rounded-2xl border border-rose-100/40 dark:border-rose-900/20 w-fit text-rose-700 dark:text-rose-400 shadow-sm">
-                  <span className="text-rose-500 text-xs">❤️</span>
-                  <p className="text-xs font-bold">
-                    Wishlisted by {milestoneStats.wishlistCount} shoppers
-                  </p>
-                </div>
-
-                <div className="flex items-center space-x-2 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-2.5 rounded-2xl border border-amber-100/40 dark:border-amber-900/20 w-fit text-amber-800 dark:text-amber-400 shadow-sm">
-                  <span className="text-amber-500 text-xs">⭐</span>
-                  <p className="text-xs font-bold">
-                    Top-Rated: {milestoneStats.rating}/5 based on {milestoneStats.purchasesCount} verified purchases
-                  </p>
-                </div>
-
-                {milestoneStats.isTop10 && (
-                  <div className="flex items-center space-x-2 bg-orange-50/50 dark:bg-orange-950/20 px-4 py-2.5 rounded-2xl border border-orange-100/40 dark:border-orange-900/20 w-fit text-orange-700 dark:text-orange-400 shadow-sm">
-                    <span className="text-orange-500 text-xs">🏆</span>
-                    <p className="text-xs font-bold">
-                      Top 10 Most-Loved across all categories
-                    </p>
-                  </div>
-                )}
-              </>
+            {product.stock > 0 && milestoneStats.isTop10 && (
+              <div className="flex items-center space-x-2 bg-orange-50/50 dark:bg-orange-950/20 px-4 py-2.5 rounded-2xl border border-orange-100/40 dark:border-orange-900/20 w-fit text-orange-700 dark:text-orange-400 shadow-sm">
+                <span className="text-orange-500 text-xs">🏆</span>
+                <p className="text-xs font-bold">
+                  Top 10 Most-Loved across all categories
+                </p>
+              </div>
             )}
           </div>
 

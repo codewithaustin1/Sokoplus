@@ -3006,18 +3006,6 @@ export default function Admin({ user }: AdminProps) {
           buyingPrice: 2800,
         },
         {
-          name: "Coffee - Mount Kenya Special",
-          price: 1200,
-          category: "Groceries",
-          description: "Premium medium roast coffee beans from Central Kenya.",
-          stock: 100,
-          images: [
-            "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=2000",
-          ],
-          artisan: "Nyeri Smallholder Coffee Coop",
-          buyingPrice: 700,
-        },
-        {
           name: "Bamboo Speaker",
           price: 3200,
           category: "Electronics",
@@ -7177,7 +7165,6 @@ export default function Admin({ user }: AdminProps) {
                               <option value="Fashion">Fashion</option>
                               <option value="Electronics">Electronics</option>
                               <option value="Local Crafts">Local Crafts</option>
-                              <option value="Groceries">Groceries</option>
                               <option value="Beauty & Personal Care (Skincare, Haircare, Cosmetics)">Beauty &amp; Personal Care</option>
                               <option value="Home & Office Décor (Small Scale & Gadgets)">Home &amp; Office Décor</option>
                               <option value="Pet Supplies (Toys, Collars, Accessories, Dry Kibble)">Pet Supplies</option>
@@ -8414,7 +8401,6 @@ export default function Admin({ user }: AdminProps) {
                   <option>Fashion</option>
                   <option>Electronics</option>
                   <option>Local Crafts</option>
-                  <option>Groceries</option>
                   <option>Beauty & Personal Care (Skincare, Haircare, Cosmetics)</option>
                   <option>Home & Office Décor (Small Scale & Gadgets)</option>
                   <option>Pet Supplies (Toys, Collars, Accessories, Dry Kibble)</option>
@@ -8844,7 +8830,6 @@ export default function Admin({ user }: AdminProps) {
                   <option>Fashion</option>
                   <option>Electronics</option>
                   <option>Local Crafts</option>
-                  <option>Groceries</option>
                   <option>Beauty & Personal Care (Skincare, Haircare, Cosmetics)</option>
                   <option>Home & Office Décor (Small Scale & Gadgets)</option>
                   <option>Pet Supplies (Toys, Collars, Accessories, Dry Kibble)</option>

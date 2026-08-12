@@ -74,7 +74,7 @@ const DEFAULT_FALLBACK_POSTS: BlogPost[] = [
     title: "Nurturing the Perfect Cup: The Journey of Central Kenya's Coffee",
     content: "The rich, volcanic red soils of Mt. Kenya's slopes provide the absolute perfect microclimate for producing some of the world's finest Arabica coffee beans. Highly regarded for their intense aroma, crisp brightness, and complex dark berry undertones, these beans are grown with extreme care by smallholder farmers. In this story, we follow the life cycle of our Mount Kenya Special single-origin coffee from the delicate white blossoms on the farms, through the honey processing watermills, to the precision medium-roasts in Nairobi. Plus, we share top brewing tips from professional Nairobi baristas on how to unlock the perfect notes at home using a French press or pour-over.",
     image: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=2000",
-    tags: ["Groceries", "Culinary", "Local Produce"],
+    tags: ["Heritage", "Artisan Goods", "Local Crafts"],
     author: "Njuguna Kimani",
     publishedAt: "2026-05-28T09:15:00.000Z",
     readTime: "5 min read",

@@ -158,7 +158,7 @@ export default function ReturnPolicy() {
             </li>
             <li className="flex items-center space-x-2">
               <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-              <span>Fresh food, groceries, and perishables</span>
+              <span>Perishable items, intimate apparel, and unsealed cosmetics</span>
             </li>
           </ul>
         </div>

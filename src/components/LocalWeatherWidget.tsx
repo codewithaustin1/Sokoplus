@@ -386,8 +386,8 @@ function getWeatherShoppingRecommendations(
         icon: "☔",
       },
       {
-        category: "Groceries & Fresh Food",
-        label: "Hot Tea, Coffee & Warm Comfort Soup",
+        category: "Local Crafts",
+        label: "Handcrafted Ceramic Mugs & Woven Coasters",
         icon: "☕",
       },
       {
@@ -407,9 +407,9 @@ function getWeatherShoppingRecommendations(
         icon: "🧴",
       },
       {
-        category: "Groceries & Fresh Food",
-        label: "Cold Beverages, Fresh Juices & Fruits",
-        icon: "🧃",
+        category: "Beauty & Personal Care",
+        label: "Hydrating Facial Mists & Lip Balms",
+        icon: "💧",
       },
       {
         category: "Fashion & Apparel",
@@ -432,9 +432,9 @@ function getWeatherShoppingRecommendations(
       icon: "🎧",
     },
     {
-      category: "Groceries & Fresh Food",
-      label: "Fresh Daily Groceries & Healthy Snacks",
-      icon: "🥑",
+      category: "Home & Office Décor",
+      label: "Artisan Desk Organizers & Small Gadgets",
+      icon: "🕯️",
     },
   ];
 }

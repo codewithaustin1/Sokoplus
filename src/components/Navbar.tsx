@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff, ChevronRight, ChevronDown, Globe, Moon, Sun, Grid, Check, Coins } from "lucide-react";
+import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff, ChevronRight, ChevronDown, Globe, Moon, Sun, Grid, Check, Coins, Store, Compass, BookOpen, HelpCircle, PhoneCall } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -69,10 +69,12 @@ export default function Navbar({ user }: NavbarProps) {
 
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const [showDrawerLanguageMenu, setShowDrawerLanguageMenu] = useState(false);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showAllCategoriesMenu, setShowAllCategoriesMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isNavCompact, setIsNavCompact] = useState(false);
@@ -144,7 +146,6 @@ export default function Navbar({ user }: NavbarProps) {
       { name: "Fashion", label: language === "sw" ? "Mitindo na Mavazi" : "Fashion" },
       { name: "Electronics", label: language === "sw" ? "Vifaa vya Kidijitali" : "Electronics" },
       { name: "Local Crafts", label: language === "sw" ? "Sanaa za Mikono" : "Local Crafts" },
-      { name: "Groceries", label: language === "sw" ? "Bidhaa za Vyakula" : "Groceries" },
       { name: "Beauty & Personal Care (Skincare, Haircare, Cosmetics)", label: language === "sw" ? "Urembo na Vipodozi" : "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" },
       { name: "Home & Office Décor (Small Scale & Gadgets)", label: language === "sw" ? "Mapambo ya Nyumbani na Ofisini" : "Home & Office Décor (Small Scale & Gadgets)" },
       { name: "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)", label: language === "sw" ? "Vifaa vya Wanyama" : "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" }
@@ -570,7 +571,7 @@ export default function Navbar({ user }: NavbarProps) {
                 className="flex items-center gap-1 cursor-pointer select-none text-gray-400 hover:text-white transition-colors uppercase font-black py-0.5 px-1 rounded hover:bg-white/10"
               >
                 <Globe size={11} className="text-gray-400 group-hover:text-amber-400 transition-colors" />
-                <span>{language === "sw" ? "Kiswahili" : "English"}</span>
+                <span>{language === "sw" ? "Swahili" : "English"}</span>
                 <ChevronDown size={11} className={`text-gray-400 transition-transform duration-200 ${showLanguageDropdown ? "rotate-180 text-amber-400" : ""}`} />
               </div>
               <AnimatePresence>
@@ -593,20 +594,20 @@ export default function Navbar({ user }: NavbarProps) {
                           language === "en" ? "text-amber-400 bg-white/5" : "text-gray-300"
                         }`}
                       >
-                        <span>English (US)</span>
+                        <span>English</span>
                         {language === "en" && <Check size={12} className="text-amber-400" />}
                       </div>
                       <div 
                         onClick={() => {
                           setLanguage("sw");
                           setShowLanguageDropdown(false);
-                          toast.success("Lugha imebadilishwa kuwa Kiswahili");
+                          toast.success("Lugha imebadilishwa kuwa Swahili");
                         }}
                         className={`px-3 py-2 hover:bg-amber-400 hover:text-black transition-all cursor-pointer flex items-center justify-between text-xs font-bold ${
                           language === "sw" ? "text-amber-400 bg-white/5" : "text-gray-300"
                         }`}
                       >
-                        <span>Kiswahili (KE)</span>
+                        <span>Swahili</span>
                         {language === "sw" && <Check size={12} className="text-amber-400" />}
                       </div>
                     </div>
@@ -958,7 +959,6 @@ export default function Navbar({ user }: NavbarProps) {
                   {cat.name === "Local Crafts" ? (language === "sw" ? "SANAA ZA MIKONO" : "LOCAL CRAFTS") : 
                    cat.name === "Fashion" ? (language === "sw" ? "MITINDO" : "FASHION") : 
                    cat.name === "Electronics" ? (language === "sw" ? "VIFAA VYA KIDIITALI" : "ELECTRONICS") : 
-                   cat.name === "Groceries" ? (language === "sw" ? "VYAKULA" : "GROCERIES") : 
                    cat.name === "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" ? (language === "sw" ? "UREMBO NA VIPODOZI" : "BEAUTY & PERSONAL CARE") :
                    cat.name === "Home & Office Décor (Small Scale & Gadgets)" ? (language === "sw" ? "MAPAMBO" : "HOME & OFFICE DÉCOR") :
                    cat.name === "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" ? (language === "sw" ? "VIFAA VYA WANYAMA" : "PET SUPPLIES") :
@@ -1092,431 +1092,392 @@ export default function Navbar({ user }: NavbarProps) {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
-            {/* Elegant premium backdrop with deep blur - High z-index to stay above other floating tags */}
+            {/* Elegant backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.225 }}
+              transition={{ duration: 0.2 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/65 backdrop-blur-lg z-[140] md:hidden"
+              className="fixed inset-0 bg-black/65 backdrop-blur-md z-[140] md:hidden"
             />
-            {/* Spring-physics powered right-to-left drawer - Solid background and High z-index to overlay perfectly */}
+            {/* Mobile Left-Side Drawer */}
             <motion.div
-              initial={{ x: "100%" }}
+              initial={{ x: "-100%" }}
               animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 31, stiffness: 296, restDelta: 0.5 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="x"
-              dragConstraints={{ left: 0, right: 320 }}
-              dragElastic={{ left: 0, right: 0.6 }}
-              onDragEnd={(e, info) => {
-                if (info.offset.x > 80) {
+              dragConstraints={{ right: 0, left: -320 }}
+              dragElastic={{ left: 0.6, right: 0 }}
+              onDragEnd={(_e, info) => {
+                if (info.offset.x < -80) {
                   setIsMobileMenuOpen(false);
                 }
               }}
-              className="fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-950 shadow-2xl z-[150] md:hidden p-6 flex flex-col space-y-6 touch-pan-y transition-all duration-[270ms] border-l border-gray-100 dark:border-gray-850"
+              className="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white dark:bg-gray-950 shadow-2xl z-[150] md:hidden flex flex-col justify-between overflow-y-auto touch-pan-y border-r border-gray-150 dark:border-gray-800 rounded-none"
             >
-              <div className="flex justify-between items-center">
-                <span className="text-xl font-bold tracking-tighter text-gray-900 dark:text-gray-100 flex items-center space-x-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-orange-600 animate-pulse" />
-                  <span>Sokoplus Menu</span>
-                </span>
-                <motion.button 
-                  whileHover={{ scale: 1.15, rotate: 90 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setIsMobileMenuOpen(false)} 
-                  className="p-2 text-gray-400 hover:text-orange-600 transition-colors bg-gray-50 dark:bg-gray-850 rounded-xl border border-gray-100 dark:border-gray-800"
-                >
-                  <X size={20} />
-                </motion.button>
+              {/* Top Banner Header with Sokoplus Logo & Fallback */}
+              <div>
+                <div className="relative bg-gradient-to-br from-amber-500 via-amber-600 to-orange-500 text-white p-5 pb-6 overflow-hidden rounded-none shadow-sm">
+                  {/* Background overlay pattern */}
+                  <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80')] bg-cover bg-center pointer-events-none" />
+                  
+                  <div className="relative z-10 flex justify-between items-center">
+                    <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="inline-block">
+                      {settings.brandLogoUrl && !logoError ? (
+                        <img 
+                          src={settings.brandLogoUrl} 
+                          alt="Sokoplus" 
+                          onError={() => setLogoError(true)}
+                          className="h-10 w-auto object-contain filter drop-shadow-md" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      ) : (
+                        <div className="flex items-center space-x-2.5 bg-white/20 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/30 shadow-xs">
+                          <div className="w-7 h-7 rounded-xl bg-white text-amber-600 flex items-center justify-center font-black text-base shadow-xs">
+                            S
+                          </div>
+                          <span className="text-xl font-black tracking-tight text-white font-sans drop-shadow-xs">
+                            Sokoplus<span className="text-amber-200">.</span>
+                          </span>
+                        </div>
+                      )}
+                    </Link>
+
+                    <button 
+                      onClick={() => setIsMobileMenuOpen(false)} 
+                      className="p-2 text-white/90 hover:text-white bg-black/20 hover:bg-black/30 rounded-xl transition-colors backdrop-blur-xs cursor-pointer border-none"
+                      aria-label="Close menu"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <p className="relative z-10 text-[11px] font-bold text-amber-100 tracking-wide mt-2">
+                    {language === "sw" ? "Soko la Bidhaa Halisi za Kenya" : "Authentic Kenyan Marketplace"}
+                  </p>
+                </div>
+
+                {/* Mobile Search Input inside drawer */}
+                <div className="p-4 pb-2">
+                  <form onSubmit={handleSearch} className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                      <Search size={16} />
+                    </span>
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      placeholder={t("searchPlaceholder")}
+                      className="w-full pl-9 pr-14 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none text-xs font-semibold transition-all"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-2 flex items-center space-x-1">
+                      {search && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearch("");
+                            setSuggestedProducts([]);
+                            setSuggestedCategories([]);
+                          }}
+                          className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={toggleVoiceSearch}
+                        className={`p-1 rounded-full transition-all cursor-pointer ${
+                          isListening ? "text-red-500 bg-red-50 animate-pulse" : "text-gray-400 hover:text-amber-500"
+                        }`}
+                      >
+                        {isListening ? <MicOff size={14} /> : <Mic size={14} />}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Sokoplus Menu Components Stack */}
+                <div className="px-4 py-2 space-y-1 divide-y divide-gray-100 dark:divide-gray-850">
+                  {[
+                    {
+                      id: "categories",
+                      title: language === "sw" ? "Vitengo" : "Categories",
+                      subtitle: language === "sw" ? "Sanaa za mikono, mitindo, vifaa & urembo" : "Handcrafted crafts, fashion, tech & beauty",
+                      icon: Grid,
+                      path: "/",
+                      onClick: () => {
+                        setIsMobileMenuOpen(false);
+                        navigate("/");
+                      }
+                    },
+                    {
+                      id: "seller-studio",
+                      title: language === "sw" ? "Studio ya Muuzaji" : "Seller Studio",
+                      subtitle: language === "sw" ? "Anza kuuza au simamia duka lako" : "Start selling or manage your artisan store",
+                      icon: Store,
+                      path: "/seller",
+                      onClick: () => {
+                        setIsMobileMenuOpen(false);
+                        navigate("/seller");
+                      }
+                    },
+                    {
+                      id: "wishlist",
+                      title: language === "sw" ? "Wishlist" : "Wishlist",
+                      subtitle: language === "sw" ? "Bidhaa zako ulizopenda na kuhifadhi" : "Your curated favorites & saved products",
+                      icon: Heart,
+                      path: "/wishlist",
+                      badge: user?.wishlist?.length ? user.wishlist.length : null,
+                      onClick: () => {
+                        setIsMobileMenuOpen(false);
+                        navigate("/wishlist");
+                      }
+                    },
+                    {
+                      id: "blog",
+                      title: language === "sw" ? "Blogs" : "Blogs",
+                      subtitle: language === "sw" ? "Gundua utamaduni na safari za soko" : "Discover culture and market journeys",
+                      icon: BookOpen,
+                      path: "/blog",
+                      onClick: () => {
+                        setIsMobileMenuOpen(false);
+                        navigate("/blog");
+                      }
+                    },
+                    {
+                      id: "account",
+                      title: language === "sw" ? "Akaunti" : "Account",
+                      subtitle: user 
+                        ? (language === "sw" ? `Umeingia kama ${user.displayName}` : `Logged in as ${user.displayName}`)
+                        : (language === "sw" ? "Fuatilia oda, anwani na pointi za zawadi" : "Track purchases, address book & loyalty points"),
+                      icon: User,
+                      path: "/profile",
+                      onClick: () => {
+                        setIsMobileMenuOpen(false);
+                        navigate(user ? "/profile" : "/login");
+                      }
+                    },
+                    {
+                      id: "support",
+                      title: language === "sw" ? "Msaada na Huduma" : "Help & Live Support",
+                      subtitle: language === "sw" ? "Msaada wa saa 24/7 na huduma kwa wateja" : "24/7 live chat & customer assistance",
+                      icon: HelpCircle,
+                      path: "#support",
+                      onClick: () => {
+                        setIsMobileMenuOpen(false);
+                        window.dispatchEvent(new CustomEvent("open-support-chat"));
+                        const supportBtn = document.getElementById("support-chat-trigger") || document.getElementById("unified-support-trigger-btn");
+                        if (supportBtn) {
+                          supportBtn.click();
+                        }
+                      }
+                    },
+                    ...(user?.isAdmin ? [{
+                      id: "admin",
+                      title: language === "sw" ? "Paneli ya Utawala" : "Admin Control Panel",
+                      subtitle: language === "sw" ? "Simamia bidhaa, oda na mipangilio" : "Manage inventory, orders & site settings",
+                      icon: Award,
+                      path: "/admin",
+                      onClick: () => {
+                        setIsMobileMenuOpen(false);
+                        navigate("/admin");
+                      }
+                    }] : [])
+                  ].map((item) => {
+                    const IconComp = item.icon;
+                    const isActive = location.pathname === item.path;
+
+                    return (
+                      <div key={item.id} className="pt-2.5 pb-2.5 first:pt-0">
+                        <button
+                          onClick={item.onClick}
+                          className="w-full flex items-center space-x-3.5 text-left group cursor-pointer border-none bg-transparent"
+                        >
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                            isActive 
+                              ? "bg-amber-500 text-white shadow-sm" 
+                              : "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-900/40 group-hover:bg-amber-500 group-hover:text-white"
+                          }`}>
+                            <IconComp size={19} className="stroke-[2]" />
+                          </div>
+
+                          <div className="flex-grow min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                                {item.title}
+                              </span>
+                              {item.badge ? (
+                                <span className="bg-amber-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                                  {item.badge}
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight mt-0.5 line-clamp-1 font-medium">
+                              {item.subtitle}
+                            </p>
+                          </div>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Mobile Search */}
-              <motion.form 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                onSubmit={handleSearch} 
-                className="relative"
-              >
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                  <Search size={18} />
-                </span>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  placeholder={t("searchPlaceholder")}
-                  className="w-full pl-10 pr-16 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-150 dark:border-gray-800 text-gray-900 dark:text-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none text-sm transition-all focus:border-orange-500 focus:bg-white focus:dark:bg-gray-950 font-medium"
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center space-x-1">
-                  {search && (
+              {/* Bottom Footer Section with "Get Started" Button (No blinking animation) */}
+              <div className="p-4 pt-3 border-t border-gray-150 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 space-y-3 mt-auto">
+                {/* Currency & Language Row - Image 1 Exact Design */}
+                <div className="flex items-center justify-between text-xs font-semibold text-gray-800 dark:text-gray-200 bg-gray-50/80 dark:bg-gray-900/80 p-2 rounded-2xl border border-gray-150 dark:border-gray-800">
+                  {/* Currency Pill: KES | USD */}
+                  <div className="inline-flex items-center bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-0.5 shadow-2xs">
                     <button
                       type="button"
                       onClick={() => {
-                        setSearch("");
-                        setSuggestedProducts([]);
-                        setSuggestedCategories([]);
+                        setCurrency("KES");
+                        toast.success("Currency: KES");
                       }}
-                      className="p-1 text-gray-450 hover:text-gray-750 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
-                      title={language === "sw" ? "Futa" : "Clear"}
+                      className={`px-3 py-1 rounded-lg text-xs font-black tracking-tight transition-all cursor-pointer border-none ${
+                        currency === "KES"
+                          ? "bg-black text-white dark:bg-white dark:text-black shadow-xs"
+                          : "bg-transparent text-gray-800 dark:text-gray-200 hover:text-black dark:hover:text-white"
+                      }`}
                     >
-                      <X size={16} />
+                      KES
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCurrency("USD");
+                        toast.success("Currency: USD");
+                      }}
+                      className={`px-3 py-1 rounded-lg text-xs font-black tracking-tight transition-all cursor-pointer border-none ${
+                        currency === "USD"
+                          ? "bg-black text-white dark:bg-white dark:text-black shadow-xs"
+                          : "bg-transparent text-gray-800 dark:text-gray-200 hover:text-black dark:hover:text-white"
+                      }`}
+                    >
+                      USD
+                    </button>
+                  </div>
+
+                  {/* Language Selector: Globe + Text + ChevronDown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowDrawerLanguageMenu(!showDrawerLanguageMenu)}
+                      className="flex items-center gap-1.5 text-sm font-black text-gray-900 dark:text-gray-100 hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer border-none bg-transparent py-1 px-1.5 rounded-lg"
+                    >
+                      <Globe size={18} className="text-gray-900 dark:text-gray-100 shrink-0" />
+                      <span className="text-sm font-extrabold">{language === "sw" ? "Swahili" : "English"}</span>
+                      <ChevronDown size={16} className={`text-gray-900 dark:text-gray-100 transition-transform duration-200 ${showDrawerLanguageMenu ? "rotate-180 text-amber-500" : ""}`} />
+                    </button>
+
+                    {/* Language Dropdown Menu */}
+                    <AnimatePresence>
+                      {showDrawerLanguageMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                          className="absolute right-0 bottom-full mb-2 w-36 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden z-[160] py-1"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLanguage("en");
+                              setShowDrawerLanguageMenu(false);
+                              toast.success("Language: English");
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs font-bold flex items-center justify-between cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/40 border-none ${
+                              language === "en" ? "text-amber-600 dark:text-amber-400 font-extrabold" : "text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            <span>English</span>
+                            {language === "en" && <Check size={14} className="text-amber-500" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLanguage("sw");
+                              setShowDrawerLanguageMenu(false);
+                              toast.success("Lugha: Swahili");
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs font-bold flex items-center justify-between cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/40 border-none ${
+                              language === "sw" ? "text-amber-600 dark:text-amber-400 font-extrabold" : "text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            <span>Swahili</span>
+                            {language === "sw" && <Check size={14} className="text-amber-500" />}
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                {/* Logout or User info if logged in */}
+                {user && (
+                  <div className="flex items-center justify-between p-2.5 bg-orange-50/50 dark:bg-orange-950/20 rounded-xl border border-orange-100 dark:border-orange-900/30">
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <div className="w-7 h-7 bg-amber-500 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0">
+                        {user.displayName ? user.displayName[0] : "U"}
+                      </div>
+                      <p className="text-xs font-bold text-gray-900 dark:text-gray-100 truncate">{user.displayName}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowLogoutConfirm(true)}
+                      className="text-xs text-gray-500 hover:text-red-500 font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <LogOut size={14} />
+                      <span>{t("logout")}</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Primary CTA Button: Must say "Get Started" and MUST NOT BLINK */}
+                {user ? (
                   <button
                     type="button"
-                    onClick={toggleVoiceSearch}
-                    className={`p-1.5 rounded-full transition-all duration-200 flex items-center justify-center cursor-pointer ${
-                      isListening
-                        ? "text-red-600 bg-red-50 dark:bg-red-950/45 animate-pulse scale-110"
-                        : "text-gray-420 hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-400"
-                    }`}
-                    title={language === "sw" ? "Tafuta kwa sauti" : "Search by voice"}
-                  >
-                    {isListening ? <MicOff size={16} /> : <Mic size={16} />}
-                  </button>
-                </div>
-              </motion.form>
-
-              {/* Mobile Drawer Predictive Search Dropdown */}
-              <AnimatePresence>
-                {(suggestedProducts.length > 0 || suggestedCategories.length > 0) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 5 }}
-                    className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-150 dark:border-gray-800 shadow-2xl max-h-72 overflow-y-auto p-3 space-y-2 divide-y divide-gray-100 dark:divide-gray-800"
-                  >
-                    {suggestedCategories.length > 0 && (
-                      <div className="space-y-1.5 pb-2">
-                        <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                          <Layers size={10} className="text-amber-500" /> Matching Categories
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {suggestedCategories.map((cat) => (
-                            <button
-                              key={cat}
-                              type="button"
-                              onClick={() => handleCategorySelect(cat)}
-                              className="text-xs font-bold px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-amber-400 hover:text-black transition-colors cursor-pointer"
-                            >
-                              📁 {cat}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {suggestedProducts.length > 0 && (
-                      <div className="space-y-1 pt-2">
-                        <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                          <ShoppingBag size={10} className="text-orange-500" /> Products
-                        </div>
-                        {suggestedProducts.map((p) => (
-                          <div
-                            key={p.id}
-                            onClick={() => handleProductSelect(p.id)}
-                            className="flex items-center space-x-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 px-2 rounded-xl transition-colors"
-                          >
-                            <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0 border border-gray-150 dark:border-gray-700">
-                              <FastImage 
-                                src={p.images?.[0] || ""} 
-                                alt={p.name} 
-                                fallbackIconSize={14}
-                              />
-                            </div>
-                            <div className="flex-grow min-w-0">
-                              <p className="text-xs font-bold text-gray-950 dark:text-gray-100 truncate">{p.name}</p>
-                            </div>
-                            <div className="text-xs font-black text-gray-900 dark:text-gray-100 whitespace-nowrap tabular-nums">
-                              {formatPrice(p.price)}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Mobile Currency Quick Switcher */}
-              <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-900 border border-gray-150 dark:border-gray-800 p-3 rounded-2xl">
-                <div className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300">
-                  <Coins size={15} className="text-orange-500" />
-                  <span>{language === "sw" ? "Matawi ya Pesa:" : "Site Currency:"}</span>
-                </div>
-                <div className="flex bg-gray-200 dark:bg-gray-800 p-0.5 rounded-xl">
-                  {(["KES", "USD"] as const).map((curr) => (
-                    <button
-                      key={curr}
-                      type="button"
-                      onClick={() => {
-                        setCurrency(curr);
-                        toast.success(`Currency changed to ${curr}`);
-                      }}
-                      className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                        currency === curr
-                          ? "bg-orange-600 text-white shadow-xs"
-                          : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                      }`}
-                    >
-                      {curr}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Category tag for organization */}
-              <div className="text-[10px] uppercase font-black tracking-widest text-orange-600 dark:text-orange-500 px-1 py-0.5 select-none pt-2 opacity-80">
-                Menu Directories
-              </div>
-
-              {/* Staggered Links */}
-              <motion.div 
-                variants={{
-                  hidden: { opacity: 0 },
-                  show: {
-                    opacity: 1,
-                    transition: {
-                      staggerChildren: 0.04,
-                      delayChildren: 0.1
-                    }
-                  }
-                }}
-                initial="hidden"
-                animate="show"
-                className="flex flex-col space-y-3"
-              >
-                {/* Home */}
-                <motion.div 
-                  variants={{
-                    hidden: { opacity: 0, x: 25 },
-                    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
-                  }}
-                  whileHover={{ x: 6, scale: 1.01 }} 
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link
-                    to="/"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
-                      location.pathname === "/"
-                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm"
-                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium"
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3.5">
-                      <div className={`p-2 rounded-xl scale-110 transition-all ${
-                        location.pathname === "/"
-                          ? "bg-orange-100/60 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400"
-                          : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-100 dark:border-gray-850"
-                      }`}>
-                        <ShoppingBag size={18} />
-                      </div>
-                      <span className="text-sm tracking-tight font-semibold">{t("home")}</span>
-                    </div>
-                    <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
-                  </Link>
-                </motion.div>
-
-                {/* Blog */}
-                <motion.div 
-                  variants={{
-                    hidden: { opacity: 0, x: 25 },
-                    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
-                  }}
-                  whileHover={{ x: 6, scale: 1.01 }} 
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link
-                    to="/blog"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
-                      location.pathname === "/blog"
-                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm"
-                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium"
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3.5">
-                      <div className={`p-2 rounded-xl scale-110 transition-all ${
-                        location.pathname === "/blog"
-                          ? "bg-orange-100/60 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400"
-                          : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
-                      }`}>
-                        <Award size={18} />
-                      </div>
-                      <span className="text-sm tracking-tight font-semibold">{t("blog")}</span>
-                    </div>
-                    <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/blog" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
-                  </Link>
-                </motion.div>
-
-                {/* Wishlist */}
-                <motion.div 
-                  variants={{
-                    hidden: { opacity: 0, x: 25 },
-                    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
-                  }}
-                  whileHover={{ x: 6, scale: 1.01 }} 
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link
-                    to="/wishlist"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
-                      location.pathname === "/wishlist"
-                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm"
-                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium"
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3.5">
-                      <div className={`p-2 rounded-xl scale-110 transition-all ${
-                        location.pathname === "/wishlist"
-                          ? "bg-orange-100/60 dark:bg-orange-905/50 text-orange-600 dark:text-orange-400"
-                          : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
-                      }`}>
-                        <Heart size={18} />
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm tracking-tight font-semibold">{t("wishlist")}</span>
-                        {user?.wishlist && user.wishlist.length > 0 && (
-                          <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                            {user.wishlist.length}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/wishlist" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
-                  </Link>
-                </motion.div>
-
-                {/* Profile */}
-                <motion.div 
-                  variants={{
-                    hidden: { opacity: 0, x: 25 },
-                    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
-                  }}
-                  whileHover={{ x: 6, scale: 1.01 }} 
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link
-                    to="/profile"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
-                      location.pathname === "/profile"
-                        ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm"
-                        : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-850/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium"
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3.5">
-                      <div className={`p-2 rounded-xl scale-110 transition-all ${
-                        location.pathname === "/profile"
-                          ? "bg-orange-100/60 dark:bg-orange-905/50 text-orange-600 dark:text-orange-400"
-                          : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
-                      }`}>
-                        {user?.photoURL ? (
-                          <img src={user.photoURL} alt={user.displayName || "User"} className="w-[18px] h-[18px] object-cover rounded-full border border-gray-250 dark:border-gray-800" referrerPolicy="no-referrer" />
-                        ) : (
-                          <User size={18} />
-                        )}
-                      </div>
-                      <span className="text-sm tracking-tight font-semibold">{t("profile")}</span>
-                    </div>
-                    <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/profile" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
-                  </Link>
-                </motion.div>
-
-                {/* Admin Control */}
-                {user?.isAdmin && (
-                  <motion.div 
-                    variants={{
-                      hidden: { opacity: 0, x: 25 },
-                      show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      navigate("/profile");
                     }}
-                    whileHover={{ x: 6, scale: 1.01 }} 
-                    whileTap={{ scale: 0.98 }}
+                    className="w-full bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm py-3 px-4 rounded-xl text-center shadow-md transition-colors cursor-pointer block border-none"
                   >
-                    <Link
-                      to="/admin"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
-                        location.pathname === "/admin"
-                          ? "bg-orange-50/75 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-900/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm"
-                          : "bg-gray-55 dark:bg-gray-900/30 border-gray-150/40 dark:border-gray-805/40 hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 font-medium"
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3.5">
-                        <div className={`p-2 rounded-xl scale-110 transition-all ${
-                          location.pathname === "/admin"
-                            ? "bg-orange-100/60 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400"
-                            : "bg-white dark:bg-gray-950 text-gray-405 dark:text-gray-500 border border-gray-105 dark:border-gray-850"
-                        }`}>
-                          <Award size={18} />
-                        </div>
-                        <span className="text-sm tracking-tight font-semibold">{t("admin")}</span>
-                      </div>
-                      <ChevronRight size={16} className={`opacity-40 transition-all ${location.pathname === "/admin" ? "text-orange-500 opacity-90 scale-110" : ""}`} />
-                    </Link>
-                  </motion.div>
-                )}
-              </motion.div>
-
-              {/* Bottom footer profile / controls with entry slide up */}
-              <motion.div 
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.25 }}
-                className="mt-auto pt-6 border-t border-gray-150 dark:border-gray-800 flex flex-col space-y-4"
-              >
-                {user ? (
-                   <div className="space-y-4">
-                    <div className="flex items-center space-x-3 p-4 bg-orange-50/50 dark:bg-orange-950/25 rounded-2xl border border-orange-100/30 dark:border-orange-900/35">
-                      <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center text-white font-bold shadow-sm">
-                        {user.displayName[0]}
-                      </div>
-                      <div className="flex-grow min-w-0">
-                        <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{user.displayName}</p>
-                        <div className="flex items-center justify-between mt-0.5">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate mr-2">{user.email}</p>
-                          <span className="bg-white dark:bg-gray-800 px-2 py-0.5 rounded-lg text-[9px] font-black text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900 flex items-center shadow-xs flex-shrink-0">
-                            <Award size={10} className="mr-0.5" /> {user.loyaltyPoints || 0}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <motion.button 
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setShowLogoutConfirm(true);
-                      }}
-                      className="w-full flex items-center justify-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-red-500 font-bold p-3 bg-gray-55 dark:bg-gray-850 rounded-2xl border border-gray-100 dark:border-gray-800 text-sm transition-colors cursor-pointer"
-                    >
-                      <LogOut size={16} />
-                      <span>{t("logout")}</span>
-                    </motion.button>
-                  </div>
+                    Get Started
+                  </button>
                 ) : (
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                  <Link
+                    to="/login"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="w-full bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm py-3 px-4 rounded-xl text-center shadow-md transition-colors cursor-pointer block text-decoration-none"
                   >
-                    <Link
-                      to="/login"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="block w-full bg-orange-600 hover:bg-orange-700 text-white text-center py-4 rounded-2xl font-bold text-base transition-colors shadow-md animate-pulse"
-                    >
-                      Get Started
-                    </Link>
-                  </motion.div>
+                    Get Started
+                  </Link>
                 )}
-                
-                <div className="text-[10px] text-center text-gray-400 font-medium tracking-tight">
-                  Drag right or tap backdrop to close • Sokoplus V2.5
+
+                {/* Legal / Policy Footer Links */}
+                <div className="flex items-center justify-between text-[10px] font-semibold text-gray-400 dark:text-gray-500 px-1 pt-0.5">
+                  <Link 
+                    to="/privacy" 
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                  >
+                    {language === "sw" ? "Sera ya Faragha" : "Privacy Policy"}
+                  </Link>
+                  <span>•</span>
+                  <Link 
+                    to="/terms" 
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                  >
+                    {language === "sw" ? "Masharti na Vigezo" : "Terms of Service"}
+                  </Link>
                 </div>
-              </motion.div>
+              </div>
             </motion.div>
           </>
         )}

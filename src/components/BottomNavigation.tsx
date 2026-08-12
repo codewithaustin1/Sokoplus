@@ -38,7 +38,6 @@ interface BottomNavigationProps {
 const DEFAULT_CATEGORIES = [
   { name: "Local Crafts", labelEn: "Local Crafts", labelSw: "Sanaa za Mikono", icon: Sparkles, desc: "Authentic handmade Kenyan crafts & gifts" },
   { name: "Fashion", labelEn: "Fashion & Apparel", labelSw: "Mavazi na Mitindo", icon: Shirt, desc: "Modern wear & artisanal textiles" },
-  { name: "Groceries", labelEn: "Groceries & Fresh Food", labelSw: "Bidhaa za Vyakula", icon: Apple, desc: "Farm-fresh produce & daily essentials" },
   { name: "Electronics", labelEn: "Electronics & Tech", labelSw: "Kielektroniki na Vifaa", icon: Smartphone, desc: "Smart devices & tech accessories" },
   { name: "Beauty & Personal Care (Skincare, Haircare, Cosmetics)", labelEn: "Beauty & Personal Care", labelSw: "Urembo na Vipodozi", icon: Scissors, desc: "Organic skincare, haircare & cosmetics" },
   { name: "Home & Office Décor (Small Scale & Gadgets)", labelEn: "Home & Office Décor", labelSw: "Mapambo ya Nyumbani na Ofisini", icon: HomeIcon, desc: "Interior accessories & workspace gadgets" },
@@ -107,13 +106,13 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
             setDbCategoryNames(Array.from(setOfCats));
           } else {
             // Default active categories fallback if DB query yields no products
-            setDbCategoryNames(["Local Crafts", "Fashion", "Groceries", "Electronics", "Beauty & Personal Care", "Home & Office Décor", "Pet Supplies"]);
+            setDbCategoryNames(["Local Crafts", "Fashion", "Electronics", "Beauty & Personal Care", "Home & Office Décor", "Pet Supplies"]);
           }
         }
       } catch (err) {
         console.warn("Categories fetch notice:", err);
         if (isMounted) {
-          setDbCategoryNames(["Local Crafts", "Fashion", "Groceries", "Electronics", "Beauty & Personal Care", "Home & Office Décor", "Pet Supplies"]);
+          setDbCategoryNames(["Local Crafts", "Fashion", "Electronics", "Beauty & Personal Care", "Home & Office Décor", "Pet Supplies"]);
         }
       }
     };

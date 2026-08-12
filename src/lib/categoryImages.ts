@@ -2,8 +2,6 @@ export const DEFAULT_CATEGORY_IMAGES: Record<string, string> = {
   "Local Crafts": "https://images.unsplash.com/photo-1590736969955-71cc94801759?auto=format&fit=crop&w=800&q=80",
   "Fashion": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80",
   "Fashion & Apparel": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80",
-  "Groceries": "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
-  "Groceries & Fresh Food": "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
   "Electronics": "https://images.unsplash.com/photo-1498049860654-af1a5c566976?auto=format&fit=crop&w=800&q=80",
   "Electronics & Tech": "https://images.unsplash.com/photo-1498049860654-af1a5c566976?auto=format&fit=crop&w=800&q=80",
   "Beauty": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80",
@@ -57,9 +55,6 @@ export function getCategoryImageUrl(
   }
   if (lower.includes("fashion") || lower.includes("apparel") || lower.includes("cloth")) {
     return DEFAULT_CATEGORY_IMAGES["Fashion"];
-  }
-  if (lower.includes("grocer") || lower.includes("food") || lower.includes("farm")) {
-    return DEFAULT_CATEGORY_IMAGES["Groceries"];
   }
   if (lower.includes("electr") || lower.includes("tech") || lower.includes("gadget")) {
     return DEFAULT_CATEGORY_IMAGES["Electronics"];

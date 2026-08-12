@@ -23,11 +23,6 @@ const CATEGORY_PRESETS: Record<string, string[]> = {
     "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80",
     "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80",
   ],
-  "Groceries": [
-    "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1588964895597-cfccd6e2dbf9?auto=format&fit=crop&w=800&q=80",
-  ],
   "Electronics": [
     "https://images.unsplash.com/photo-1498049860654-af1a5c566976?auto=format&fit=crop&w=800&q=80",
     "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80",
@@ -53,7 +48,6 @@ const CATEGORY_PRESETS: Record<string, string[]> = {
 const STANDARD_CATEGORIES = [
   "Local Crafts",
   "Fashion",
-  "Groceries",
   "Electronics",
   "Beauty & Personal Care",
   "Home & Office Décor",

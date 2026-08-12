@@ -63,7 +63,6 @@ export default function Home({ user }: HomeProps) {
       "Fashion",
       "Electronics",
       "Local Crafts",
-      "Groceries",
       "Beauty & Personal Care (Skincare, Haircare, Cosmetics)",
       "Home & Office Décor (Small Scale & Gadgets)",
       "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)"
@@ -646,19 +645,6 @@ export default function Home({ user }: HomeProps) {
               artisan: "Kariobangi Leather Artisans",
               rating: 4.7,
               reviewCount: 22,
-              createdAt: new Date().toISOString()
-            },
-            {
-              id: "mount-kenya-coffee",
-              name: "Coffee - Mount Kenya Special",
-              price: 1200,
-              category: "Groceries",
-              description: "Premium medium roast coffee beans from Central Kenya.",
-              stock: 100,
-              images: ["https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&q=80&w=2000"],
-              artisan: "Nyeri Smallholder Coffee Coop",
-              rating: 4.9,
-              reviewCount: 37,
               createdAt: new Date().toISOString()
             },
             {
@@ -1350,7 +1336,6 @@ export default function Home({ user }: HomeProps) {
                 : (selectedCategory === "Local Crafts" ? (language === "sw" ? "Sanaa Maalum za Mikono" : "Local Crafts Collection") : 
                    selectedCategory === "Fashion" ? (language === "sw" ? "Mavazi na Mitindo ya Kisasa" : "Fashion Collection") : 
                    selectedCategory === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali na Kielektroniki" : "Electronics Collection") : 
-                   selectedCategory === "Groceries" ? (language === "sw" ? "Vyakula Fresh na Mahitaji ya Jikoni" : "Groceries Collection") : 
                    selectedCategory === "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" ? (language === "sw" ? "Urembo na Vipodozi" : "Beauty & Personal Care") :
                    selectedCategory === "Home & Office Décor (Small Scale & Gadgets)" ? (language === "sw" ? "Mkusanyiko wa Mapambo ya Nyumbani & Ofisini" : "Home & Office Décor Collection") :
                    selectedCategory === "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" ? (language === "sw" ? "Bidhaa za Wanyama wa Kufugwa" : "Pet Supplies Collection") :
@@ -1435,32 +1420,6 @@ export default function Home({ user }: HomeProps) {
                   <option value="rating">Top Rated</option>
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none" size={18} />
-              </div>
-
-              {/* Currency Switching Pill */}
-              <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl border border-gray-100 dark:border-gray-800 items-center space-x-1 shadow-sm h-[50px] sm:h-[58px]">
-                <button
-                  type="button"
-                  onClick={() => setCurrency("KES")}
-                  className={`px-4 sm:px-5 h-[40px] sm:h-[48px] rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                    currency === "KES"
-                      ? "bg-white dark:bg-gray-950 text-orange-600 dark:text-orange-500 shadow-sm"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                  }`}
-                >
-                  KES
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrency("USD")}
-                  className={`px-4 sm:px-5 h-[40px] sm:h-[48px] rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                    currency === "USD"
-                      ? "bg-white dark:bg-gray-950 text-orange-600 dark:text-orange-500 shadow-sm"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                  }`}
-                >
-                  USD
-                </button>
               </div>
             </div>
 
