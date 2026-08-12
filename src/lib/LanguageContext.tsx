@@ -24,7 +24,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Hero Section / Homepage
     heroBadge: "SokoPlus Kenya • 100% Authentic Handcrafts",
-    heroTitle: "Better Products. Better Prices.",
+    heroTitle: "Better Products . At Prices You Don't Get Elsewhere.",
     heroSubtitle: "Discover trending, trusted, and affordable products from across Kenya—all in one place. Shop confidently with secure payments and convenient delivery nationwide.",
     shopCollect: "Start Shopping",
     learnStory: "See What's New",
@@ -101,7 +101,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Hero Section / Homepage
     heroBadge: "SokoPlus Kenya • Kazi Maalum na Bidhaa 100% Halisi za Kienyeji",
-    heroTitle: "Bidhaa Bora. Bei Bora zaidi.",
+    heroTitle: "Bidhaa Bora. Kwa Bei Usizopata Mahali Pengine.",
     heroSubtitle: "Gundua bidhaa zinazovuma, zinazoaminika na za bei nafuu kutoka kote nchini Kenya—zote sehemu moja. Nunua kwa kujiamini kwa malipo salama na utoaji rahisi kote nchini.",
     shopCollect: "Anza Kununua",
     learnStory: "Tazama Mapya",

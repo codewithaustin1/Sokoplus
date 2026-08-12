@@ -910,9 +910,9 @@ export default function Home({ user }: HomeProps) {
             >
               <div className="space-y-2 sm:space-y-3">
                 <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white md:text-gray-900 md:dark:text-white leading-tight">
-                  {language === "sw" ? "Bidhaa Bora." : "Better Products."} <br/>
+                  {language === "sw" ? "Bidhaa Bora." : "Better Products ."} <br/>
                   <span className="text-orange-400 md:text-orange-600 underline decoration-orange-300 md:decoration-orange-200 dark:decoration-orange-800">
-                    {language === "sw" ? "Bei Bora zaidi." : "Better Prices."}
+                    {language === "sw" ? "Kwa Bei Usizopata Mahali Pengine." : "At Prices You Don't Get Elsewhere."}
                   </span>
                 </h1>
               </div>
