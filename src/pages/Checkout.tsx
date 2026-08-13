@@ -1074,17 +1074,49 @@ export default function Checkout({ user }: CheckoutProps) {
                 lat={address.lat}
                 lng={address.lng}
                 error={validationErrors.street}
+                disabledCounties={disabledCounties}
                 onChange={(lat, lng, addressText, locData) => {
                   handleAutoLocationUpdate(lat, lng, addressText, locData);
                 }}
               />
             </div>
 
+            {/* Subtle Green Overlay Card for Counties with Sokoplus Service */}
+            {address.country === "Kenya" && address.county && !disabledCounties.includes(address.county) && (
+              <motion.div 
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 rounded-2xl bg-emerald-500/10 dark:bg-emerald-950/30 border border-emerald-500/30 text-emerald-900 dark:text-emerald-200 relative overflow-hidden shadow-sm"
+              >
+                <div className="absolute -right-6 -bottom-6 w-28 h-28 bg-emerald-500/15 rounded-full blur-xl pointer-events-none" />
+                <div className="flex items-start gap-3 relative z-10">
+                  <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-black text-xs md:text-sm text-emerald-950 dark:text-emerald-100">
+                        Sokoplus Service Active in {address.county}
+                      </h4>
+                      <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 rounded-full text-[10px] font-black uppercase tracking-wider">
+                        Guaranteed Zone
+                      </span>
+                    </div>
+                    <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 font-semibold leading-relaxed">
+                      Subtle green coverage active. Express rider dispatch, door-step fulfillment, and priority order tracking are fully available in {address.county}.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Auto-detected Shipping Region Badge & Fallback Edit Toggle */}
-            <div className={`p-4 bg-gray-50 dark:bg-gray-900 border rounded-2xl space-y-2 transition-colors ${
+            <div className={`p-4 rounded-2xl space-y-2 transition-colors ${
               validationErrors.county 
-                ? "border-red-500 bg-red-50/50 dark:bg-red-950/20" 
-                : "border-gray-200 dark:border-gray-800"
+                ? "border border-red-500 bg-red-50/50 dark:bg-red-950/20" 
+                : address.country === "Kenya" && !disabledCounties.includes(address.county)
+                ? "border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20"
+                : "border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900"
             }`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1174,7 +1206,7 @@ export default function Checkout({ user }: CheckoutProps) {
                               >
                                 {counties.filter(c => !disabledCounties.includes(c.name)).map((c) => (
                                   <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
-                                    {c.name}
+                                    {c.name} (✓ Sokoplus Available)
                                   </option>
                                 ))}
                               </select>

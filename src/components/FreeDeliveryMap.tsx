@@ -20,6 +20,7 @@ interface FreeDeliveryMapProps {
   lat?: number;
   lng?: number;
   error?: string;
+  disabledCounties?: string[];
   onChange: (lat: number, lng: number, addressText?: string, locationData?: SelectedLocationData) => void;
 }
 
@@ -87,10 +88,11 @@ const CITY_COORDINATES: { [key: string]: LocationCoords } = {
   "Gisenyi": { lat: -1.7011, lng: 29.2553, zoom: 14 },
 };
 
-export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng, error, onChange }: FreeDeliveryMapProps) {
+export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng, error, disabledCounties = [], onChange }: FreeDeliveryMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const countyOverlaysGroupRef = useRef<L.LayerGroup | null>(null);
   const isExplicitUserPinRef = useRef<boolean>(false);
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [resolvedAddress, setResolvedAddress] = useState<string>("");
@@ -122,6 +124,10 @@ export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng,
     });
 
     mapInstanceRef.current = map;
+
+    // Layer group for Sokoplus county service overlays
+    const overlaysGroup = L.layerGroup().addTo(map);
+    countyOverlaysGroupRef.current = overlaysGroup;
 
     // Add Free OpenStreetMap tile layer
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -168,6 +174,41 @@ export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng,
       }
     };
   }, []);
+
+  // Conditionally render subtle green overlays on counties where Sokoplus service is available
+  useEffect(() => {
+    if (!mapInstanceRef.current || !countyOverlaysGroupRef.current) return;
+
+    const group = countyOverlaysGroupRef.current;
+    group.clearLayers();
+
+    Object.entries(COUNTY_COORDINATES).forEach(([cName, coords]) => {
+      const isServiceAvailable = !disabledCounties?.includes(cName);
+
+      if (isServiceAvailable) {
+        const radius = cName === "Nairobi City County" ? 14000 : 20000;
+        const circle = L.circle([coords.lat, coords.lng], {
+          radius,
+          fillColor: "#10b981", // subtle green overlay
+          color: "#059669",     // emerald border stroke
+          weight: 1.5,
+          fillOpacity: 0.18,    // subtle opacity overlay
+          opacity: 0.65,
+          dashArray: "4, 4"
+        });
+
+        circle.bindTooltip(
+          `<div style="font-family: system-ui, sans-serif; font-size: 11px; padding: 2px 4px; font-weight: 600;">
+             <strong style="color: #065f46;">${cName}</strong><br/>
+             <span style="color: #059669; font-weight: 700;">✓ Sokoplus Service Available</span>
+           </div>`,
+          { permanent: false, direction: "top" }
+        );
+
+        group.addLayer(circle);
+      }
+    });
+  }, [disabledCounties]);
 
   // Sync Map when explicit lat/lng props change from parent (e.g., top search bar)
   useEffect(() => {
@@ -364,24 +405,31 @@ export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng,
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
           <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">
             📍 Exact Delivery Pin-drop
           </label>
           <p className="text-[10px] text-gray-400 font-medium mt-0.5">
-            Search or drag marker to your precise apartment/building location. Powered by OpenMaps.
+            Search or drag marker to your precise location. Green overlays highlight active Sokoplus service counties.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => handleLocateMe(false)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-black transition-all shadow-sm shrink-0 cursor-pointer"
-        >
-          <Compass className="w-3.5 h-3.5 animate-spin-slow" />
-          <span>Locate Me</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-full text-[10px] font-black tracking-wide">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Sokoplus Green Overlay Active</span>
+          </span>
+
+          <button
+            type="button"
+            onClick={() => handleLocateMe(false)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-black transition-all shadow-sm shrink-0 cursor-pointer"
+          >
+            <Compass className="w-3.5 h-3.5 animate-spin-slow" />
+            <span>Locate Me</span>
+          </button>
+        </div>
       </div>
 
       {/* OpenMaps Real-time Location Search Input */}
