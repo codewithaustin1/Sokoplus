@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import johannesburgSkyline from "../assets/images/johannesburg_skyline_1786599114515.jpg";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff, ChevronRight, ChevronDown, Globe, Moon, Sun, Grid, Check, Coins, Store, Compass, BookOpen, HelpCircle, PhoneCall } from "lucide-react";
 import toast from "react-hot-toast";
@@ -1120,8 +1121,11 @@ export default function Navbar({ user }: NavbarProps) {
               {/* Top Banner Header with Sokoplus Logo & Fallback */}
               <div>
                 <div className="relative bg-gradient-to-br from-amber-500 via-amber-600 to-orange-500 text-white p-5 pb-6 overflow-hidden rounded-none shadow-sm">
-                  {/* Background overlay pattern */}
-                  <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80')] bg-cover bg-center pointer-events-none" />
+                  {/* Background overlay pattern - City of Johannesburg Skyline */}
+                  <div 
+                    className="absolute inset-0 opacity-35 bg-cover bg-center pointer-events-none mix-blend-overlay" 
+                    style={{ backgroundImage: `url(${johannesburgSkyline})` }} 
+                  />
                   
                   <div className="relative z-10 flex justify-between items-center">
                     <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="inline-block">
@@ -1213,7 +1217,7 @@ export default function Navbar({ user }: NavbarProps) {
                         navigate("/");
                       }
                     },
-                    {
+                    ...(settings.sellerStudioEnabled ? [{
                       id: "seller-studio",
                       title: language === "sw" ? "Studio ya Muuzaji" : "Seller Studio",
                       subtitle: language === "sw" ? "Anza kuuza au simamia duka lako" : "Start selling or manage your artisan store",
@@ -1223,7 +1227,7 @@ export default function Navbar({ user }: NavbarProps) {
                         setIsMobileMenuOpen(false);
                         navigate("/seller");
                       }
-                    },
+                    }] : []),
                     {
                       id: "wishlist",
                       title: language === "sw" ? "Wishlist" : "Wishlist",

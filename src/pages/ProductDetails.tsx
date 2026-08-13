@@ -769,7 +769,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
 
           <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
             <div className="flex items-baseline space-x-3">
-              <p className="text-4xl font-black text-orange-600 dark:text-orange-550 tabular-nums">{formatPrice(product.price)}</p>
+              <p className="text-4xl font-black text-gray-900 dark:text-white tabular-nums">{formatPrice(product.price)}</p>
               {product.originalPrice && product.originalPrice > product.price && (
                 <div className="flex items-center space-x-2">
                   <span className="text-lg text-gray-400 dark:text-gray-500 line-through font-semibold tabular-nums">
@@ -1409,7 +1409,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                     {product.name}
                   </p>
                   <div className="flex items-baseline gap-2 tabular-nums">
-                    <span className="text-sm sm:text-base font-black text-orange-600 dark:text-orange-500">
+                    <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white">
                       {formatPrice(product.price)}
                     </span>
                     {product.originalPrice && product.originalPrice > product.price && (
