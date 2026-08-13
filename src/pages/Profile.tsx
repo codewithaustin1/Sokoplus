@@ -1478,13 +1478,13 @@ export default function Profile({ user }: ProfileProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowLogoutConfirm(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200]"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white rounded-3xl p-8 z-[110] shadow-2xl space-y-6"
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white rounded-3xl p-8 z-[210] shadow-2xl space-y-6"
             >
               <div className="flex flex-col items-center text-center space-y-4">
                 <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-500">

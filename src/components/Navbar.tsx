@@ -1494,14 +1494,14 @@ export default function Navbar({ user }: NavbarProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowLogoutConfirm(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[60]"
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[200]"
             />
             <motion.div
               initial={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95, y: 20 }}
               animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
               exit={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: "spring", stiffness: 350, damping: isMobile ? 32 : 25 }}
-              className={`fixed ${isMobile ? "bottom-0 left-0 right-0 rounded-t-[2.5rem] p-6 pb-8" : "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-3xl p-8"} bg-white dark:bg-gray-900 z-[70] shadow-2xl space-y-6 text-gray-900 dark:text-gray-100 border-t md:border border-gray-150 dark:border-gray-800`}
+              className={`fixed ${isMobile ? "bottom-0 left-0 right-0 rounded-t-[2.5rem] p-6 pb-8" : "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-3xl p-8"} bg-white dark:bg-gray-900 z-[210] shadow-2xl space-y-6 text-gray-900 dark:text-gray-100 border-t md:border border-gray-150 dark:border-gray-800`}
             >
               {isMobile && (
                 <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full mx-auto mb-1 cursor-pointer" onClick={() => setShowLogoutConfirm(false)} />
