@@ -1,0 +1,26 @@
+{
+  "name": "Sokoplus | Premier Kenyan E-commerce Marketplace",
+  "short_name": "Sokoplus",
+  "description": "Premier Kenyan e-commerce marketplace for authentic crafts, fashion, electronics, and local products.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/src/assets/images/sokoplus_favicon_1780371572074.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/src/assets/images/sokoplus_favicon_1780371572074.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "lifestyle", "business"]
+}

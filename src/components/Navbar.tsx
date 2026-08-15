@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import johannesburgSkyline from "../assets/images/johannesburg_skyline_1786599114515.jpg";
+import { AfricanCitiesSlideshow } from "./AfricanCitiesSlideshow";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff, ChevronRight, ChevronDown, Globe, Moon, Sun, Grid, Check, Coins, Store, Compass, BookOpen, HelpCircle, PhoneCall } from "lucide-react";
 import toast from "react-hot-toast";
@@ -75,6 +75,7 @@ export default function Navbar({ user }: NavbarProps) {
   const [showAllCategoriesMenu, setShowAllCategoriesMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [animatingDrawerItemId, setAnimatingDrawerItemId] = useState<string | null>(null);
   const [logoError, setLogoError] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -1118,32 +1119,26 @@ export default function Navbar({ user }: NavbarProps) {
               }}
               className="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white dark:bg-gray-950 shadow-2xl z-[150] md:hidden flex flex-col justify-between overflow-y-auto touch-pan-y border-r border-gray-150 dark:border-gray-800 rounded-none"
             >
-              {/* Top Banner Header with Sokoplus Logo & Fallback */}
+              {/* Top Banner Header with African Cities & Landmarks Slideshow (No orange overlay) */}
               <div>
-                <div className="relative bg-gradient-to-br from-amber-500 via-amber-600 to-orange-500 text-white p-5 pb-6 overflow-hidden rounded-none shadow-sm">
-                  {/* Background overlay pattern - City of Johannesburg Skyline */}
-                  <div 
-                    className="absolute inset-0 opacity-35 bg-cover bg-center pointer-events-none mix-blend-overlay" 
-                    style={{ backgroundImage: `url(${johannesburgSkyline})` }} 
-                  />
-                  
-                  <div className="relative z-10 flex justify-between items-center">
+                <AfricanCitiesSlideshow>
+                  <div className="flex justify-between items-center">
                     <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="inline-block">
                       {settings.brandLogoUrl && !logoError ? (
                         <img 
                           src={settings.brandLogoUrl} 
                           alt="Sokoplus" 
                           onError={() => setLogoError(true)}
-                          className="h-10 w-auto object-contain filter drop-shadow-md" 
+                          className="h-9 w-auto object-contain filter drop-shadow-md" 
                           referrerPolicy="no-referrer" 
                         />
                       ) : (
-                        <div className="flex items-center space-x-2.5 bg-white/20 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/30 shadow-xs">
-                          <div className="w-7 h-7 rounded-xl bg-white text-amber-600 flex items-center justify-center font-black text-base shadow-xs">
+                        <div className="flex items-center space-x-2.5 bg-black/40 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/20 shadow-md">
+                          <div className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-base shadow-xs">
                             S
                           </div>
-                          <span className="text-xl font-black tracking-tight text-white font-sans drop-shadow-xs">
-                            Sokoplus<span className="text-amber-200">.</span>
+                          <span className="text-xl font-black tracking-tight text-white font-sans drop-shadow-sm">
+                            Sokoplus<span className="text-amber-400">.</span>
                           </span>
                         </div>
                       )}
@@ -1151,17 +1146,17 @@ export default function Navbar({ user }: NavbarProps) {
 
                     <button 
                       onClick={() => setIsMobileMenuOpen(false)} 
-                      className="p-2 text-white/90 hover:text-white bg-black/20 hover:bg-black/30 rounded-xl transition-colors backdrop-blur-xs cursor-pointer border-none"
+                      className="p-2 text-white hover:text-amber-300 bg-black/40 hover:bg-black/60 rounded-xl transition-colors backdrop-blur-md cursor-pointer border border-white/20"
                       aria-label="Close menu"
                     >
                       <X size={18} />
                     </button>
                   </div>
 
-                  <p className="relative z-10 text-[11px] font-bold text-amber-100 tracking-wide mt-2">
-                    {language === "sw" ? "Soko la Bidhaa Halisi za Kenya" : "Authentic Kenyan Marketplace"}
+                  <p className="text-[11px] font-semibold text-gray-200 tracking-wide mt-2 drop-shadow-sm">
+                    {language === "sw" ? "Soko la Bidhaa Halisi za Afrika na Kenya" : "Authentic African & Kenyan Marketplace"}
                   </p>
-                </div>
+                </AfricanCitiesSlideshow>
 
                 {/* Mobile Search Input inside drawer */}
                 <div className="p-4 pb-2">
@@ -1293,24 +1288,46 @@ export default function Navbar({ user }: NavbarProps) {
                   ].map((item) => {
                     const IconComp = item.icon;
                     const isActive = location.pathname === item.path;
+                    const isAnimating = animatingDrawerItemId === item.id;
 
                     return (
                       <div key={item.id} className="pt-2.5 pb-2.5 first:pt-0">
                         <button
-                          onClick={item.onClick}
+                          onClick={() => {
+                            setAnimatingDrawerItemId(item.id);
+                            setTimeout(() => {
+                              item.onClick();
+                              setAnimatingDrawerItemId(null);
+                            }, 220);
+                          }}
                           className="w-full flex items-center space-x-3.5 text-left group cursor-pointer border-none bg-transparent"
                         >
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                            isActive 
-                              ? "bg-amber-500 text-white shadow-sm" 
-                              : "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-900/40 group-hover:bg-amber-500 group-hover:text-white"
-                          }`}>
+                          <motion.div
+                            whileTap={{ scale: 0.85 }}
+                            animate={isAnimating ? {
+                              scale: [1, 1.32, 0.88, 1.15, 1],
+                              rotate: [0, -14, 14, -6, 0]
+                            } : {
+                              scale: 1,
+                              rotate: 0
+                            }}
+                            transition={{ duration: 0.35, ease: "easeOut" }}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                              isActive 
+                                ? "bg-gray-900 text-white dark:bg-white dark:text-gray-950 shadow-sm" 
+                                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200/80 dark:border-gray-700/80 group-hover:bg-gray-200 dark:group-hover:bg-gray-700 group-hover:text-gray-900 dark:group-hover:text-white"
+                            }`}
+                          >
                             <IconComp size={19} className="stroke-[2]" />
-                          </div>
+                          </motion.div>
 
                           <div className="flex-grow min-w-0">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                              <span className={`text-sm font-bold transition-colors ${
+                                isActive
+                                  ? "text-gray-950 dark:text-white font-extrabold"
+                                  : "text-gray-900 dark:text-gray-100 group-hover:text-amber-600 dark:group-hover:text-amber-400"
+                              }`}>
                                 {item.title}
                               </span>
                               {item.badge ? (
@@ -1394,7 +1411,7 @@ export default function Navbar({ user }: NavbarProps) {
                               setShowDrawerLanguageMenu(false);
                               toast.success("Language: English");
                             }}
-                            className={`w-full text-left px-3 py-2 text-xs font-bold flex items-center justify-between cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/40 border-none ${
+                            className={`w-full text-left px-3 py-2 text-xs font-bold flex items-center justify-between cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-none ${
                               language === "en" ? "text-amber-600 dark:text-amber-400 font-extrabold" : "text-gray-700 dark:text-gray-300"
                             }`}
                           >
@@ -1408,7 +1425,7 @@ export default function Navbar({ user }: NavbarProps) {
                               setShowDrawerLanguageMenu(false);
                               toast.success("Lugha: Swahili");
                             }}
-                            className={`w-full text-left px-3 py-2 text-xs font-bold flex items-center justify-between cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/40 border-none ${
+                            className={`w-full text-left px-3 py-2 text-xs font-bold flex items-center justify-between cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 border-none ${
                               language === "sw" ? "text-amber-600 dark:text-amber-400 font-extrabold" : "text-gray-700 dark:text-gray-300"
                             }`}
                           >
@@ -1423,7 +1440,7 @@ export default function Navbar({ user }: NavbarProps) {
 
                 {/* Logout or User info if logged in */}
                 {user && (
-                  <div className="flex items-center justify-between p-2.5 bg-orange-50/50 dark:bg-orange-950/20 rounded-xl border border-orange-100 dark:border-orange-900/30">
+                  <div className="flex items-center justify-between p-2.5 bg-gray-100/80 dark:bg-gray-900/80 rounded-xl border border-gray-200 dark:border-gray-800">
                     <div className="flex items-center space-x-2 min-w-0">
                       <div className="w-7 h-7 bg-amber-500 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0">
                         {user.displayName ? user.displayName[0] : "U"}

@@ -7,7 +7,22 @@ export function registerServiceWorker() {
       navigator.serviceWorker
         .register("/sw.js")
         .then((registration) => {
-          console.log("[Service Worker] Registration successful on scope:", registration.scope);
+          console.log("[Service Worker] Registered successfully on scope:", registration.scope);
+
+          registration.onupdatefound = () => {
+            const installingWorker = registration.installing;
+            if (installingWorker) {
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === "installed") {
+                  if (navigator.serviceWorker.controller) {
+                    console.log("[Service Worker] New PWA content available; please refresh.");
+                  } else {
+                    console.log("[Service Worker] Assets cached for offline availability.");
+                  }
+                }
+              };
+            }
+          };
         })
         .catch((error) => {
           console.error("[Service Worker] Registration failed:", error);
