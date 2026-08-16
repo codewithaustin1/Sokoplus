@@ -88,6 +88,8 @@ export default function Home({ user }: HomeProps) {
   const [heroImageUrls, setHeroImageUrls] = useState<string[]>([]);
   const [currentSlide, setCurrentSlide] = useState<number>(0);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(12);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState<string>(() => {
     return searchParams.get("category") || searchParams.get("collection") || "All";
@@ -565,7 +567,7 @@ export default function Home({ user }: HomeProps) {
 
       // Online Flow Path
       try {
-        const q = query(collection(db, "products"), limit(20));
+        const q = query(collection(db, "products"), limit(150));
 
         // 1. Try Cache-First
         try {
@@ -816,7 +818,31 @@ export default function Home({ user }: HomeProps) {
     }
 
     setFilteredProducts(result);
+    setCurrentPage(1);
   }, [selectedCategory, products, searchParams, minPrice, maxPrice, minRating, onlyInStock, sortBy, currency, exchangeRate]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+
+  // Guard against out of bound page when filtering narrows down items
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(startIndex, startIndex + pageSize);
+  }, [filteredProducts, currentPage, pageSize]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || newPage === currentPage) return;
+    setCurrentPage(newPage);
+    const elem = document.getElementById("products-section");
+    if (elem) {
+      elem.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   const [showMission, setShowMission] = useState(false);
 
@@ -1797,102 +1823,199 @@ export default function Home({ user }: HomeProps) {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-5">
-            {filteredProducts.map((p) => (
-              <motion.div 
-                whileHover={{ y: -4 }}
-                key={p.id} 
-                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm transition-all premium-card-spotlight flex flex-col justify-between"
-              >
-                <Link 
-                  to={`/product/${p.id}`} 
-                  state={{ product: p }}
-                  onMouseEnter={() => prefetchProductAssets(p)}
-                  onTouchStart={() => prefetchProductAssets(p)}
-                  className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-2.5 relative group"
+          <div className="space-y-10">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-5">
+              {paginatedProducts.map((p) => (
+                <motion.div 
+                  whileHover={{ y: -4 }}
+                  key={p.id} 
+                  className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm transition-all premium-card-spotlight flex flex-col justify-between"
                 >
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
-                  <FastImage 
-                    src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
-                    alt={p.name} 
-                    fallbackIconSize={40}
-                  />
-                  {p.originalPrice && p.originalPrice > p.price && (
-                    <div className="absolute top-2 right-2 z-10 bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
-                      -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
-                    </div>
-                  )}
-                  <motion.button
-                    whileHover={{ scale: 1.18 }}
-                    whileTap={{ scale: 0.8 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                    onClick={(e) => toggleWishlist(p.id, e)}
-                    className={`absolute top-2 left-2 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
-                      user?.wishlist?.includes(p.id) 
-                        ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40" 
-                        : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800"
-                    }`}
+                  <Link 
+                    to={`/product/${p.id}`} 
+                    state={{ product: p }}
+                    onMouseEnter={() => prefetchProductAssets(p)}
+                    onTouchStart={() => prefetchProductAssets(p)}
+                    className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-2.5 relative group"
                   >
-                    <Heart size={14} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.18 }}
-                    whileTap={{ scale: 0.8 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                    onClick={(e) => handleToggleCompare(p, e)}
-                    className={`absolute top-2 left-10 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
-                      compareIds.includes(p.id) 
-                        ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-450 hover:bg-orange-100 dark:hover:bg-orange-900/40" 
-                        : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-orange-600 hover:bg-white dark:hover:bg-gray-800"
-                    }`}
-                    title="Compare Product Specifications"
-                  >
-                    <GitCompare size={14} />
-                  </motion.button>
-                </Link>
-                <div className="space-y-1 flex-1 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1">
-                        <CardStarRating rating={p.rating || 4.5} size={12} />
-                        <span className="text-gray-500 dark:text-gray-400 text-xs ml-0.5 font-bold tabular-nums">{p.rating || 4.5}</span>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
+                    <FastImage 
+                      src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
+                      alt={p.name} 
+                      fallbackIconSize={40}
+                    />
+                    {p.originalPrice && p.originalPrice > p.price && (
+                      <div className="absolute top-2 right-2 z-10 bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
+                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
                       </div>
-                      <div>
-                        {p.stock === 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#D32F2F] text-white">
-                            Out of Stock
-                          </span>
-                        ) : p.stock <= 5 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#FF8C00] text-white">
-                            Low Stock ({p.stock})
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-gradient-to-r from-[#28b45b] to-[#16a34a] text-white">
-                            {p.stock} In Stock
+                    )}
+                    <motion.button
+                      whileHover={{ scale: 1.18 }}
+                      whileTap={{ scale: 0.8 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                      onClick={(e) => toggleWishlist(p.id, e)}
+                      className={`absolute top-2 left-2 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
+                        user?.wishlist?.includes(p.id) 
+                          ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40" 
+                          : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      <Heart size={14} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.18 }}
+                      whileTap={{ scale: 0.8 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                      onClick={(e) => handleToggleCompare(p, e)}
+                      className={`absolute top-2 left-10 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
+                        compareIds.includes(p.id) 
+                          ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-450 hover:bg-orange-100 dark:hover:bg-orange-900/40" 
+                          : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-orange-600 hover:bg-white dark:hover:bg-gray-800"
+                      }`}
+                      title="Compare Product Specifications"
+                    >
+                      <GitCompare size={14} />
+                    </motion.button>
+                  </Link>
+                  <div className="space-y-1 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1">
+                          <CardStarRating rating={p.rating || 4.5} size={12} />
+                          <span className="text-gray-500 dark:text-gray-400 text-xs ml-0.5 font-bold tabular-nums">{p.rating || 4.5}</span>
+                        </div>
+                        <div>
+                          {p.stock === 0 ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#D32F2F] text-white">
+                              Out of Stock
+                            </span>
+                          ) : p.stock <= 5 ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#FF8C00] text-white">
+                              Low Stock ({p.stock})
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-gradient-to-r from-[#28b45b] to-[#16a34a] text-white">
+                              {p.stock} In Stock
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Link to={`/product/${p.id}`} state={{ product: p }} className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1 leading-snug">
+                        {p.name}
+                      </Link>
+                    </div>
+                    <div className="flex flex-col mt-2">
+                      <div className="flex items-baseline gap-1.5 mb-2">
+                        <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
+                        {p.originalPrice && p.originalPrice > p.price && (
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through font-medium select-none">
+                            {formatPrice(p.originalPrice)}
                           </span>
                         )}
                       </div>
+                      <div className="w-full">
+                        <AddToCartButton product={p} className="w-full" size="sm" />
+                      </div>
                     </div>
-                    <Link to={`/product/${p.id}`} state={{ product: p }} className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1 leading-snug">
-                      {p.name}
-                    </Link>
                   </div>
-                  <div className="flex flex-col mt-2">
-                    <div className="flex items-baseline gap-1.5 mb-2">
-                      <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
-                      {p.originalPrice && p.originalPrice > p.price && (
-                        <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through font-medium select-none">
-                          {formatPrice(p.originalPrice)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="w-full">
-                      <AddToCartButton product={p} className="w-full" size="sm" />
-                    </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="pt-8 pb-4 border-t border-gray-150 dark:border-gray-800 flex flex-col md:flex-row items-center justify-between gap-4">
+                {/* Result count descriptor */}
+                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 order-2 md:order-1">
+                  Showing <span className="font-black text-gray-900 dark:text-gray-100">{(currentPage - 1) * pageSize + 1}</span> - <span className="font-black text-gray-900 dark:text-gray-100">{Math.min(currentPage * pageSize, filteredProducts.length)}</span> of <span className="font-black text-gray-900 dark:text-gray-100">{filteredProducts.length}</span> products
+                </div>
+
+                {/* Page Buttons */}
+                <div className="flex items-center gap-1.5 order-1 md:order-2 flex-wrap justify-center">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    aria-label="Previous Page"
+                    className="p-2 sm:px-3 sm:py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <ChevronLeft size={16} />
+                    <span className="hidden sm:inline">Prev</span>
+                  </button>
+
+                  {/* Page numbers */}
+                  {(() => {
+                    const pages: (number | string)[] = [];
+                    if (totalPages <= 7) {
+                      for (let i = 1; i <= totalPages; i++) pages.push(i);
+                    } else if (currentPage <= 4) {
+                      pages.push(1, 2, 3, 4, 5, "...", totalPages);
+                    } else if (currentPage >= totalPages - 3) {
+                      pages.push(1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                    } else {
+                      pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
+                    }
+
+                    return pages.map((page, idx) => {
+                      if (page === "...") {
+                        return (
+                          <span key={`ellipsis-${idx}`} className="px-2 py-1 text-xs text-gray-400 font-bold select-none">
+                            ...
+                          </span>
+                        );
+                      }
+                      const pageNum = page as number;
+                      const isActive = pageNum === currentPage;
+                      return (
+                        <button
+                          key={`page-${pageNum}`}
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                            isActive
+                              ? "bg-orange-600 text-white shadow-md shadow-orange-500/25"
+                              : "border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-orange-500 hover:text-orange-600 dark:hover:text-orange-400"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    });
+                  })()}
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    aria-label="Next Page"
+                    className="p-2 sm:px-3 sm:py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+
+                {/* Page Size Selector */}
+                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 order-3">
+                  <span className="font-bold">Per page:</span>
+                  <div className="inline-flex rounded-xl bg-gray-100 dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700">
+                    {[12, 24, 48].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => {
+                          setPageSize(size);
+                          setCurrentPage(1);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                          pageSize === size
+                            ? "bg-white dark:bg-gray-900 text-orange-600 dark:text-orange-400 shadow-xs"
+                            : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </motion.div>
-            ))}
+              </div>
+            )}
           </div>
         )}
       </section>
