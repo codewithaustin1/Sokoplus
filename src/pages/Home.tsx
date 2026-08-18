@@ -116,10 +116,17 @@ export default function Home({ user }: HomeProps) {
     }, { replace: true });
   };
 
-  const selectSubcategory = (sub: string) => {
+  const selectSubcategory = (sub: string, parentCategory?: string) => {
+    if (parentCategory && parentCategory !== selectedCategory) {
+      setSelectedCategory(parentCategory);
+    }
     setSelectedSubcategory(sub);
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
+      if (parentCategory && parentCategory !== "All") {
+        next.set("category", parentCategory);
+        next.delete("collection");
+      }
       if (sub === "All" || !sub) {
         next.delete("subcategory");
       } else {
@@ -1473,65 +1480,77 @@ export default function Home({ user }: HomeProps) {
 
         {/* Filtering & Sorting Bar */}
         <div className="flex flex-col space-y-4 mb-8">
-          {/* Quick Category Chips Bar */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar">
-            {activeCategories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => selectCategory(cat)}
-                className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  selectedCategory === cat
-                    ? "bg-orange-600 text-white shadow-md shadow-orange-600/20 scale-[1.02]"
-                    : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-gray-800 hover:border-orange-500 hover:text-orange-600"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+          {/* Quick Category Chips Bar with Desktop Hover Subcategories */}
+          <div className="flex items-center gap-2 overflow-x-visible pb-2 scrollbar-none no-scrollbar flex-wrap">
+            {activeCategories.map((cat) => {
+              const subs = cat === "All" ? [] : getSubcategoriesForCategory(cat);
+              const isSelected = selectedCategory === cat;
 
-          {/* Subcategory Chips Ribbon */}
-          {availableSubcategories.length > 0 && (
-            <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none no-scrollbar bg-orange-50/40 dark:bg-gray-900/40 p-2.5 rounded-2xl border border-orange-100/60 dark:border-gray-800/60">
-              <span className="text-[11px] font-black uppercase tracking-wider text-orange-800 dark:text-orange-400 pl-1 shrink-0">
-                Subcategory:
-              </span>
-              {availableSubcategories.map((sub) => {
-                const count = sub === "All"
-                  ? (selectedCategory === "All" 
-                      ? products.length 
-                      : products.filter(p => p.category === selectedCategory).length)
-                  : products.filter(p => 
-                      (selectedCategory === "All" || p.category === selectedCategory) && 
-                      p.subcategory && 
-                      p.subcategory.toLowerCase() === sub.toLowerCase()
-                    ).length;
-
-                return (
+              return (
+                <div 
+                  key={cat}
+                  className="relative group py-1"
+                >
                   <button
-                    key={sub}
-                    onClick={() => selectSubcategory(sub)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-                      selectedSubcategory === sub
-                        ? "bg-orange-600 text-white shadow-sm font-bold"
-                        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-gray-700 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-gray-700"
+                    onClick={() => selectCategory(cat)}
+                    className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? "bg-orange-600 text-white shadow-md shadow-orange-600/20 scale-[1.02]"
+                        : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-gray-800 hover:border-orange-500 hover:text-orange-600"
                     }`}
                   >
-                    <span>{sub}</span>
-                    {count > 0 && (
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                        selectedSubcategory === sub 
-                          ? "bg-white/20 text-white" 
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-                      }`}>
-                        {count}
-                      </span>
+                    <span>{cat}</span>
+                    {subs.length > 0 && (
+                      <ChevronDown size={12} className="hidden md:inline-block opacity-60 group-hover:rotate-180 transition-transform" />
                     )}
                   </button>
-                );
-              })}
-            </div>
-          )}
+
+                  {/* Desktop Hover Subcategory Flyout */}
+                  {subs.length > 0 && (
+                    <div className="absolute top-full left-0 hidden md:group-hover:block pt-1.5 z-40 min-w-[220px] animate-in fade-in zoom-in-95 duration-150">
+                      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-150 dark:border-gray-800 p-2 text-left">
+                        <div className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 px-2.5 py-1 flex items-center justify-between">
+                          <span>{cat}</span>
+                          <span className="text-[9px] text-gray-400">Subcategories</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => selectCategory(cat)}
+                          className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 transition-colors cursor-pointer flex items-center justify-between"
+                        >
+                          <span>View All {cat}</span>
+                          <ChevronRight size={12} />
+                        </button>
+                        <div className="h-px bg-gray-100 dark:bg-gray-800 my-1" />
+                        <div className="max-h-64 overflow-y-auto space-y-0.5 scrollbar-thin">
+                          {subs.map((sub) => {
+                            const isSubSelected = isSelected && selectedSubcategory.toLowerCase() === sub.toLowerCase();
+                            return (
+                              <button
+                                key={sub}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  selectSubcategory(sub, cat);
+                                }}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs transition-colors cursor-pointer block truncate ${
+                                  isSubSelected
+                                    ? "bg-orange-600 text-white font-bold"
+                                    : "text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-gray-800 hover:text-orange-600 font-medium"
+                                }`}
+                              >
+                                {sub}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
           <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
             <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
@@ -1567,7 +1586,19 @@ export default function Home({ user }: HomeProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center flex-wrap gap-2.5">
+              {selectedSubcategory && selectedSubcategory !== "All" && (
+                <span className="inline-flex items-center gap-1.5 bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 px-3.5 py-1.5 rounded-full border border-orange-200 dark:border-orange-800 text-xs font-bold shadow-2xs animate-fade-in">
+                  <span>Subcategory: <strong>{selectedSubcategory}</strong></span>
+                  <button
+                    onClick={() => selectSubcategory("All")}
+                    className="ml-1 text-orange-600 hover:text-orange-950 dark:hover:text-orange-100 rounded-full p-0.5 hover:bg-orange-200 dark:hover:bg-orange-900 transition-colors cursor-pointer border-none"
+                    title="Clear subcategory filter"
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
               {isOfflineView && (
                 <span className="flex items-center gap-1.5 text-xs font-extrabold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-3.5 py-1.5 rounded-full border border-amber-200 dark:border-amber-800/60 shadow-xs animate-fade-in shrink-0">
                   <WifiOff size={13} className="animate-pulse shrink-0 text-amber-600" />
@@ -1659,40 +1690,6 @@ export default function Home({ user }: HomeProps) {
                         ))}
                       </div>
                     </div>
-
-                    {/* Subcategory Selector */}
-                    {availableSubcategories.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500 block">
-                            Subcategory
-                          </label>
-                          {selectedSubcategory !== "All" && (
-                            <button
-                              onClick={() => selectSubcategory("All")}
-                              className="text-[11px] font-bold text-orange-600 hover:underline cursor-pointer"
-                            >
-                              Reset Subcategory
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {availableSubcategories.map((sub) => (
-                            <button
-                              key={sub}
-                              onClick={() => selectSubcategory(sub)}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                selectedSubcategory === sub
-                                  ? "bg-orange-600 text-white shadow-sm"
-                                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                              }`}
-                            >
-                              {sub}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
 
                     {/* Price Range */}
                     <div className="space-y-3">

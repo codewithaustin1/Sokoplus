@@ -3,7 +3,7 @@ import { useParams, Link, useLocation } from "react-router-dom";
 import { doc, getDoc, collection, query, limit, getDocs, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
-import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare, Camera, Trash2, Image, Video, VideoOff, Users, Flame, Check, Download } from "lucide-react";
+import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare, Camera, Trash2, Image, Video, VideoOff, Users, Flame, Check, Download, ChevronRight } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -677,7 +677,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
+    <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
       <SEO 
         title={`Buy ${product.name}`}
         description={product.description}
@@ -690,6 +690,39 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         productAvailability={product.stock > 0 ? "instock" : "oos"}
         productCategory={product.category}
       />
+
+      {/* Full Breadcrumb Path: Category > Subcategory > Product name */}
+      <nav aria-label="Breadcrumb" className="mb-6 sm:mb-8 flex items-center flex-wrap gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-50/80 dark:bg-gray-900/60 px-3.5 py-2.5 rounded-2xl border border-gray-150/70 dark:border-gray-800/70">
+        <Link 
+          to="/" 
+          className="hover:text-orange-600 dark:hover:text-orange-400 transition-colors font-medium"
+        >
+          Home
+        </Link>
+        <ChevronRight size={13} className="text-gray-400 dark:text-gray-600 shrink-0" />
+        <Link 
+          to={`/?category=${encodeURIComponent(product.category)}`}
+          className="hover:text-orange-600 dark:hover:text-orange-400 transition-colors font-semibold text-gray-700 dark:text-gray-300"
+        >
+          {product.category}
+        </Link>
+        {product.subcategory && (
+          <>
+            <ChevronRight size={13} className="text-gray-400 dark:text-gray-600 shrink-0" />
+            <Link 
+              to={`/?category=${encodeURIComponent(product.category)}&subcategory=${encodeURIComponent(product.subcategory)}`}
+              className="hover:text-orange-600 dark:hover:text-orange-400 transition-colors font-semibold text-gray-700 dark:text-gray-300"
+            >
+              {product.subcategory}
+            </Link>
+          </>
+        )}
+        <ChevronRight size={13} className="text-gray-400 dark:text-gray-600 shrink-0" />
+        <span className="text-gray-900 dark:text-white font-bold truncate max-w-[180px] sm:max-w-xs md:max-w-md" title={product.name}>
+          {product.name}
+        </span>
+      </nav>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         {/* Gallery */}
         <div className="space-y-4">

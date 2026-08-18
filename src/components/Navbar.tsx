@@ -16,6 +16,7 @@ import { FastImage } from "./FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
 import { matchesFuzzyQuery, normalizeSearchQuery } from "../utils/searchFuzzy";
+import { getSubcategoriesForCategory } from "../data/categories";
 import DeliveryLocationSearch, { SelectedLocationData } from "./DeliveryLocationSearch";
 import { LocalWeatherWidget } from "./LocalWeatherWidget";
 
@@ -424,10 +425,10 @@ export default function Navbar({ user }: NavbarProps) {
     setIsMobileMenuOpen(false);
   };
 
-  const handleCategoryClick = (categoryName: string, searchVal?: string) => {
+  const handleCategoryClick = (categoryName: string, subcategoryName?: string) => {
     let target = `/?category=${encodeURIComponent(categoryName)}`;
-    if (searchVal) {
-      target += `&search=${encodeURIComponent(searchVal)}`;
+    if (subcategoryName && subcategoryName !== "All") {
+      target += `&subcategory=${encodeURIComponent(subcategoryName)}`;
     }
     navigate(target);
     if (location.pathname === "/") {
@@ -926,26 +927,63 @@ export default function Navbar({ user }: NavbarProps) {
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 5 }}
-                    className="absolute top-full left-0 bg-white text-gray-800 border border-gray-150 rounded-b-xl shadow-2xl py-1.5 w-56 z-50 text-left font-black text-xs divide-y divide-gray-50"
+                    className="absolute top-full left-0 bg-white text-gray-800 border border-gray-150 rounded-b-xl shadow-2xl py-1.5 w-60 z-50 text-left font-black text-xs divide-y divide-gray-50"
                   >
-                    {activeCategories.map((cat) => (
-                      <div 
-                        key={cat.name}
-                        onClick={() => {
-                          handleCategoryClick(cat.name === "All" ? "All" : cat.name);
-                          setShowAllCategoriesMenu(false);
-                        }}
-                        className="px-4 py-2.5 hover:bg-amber-400 hover:text-black transition-colors cursor-pointer text-gray-800 font-extrabold border-none"
-                      >
-                        {cat.label}
-                      </div>
-                    ))}
+                    {activeCategories.map((cat) => {
+                      const subs = cat.name === "All" ? [] : getSubcategoriesForCategory(cat.name);
+                      return (
+                        <div 
+                          key={cat.name}
+                          className="relative group/allcat"
+                        >
+                          <div
+                            onClick={() => {
+                              handleCategoryClick(cat.name === "All" ? "All" : cat.name);
+                              setShowAllCategoriesMenu(false);
+                            }}
+                            className="px-4 py-2.5 hover:bg-amber-400 hover:text-black transition-colors cursor-pointer text-gray-800 font-extrabold flex items-center justify-between"
+                          >
+                            <span>{cat.label}</span>
+                            {subs.length > 0 && <ChevronRight size={12} className="opacity-40 group-hover/allcat:opacity-100" />}
+                          </div>
+                          {subs.length > 0 && (
+                            <div className="absolute left-full top-0 hidden group-hover/allcat:block bg-white text-gray-800 border border-gray-150 rounded-xl shadow-2xl py-2 min-w-[200px] z-50 ml-1">
+                              <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-400 border-b border-gray-100">
+                                {cat.name}
+                              </div>
+                              <div
+                                onClick={() => {
+                                  handleCategoryClick(cat.name);
+                                  setShowAllCategoriesMenu(false);
+                                }}
+                                className="px-3.5 py-1.5 text-xs font-bold text-orange-600 hover:bg-orange-50 transition-colors cursor-pointer"
+                              >
+                                View All {cat.name}
+                              </div>
+                              {subs.map((sub) => (
+                                <div
+                                  key={sub}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCategoryClick(cat.name, sub);
+                                    setShowAllCategoriesMenu(false);
+                                  }}
+                                  className="px-3.5 py-1.5 text-xs font-semibold hover:bg-amber-400 hover:text-black transition-colors cursor-pointer"
+                                >
+                                  {sub}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Direct categories */}
+            {/* Direct categories with desktop hover subcategories */}
             <div className="flex items-center h-full">
               <Link 
                 to="/"
@@ -953,21 +991,63 @@ export default function Navbar({ user }: NavbarProps) {
               >
                 HOME
               </Link>
-              {activeCategories.filter(cat => cat.name !== "All").map((cat) => (
-                <div 
-                  key={cat.name}
-                  onClick={() => handleCategoryClick(cat.name)}
-                  className="hover:bg-amber-500 px-4 h-full flex items-center transition-all cursor-pointer border-r border-amber-600/10 text-black select-none font-extrabold uppercase whitespace-nowrap"
-                >
-                  {cat.name === "Local Crafts" ? (language === "sw" ? "SANAA ZA MIKONO" : "LOCAL CRAFTS") : 
-                   cat.name === "Fashion" ? (language === "sw" ? "MITINDO" : "FASHION") : 
-                   cat.name === "Electronics" ? (language === "sw" ? "VIFAA VYA KIDIITALI" : "ELECTRONICS") : 
-                   cat.name === "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" ? (language === "sw" ? "UREMBO NA VIPODOZI" : "BEAUTY & PERSONAL CARE") :
-                   cat.name === "Home & Office Décor (Small Scale & Gadgets)" ? (language === "sw" ? "MAPAMBO" : "HOME & OFFICE DÉCOR") :
-                   cat.name === "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" ? (language === "sw" ? "VIFAA VYA WANYAMA" : "PET SUPPLIES") :
-                   cat.label}
-                </div>
-              ))}
+              {activeCategories.filter(cat => cat.name !== "All").map((cat) => {
+                const subs = getSubcategoriesForCategory(cat.name);
+                const displayLabel = cat.name === "Local Crafts" ? (language === "sw" ? "SANAA ZA MIKONO" : "LOCAL CRAFTS") : 
+                  cat.name === "Fashion" ? (language === "sw" ? "MITINDO" : "FASHION") : 
+                  cat.name === "Electronics" ? (language === "sw" ? "VIFAA VYA KIDIITALI" : "ELECTRONICS") : 
+                  cat.name === "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" ? (language === "sw" ? "UREMBO NA VIPODOZI" : "BEAUTY & PERSONAL CARE") :
+                  cat.name === "Home & Office Décor (Small Scale & Gadgets)" ? (language === "sw" ? "MAPAMBO" : "HOME & OFFICE DÉCOR") :
+                  cat.name === "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" ? (language === "sw" ? "VIFAA VYA WANYAMA" : "PET SUPPLIES") :
+                  cat.label;
+
+                return (
+                  <div
+                    key={cat.name}
+                    className="relative group h-full flex items-center"
+                  >
+                    <div 
+                      onClick={() => handleCategoryClick(cat.name)}
+                      className="hover:bg-amber-500 px-4 h-full flex items-center gap-1.5 transition-all cursor-pointer border-r border-amber-600/10 text-black select-none font-extrabold uppercase whitespace-nowrap"
+                    >
+                      <span>{displayLabel}</span>
+                      {subs.length > 0 && (
+                        <ChevronDown size={11} className="transition-transform group-hover:rotate-180 opacity-60 group-hover:opacity-100" />
+                      )}
+                    </div>
+
+                    {/* Desktop Hover Subcategories Flyout */}
+                    {subs.length > 0 && (
+                      <div className="absolute top-full left-0 hidden group-hover:block bg-white text-gray-900 border border-gray-150 rounded-b-2xl shadow-2xl py-2 min-w-[220px] z-50 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-gray-400 border-b border-gray-100">
+                          {cat.name} Subcategories
+                        </div>
+                        <div className="py-1">
+                          <div
+                            onClick={() => handleCategoryClick(cat.name)}
+                            className="px-3.5 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 cursor-pointer flex items-center justify-between"
+                          >
+                            <span>View All {cat.name}</span>
+                            <ChevronRight size={12} />
+                          </div>
+                          {subs.map((sub) => (
+                            <div
+                              key={sub}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCategoryClick(cat.name, sub);
+                              }}
+                              className="px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-amber-400 hover:text-black transition-colors cursor-pointer capitalize"
+                            >
+                              {sub}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
