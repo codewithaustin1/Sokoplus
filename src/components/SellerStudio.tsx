@@ -48,6 +48,7 @@ import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import axios from "axios";
 import ArtisanColorPicker from "./ArtisanColorPicker";
+import { getSubcategoriesForCategory } from "../data/categories";
 
 interface SellerStudioProps {
   user: UserProfile | null;
@@ -106,6 +107,7 @@ export default function SellerStudio({ user }: SellerStudioProps) {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [pName, setPName] = useState("");
   const [pCategory, setPCategory] = useState(PRODUCT_CATEGORIES[0]);
+  const [pSubcategory, setPSubcategory] = useState("");
   const [pPrice, setPPrice] = useState("");
   const [pStock, setPStock] = useState("");
   const [pDesc, setPDesc] = useState("");
@@ -377,6 +379,7 @@ export default function SellerStudio({ user }: SellerStudioProps) {
     setEditingProduct(null);
     setPName("");
     setPCategory(PRODUCT_CATEGORIES[0]);
+    setPSubcategory("");
     setPPrice("");
     setPStock("");
     setPDesc("");
@@ -391,6 +394,7 @@ export default function SellerStudio({ user }: SellerStudioProps) {
     setEditingProduct(prod);
     setPName(prod.name);
     setPCategory(prod.category || PRODUCT_CATEGORIES[0]);
+    setPSubcategory(prod.subcategory || "");
     setPPrice(prod.price.toString());
     setPStock(prod.stock.toString());
     setPDesc(prod.description);
@@ -485,6 +489,7 @@ export default function SellerStudio({ user }: SellerStudioProps) {
         price: priceNum,
         stock: stockNum,
         category: pCategory,
+        subcategory: pSubcategory.trim() || undefined,
         description: pDesc.trim(),
         images: pImages,
         sellerId: profile.uid,
@@ -1108,7 +1113,10 @@ export default function SellerStudio({ user }: SellerStudioProps) {
                 <label className="block text-xs font-black uppercase text-gray-400">Category Select</label>
                 <select
                   value={pCategory}
-                  onChange={(e) => setPCategory(e.target.value)}
+                  onChange={(e) => {
+                    setPCategory(e.target.value);
+                    setPSubcategory("");
+                  }}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 outline-none focus:ring-1 focus:ring-orange-600 rounded-xl text-xs font-semibold text-gray-950 cursor-pointer"
                 >
                   {PRODUCT_CATEGORIES.map((cat) => (
@@ -1117,6 +1125,37 @@ export default function SellerStudio({ user }: SellerStudioProps) {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black uppercase text-gray-400">
+                    Subcategory (Optional)
+                  </label>
+                  <span className="text-[10px] text-gray-400 font-medium">Fine-tune storefront discovery</span>
+                </div>
+                {getSubcategoriesForCategory(pCategory).length > 0 ? (
+                  <select
+                    value={pSubcategory}
+                    onChange={(e) => setPSubcategory(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 outline-none focus:ring-1 focus:ring-orange-600 rounded-xl text-xs font-semibold text-gray-950 cursor-pointer"
+                  >
+                    <option value="">-- Select Specific Subcategory (All) --</option>
+                    {getSubcategoriesForCategory(pCategory).map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="e.g. Handwoven Baskets, Beaded Necklaces"
+                    value={pSubcategory}
+                    onChange={(e) => setPSubcategory(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 outline-none focus:ring-1 focus:ring-orange-600 rounded-xl text-xs font-semibold text-gray-950"
+                  />
+                )}
               </div>
 
               {/* Beautiful Color Specifications Toggle & Swatches */}

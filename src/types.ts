@@ -6,6 +6,7 @@ export interface Product {
   price: number;
   originalPrice?: number;
   category: string;
+  subcategory?: string;
   images: string[];
   stock: number;
   isDigital?: boolean;
@@ -44,6 +45,9 @@ export interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  isDigital?: boolean;
+  digitalFormat?: "pdf" | "video" | "audio" | "zip" | "ebook" | "software" | "other";
+  digitalFileUrl?: string;
   customizations?: {
     size?: string;
     material?: string;
@@ -68,6 +72,9 @@ export interface Voucher {
   unlockedAt: string;
   orderId: string;
   status: "active" | "used" | "redeemed";
+  type?: string;
+  discount?: number;
+  minSpend?: number;
 }
 
 export interface UserProfile {

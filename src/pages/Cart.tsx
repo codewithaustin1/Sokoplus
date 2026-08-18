@@ -24,6 +24,8 @@ export default function Cart() {
     );
   }
 
+  const isOnlyDigital = items.length > 0 && items.every((item) => item.isDigital);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <h1 className="text-4xl font-black mb-12 tracking-tight">{t("Your Cart")}</h1>
@@ -56,9 +58,16 @@ export default function Cart() {
                   <div>
                     {/* Header Row: Title & Remove button */}
                     <div className="flex items-start justify-between gap-1">
-                      <h3 className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white leading-snug line-clamp-1 sm:line-clamp-2">
-                        {item.name}
-                      </h3>
+                      <div className="min-w-0 pr-1">
+                        <h3 className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white leading-snug line-clamp-1 sm:line-clamp-2">
+                          {item.name}
+                        </h3>
+                        {item.isDigital && (
+                          <span className="inline-flex items-center mt-0.5 px-2 py-0.5 rounded-md text-[10px] font-black bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 uppercase tracking-wide">
+                            Instant Digital Asset
+                          </span>
+                        )}
+                      </div>
                       <button 
                         onClick={() => removeFromCart(item.productId, item.customizations)}
                         className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0 p-1 -m-1"
@@ -137,7 +146,9 @@ export default function Cart() {
                 <span className="tabular-nums font-semibold">KES {total.toLocaleString()}</span>
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-500">
-                {t("Shipping fee will be calculated at checkout after resolving your delivery location.")}
+                {isOnlyDigital 
+                  ? t("No shipping fees apply for digital items. Instant digital delivery after payment.") 
+                  : t("Shipping fee will be calculated at checkout after resolving your delivery location.")}
               </p>
 
               <div className="border-t border-gray-100 dark:border-gray-800 pt-4 flex justify-between text-xl font-black text-gray-900 dark:text-white">

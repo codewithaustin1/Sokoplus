@@ -392,6 +392,7 @@ export default function Navbar({ user }: NavbarProps) {
         matchesFuzzyQuery(p.name, queryStr) || 
         (p.description && matchesFuzzyQuery(p.description, queryStr)) ||
         (p.category && matchesFuzzyQuery(p.category, queryStr)) ||
+        (p.subcategory && matchesFuzzyQuery(p.subcategory, queryStr)) ||
         (p.sellerName && matchesFuzzyQuery(p.sellerName, queryStr)) ||
         (p.artisan && matchesFuzzyQuery(p.artisan, queryStr))
       ).slice(0, 5);

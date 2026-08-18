@@ -28,6 +28,7 @@ import { getCompareList, addToCompare, removeFromCompare } from "../utils/compar
 import { useSellerStudio } from "../lib/SellerStudioContext";
 import { useSettings } from "../lib/SettingsContext";
 import { matchesFuzzyQuery, normalizeSearchQuery } from "../utils/searchFuzzy";
+import { getSubcategoriesForCategory } from "../data/categories";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -94,9 +95,13 @@ export default function Home({ user }: HomeProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>(() => {
     return searchParams.get("category") || searchParams.get("collection") || "All";
   });
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>(() => {
+    return searchParams.get("subcategory") || "All";
+  });
 
   const selectCategory = (cat: string) => {
     setSelectedCategory(cat);
+    setSelectedSubcategory("All");
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       if (cat === "All") {
@@ -105,6 +110,20 @@ export default function Home({ user }: HomeProps) {
       } else {
         next.set("category", cat);
         next.delete("collection");
+      }
+      next.delete("subcategory");
+      return next;
+    }, { replace: true });
+  };
+
+  const selectSubcategory = (sub: string) => {
+    setSelectedSubcategory(sub);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (sub === "All" || !sub) {
+        next.delete("subcategory");
+      } else {
+        next.set("subcategory", sub);
       }
       return next;
     }, { replace: true });
@@ -115,7 +134,36 @@ export default function Home({ user }: HomeProps) {
     if (urlCategory !== selectedCategory) {
       setSelectedCategory(urlCategory);
     }
+    const urlSub = searchParams.get("subcategory") || "All";
+    if (urlSub !== selectedSubcategory) {
+      setSelectedSubcategory(urlSub);
+    }
   }, [searchParams]);
+
+  const availableSubcategories = useMemo(() => {
+    if (selectedCategory === "All") {
+      const productSubs = Array.from(
+        new Set(
+          products
+            .filter(p => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved") && p.subcategory)
+            .map(p => p.subcategory as string)
+        )
+      );
+      return productSubs.length > 0 ? ["All", ...productSubs] : [];
+    }
+    const predefined = getSubcategoriesForCategory(selectedCategory);
+    const fromProducts = products
+      .filter(
+        p =>
+          p.active !== false &&
+          (!p.approvalStatus || p.approvalStatus === "approved") &&
+          p.category === selectedCategory &&
+          p.subcategory
+      )
+      .map(p => p.subcategory as string);
+    const merged = Array.from(new Set([...predefined, ...fromProducts]));
+    return merged.length > 0 ? ["All", ...merged] : [];
+  }, [selectedCategory, products]);
 
   useEffect(() => {
     if (!loading && activeCategories.length > 0 && !activeCategories.includes(selectedCategory)) {
@@ -771,6 +819,13 @@ export default function Home({ user }: HomeProps) {
       result = result.filter(p => p.category === selectedCategory);
     }
 
+    // Subcategory Filter
+    if (selectedSubcategory && selectedSubcategory !== "All") {
+      result = result.filter(
+        p => p.subcategory && p.subcategory.toLowerCase() === selectedSubcategory.toLowerCase()
+      );
+    }
+
     // Search Filter with Slang, Misspelling, and Brand Typo Tolerance
     if (rawSearch && rawSearch.trim()) {
       const { normalized, suggestedTerm, isSlangOrCorrected } = normalizeSearchQuery(rawSearch);
@@ -785,6 +840,7 @@ export default function Home({ user }: HomeProps) {
         matchesFuzzyQuery(p.name, rawSearch) || 
         (p.description && matchesFuzzyQuery(p.description, rawSearch)) ||
         (p.category && matchesFuzzyQuery(p.category, rawSearch)) ||
+        (p.subcategory && matchesFuzzyQuery(p.subcategory, rawSearch)) ||
         (p.sellerName && matchesFuzzyQuery(p.sellerName, rawSearch)) ||
         (p.artisan && matchesFuzzyQuery(p.artisan, rawSearch))
       );
@@ -819,7 +875,7 @@ export default function Home({ user }: HomeProps) {
 
     setFilteredProducts(result);
     setCurrentPage(1);
-  }, [selectedCategory, products, searchParams, minPrice, maxPrice, minRating, onlyInStock, sortBy, currency, exchangeRate]);
+  }, [selectedCategory, selectedSubcategory, products, searchParams, minPrice, maxPrice, minRating, onlyInStock, sortBy, currency, exchangeRate]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
 
@@ -1381,9 +1437,11 @@ export default function Home({ user }: HomeProps) {
               next.delete("search");
               next.delete("category");
               next.delete("collection");
+              next.delete("subcategory");
               return next;
             }, { replace: true });
             setSelectedCategory("All");
+            setSelectedSubcategory("All");
           }} className="text-orange-600 dark:text-orange-500 font-bold flex items-center hover:underline group">
             Reset All <X size={16} className="ml-1 group-hover:rotate-90 transition-transform" />
           </button>
@@ -1414,8 +1472,68 @@ export default function Home({ user }: HomeProps) {
         )}
 
         {/* Filtering & Sorting Bar */}
-        <div className="flex flex-col space-y-6 mb-12">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col space-y-4 mb-8">
+          {/* Quick Category Chips Bar */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar">
+            {activeCategories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => selectCategory(cat)}
+                className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  selectedCategory === cat
+                    ? "bg-orange-600 text-white shadow-md shadow-orange-600/20 scale-[1.02]"
+                    : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-gray-800 hover:border-orange-500 hover:text-orange-600"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Subcategory Chips Ribbon */}
+          {availableSubcategories.length > 0 && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none no-scrollbar bg-orange-50/40 dark:bg-gray-900/40 p-2.5 rounded-2xl border border-orange-100/60 dark:border-gray-800/60">
+              <span className="text-[11px] font-black uppercase tracking-wider text-orange-800 dark:text-orange-400 pl-1 shrink-0">
+                Subcategory:
+              </span>
+              {availableSubcategories.map((sub) => {
+                const count = sub === "All"
+                  ? (selectedCategory === "All" 
+                      ? products.length 
+                      : products.filter(p => p.category === selectedCategory).length)
+                  : products.filter(p => 
+                      (selectedCategory === "All" || p.category === selectedCategory) && 
+                      p.subcategory && 
+                      p.subcategory.toLowerCase() === sub.toLowerCase()
+                    ).length;
+
+                return (
+                  <button
+                    key={sub}
+                    onClick={() => selectSubcategory(sub)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                      selectedSubcategory === sub
+                        ? "bg-orange-600 text-white shadow-sm font-bold"
+                        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-gray-700 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    <span>{sub}</span>
+                    {count > 0 && (
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        selectedSubcategory === sub 
+                          ? "bg-white/20 text-white" 
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
             <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
               <button 
                 onClick={() => setShowFilters(!showFilters)}
@@ -1541,6 +1659,40 @@ export default function Home({ user }: HomeProps) {
                         ))}
                       </div>
                     </div>
+
+                    {/* Subcategory Selector */}
+                    {availableSubcategories.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-black uppercase tracking-[0.15em] text-gray-400 dark:text-gray-500 block">
+                            Subcategory
+                          </label>
+                          {selectedSubcategory !== "All" && (
+                            <button
+                              onClick={() => selectSubcategory("All")}
+                              className="text-[11px] font-bold text-orange-600 hover:underline cursor-pointer"
+                            >
+                              Reset Subcategory
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {availableSubcategories.map((sub) => (
+                            <button
+                              key={sub}
+                              onClick={() => selectSubcategory(sub)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                selectedSubcategory === sub
+                                  ? "bg-orange-600 text-white shadow-sm"
+                                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                              }`}
+                            >
+                              {sub}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Price Range */}
                     <div className="space-y-3">
@@ -1703,6 +1855,7 @@ export default function Home({ user }: HomeProps) {
                         setMinRating(0);
                         setOnlyInStock(false);
                         selectCategory("All");
+                        selectSubcategory("All");
                       }}
                       className="w-full py-2.5 px-4 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl font-bold text-xs hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors flex items-center justify-center gap-1.5"
                     >
@@ -1900,6 +2053,13 @@ export default function Home({ user }: HomeProps) {
                           )}
                         </div>
                       </div>
+                      {p.subcategory && (
+                        <div className="mb-1">
+                          <span className="text-[10px] text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-950/40 px-1.5 py-0.5 rounded border border-orange-200/50 dark:border-orange-900/30 truncate max-w-full inline-block">
+                            {p.subcategory}
+                          </span>
+                        </div>
+                      )}
                       <Link to={`/product/${p.id}`} state={{ product: p }} className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1 leading-snug">
                         {p.name}
                       </Link>

@@ -3,7 +3,7 @@ import { useParams, Link, useLocation } from "react-router-dom";
 import { doc, getDoc, collection, query, limit, getDocs, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
-import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare, Camera, Trash2, Image, Video, VideoOff, Users, Flame, Check } from "lucide-react";
+import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare, Camera, Trash2, Image, Video, VideoOff, Users, Flame, Check, Download } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -740,6 +740,20 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         <div className="space-y-8">
           <div className="space-y-4">
             <div className="flex items-center gap-2 flex-wrap">
+              <Link 
+                to={`/?category=${encodeURIComponent(product.category)}`}
+                className="inline-block px-3 py-1 bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border border-orange-200/60 dark:border-orange-900/40 rounded-full text-xs font-bold hover:bg-orange-100 transition-colors"
+              >
+                {product.category}
+              </Link>
+              {product.subcategory && (
+                <Link 
+                  to={`/?category=${encodeURIComponent(product.category)}&subcategory=${encodeURIComponent(product.subcategory)}`}
+                  className="inline-block px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900/40 rounded-full text-xs font-bold hover:bg-amber-100 transition-colors"
+                >
+                  {product.subcategory}
+                </Link>
+              )}
               {product.sku && (
                 <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-mono font-bold">
                   SKU: {product.sku}
@@ -942,7 +956,23 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </div>
           )}
 
-          <DeliveryCountdown className="mb-6" />
+          {!product.isDigital ? (
+            <DeliveryCountdown className="mb-6" />
+          ) : (
+            <div className="mb-6 p-4 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-2xl flex items-center gap-3.5">
+              <div className="p-2.5 bg-blue-500 text-white rounded-xl shadow-md shrink-0">
+                <Download size={20} />
+              </div>
+              <div className="space-y-0.5 min-w-0">
+                <span className="text-xs font-black uppercase text-blue-600 dark:text-blue-400 tracking-wider block">
+                  Instant Digital Delivery
+                </span>
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                  No shipping fees or regional limits. Instant download link sent immediately upon payment.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div ref={mainBuyButtonRef} className="flex space-x-3">
             <AddToCartButton
@@ -1010,18 +1040,26 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
 
             <div className="flex flex-col items-center space-y-1.5 p-1.5 border-l border-r border-gray-100 dark:border-gray-800">
               <div className="p-2.5 bg-orange-100/60 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-2xl">
-                <Truck size={20} />
+                {product.isDigital ? <Download size={20} /> : <Truck size={20} />}
               </div>
-              <span className="text-xs font-extrabold text-gray-900 dark:text-white block">Speedy Delivery</span>
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold leading-tight block">24-48h dispatch across Kenya</span>
+              <span className="text-xs font-extrabold text-gray-900 dark:text-white block">
+                {product.isDigital ? "Instant Access" : "Speedy Delivery"}
+              </span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold leading-tight block">
+                {product.isDigital ? "Direct digital access & email link" : "24-48h dispatch across Kenya"}
+              </span>
             </div>
 
             <div className="flex flex-col items-center space-y-1.5 p-1.5">
               <div className="p-2.5 bg-orange-100/60 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 rounded-2xl">
                 <RefreshCw size={20} />
               </div>
-              <span className="text-xs font-extrabold text-gray-900 dark:text-white block">Easy Returns</span>
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold leading-tight block">Simple 7-day hassle-free exchanges</span>
+              <span className="text-xs font-extrabold text-gray-900 dark:text-white block">
+                {product.isDigital ? "Lifetime License" : "Easy Returns"}
+              </span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold leading-tight block">
+                {product.isDigital ? "Re-download anytime from account" : "Simple 7-day hassle-free exchanges"}
+              </span>
             </div>
           </div>
 

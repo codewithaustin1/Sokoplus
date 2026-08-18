@@ -49,6 +49,9 @@ export const ProductCompareDrawer: React.FC = () => {
       price: p.price,
       quantity: 1,
       image: p.images?.filter((img) => !!img && img.trim() !== "")[0] || "",
+      isDigital: p.isDigital || false,
+      digitalFormat: p.digitalFormat,
+      digitalFileUrl: p.digitalFileUrl,
     });
     trackEvent("add_to_cart", {
       items: [

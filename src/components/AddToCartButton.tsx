@@ -17,6 +17,9 @@ export interface AddToCartButtonProps {
     sellerId?: string;
     sellerName?: string;
     customizations?: any;
+    isDigital?: boolean;
+    digitalFormat?: "pdf" | "video" | "audio" | "zip" | "ebook" | "software" | "other";
+    digitalFileUrl?: string;
   };
   onClick?: () => void;
   disabled?: boolean;
@@ -82,6 +85,9 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           product?.image ||
           product?.images?.filter((img) => !!img && img.trim() !== "")[0] ||
           "",
+        isDigital: product?.isDigital || false,
+        digitalFormat: product?.digitalFormat,
+        digitalFileUrl: product?.digitalFileUrl,
         sellerId: product?.sellerId,
         sellerName: product?.sellerName,
         customizations,

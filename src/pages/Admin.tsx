@@ -325,6 +325,7 @@ import AdminReviewsManager from "../components/AdminReviewsManager";
 import { clearAllOfflineCache } from "../utils/offlineDb";
 import { warmCategoryCache, getNetworkSpeedStatus } from "../utils/cacheWarmer";
 import { counties } from "../data/counties";
+import { getSubcategoriesForCategory } from "../data/categories";
 import {
   ComposedChart,
   Area,
@@ -2077,6 +2078,7 @@ export default function Admin({ user }: AdminProps) {
     price: 0,
     originalPrice: 0,
     category: "Fashion",
+    subcategory: "",
     stock: 10,
     isDigital: false,
     digitalFormat: "pdf" as "pdf" | "video" | "audio" | "zip" | "ebook" | "software" | "other",
@@ -3099,6 +3101,7 @@ export default function Admin({ user }: AdminProps) {
         price: 0,
         originalPrice: 0,
         category: "Fashion",
+        subcategory: "",
         stock: 10,
         isDigital: false,
         digitalFormat: "pdf",
@@ -8395,7 +8398,7 @@ export default function Admin({ user }: AdminProps) {
                   className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-sm font-semibold text-gray-800"
                   value={newProduct.category}
                   onChange={(e) =>
-                    setNewProduct({ ...newProduct, category: e.target.value })
+                    setNewProduct({ ...newProduct, category: e.target.value, subcategory: "" })
                   }
                 >
                   <option>Fashion</option>
@@ -8409,6 +8412,37 @@ export default function Admin({ user }: AdminProps) {
                   <option>Gifts & Souvenirs</option>
                   <option>Accessories</option>
                 </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-400">
+                  Subcategory (Optional)
+                </label>
+                {getSubcategoriesForCategory(newProduct.category).length > 0 ? (
+                  <select
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-sm font-semibold text-gray-800 cursor-pointer"
+                    value={newProduct.subcategory || ""}
+                    onChange={(e) =>
+                      setNewProduct({ ...newProduct, subcategory: e.target.value })
+                    }
+                  >
+                    <option value="">-- All / General Subcategory --</option>
+                    {getSubcategoriesForCategory(newProduct.category).map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="e.g. Handwoven Baskets"
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm font-semibold text-gray-800"
+                    value={newProduct.subcategory || ""}
+                    onChange={(e) =>
+                      setNewProduct({ ...newProduct, subcategory: e.target.value })
+                    }
+                  />
+                )}
               </div>
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400">
@@ -8824,6 +8858,7 @@ export default function Admin({ user }: AdminProps) {
                     setEditingProduct({
                       ...editingProduct,
                       category: e.target.value,
+                      subcategory: "",
                     })
                   }
                 >
@@ -8838,6 +8873,43 @@ export default function Admin({ user }: AdminProps) {
                   <option>Gifts & Souvenirs</option>
                   <option>Accessories</option>
                 </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-400">
+                  Subcategory (Optional)
+                </label>
+                {getSubcategoriesForCategory(editingProduct.category).length > 0 ? (
+                  <select
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-sm font-semibold text-gray-800 cursor-pointer"
+                    value={editingProduct.subcategory || ""}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        subcategory: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">-- All / General Subcategory --</option>
+                    {getSubcategoriesForCategory(editingProduct.category).map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="e.g. Handwoven Baskets"
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-1 focus:ring-orange-600 transition-all text-sm font-semibold text-gray-800"
+                    value={editingProduct.subcategory || ""}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        subcategory: e.target.value,
+                      })
+                    }
+                  />
+                )}
               </div>
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400">

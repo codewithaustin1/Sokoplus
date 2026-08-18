@@ -39,7 +39,8 @@ import {
   CheckCircle2,
   Tag,
   UserCheck,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Download
 } from "lucide-react";
 import { getOrCreateGuestSessionToken, saveGuestAddressDraft, getGuestAddressDraft } from "../utils/guestSession";
 import { motion, AnimatePresence } from "motion/react";
@@ -492,8 +493,17 @@ export default function Checkout({ user }: CheckoutProps) {
     ? selectedCountyData.cities.filter(city => !disabledCities.includes(city)) 
     : [];
 
+  const isOnlyDigital = items.length > 0 && items.every(item => item.isDigital);
+  const hasDigitalItems = items.some(item => item.isDigital);
+
+  useEffect(() => {
+    if (isOnlyDigital && paymentMethod === "cod") {
+      setPaymentMethod("mpesa");
+    }
+  }, [isOnlyDigital, paymentMethod]);
+
   const FREE_SHIPPING_LIMIT = settings?.freeShippingThreshold !== undefined ? Number(settings.freeShippingThreshold) : 15000;
-  const baseShippingFee = calculateShippingFee(address.county, address.city, total, address.country, FREE_SHIPPING_LIMIT);
+  const baseShippingFee = isOnlyDigital ? 0 : calculateShippingFee(address.county, address.city, total, address.country, FREE_SHIPPING_LIMIT);
 
   // Level 1: Primary Voucher Code
   const [appliedVoucher, setAppliedVoucher] = useState<any | null>(null);
@@ -524,6 +534,19 @@ export default function Checkout({ user }: CheckoutProps) {
     const matchedVoucher = activeVouchers.find(
       (v: any) => v.code.toUpperCase() === cleanCode && v.status === "active"
     );
+
+    // Free Shipping-Only Vouchers Check for Digital Orders
+    const isFreeShippingVoucher = 
+      cleanCode === "SOKO-SHIP-FREE-NEXT" || 
+      matchedVoucher?.id === "free-shipping" || 
+      matchedVoucher?.code === "SOKO-SHIP-FREE-NEXT" ||
+      matchedVoucher?.type === "free_shipping";
+
+    if (isOnlyDigital && isFreeShippingVoucher) {
+      setVoucherError("Shipping is already KES 0 for digital items! Please apply a percentage or flat discount voucher (e.g. SOKO-SAVE-20 or SOKO-VOUCH-500K) to save on your order.");
+      toast.error("Shipping is already KES 0 for digital orders!", { icon: "💡" });
+      return;
+    }
 
     if (matchedVoucher) {
       setAppliedVoucher(matchedVoucher);
@@ -766,25 +789,33 @@ export default function Checkout({ user }: CheckoutProps) {
   const validateForm = () => {
     const errors: { [key: string]: string } = {};
     if (!address.phone) {
-      errors.phone = "Phone number is required for dispatch notifications.";
+      errors.phone = isOnlyDigital 
+        ? "Phone number is required for M-Pesa STK push & payment receipts."
+        : "Phone number is required for transaction and dispatch notifications.";
     } else {
       const cleaned = address.phone.replace(/\s+/g, "");
       if (cleaned.length !== 9 || !/^[17]\d{8}$/.test(cleaned)) {
         errors.phone = "Please enter a valid 9-digit phone number (starts with 1 or 7, e.g. 712345678).";
       }
     }
-    if (!address.street.trim()) {
+    // Only require physical street address for physical goods
+    if (!isOnlyDigital && !address.street.trim()) {
       errors.street = "Please enter a delivery street or apartment address.";
     }
-    if (!address.email) {
-      errors.email = "An email is required for secure payment receipts.";
+    if (!address.email || !address.email.trim()) {
+      errors.email = isOnlyDigital 
+        ? "An email is required to deliver your instant digital download credentials."
+        : "An email is required for secure payment receipts.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address.email.trim())) {
+      errors.email = "Please enter a valid email address (e.g. name@domain.com).";
     }
-    if (address.country === "Kenya" && disabledCounties.includes(address.county)) {
-      errors.county = "County is currently not supported";
+    // County restrictions only apply to physical shipping
+    if (!isOnlyDigital && address.country === "Kenya" && disabledCounties.includes(address.county)) {
+      errors.county = "County is currently not supported for physical shipping";
     }
     setValidationErrors(errors);
     if (errors.county) {
-      toast.error("County is currently not supported");
+      toast.error("County is currently not supported for physical shipping");
     }
     return Object.keys(errors).length === 0;
   };
@@ -798,15 +829,21 @@ export default function Checkout({ user }: CheckoutProps) {
     }
 
     if (!validateForm()) {
-      toast.error("Please fill in all required standard shipping fields.");
+      toast.error(isOnlyDigital 
+        ? "Please enter your contact details (phone & email) to receive your digital download."
+        : "Please fill in all required standard shipping fields."
+      );
       return;
     }
 
     // Instantly activate redirection/processing screen as an Optimistic action
     setRedirecting(true);
     setLoading(true);
-    setRedirectStage("Validating Basket Stock");
-    setRedirectDescription("Ensuring items in your cart are in stock and ready to pack for delivery...");
+    setRedirectStage(isOnlyDigital ? "Preparing Digital Assets" : "Validating Basket Stock");
+    setRedirectDescription(isOnlyDigital 
+      ? "Securing your instant digital download tokens and generating payment invoice..."
+      : "Ensuring items in your cart are in stock and ready to pack for delivery..."
+    );
 
     try {
       // 1. Stock Check (wrapped in try/catch so database quota limits do not block checkout)
@@ -1055,34 +1092,53 @@ export default function Checkout({ user }: CheckoutProps) {
 
             <div className="flex items-start gap-4">
               <div className="bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 p-2.5 rounded-2xl shrink-0">
-                <MapPin size={22} />
+                {isOnlyDigital ? <Download size={22} /> : <MapPin size={22} />}
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-black tracking-tight text-gray-955 dark:text-white">1. Delivery Location</h3>
+                <h3 className="text-lg font-black tracking-tight text-gray-955 dark:text-white">
+                  {isOnlyDigital ? "1. Customer & Notification Details" : "1. Delivery Location"}
+                </h3>
                 <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider">
-                  Search address or drop pin on map. Shipping region is auto-detected.
+                  {isOnlyDigital 
+                    ? "Digital order • Instant email delivery with zero shipping fees & no location limits" 
+                    : "Search address or drop pin on map. Shipping region is auto-detected."}
                 </p>
               </div>
             </div>
 
-            {/* Single Unified Delivery Location Search & Interactive Map */}
-            <div className="space-y-2 pt-1">
-              <FreeDeliveryMap 
-                county={address.county}
-                city={address.city}
-                initialStreet={address.street}
-                lat={address.lat}
-                lng={address.lng}
-                error={validationErrors.street}
-                disabledCounties={disabledCounties}
-                onChange={(lat, lng, addressText, locData) => {
-                  handleAutoLocationUpdate(lat, lng, addressText, locData);
-                }}
-              />
-            </div>
+            {/* Digital Order Banner */}
+            {isOnlyDigital && (
+              <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-blue-500 text-white shrink-0">
+                  <Download className="w-5 h-5" />
+                </div>
+                <div className="text-xs font-semibold leading-relaxed">
+                  <span className="font-extrabold block text-sm">Instant Digital Delivery Order</span>
+                  Your cart contains digital assets. No physical delivery is needed, so delivery fees (KES 0) and geographic restrictions do not apply. Download credentials will be delivered to your email instantly.
+                </div>
+              </div>
+            )}
+
+            {/* Single Unified Delivery Location Search & Interactive Map (Only for physical orders) */}
+            {!isOnlyDigital && (
+              <div className="space-y-2 pt-1">
+                <FreeDeliveryMap 
+                  county={address.county}
+                  city={address.city}
+                  initialStreet={address.street}
+                  lat={address.lat}
+                  lng={address.lng}
+                  error={validationErrors.street}
+                  disabledCounties={disabledCounties}
+                  onChange={(lat, lng, addressText, locData) => {
+                    handleAutoLocationUpdate(lat, lng, addressText, locData);
+                  }}
+                />
+              </div>
+            )}
 
             {/* Subtle Green Overlay Card for Counties with Sokoplus Service */}
-            {address.country === "Kenya" && address.county && !disabledCounties.includes(address.county) && (
+            {!isOnlyDigital && address.country === "Kenya" && address.county && !disabledCounties.includes(address.county) && (
               <motion.div 
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1110,124 +1166,149 @@ export default function Checkout({ user }: CheckoutProps) {
               </motion.div>
             )}
 
-            {/* Auto-detected Shipping Region Badge & Fallback Edit Toggle */}
-            <div className={`p-4 rounded-2xl space-y-2 transition-colors ${
-              validationErrors.county 
-                ? "border border-red-500 bg-red-50/50 dark:bg-red-950/20" 
-                : address.country === "Kenya" && !disabledCounties.includes(address.county)
-                ? "border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20"
-                : "border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900"
-            }`}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {validationErrors.county ? (
-                    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-                  ) : (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  )}
-                  <div className="text-xs font-semibold text-gray-800 dark:text-gray-200">
-                    <span className="text-gray-500 dark:text-gray-400 font-normal">Auto-detected Region: </span>
-                    <span className="font-bold text-gray-900 dark:text-white">
-                      {address.country} {address.county ? `→ ${address.county}` : ""} → {address.city || "Standard Area"}
-                    </span>
+            {/* Auto-detected Shipping Region Badge & Fallback Edit Toggle (Only for physical orders) */}
+            {!isOnlyDigital && (
+              <div className={`p-4 rounded-2xl space-y-2 transition-colors ${
+                validationErrors.county 
+                  ? "border border-red-500 bg-red-50/50 dark:bg-red-950/20" 
+                  : address.country === "Kenya" && !disabledCounties.includes(address.county)
+                  ? "border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20"
+                  : "border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900"
+              }`}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {validationErrors.county ? (
+                      <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    )}
+                    <div className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                      <span className="text-gray-500 dark:text-gray-400 font-normal">Auto-detected Region: </span>
+                      <span className="font-bold text-gray-900 dark:text-white">
+                        {address.country} {address.county ? `→ ${address.county}` : ""} → {address.city || "Standard Area"}
+                      </span>
+                    </div>
+                    {isManualOverride && (
+                      <span className="bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider border border-gray-300 dark:border-gray-700">
+                        Manual Override Active
+                      </span>
+                    )}
                   </div>
-                  {isManualOverride && (
-                    <span className="bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider border border-gray-300 dark:border-gray-700">
-                      Manual Override Active
-                    </span>
-                  )}
-                </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowManualRegionEdit(!showManualRegionEdit)}
-                  className="text-xs font-bold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  <span>{showManualRegionEdit ? "Hide Manual Selectors" : "Edit county/city manually"}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showManualRegionEdit ? "rotate-180" : ""}`} />
-                </button>
-              </div>
-
-              {validationErrors.county && (
-                <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400 text-xs font-bold pt-1">
-                  <AlertTriangle size={14} className="shrink-0" />
-                  <span>{validationErrors.county}</span>
-                </div>
-              )}
-
-              {/* Fallback Edit Accordion */}
-              <AnimatePresence>
-                {showManualRegionEdit && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden pt-3 border-t border-gray-200 dark:border-gray-800"
+                  <button
+                    type="button"
+                    onClick={() => setShowManualRegionEdit(!showManualRegionEdit)}
+                    className="text-xs font-bold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
-                    <p className="text-[11px] text-gray-600 dark:text-gray-400 mb-3 font-medium">
-                      Use these dropdowns to manually correct your Country, County, or City if OpenStreetMap's boundary differs from your courier's shipping rate zone.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Country</label>
-                        <div className="relative">
-                          <select 
-                            value={address.country}
-                            onChange={(e) => {
-                              handleCountryChange(e.target.value);
-                              setIsManualOverride(true);
-                            }}
-                            className="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-orange-500 appearance-none cursor-pointer pr-10"
-                          >
-                            {Object.keys(COUNTRY_FLAGS).filter(cty => !disabledCountries.includes(cty)).map((cty) => (
-                              <option key={cty} value={cty} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
-                                {COUNTRY_FLAGS[cty]} {cty}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                        </div>
-                      </div>
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>{showManualRegionEdit ? "Hide Manual Selectors" : "Edit county/city manually"}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showManualRegionEdit ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
 
-                      {address.country === "Kenya" ? (
-                        <>
-                          <div>
-                            <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">County Territory</label>
-                            <div className="relative">
-                              <select 
-                                value={address.county}
-                                onChange={(e) => {
-                                  handleCountyChange(e.target.value);
-                                  setIsManualOverride(true);
-                                }}
-                                className="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-orange-500 appearance-none cursor-pointer pr-10"
-                              >
-                                {counties.filter(c => !disabledCounties.includes(c.name)).map((c) => (
-                                  <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
-                                    {c.name} (✓ Sokoplus Available)
-                                  </option>
-                                ))}
-                              </select>
-                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                            </div>
+                {validationErrors.county && (
+                  <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400 text-xs font-bold pt-1">
+                    <AlertTriangle size={14} className="shrink-0" />
+                    <span>{validationErrors.county}</span>
+                  </div>
+                )}
+
+                {/* Fallback Edit Accordion */}
+                <AnimatePresence>
+                  {showManualRegionEdit && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden pt-3 border-t border-gray-200 dark:border-gray-800"
+                    >
+                      <p className="text-[11px] text-gray-600 dark:text-gray-400 mb-3 font-medium">
+                        Use these dropdowns to manually correct your Country, County, or City if OpenStreetMap's boundary differs from your courier's shipping rate zone.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Country</label>
+                          <div className="relative">
+                            <select 
+                              value={address.country}
+                              onChange={(e) => {
+                                handleCountryChange(e.target.value);
+                                setIsManualOverride(true);
+                              }}
+                              className="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-orange-500 appearance-none cursor-pointer pr-10"
+                            >
+                              {Object.keys(COUNTRY_FLAGS).filter(cty => !disabledCountries.includes(cty)).map((cty) => (
+                                <option key={cty} value={cty} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                                  {COUNTRY_FLAGS[cty]} {cty}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                           </div>
+                        </div>
 
-                          <div>
-                            <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Township / Settlement</label>
+                        {address.country === "Kenya" ? (
+                          <>
+                            <div>
+                              <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">County Territory</label>
+                              <div className="relative">
+                                <select 
+                                  value={address.county}
+                                  onChange={(e) => {
+                                    handleCountyChange(e.target.value);
+                                    setIsManualOverride(true);
+                                  }}
+                                  className="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-orange-500 appearance-none cursor-pointer pr-10"
+                                >
+                                  {counties.filter(c => !disabledCounties.includes(c.name)).map((c) => (
+                                    <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                                      {c.name} (✓ Sokoplus Available)
+                                    </option>
+                                  ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Township / Settlement</label>
+                              <div className="relative">
+                                <select 
+                                  value={address.city}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setAddress({...address, city: val, lat: undefined, lng: undefined});
+                                    localStorage.setItem("sokoplus_delivery_city", val);
+                                    setIsManualOverride(true);
+                                  }}
+                                  className="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-orange-500 appearance-none cursor-pointer pr-10"
+                                >
+                                  {currentCities.map((city) => (
+                                    <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
+                                      {city}
+                                    </option>
+                                  ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="md:col-span-2">
+                            <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">City / Destination</label>
                             <div className="relative">
                               <select 
                                 value={address.city}
                                 onChange={(e) => {
                                   const val = e.target.value;
-                                  setAddress({...address, city: val, lat: undefined, lng: undefined});
+                                  setAddress({...address, city: val});
                                   localStorage.setItem("sokoplus_delivery_city", val);
                                   setIsManualOverride(true);
                                 }}
                                 className="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-orange-500 appearance-none cursor-pointer pr-10"
                               >
-                                {currentCities.map((city) => (
+                                {CITIES_BY_COUNTRY[address.country]?.filter(city => !disabledCities.includes(city)).map((city) => (
                                   <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
                                     {city}
                                   </option>
@@ -1236,50 +1317,29 @@ export default function Checkout({ user }: CheckoutProps) {
                               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                             </div>
                           </div>
-                        </>
-                      ) : (
-                        <div className="md:col-span-2">
-                          <label className="block text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">City / Destination</label>
-                          <div className="relative">
-                            <select 
-                              value={address.city}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setAddress({...address, city: val});
-                                localStorage.setItem("sokoplus_delivery_city", val);
-                                setIsManualOverride(true);
-                              }}
-                              className="w-full p-3.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl outline-none text-gray-900 dark:text-white font-bold text-xs focus:ring-2 focus:ring-orange-500 appearance-none cursor-pointer pr-10"
-                            >
-                              {CITIES_BY_COUNTRY[address.country]?.filter(city => !disabledCities.includes(city)).map((city) => (
-                                <option key={city} value={city} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
-                                  {city}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-                Nearest Landmark (Optional)
-              </label>
-              <input 
-                type="text" 
-                value={address.landmarkNotes || ""}
-                onChange={(e) => setAddress({...address, landmarkNotes: e.target.value})}
-                onFocus={handleInputFocus}
-                placeholder="e.g. 200m past Total Energies Petrol Station, blue gate opposite Green Mosque" 
-                className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border border-gray-150 dark:border-gray-800 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all text-xs"
-              />
-            </div>
+            {!isOnlyDigital && (
+              <div className="space-y-2">
+                <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                  Nearest Landmark (Optional)
+                </label>
+                <input 
+                  type="text" 
+                  value={address.landmarkNotes || ""}
+                  onChange={(e) => setAddress({...address, landmarkNotes: e.target.value})}
+                  onFocus={handleInputFocus}
+                  placeholder="e.g. 200m past Total Energies Petrol Station, blue gate opposite Green Mosque" 
+                  className="w-full p-4 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white border border-gray-150 dark:border-gray-800 rounded-2xl outline-none font-semibold focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 transition-all text-xs"
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
@@ -1328,12 +1388,16 @@ export default function Checkout({ user }: CheckoutProps) {
                     <span>{validationErrors.phone}</span>
                   </p>
                 ) : (
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 font-semibold ml-1">For driver coordination during delivery dispatch</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 font-semibold ml-1">
+                    {isOnlyDigital ? "For M-Pesa STK prompt and automated SMS access receipts" : "For driver coordination during delivery dispatch"}
+                  </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Notification Email Address</label>
+                <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  {isOnlyDigital ? "Digital Fulfillment Email Address" : "Notification Email Address"}
+                </label>
                 <input 
                   required
                   type="email" 
@@ -1353,23 +1417,29 @@ export default function Checkout({ user }: CheckoutProps) {
                   disabled={!!user?.email}
                   className="w-full p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-800 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-gray-900 outline-none font-bold disabled:opacity-60 disabled:cursor-not-allowed transition-all text-gray-900 dark:text-white"
                 />
-                {user?.email && (
+                {user?.email ? (
                   <p className="text-[10px] text-orange-600 dark:text-orange-400 mt-1.5 font-bold ml-1 uppercase tracking-tight flex items-center gap-1">
                     <ShieldCheck size={12} />
-                    <span>Using verified account email</span>
+                    <span>{isOnlyDigital ? "Download link will be delivered to verified email" : "Using verified account email"}</span>
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 font-semibold ml-1">
+                    {isOnlyDigital ? "Instant license key & download links sent here immediately upon payment" : "Order confirmation & tracking updates sent here"}
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Predictive Delivery Time Display Box with live Countdown */}
-            <DeliveryCountdown 
-              county={address.county} 
-              city={address.city} 
-              country={address.country}
-              hideSelector={true} 
-              className="mt-4"
-            />
+            {/* Predictive Delivery Time Display Box with live Countdown (Only for physical orders) */}
+            {!isOnlyDigital && (
+              <DeliveryCountdown 
+                county={address.county} 
+                city={address.city} 
+                country={address.country}
+                hideSelector={true} 
+                className="mt-4"
+              />
+            )}
 
           </div>
 
@@ -1405,11 +1475,19 @@ export default function Checkout({ user }: CheckoutProps) {
                       />
                     </div>
                     <div className="min-w-0 space-y-1">
-                      <h4 className="font-extrabold text-gray-950 dark:text-white text-sm md:text-md truncate hover:text-orange-600 dark:hover:text-orange-500 transition-colors">
-                        <Link to={`/product/${item.productId}`}>
-                          {item.name}
-                        </Link>
-                      </h4>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-extrabold text-gray-950 dark:text-white text-sm md:text-md truncate hover:text-orange-600 dark:hover:text-orange-500 transition-colors">
+                          <Link to={`/product/${item.productId}`}>
+                            {item.name}
+                          </Link>
+                        </h4>
+                        {item.isDigital && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                            <Download size={10} />
+                            <span>Digital</span>
+                          </span>
+                        )}
+                      </div>
                       
                       {/* Sub-features/customizations */}
                       {item.customizations && (
@@ -1878,18 +1956,20 @@ export default function Checkout({ user }: CheckoutProps) {
                   <span>Cards</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => scrollToPaymentMethod("cod")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 border ${
-                    paymentMethod === "cod"
-                      ? "bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-600/20"
-                      : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  <Banknote size={13} />
-                  <span>Pay on Delivery</span>
-                </button>
+                {!isOnlyDigital && (
+                  <button
+                    type="button"
+                    onClick={() => scrollToPaymentMethod("cod")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 border ${
+                      paymentMethod === "cod"
+                        ? "bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-600/20"
+                        : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Banknote size={13} />
+                    <span>Pay on Delivery</span>
+                  </button>
+                )}
               </div>
 
               {/* HORIZONTAL SWIPEABLE CARD CONTAINER */}
@@ -1913,10 +1993,10 @@ export default function Checkout({ user }: CheckoutProps) {
                   type="button"
                   onClick={() => {
                     if (paymentMethod === "mpesa") scrollToPaymentMethod("card");
-                    else if (paymentMethod === "card") scrollToPaymentMethod("cod");
+                    else if (paymentMethod === "card" && !isOnlyDigital) scrollToPaymentMethod("cod");
                   }}
                   className={`absolute right-1 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 dark:bg-gray-900/90 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-md flex items-center justify-center transition-all ${
-                    paymentMethod === "cod" ? "opacity-30 pointer-events-none" : "opacity-90 hover:scale-105"
+                    (isOnlyDigital && paymentMethod === "card") || paymentMethod === "cod" ? "opacity-30 pointer-events-none" : "opacity-90 hover:scale-105"
                   }`}
                   aria-label="Next payment option"
                 >
@@ -2022,48 +2102,50 @@ export default function Checkout({ user }: CheckoutProps) {
                     </div>
                   </div>
 
-                  {/* Card 3: Pay on Delivery */}
-                  <div
-                    data-payment-method="cod"
-                    onClick={() => scrollToPaymentMethod("cod")}
-                    className={`min-w-[85vw] sm:min-w-[290px] snap-center shrink-0 p-4 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
-                      paymentMethod === "cod"
-                        ? "border-amber-500 bg-amber-50/20 dark:bg-amber-950/20 ring-2 ring-amber-500/25 shadow-lg shadow-amber-500/10"
-                        : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-inner">
-                          <Banknote size={20} />
+                  {/* Card 3: Pay on Delivery (Physical Orders Only) */}
+                  {!isOnlyDigital && (
+                    <div
+                      data-payment-method="cod"
+                      onClick={() => scrollToPaymentMethod("cod")}
+                      className={`min-w-[85vw] sm:min-w-[290px] snap-center shrink-0 p-4 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
+                        paymentMethod === "cod"
+                          ? "border-amber-500 bg-amber-50/20 dark:bg-amber-950/20 ring-2 ring-amber-500/25 shadow-lg shadow-amber-500/10"
+                          : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-inner">
+                            <Banknote size={20} />
+                          </div>
+                          <div>
+                            <p className="font-extrabold text-sm text-gray-950 dark:text-white leading-tight">Pay on Delivery</p>
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Inspect & Pay</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-extrabold text-sm text-gray-950 dark:text-white leading-tight">Pay on Delivery</p>
-                          <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Inspect & Pay</p>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                          paymentMethod === "cod" ? "border-amber-500 bg-amber-500 text-white shadow-sm" : "border-gray-300 dark:border-gray-700"
+                        }`}>
+                          {paymentMethod === "cod" && <Check size={14} className="stroke-[3]" />}
                         </div>
                       </div>
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                        paymentMethod === "cod" ? "border-amber-500 bg-amber-500 text-white shadow-sm" : "border-gray-300 dark:border-gray-700"
-                      }`}>
-                        {paymentMethod === "cod" && <Check size={14} className="stroke-[3]" />}
-                      </div>
-                    </div>
 
-                    <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mt-3 leading-relaxed">
-                      Inspect package before final payment. KES {codDepositAmount.toLocaleString()} security deposit hold required.
-                    </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mt-3 leading-relaxed">
+                        Inspect package before final payment. KES {codDepositAmount.toLocaleString()} security deposit hold required.
+                      </p>
 
-                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-150 dark:border-gray-800">
-                      <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1">
-                        <ShieldCheck size={12} /> Inspection Guarantee
-                      </span>
-                      {paymentMethod === "cod" && (
-                        <span className="text-[9px] font-black bg-amber-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
-                          Selected
+                      <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-150 dark:border-gray-800">
+                        <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1">
+                          <ShieldCheck size={12} /> Inspection Guarantee
                         </span>
-                      )}
+                        {paymentMethod === "cod" && (
+                          <span className="text-[9px] font-black bg-amber-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            Selected
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* PAGINATION DOTS & COUNTER INDICATOR */}
@@ -2085,25 +2167,40 @@ export default function Checkout({ user }: CheckoutProps) {
                       }`}
                       aria-label="Select Credit/Debit Card"
                     />
-                    <button
-                      type="button"
-                      onClick={() => scrollToPaymentMethod("cod")}
-                      className={`h-2 rounded-full transition-all ${
-                        paymentMethod === "cod" ? "w-6 bg-amber-500" : "w-2 bg-gray-300 dark:bg-gray-700"
-                      }`}
-                      aria-label="Select Pay on Delivery"
-                    />
+                    {!isOnlyDigital && (
+                      <button
+                        type="button"
+                        onClick={() => scrollToPaymentMethod("cod")}
+                        className={`h-2 rounded-full transition-all ${
+                          paymentMethod === "cod" ? "w-6 bg-amber-500" : "w-2 bg-gray-300 dark:bg-gray-700"
+                        }`}
+                        aria-label="Select Pay on Delivery"
+                      />
+                    )}
                   </div>
 
                   <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
-                    Option {paymentMethod === "mpesa" ? "1" : paymentMethod === "card" ? "2" : "3"} of 3
+                    {isOnlyDigital 
+                      ? `Option ${paymentMethod === "mpesa" ? "1" : "2"} of 2 (Digital Prepayment)` 
+                      : `Option ${paymentMethod === "mpesa" ? "1" : paymentMethod === "card" ? "2" : "3"} of 3`
+                    }
                   </span>
                 </div>
               </div>
             </div>
 
+            {/* DIGITAL ORDER PREPAYMENT NOTICE */}
+            {isOnlyDigital && (
+              <div className="p-4 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 rounded-2xl flex items-start sm:items-center gap-3 text-xs text-blue-900 dark:text-blue-200">
+                <ShieldCheck size={18} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5 sm:mt-0" />
+                <span className="leading-snug font-medium">
+                  <strong>Digital Asset Prepayment:</strong> Cash on Delivery is exempted for digital items. Download files and license keys are delivered instantly to your email upon electronic payment confirmation.
+                </span>
+              </div>
+            )}
+
             {/* DESKTOP PAYMENT CARDS GRID */}
-            <div className="hidden md:grid grid-cols-3 gap-4 pt-2">
+            <div className={`hidden md:grid gap-4 pt-2 ${isOnlyDigital ? "grid-cols-2" : "grid-cols-3"}`}>
               
               {/* Option Card: Mpesa */}
               <div 
@@ -2184,61 +2281,63 @@ export default function Checkout({ user }: CheckoutProps) {
                 </div>
               </div>
 
-              {/* Option Card: Cash on Delivery (COD) */}
-              <div 
-                onClick={() => setPaymentMethod("cod")}
-                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative flex flex-col justify-between h-36 ${
-                  paymentMethod === "cod" 
-                    ? "border-orange-500 bg-orange-50/10 dark:bg-orange-950/5 ring-2 ring-orange-100 dark:ring-orange-900/20 shadow-lg shadow-orange-100/40 dark:shadow-none" 
-                    : "border-gray-150 dark:border-gray-855 hover:border-gray-300 dark:hover:border-gray-750 bg-white dark:bg-gray-900"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="font-extrabold text-xs tracking-tight text-gray-955 dark:text-white uppercase leading-snug">Pay on Delivery & Inspect</span>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                    paymentMethod === "cod" ? "border-orange-500 bg-orange-500" : "border-gray-300 dark:border-gray-700"
-                  }`}>
-                    {paymentMethod === "cod" && <Check className="text-white stroke-[3.5]" size={11} />}
+              {/* Option Card: Cash on Delivery (COD) - Physical Only */}
+              {!isOnlyDigital && (
+                <div 
+                  onClick={() => setPaymentMethod("cod")}
+                  className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative flex flex-col justify-between h-36 ${
+                    paymentMethod === "cod" 
+                      ? "border-orange-500 bg-orange-50/10 dark:bg-orange-950/5 ring-2 ring-orange-100 dark:ring-orange-900/20 shadow-lg shadow-orange-100/40 dark:shadow-none" 
+                      : "border-gray-150 dark:border-gray-855 hover:border-gray-300 dark:hover:border-gray-750 bg-white dark:bg-gray-900"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-extrabold text-xs tracking-tight text-gray-955 dark:text-white uppercase leading-snug">Pay on Delivery & Inspect</span>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      paymentMethod === "cod" ? "border-orange-500 bg-orange-500" : "border-gray-300 dark:border-gray-700"
+                    }`}>
+                      {paymentMethod === "cod" && <Check className="text-white stroke-[3.5]" size={11} />}
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2 mt-1.5">
-                  <div className="w-11 h-11 shrink-0 bg-orange-50/60 dark:bg-orange-950/20 rounded-full flex items-center justify-center overflow-hidden">
-                    <svg viewBox="0 0 64 64" className="w-10 h-10">
-                      {/* Courier cap */}
-                      <path d="M22 24c0-3 4-5 10-5s10 2 10 5v2H22v-2z" fill="#EB4E36" />
-                      <path d="M38 21h6v2h-6z" fill="#EB4E36" />
-                      {/* Courier Face */}
-                      <circle cx="32" cy="32" r="8" fill="#FDD2B5" />
-                      <path d="M29 32a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM35 32a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" fill="#333" />
-                      <path d="M30 35c1 1.5 3 1.5 4 0" stroke="#333" strokeWidth="1.2" strokeLinecap="round" fill="none" />
-                      {/* Shirt / Neck */}
-                      <path d="M28 40h8v4h-8z" fill="#FDD2B5" />
-                      <path d="M20 44c0-4 4-6 12-6s12 2 12 6v12H20V44z" fill="#EB4E36" />
-                      <path d="M28 44l4 4 4-4" fill="none" stroke="#fff" strokeWidth="1.2" />
-                      {/* Cash in hand */}
-                      <g transform="translate(6, 38)">
-                        <rect x="0" y="0" width="12" height="7" rx="1" fill="#32ba78" />
-                        <circle cx="6" cy="3.5" r="1.5" fill="#fff" opacity="0.5" />
-                      </g>
-                      {/* Parcel box in hand */}
-                      <g transform="translate(42, 38)">
-                        <rect x="0" y="0" width="14" height="12" rx="1.5" fill="#C68F65" />
-                        <line x1="0" y1="6" x2="14" y2="6" stroke="#99603D" strokeWidth="1" />
-                        <line x1="7" y1="0" x2="7" y2="12" stroke="#99603D" strokeWidth="1" />
-                      </g>
-                    </svg>
-                  </div>
-                  <div className="space-y-0.5 min-w-0">
-                    <p className="text-[8px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest leading-none">
-                      100% Inspection Guarantee
-                    </p>
-                    <p className="text-[10px] text-gray-650 dark:text-gray-450 font-bold leading-tight">
-                      Inspect Package Before Final Payment — KES {codDepositAmount.toLocaleString()} Security Hold
-                    </p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <div className="w-11 h-11 shrink-0 bg-orange-50/60 dark:bg-orange-950/20 rounded-full flex items-center justify-center overflow-hidden">
+                      <svg viewBox="0 0 64 64" className="w-10 h-10">
+                        {/* Courier cap */}
+                        <path d="M22 24c0-3 4-5 10-5s10 2 10 5v2H22v-2z" fill="#EB4E36" />
+                        <path d="M38 21h6v2h-6z" fill="#EB4E36" />
+                        {/* Courier Face */}
+                        <circle cx="32" cy="32" r="8" fill="#FDD2B5" />
+                        <path d="M29 32a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM35 32a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" fill="#333" />
+                        <path d="M30 35c1 1.5 3 1.5 4 0" stroke="#333" strokeWidth="1.2" strokeLinecap="round" fill="none" />
+                        {/* Shirt / Neck */}
+                        <path d="M28 40h8v4h-8z" fill="#FDD2B5" />
+                        <path d="M20 44c0-4 4-6 12-6s12 2 12 6v12H20V44z" fill="#EB4E36" />
+                        <path d="M28 44l4 4 4-4" fill="none" stroke="#fff" strokeWidth="1.2" />
+                        {/* Cash in hand */}
+                        <g transform="translate(6, 38)">
+                          <rect x="0" y="0" width="12" height="7" rx="1" fill="#32ba78" />
+                          <circle cx="6" cy="3.5" r="1.5" fill="#fff" opacity="0.5" />
+                        </g>
+                        {/* Parcel box in hand */}
+                        <g transform="translate(42, 38)">
+                          <rect x="0" y="0" width="14" height="12" rx="1.5" fill="#C68F65" />
+                          <line x1="0" y1="6" x2="14" y2="6" stroke="#99603D" strokeWidth="1" />
+                          <line x1="7" y1="0" x2="7" y2="12" stroke="#99603D" strokeWidth="1" />
+                        </g>
+                      </svg>
+                    </div>
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="text-[8px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest leading-none">
+                        100% Inspection Guarantee
+                      </p>
+                      <p className="text-[10px] text-gray-650 dark:text-gray-450 font-bold leading-tight">
+                        Inspect Package Before Final Payment — KES {codDepositAmount.toLocaleString()} Security Hold
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
             </div>
 
@@ -2444,7 +2543,12 @@ export default function Checkout({ user }: CheckoutProps) {
             </h2>
 
             {/* Free Delivery Pill Banner */}
-            {remainingForFreeShipping <= 0 ? (
+            {isOnlyDigital ? (
+              <div className="w-full bg-blue-500/20 border border-blue-400/30 text-blue-200 font-medium text-xs py-3 px-4 rounded-2xl flex items-center gap-2.5">
+                <Download size={16} className="text-blue-400 shrink-0" />
+                <span><strong>Instant Digital Delivery:</strong> Zero transport or shipping fees (KES 0).</span>
+              </div>
+            ) : remainingForFreeShipping <= 0 ? (
               <motion.div 
                 initial={{ scale: 0.96 }}
                 animate={{ scale: [0.98, 1.02, 0.98] }}
@@ -2482,9 +2586,9 @@ export default function Checkout({ user }: CheckoutProps) {
 
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="text-slate-300">Express Courier</span>
+                  <span className="text-slate-300">{isOnlyDigital ? "Digital Fulfillment" : "Express Courier"}</span>
                   <p className="text-xs text-slate-400 font-normal mt-0.5">
-                    {address.city || (address.county ? address.county.split(" ")[0] : "Standard Area")}
+                    {isOnlyDigital ? "Instant Email / Asset Download" : (address.city || (address.county ? address.county.split(" ")[0] : "Standard Area"))}
                   </p>
                 </div>
                 <span className="font-medium text-white uppercase text-sm">
@@ -2695,28 +2799,38 @@ export default function Checkout({ user }: CheckoutProps) {
               </div>
 
               {/* Free delivery metrics validation display */}
-              <div className="space-y-2 bg-gray-50 dark:bg-gray-900/70 p-4 rounded-2xl border border-gray-200 dark:border-gray-800">
-                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
-                  <span className="text-gray-800 dark:text-gray-200">Free Delivery Status</span>
-                  <span className="text-orange-600 dark:text-orange-400">Threshold: KES 15,000</span>
+              {isOnlyDigital ? (
+                <div className="bg-blue-50/70 dark:bg-blue-950/40 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/40 flex items-center gap-3 text-xs text-blue-900 dark:text-blue-200">
+                  <Download size={18} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                  <div>
+                    <p className="font-extrabold uppercase tracking-wider text-[10px] text-blue-600 dark:text-blue-400">Digital Fulfillment</p>
+                    <p className="font-semibold text-xs mt-0.5">Instant electronic delivery with KES 0 shipping.</p>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-1.5 overflow-hidden">
-                  <div 
-                    className="bg-orange-500 h-full rounded-full"
-                    style={{ width: `${progressToFreeShipping}%` }}
-                  />
+              ) : (
+                <div className="space-y-2 bg-gray-50 dark:bg-gray-900/70 p-4 rounded-2xl border border-gray-200 dark:border-gray-800">
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
+                    <span className="text-gray-800 dark:text-gray-200">Free Delivery Status</span>
+                    <span className="text-orange-600 dark:text-orange-400">Threshold: KES 15,000</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                    <div 
+                      className="bg-orange-500 h-full rounded-full"
+                      style={{ width: `${progressToFreeShipping}%` }}
+                    />
+                  </div>
+                  {remainingForFreeShipping > 0 ? (
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold leading-snug">
+                      Add <span className="font-extrabold text-orange-600 dark:text-orange-400">KES {remainingForFreeShipping.toLocaleString()}</span> more to unlock <span className="font-extrabold text-gray-800 dark:text-gray-300">FREE shipping</span>.
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-[#32ba78] font-bold flex items-center gap-1 uppercase tracking-tight">
+                      <Check size={12} />
+                      <span>Unlocked FREE delivery!</span>
+                    </p>
+                  )}
                 </div>
-                {remainingForFreeShipping > 0 ? (
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold leading-snug">
-                    Add <span className="font-extrabold text-orange-600 dark:text-orange-400">KES {remainingForFreeShipping.toLocaleString()}</span> more to unlock <span className="font-extrabold text-gray-800 dark:text-gray-300">FREE shipping</span>.
-                  </p>
-                ) : (
-                  <p className="text-[10px] text-[#32ba78] font-bold flex items-center gap-1 uppercase tracking-tight">
-                    <Check size={12} />
-                    <span>Unlocked FREE delivery!</span>
-                  </p>
-                )}
-              </div>
+              )}
 
               {/* Calculation List Table */}
               <div className="space-y-3.5 text-xs font-semibold text-gray-500 dark:text-gray-400 pt-2">
@@ -2727,9 +2841,9 @@ export default function Checkout({ user }: CheckoutProps) {
 
                 <div className="flex justify-between items-center">
                   <div>
-                    <span>Express Delivery Courier Fee</span>
+                    <span>{isOnlyDigital ? "Digital Delivery Fee" : "Express Delivery Courier Fee"}</span>
                     <p className="text-[9px] text-gray-400 dark:text-gray-500 font-semibold leading-none mt-0.5">
-                      {address.country !== "Kenya" ? address.country : address.county} Zone Rate
+                      {isOnlyDigital ? "Instant Email / Download Vault" : `${address.country !== "Kenya" ? address.country : address.county} Zone Rate`}
                     </p>
                   </div>
                   <span className="font-bold text-gray-950 dark:text-white">
@@ -2770,19 +2884,32 @@ export default function Checkout({ user }: CheckoutProps) {
                     <span>Escrow Safe</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Truck size={12} className="text-orange-500" />
-                    <span>Speedy Delivery</span>
+                    {isOnlyDigital ? (
+                      <>
+                        <Download size={12} className="text-blue-500" />
+                        <span>Instant Access</span>
+                      </>
+                    ) : (
+                      <>
+                        <Truck size={12} className="text-orange-500" />
+                        <span>Speedy Delivery</span>
+                      </>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <RefreshCw size={12} className="text-blue-500" />
-                    <span>7d Returns</span>
+                    <span>{isOnlyDigital ? "License Verified" : "7d Returns"}</span>
                   </div>
                 </div>
 
               </div>
 
               <div className="bg-gray-50 dark:bg-gray-955 p-4 rounded-2xl text-[10px] leading-relaxed text-gray-400 dark:text-gray-500 font-semibold max-w-full">
-                🚨 Delivery expectation for <span className="text-gray-900 dark:text-white font-black">{address.country !== "Kenya" ? address.country : address.county} ({address.city})</span>: {deliveryPrediction.time}.
+                {isOnlyDigital ? (
+                  <span>⚡ Instant Fulfillment: Download tokens and license keys are dispatched to <strong className="text-gray-900 dark:text-white">{address.email || "your email"}</strong> immediately upon payment confirmation.</span>
+                ) : (
+                  <span>🚨 Delivery expectation for <span className="text-gray-900 dark:text-white font-black">{address.country !== "Kenya" ? address.country : address.county} ({address.city})</span>: {deliveryPrediction.time}.</span>
+                )}
               </div>
             </motion.div>
           </>

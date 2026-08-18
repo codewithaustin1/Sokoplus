@@ -1396,17 +1396,18 @@ function calculatePODServerLogic(
     };
   }
 
-  // Check restricted categories
+  // Check restricted categories & digital items
   if (items && Array.isArray(items) && items.length > 0) {
     const restricted = config.restrictedCategories || ["Digital", "Gift Cards"];
     const hasRestricted = items.some((item: any) => {
+      if (item.isDigital) return true;
       const cat = (item.category || item.categoryName || "").toLowerCase();
       return restricted.some((r: string) => cat.includes(r.toLowerCase()));
     });
     if (hasRestricted) {
       return {
         isEligible: false,
-        reason: "Your cart contains digital or restricted items that require full pre-payment.",
+        reason: "Your cart contains digital items that require online pre-payment (M-Pesa or Card) for instant delivery.",
         depositAmount: 0,
         remainingBalance: orderTotal,
         ruleSetApplied: config.selectedPreset
@@ -1785,6 +1786,54 @@ app.post("/api/recommendations", async (req, res) => {
       console.warn("Recommendations Gemini error, utilizing local recommendation fallback engine:", error.message || error);
     }
     res.json({ recommendationIds: getLocalFallbackRecommendations() });
+  }
+});
+
+// Digital File Download Proxy / S3 Asset Streamer
+app.all("/api/digital/download", async (req, res) => {
+  const fileUrl = (req.query.url || req.body.url) as string;
+  const rawFilename = (req.query.filename || req.body.filename || "sokoplus-digital-asset") as string;
+  const filename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+  if (!fileUrl) {
+    return res.status(400).json({ error: "Missing file url parameter" });
+  }
+
+  // Handle HEAD requests for availability checks
+  if (req.method === "HEAD") {
+    try {
+      const headRes = await axios.head(fileUrl, { timeout: 5000 });
+      const cType = headRes.headers["content-type"];
+      if (cType) res.setHeader("Content-Type", String(cType));
+      const cLen = headRes.headers["content-length"];
+      if (cLen) res.setHeader("Content-Length", String(cLen));
+      return res.status(200).end();
+    } catch (_) {
+      return res.status(200).end(); // Fallback allowed
+    }
+  }
+
+  try {
+    const streamRes = await axios.get(fileUrl, {
+      responseType: "stream",
+      timeout: 30000,
+      headers: {
+        "User-Agent": "Sokoplus-Digital-Vault/1.0"
+      }
+    });
+
+    const contentType = streamRes.headers["content-type"] ? String(streamRes.headers["content-type"]) : "application/octet-stream";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    if (streamRes.headers["content-length"]) {
+      res.setHeader("Content-Length", String(streamRes.headers["content-length"]));
+    }
+
+    streamRes.data.pipe(res);
+  } catch (streamErr: any) {
+    console.warn("[Digital Asset Proxy] Direct stream failed, redirecting to origin URL:", streamErr?.message || streamErr);
+    // If proxy streaming fails, redirect client directly to the S3 URL
+    return res.redirect(fileUrl);
   }
 });
 

@@ -160,14 +160,17 @@ export function calculateDelivery(
 
 /**
  * Calculates the shipping fee based on county, city, and cart subtotal.
+ * If all items are digital (isDigital = true), shipping is KES 0 everywhere.
  */
 export function calculateShippingFee(
   county: string,
   city: string,
   subtotal: number,
   country: string = "Kenya",
-  freeThreshold: number = 15000
+  freeThreshold: number = 15000,
+  isDigital: boolean = false
 ): number {
+  if (isDigital) return 0; // Digital products have zero delivery fees
   if (subtotal >= freeThreshold) return 0; // Free shipping threshold configured by store admin
 
   if (country !== "Kenya") {
