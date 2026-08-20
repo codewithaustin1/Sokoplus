@@ -66,6 +66,11 @@ export function getLevenshteinDistance(a: string, b: string): number {
   return tmp[a.length][b.length];
 }
 
+const STOP_WORDS = new Set([
+  "a", "an", "the", "and", "or", "in", "on", "at", "to", "for", "of", "with", "by", "from",
+  "na", "ya", "wa", "kwa", "katika", "za", "la", "cha", "vya"
+]);
+
 /**
  * Normalizes query string by resolving slang/synonyms and correcting known typos.
  */
@@ -73,7 +78,7 @@ export function normalizeSearchQuery(input: string): { normalized: string; isSla
   const trimmed = input.trim().toLowerCase();
   if (!trimmed) return { normalized: "", isSlangOrCorrected: false, original: input };
 
-  const words = trimmed.split(/\s+/);
+  const words = trimmed.split(/\s+/).filter(Boolean);
   let isSlangOrCorrected = false;
   let suggestedTerm: string | undefined = undefined;
 
@@ -87,14 +92,20 @@ export function normalizeSearchQuery(input: string): { normalized: string; isSla
       return REVERSE_SYNONYM_MAP[w];
     }
 
-    // 2. Fuzzy match against all known dictionary keys and aliases (max distance 2 for short words)
+    // Skip short words or stop words for fuzzy dictionary correction to prevent false matches
+    if (w.length <= 3 || STOP_WORDS.has(w)) {
+      return w;
+    }
+
+    // 2. High-precision fuzzy match against known dictionary terms
     let bestMatch = w;
     let minDistance = Infinity;
+    const maxAllowedDist = w.length >= 7 ? 2 : 1; // Strict distance limit
 
     Object.keys(REVERSE_SYNONYM_MAP).forEach(term => {
-      if (Math.abs(term.length - w.length) <= 2) {
+      if (Math.abs(term.length - w.length) <= maxAllowedDist) {
         const dist = getLevenshteinDistance(w, term);
-        if (dist <= 2 && dist < minDistance && term.length > 3) {
+        if (dist <= maxAllowedDist && dist < minDistance && term.length >= 4) {
           minDistance = dist;
           bestMatch = REVERSE_SYNONYM_MAP[term];
         }
@@ -119,32 +130,64 @@ export function normalizeSearchQuery(input: string): { normalized: string; isSla
 }
 
 /**
- * Checks whether a target text matches the query string using fuzzy & slang matching.
+ * Checks whether a target text matches the query string using high-precision fuzzy & slang matching.
  */
 export function matchesFuzzyQuery(targetText: string, queryStr: string): boolean {
   if (!targetText || !queryStr) return false;
-  const targetLower = targetText.toLowerCase();
-  const queryLower = queryStr.toLowerCase();
+  const targetLower = targetText.toLowerCase().trim();
+  const queryLower = queryStr.toLowerCase().trim();
+  if (!targetLower || !queryLower) return false;
 
-  // 1. Direct substring match
+  // For very short queries (length <= 2), avoid blind substring matching across targetText
+  // (which matches any product containing the letter 'a', 'in', etc.)
+  if (queryLower.length <= 2) {
+    // If it is a stopword and not a brand like "tv" / "lg" / "hp", ignore
+    if (STOP_WORDS.has(queryLower)) return false;
+    const tokens = targetLower.replace(/[^\w\s-]/g, " ").split(/\s+/).filter(Boolean);
+    return tokens.some(t => t === queryLower || (queryLower.length === 2 && t.startsWith(queryLower)));
+  }
+
+  // 1. Direct whole-query substring match (only for queries length >= 3)
   if (targetLower.includes(queryLower)) return true;
 
   // 2. Slang & synonym expanded query check
   const { normalized, suggestedTerm } = normalizeSearchQuery(queryStr);
-  if (normalized && targetLower.includes(normalized)) return true;
-  if (suggestedTerm && targetLower.includes(suggestedTerm)) return true;
+  if (normalized && normalized !== queryLower && targetLower.includes(normalized)) return true;
+  if (suggestedTerm && suggestedTerm !== queryLower && targetLower.includes(suggestedTerm)) return true;
 
-  // 3. Token-level fuzzy match (e.g. "samsang galaxi" -> matches "Samsung Galaxy")
-  const queryTokens = queryLower.split(/\s+/);
-  const targetTokens = targetLower.split(/\s+/);
+  // 3. Token-level precision matching
+  const rawQueryTokens = queryLower.split(/\s+/).filter(Boolean);
+  // Only filter stop words if there are multiple words
+  const queryTokens = rawQueryTokens.length > 1
+    ? rawQueryTokens.filter(t => !STOP_WORDS.has(t))
+    : rawQueryTokens;
+
+  if (queryTokens.length === 0) return false;
+
+  const targetTokens = targetLower
+    .replace(/[^\w\s-]/g, " ")
+    .split(/\s+/)
+    .filter(t => t.length > 0);
 
   return queryTokens.every(qToken => {
-    if (qToken.length <= 2) return targetLower.includes(qToken);
-    
+    // Stopwords inside multi-word queries are already filtered out
+    if (STOP_WORDS.has(qToken) && queryTokens.length > 1) return true;
+
+    // Exact token match or prefix match on target words
     return targetTokens.some(tToken => {
-      if (tToken.includes(qToken) || qToken.includes(tToken)) return true;
-      const dist = getLevenshteinDistance(qToken, tToken);
-      return dist <= 2 && qToken.length > 3;
+      if (tToken === qToken) return true;
+      // Meaningful prefix match (e.g. "bead" matches "beaded" or "beadwork")
+      if (qToken.length >= 3 && tToken.startsWith(qToken)) return true;
+      if (tToken.length >= 4 && qToken.startsWith(tToken)) return true;
+
+      // Tight Levenshtein tolerance for typos only on longer words
+      if (qToken.length >= 5 && tToken.length >= 5) {
+        const dist = getLevenshteinDistance(qToken, tToken);
+        const maxDist = qToken.length >= 8 && tToken.length >= 8 ? 2 : 1;
+        return dist <= maxDist;
+      }
+
+      return false;
     });
   });
 }

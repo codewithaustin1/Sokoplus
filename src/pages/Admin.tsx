@@ -18,6 +18,7 @@ const ApprovalQueueTab = lazy(() => import("../components/admin/ApprovalQueueTab
 const MarketingTab = lazy(() => import("../components/admin/MarketingTab"));
 const CareersTab = lazy(() => import("../components/admin/CareersTab"));
 const PodConfigTab = lazy(() => import("../components/admin/PodConfigTab"));
+const BulkScraperTab = lazy(() => import("../components/admin/BulkScraperTab"));
 import { motion, AnimatePresence } from "motion/react";
 import {
   collection,
@@ -1751,7 +1752,7 @@ export default function Admin({ user }: AdminProps) {
   const [isSavingJob, setIsSavingJob] = useState(false);
   const [subTab, setSubTab] = useState<"openings" | "applicants">("openings");
   const [activeTab, setActiveTab] = useState<
-    "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue" | "privacy_erasure" | "pod_config"
+    "inventory" | "orders" | "users" | "inbox" | "blogs" | "settings" | "careers" | "security" | "analytics" | "marketing" | "reviews" | "sellers" | "approval_queue" | "privacy_erasure" | "pod_config" | "scraper"
   >("inventory");
   const [showMobileModuleDrawer, setShowMobileModuleDrawer] = useState(false);
 
@@ -4622,12 +4623,26 @@ export default function Admin({ user }: AdminProps) {
               <Plus className="mr-2" /> Create Blog Post
             </button>
           ) : (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-orange-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center shadow-lg hover:bg-orange-700 transition-all self-start"
-            >
-              <Plus className="mr-2" /> Add New Product
-            </button>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab("scraper")}
+                className={`px-5 py-3 rounded-2xl font-bold flex items-center gap-2 transition-all self-start border ${
+                  activeTab === "scraper"
+                    ? "bg-orange-600 text-white border-orange-600 shadow-md"
+                    : "bg-gray-900 hover:bg-black text-white dark:bg-gray-800 dark:hover:bg-gray-700 border-gray-900"
+                }`}
+              >
+                <Globe size={18} className={activeTab === "scraper" ? "text-white" : "text-orange-400"} />
+                <span>Bulk Scrape URL</span>
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="bg-orange-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center shadow-lg hover:bg-orange-700 transition-all self-start"
+              >
+                <Plus className="mr-2" /> Add New Product
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -5527,6 +5542,21 @@ export default function Admin({ user }: AdminProps) {
                       <ChevronRight size={16} className="text-gray-400" />
                     </button>
 
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab("scraper"); setShowMobileModuleDrawer(false); }}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${activeTab === "scraper" ? "bg-orange-50/80 border-orange-300 dark:bg-orange-950/30 text-orange-600 font-bold" : "bg-gray-50 dark:bg-gray-850 border-gray-100 dark:border-gray-800 hover:bg-gray-100"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Globe size={18} className="text-orange-600 shrink-0" />
+                        <div>
+                          <div className="font-bold text-sm">Bulk URL Scraper & Importer</div>
+                          <div className="text-[11px] text-gray-400">Automated store crawler & catalog ingestion</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </button>
+
                     {sellerStudioEnabled && (
                       <>
                         <button
@@ -5735,6 +5765,13 @@ export default function Admin({ user }: AdminProps) {
         >
           <Package size={16} />
           <span>Inventory Catalog</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("scraper")}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-1.5 shrink-0 md:shrink-0 ${activeTab === "scraper" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+        >
+          <Globe size={16} />
+          <span>Bulk URL Scraper</span>
         </button>
         <button
           onClick={() => setActiveTab("users")}
@@ -6643,6 +6680,15 @@ export default function Admin({ user }: AdminProps) {
                 const cursor = prevIndex >= 0 ? productsCursors[prevIndex] : undefined;
                 loadProductsChunk(productsPage - 1, cursor);
               }}
+            />
+          </Suspense>
+        )}
+
+        {activeTab === "scraper" && (
+          <Suspense fallback={<div className="p-8 text-center text-gray-500 font-bold">Loading Web Scraper Engine...</div>}>
+            <BulkScraperTab
+              onRefreshProducts={() => loadProductsChunk(1)}
+              onNavigateToInventory={() => setActiveTab("inventory")}
             />
           </Suspense>
         )}

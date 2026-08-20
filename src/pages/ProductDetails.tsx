@@ -3,7 +3,7 @@ import { useParams, Link, useLocation } from "react-router-dom";
 import { doc, getDoc, collection, query, limit, getDocs, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
-import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare, Camera, Trash2, Image, Video, VideoOff, Users, Flame, Check, Download, ChevronRight } from "lucide-react";
+import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare, Camera, Trash2, Image, Video, VideoOff, Users, Flame, Check, Download, ChevronRight, ArrowLeft, Search, AlertCircle } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -19,10 +19,13 @@ import { trackEvent } from "../lib/analytics";
 import { FastImage } from "../components/FastImage";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
-import { getCachedProducts } from "../utils/offlineDb";
+import { getCachedProducts, saveProductsToCache } from "../utils/offlineDb";
 import Markdown from "react-markdown";
 import { getCompareList, addToCompare, removeFromCompare } from "../utils/compare";
 import { useSellerStudio } from "../lib/SellerStudioContext";
+import { getSubcategoriesForCategory } from "../data/categories";
+import { findFallbackProduct, FALLBACK_CATALOG } from "../data/fallbackCatalog";
+import { executeWithExponentialBackoff } from "../App";
 
 interface ProductDetailsProps {
   user: UserProfile | null;
@@ -38,6 +41,8 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
     if (id) {
       const cached = productCache.get(id);
       if (cached) return cached;
+      const fallback = findFallbackProduct(id);
+      if (fallback) return fallback;
     }
     const stateProduct = location.state?.product as Product | undefined;
     if (stateProduct && stateProduct.id === id) {
@@ -52,6 +57,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   const [loading, setLoading] = useState(() => {
     if (id) {
       if (productCache.has(id)) return false;
+      if (findFallbackProduct(id)) return false;
     }
     const stateProduct = location.state?.product as Product | undefined;
     if (stateProduct && stateProduct.id === id) return false;
@@ -520,7 +526,7 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
   useEffect(() => {
     async function fetchProduct() {
       if (!id) return;
-      const preloaded = productCache.get(id) || (location.state?.product && (location.state.product as Product).id === id ? (location.state.product as Product) : null);
+      const preloaded = productCache.get(id) || (location.state?.product && (location.state.product as Product).id === id ? (location.state.product as Product) : null) || findFallbackProduct(id);
       if (preloaded) {
         setProduct(preloaded);
         setLoading(false);
@@ -544,111 +550,245 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
       } else {
         setLoading(true);
       }
+
+      let resolvedProduct: Product | null = preloaded;
+
+      // 1. Try fetching from Firestore with exponential backoff
       try {
         const docRef = doc(db, "products", id);
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
+        const snap = await executeWithExponentialBackoff(() => getDoc(docRef), { maxRetries: 2, initialDelayMs: 600 });
+        if (snap && snap.exists()) {
           const p = { id: snap.id, ...snap.data() } as Product;
-          if (p.active === false && !user?.isAdmin && p.sellerId !== user?.uid) {
-            setProduct(null);
-            setLoading(false);
-            return;
+          if (p.active !== false || user?.isAdmin || p.sellerId === user?.uid) {
+            resolvedProduct = p;
           }
-          setProduct(p);
-          productCache.set(snap.id, p);
-          prefetchProductAssets(p);
-          trackEvent("view_item", {
-            currency: "KES",
-            value: p.price,
-            items: [{
-              item_id: p.id,
-              item_name: p.name,
-              price: p.price,
-              item_category: p.category
-            }]
-          });
-          
-          fetchReviews();
+        }
+      } catch (firestoreErr: any) {
+        console.warn("Firestore direct product getDoc notice:", firestoreErr?.message || firestoreErr);
+      }
 
-          // Fetch recommendations via AI
-          if (recommendationCache.has(id)) {
-            const cached = recommendationCache.get(id);
-            if (cached) {
-              setRecommendations(cached.items);
-              setRecSource(cached.source);
+      // 2. If not found by doc ID, attempt query by SKU in Firestore
+      if (!resolvedProduct) {
+        try {
+          const q = query(collection(db, "products"), where("sku", "==", id), limit(1));
+          const skuSnap = await executeWithExponentialBackoff(() => getDocs(q), { maxRetries: 1, initialDelayMs: 400 });
+          if (skuSnap && !skuSnap.empty) {
+            const docItem = skuSnap.docs[0];
+            const p = { id: docItem.id, ...docItem.data() } as Product;
+            if (p.active !== false || user?.isAdmin || p.sellerId === user?.uid) {
+              resolvedProduct = p;
             }
-            return;
           }
+        } catch (skuErr) {
+          console.warn("Firestore SKU lookup notice:", skuErr);
+        }
+      }
 
-          // Optimize database query: Fetch from local IndexedDB cache first to avoid redundant reads
+      // 3. If still not resolved, query backend product endpoint (/api/products/:id)
+      if (!resolvedProduct) {
+        try {
+          const apiRes = await axios.get(`/api/products/${encodeURIComponent(id)}`, { timeout: 3500 });
+          if (apiRes.data?.success && apiRes.data?.product) {
+            resolvedProduct = apiRes.data.product as Product;
+          }
+        } catch (apiErr) {
+          console.warn("API product resolution notice:", apiErr);
+        }
+      }
+
+      // 4. Try IndexedDB local database cache (Strict ID, SKU, or exact slug match)
+      if (!resolvedProduct) {
+        try {
+          const allCached = await getCachedProducts();
+          const cleanParam = id.trim().toLowerCase();
+          const localMatch = allCached.find(p => {
+            if (p.id.toLowerCase() === cleanParam) return true;
+            if (p.sku && p.sku.toLowerCase() === cleanParam) return true;
+            const exactSlug = (p.name || "")
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-+|-+$/g, "");
+            return exactSlug === cleanParam;
+          });
+          if (localMatch) {
+            resolvedProduct = localMatch;
+          }
+        } catch (idbErr) {
+          console.warn("IndexedDB product cache lookup notice:", idbErr);
+        }
+      }
+
+      // 5. Check hard-coded fallback catalog
+      if (!resolvedProduct) {
+        const staticFallback = findFallbackProduct(id);
+        if (staticFallback) {
+          resolvedProduct = staticFallback;
+        }
+      }
+
+      if (resolvedProduct) {
+        setProduct(resolvedProduct);
+        productCache.set(resolvedProduct.id, resolvedProduct);
+        if (resolvedProduct.sku) {
+          productCache.set(resolvedProduct.sku, resolvedProduct);
+        }
+        // Save to IndexedDB in background
+        saveProductsToCache([resolvedProduct]).catch(() => {});
+        prefetchProductAssets(resolvedProduct);
+        trackEvent("view_item", {
+          currency: "KES",
+          value: resolvedProduct.price,
+          items: [{
+            item_id: resolvedProduct.id,
+            item_name: resolvedProduct.name,
+            price: resolvedProduct.price,
+            item_category: resolvedProduct.category
+          }]
+        });
+        fetchReviews();
+
+        // Recommendations fetch
+        if (!recommendationCache.has(id)) {
           let allProducts: Product[] = [];
           try {
             allProducts = await getCachedProducts();
           } catch (cacheErr) {
-            console.warn("Could not retrieve offline cache for recommendations:", cacheErr);
+            console.warn("Cache for recommendations notice:", cacheErr);
           }
 
           if (!allProducts || allProducts.length === 0) {
-            // Firestore fallback if IndexedDB is empty
-            const allProductsSnap = await getDocs(query(collection(db, "products"), limit(20)));
-            allProducts = allProductsSnap.docs
-              .map(d => ({ id: d.id, ...d.data() } as Product));
+            allProducts = FALLBACK_CATALOG;
           }
 
-          // Ensure only active and approved products are considered
           allProducts = allProducts.filter(
             ap => ap.active !== false && (!ap.approvalStatus || ap.approvalStatus === "approved")
           );
-          
+
           try {
             const recResponse = await axios.post("/api/recommendations", {
-              history: [p.category],
+              history: [resolvedProduct.category],
               products: allProducts.map(ap => ({ id: ap.id, name: ap.name, category: ap.category }))
             });
             const recIds = recResponse.data.recommendationIds;
             const recs = allProducts.filter(ap => recIds.includes(ap.id)).slice(0, 4);
-            setRecommendations(recs);
-            recs.forEach(rp => productCache.set(rp.id, rp));
-            setRecSource("ai");
-            recommendationCache.set(id, { items: recs, source: "ai" });
-          } catch (e: any) {
-            // Fallback to same category silently for quota errors
-            if (e.response?.status === 429) {
-              console.log("AI recommendations on cooldown, using category fallback.");
-            } else {
-              console.warn("AI recommendation error:", e.message);
+            if (recs.length > 0) {
+              setRecommendations(recs);
+              recs.forEach(rp => productCache.set(rp.id, rp));
+              setRecSource("ai");
+              recommendationCache.set(id, { items: recs, source: "ai" });
             }
-            
-            const fallbacks = allProducts.filter(ap => ap.category === p.category && ap.id !== p.id).slice(0, 4);
-            setRecommendations(fallbacks);
-            fallbacks.forEach(rp => productCache.set(rp.id, rp));
+          } catch {
+            const fallbacks = allProducts.filter(ap => ap.category === resolvedProduct!.category && ap.id !== resolvedProduct!.id).slice(0, 4);
+            const chosen = fallbacks.length > 0 ? fallbacks : FALLBACK_CATALOG.filter(f => f.id !== resolvedProduct!.id).slice(0, 4);
+            setRecommendations(chosen);
             setRecSource("category");
-            // Cache the fallback to prevent retrying the 429 endpoint for this product
-            recommendationCache.set(id, { items: fallbacks, source: "category" });
+            recommendationCache.set(id, { items: chosen, source: "category" });
           }
         }
-      } catch (error: any) {
-        console.warn("Firestore product fetch fallback (quota/offline):", error?.message || error);
-        try {
-          const allCached = await getCachedProducts();
-          const localMatch = allCached.find(p => p.id === id);
-          if (localMatch) {
-            setProduct(localMatch);
-            productCache.set(localMatch.id, localMatch);
-          }
-        } catch (localErr) {
-          console.warn("Local product fallback error:", localErr);
-        }
-      } finally {
-        setLoading(false);
+      } else {
+        setProduct(null);
       }
+
+      setLoading(false);
     }
+
     fetchProduct();
     window.scrollTo(0, 0);
   }, [id]);
 
-  if (loading) return <div className="h-screen flex items-center justify-center">Loading details...</div>;
-  if (!product) return <div className="h-screen flex items-center justify-center">Product not found</div>;
+  if (loading) {
+    return (
+      <div id="product-details-loading-view" className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-gray-700 font-medium text-lg">Loading authentic Kenyan handcrafted product...</p>
+        <p className="text-sm text-gray-500 mt-1">Connecting to SokoPlus catalog network</p>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div id="product-details-not-found-view" className="min-h-[80vh] max-w-5xl mx-auto px-4 py-12">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center max-w-2xl mx-auto mb-12">
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-200">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Product Not Located</h1>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            The requested product (ID: <code className="bg-gray-100 px-2 py-0.5 rounded text-sm text-emerald-700 font-mono">{id}</code>) could not be retrieved from the live database. The listing may have been moved, updated, or the cloud database may be undergoing periodic quota refresh.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => {
+                setLoading(true);
+                window.location.reload();
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition shadow-sm"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry Connection
+            </button>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-xl transition"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              Explore SokoPlus Catalog
+            </Link>
+          </div>
+        </div>
+
+        {/* Featured artisan products fallback recommendations */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Featured Kenyan Artisan Items</h2>
+              <p className="text-sm text-gray-500">Popular verified listings you can explore right now</p>
+            </div>
+            <Link to="/" className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+              View All <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {FALLBACK_CATALOG.slice(0, 3).map((item) => (
+              <Link
+                key={item.id}
+                to={`/product/${item.id}`}
+                state={{ product: item }}
+                className="group bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col"
+              >
+                <div className="aspect-square bg-gray-100 overflow-hidden relative">
+                  <img
+                    src={item.images[0]}
+                    alt={item.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm">
+                    {item.category}
+                  </div>
+                </div>
+                <div className="p-4 flex flex-col flex-1">
+                  <h3 className="font-semibold text-gray-900 group-hover:text-emerald-600 transition line-clamp-1 mb-1">
+                    {item.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-3 line-clamp-2">{item.description}</p>
+                  <div className="mt-auto flex items-center justify-between">
+                    <span className="text-lg font-bold text-emerald-600">KES {item.price.toLocaleString()}</span>
+                    <span className="text-xs text-amber-600 flex items-center gap-1 font-medium">
+                      ★ {item.rating || 4.8}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const productSchema = {
     "@context": "https://schema.org/",
@@ -675,6 +815,19 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
       "reviewCount": product.reviewCount || "12"
     }
   };
+
+  const displaySubcategory = useMemo(() => {
+    if (!product) return null;
+    if (product.subcategory && product.subcategory.trim()) return product.subcategory.trim();
+    const subcats = getSubcategoriesForCategory(product.category);
+    if (!subcats || subcats.length === 0) return null;
+    const nameLower = (product.name + " " + (product.description || "")).toLowerCase();
+    const matched = subcats.find((s) => {
+      const sWords = s.toLowerCase().split(/[ &,'/-]+/).filter((w) => w.length > 2);
+      return sWords.some((w) => nameLower.includes(w));
+    });
+    return matched || subcats[0] || null;
+  }, [product]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12">
@@ -706,14 +859,14 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
         >
           {product.category}
         </Link>
-        {product.subcategory && (
+        {displaySubcategory && (
           <>
             <ChevronRight size={13} className="text-gray-400 dark:text-gray-600 shrink-0" />
             <Link 
-              to={`/?category=${encodeURIComponent(product.category)}&subcategory=${encodeURIComponent(product.subcategory)}`}
+              to={`/?category=${encodeURIComponent(product.category)}&subcategory=${encodeURIComponent(displaySubcategory)}`}
               className="hover:text-orange-600 dark:hover:text-orange-400 transition-colors font-semibold text-gray-700 dark:text-gray-300"
             >
-              {product.subcategory}
+              {displaySubcategory}
             </Link>
           </>
         )}
