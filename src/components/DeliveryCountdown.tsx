@@ -72,6 +72,9 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
   const [isChangingLocation, setIsChangingLocation] = useState(false);
   const [prediction, setPrediction] = useState<DeliveryPrediction | null>(null);
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0, formatted: "00:00:00", totalSeconds: 0 });
+  const [disabledCountries, setDisabledCountries] = useState<string[]>([]);
+  const [disabledCounties, setDisabledCounties] = useState<string[]>([]);
+  const [disabledCities, setDisabledCities] = useState<string[]>([]);
 
   // Update prediction when location changes
   useEffect(() => {
@@ -109,10 +112,6 @@ export const DeliveryCountdown: React.FC<DeliveryCountdownProps> = ({
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, [prediction]);
-
-  const [disabledCountries, setDisabledCountries] = useState<string[]>([]);
-  const [disabledCounties, setDisabledCounties] = useState<string[]>([]);
-  const [disabledCities, setDisabledCities] = useState<string[]>([]);
 
   // Fetch settings & adjust
   useEffect(() => {

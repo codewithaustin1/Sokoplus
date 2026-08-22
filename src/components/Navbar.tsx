@@ -19,6 +19,7 @@ import { matchesFuzzyQuery, normalizeSearchQuery } from "../utils/searchFuzzy";
 import { getSubcategoriesForCategory } from "../data/categories";
 import DeliveryLocationSearch, { SelectedLocationData } from "./DeliveryLocationSearch";
 import { LocalWeatherWidget } from "./LocalWeatherWidget";
+import { MobileSearchOverlay } from "./MobileSearchOverlay";
 
 interface NavbarProps {
   user: UserProfile | null;
@@ -303,16 +304,10 @@ export default function Navbar({ user }: NavbarProps) {
     setIsMobileSearchOpen(false);
   }, [location.pathname]);
 
-  // Focus mobile search bar when navigating with search-focus query parameter
+  // Open mobile full-screen search when navigating with search-focus query parameter
   useEffect(() => {
     if (location.search.includes("search-focus=true")) {
-      const input = document.getElementById("mobile-search-input");
-      if (input) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        setTimeout(() => {
-          input.focus();
-        }, 150);
-      }
+      setIsMobileSearchOpen(true);
     }
   }, [location.search]);
 
@@ -355,10 +350,23 @@ export default function Navbar({ user }: NavbarProps) {
     fetchProducts();
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (search.trim()) {
       navigate(`/?search=${encodeURIComponent(search.trim())}`);
+      setSearch("");
+      setSuggestedProducts([]);
+      setSuggestedCategories([]);
+      setShowDesktopSuggestions(false);
+      setIsMobileMenuOpen(false);
+      setIsMobileSearchOpen(false);
+    }
+  };
+
+  const handleMobileOverlaySearch = (queryText: string) => {
+    const clean = queryText.trim();
+    if (clean) {
+      navigate(`/?search=${encodeURIComponent(clean)}`);
       setSearch("");
       setSuggestedProducts([]);
       setSuggestedCategories([]);
@@ -898,6 +906,29 @@ export default function Navbar({ user }: NavbarProps) {
               </Link>
             </div>
 
+            {/* Mobile Header Right Actions (Profile & Cart) */}
+            <div className="flex md:hidden items-center space-x-2">
+              <Link
+                to={user ? "/profile" : "/login"}
+                className="p-1.5 text-gray-300 hover:text-white transition-colors"
+                aria-label="Account"
+              >
+                <User size={21} />
+              </Link>
+              <Link
+                to="/cart"
+                className="relative p-1.5 text-gray-300 hover:text-white transition-colors"
+                aria-label="Cart"
+              >
+                <ShoppingCart size={21} />
+                {itemCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-amber-400 text-black text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center tabular-nums">
+                    {itemCount}
+                  </span>
+                )}
+              </Link>
+            </div>
+
 
           </div>
         </div>
@@ -1055,40 +1086,29 @@ export default function Navbar({ user }: NavbarProps) {
         </div>
       </div>
 
-      {/* Modern, Neutral, High-Visibility Mobile Search Bar (Scroll-Aware Collapsing & Smooth Focus Expansion) */}
-      <div className={`md:hidden px-4 border-b border-gray-100 dark:border-gray-850 bg-white/95 dark:bg-gray-950/95 relative transition-all duration-300 ease-in-out overflow-hidden ${
-        isNavCompact && !isMobileSearchFocused && !search 
-          ? "max-h-0 py-0 opacity-0 border-none pointer-events-none" 
-          : isMobileSearchFocused 
-          ? "max-h-20 py-2.5 opacity-100 shadow-xl border-amber-500" 
-          : "max-h-14 py-2 opacity-100"
+      {/* High-Visibility Mobile Search Bar (Opens Full-Screen MobileSearchOverlay on Tap) */}
+      <div className={`md:hidden px-3.5 border-b border-gray-100 dark:border-gray-850 bg-white/95 dark:bg-gray-950/95 relative transition-all duration-300 ease-in-out ${
+        isNavCompact ? "max-h-0 py-0 opacity-0 border-none pointer-events-none overflow-hidden" : "py-2 opacity-100"
       }`}>
-        <form onSubmit={handleSearch} className="relative w-full">
-          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-450 dark:text-gray-400">
-            <Search size={isMobileSearchFocused ? 17 : 15} className={`transition-all ${isMobileSearchFocused ? "text-amber-500" : ""}`} />
-          </span>
-          <input
-            id="mobile-search-input"
-            type="text"
-            value={search}
-            onFocus={() => setIsMobileSearchFocused(true)}
-            onBlur={() => setTimeout(() => setIsMobileSearchFocused(false), 200)}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder={language === "sw" ? "Tafuta Sokoplus..." : "Search Sokoplus"}
-            className={`block w-full pl-9 pr-14 border border-gray-200/80 dark:border-gray-800 rounded-xl leading-5 bg-gray-50/80 dark:bg-gray-900/80 placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-100 font-medium focus:outline-none focus:bg-white focus:dark:bg-gray-950 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all shadow-inner-sm ${
-              isMobileSearchFocused ? "py-2.5 text-sm ring-2 ring-amber-500/50" : "py-1.5 text-xs"
-            }`}
-          />
-          <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center space-x-1">
+        <div
+          onClick={() => setIsMobileSearchOpen(true)}
+          className="flex items-center justify-between w-full h-10 px-3.5 bg-gray-100/90 dark:bg-gray-900/90 rounded-full border border-gray-200/80 dark:border-gray-800 cursor-pointer text-gray-400 dark:text-gray-500 hover:border-amber-400 active:scale-[0.99] transition-all shadow-2xs"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Search size={16} className="text-gray-450 dark:text-gray-400 shrink-0 stroke-[2.2]" />
+            <span className="text-xs font-semibold truncate text-gray-500 dark:text-gray-400">
+              {search.trim() ? search : (language === "sw" ? "Tafuta bidhaa, chapa na vitengo..." : "Search products, brands and categories...")}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
             {search && (
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setSearch("");
-                  setSuggestedProducts([]);
-                  setSuggestedCategories([]);
                 }}
-                className="p-1 text-gray-450 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors cursor-pointer"
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-full"
                 title={language === "sw" ? "Futa" : "Clear"}
               >
                 <X size={14} />
@@ -1096,80 +1116,33 @@ export default function Navbar({ user }: NavbarProps) {
             )}
             <button
               type="button"
-              onClick={toggleVoiceSearch}
-              className={`p-1 rounded-full transition-all duration-200 flex items-center justify-center cursor-pointer ${
-                isListening
-                  ? "text-red-600 bg-red-50 dark:bg-red-950/45 animate-pulse scale-110"
-                  : "text-gray-400 hover:text-orange-600 dark:text-gray-550 dark:hover:text-orange-400"
-              }`}
-              title={language === "sw" ? "Tafuta kwa sauti" : "Search by voice"}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMobileSearchOpen(true);
+                if (toggleVoiceSearch) toggleVoiceSearch();
+              }}
+              className="p-1 text-gray-400 hover:text-amber-500 rounded-full"
+              title={language === "sw" ? "Tafuta kwa sauti" : "Voice search"}
             >
-              {isListening ? <MicOff size={14} /> : <Mic size={14} />}
+              <Mic size={15} />
             </button>
           </div>
-        </form>
-
-        {/* Suggestion Dropdown floating beautifully over the parent page */}
-        <AnimatePresence>
-          {(suggestedProducts.length > 0 || suggestedCategories.length > 0) && (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 5 }}
-              className="absolute left-4 right-4 mt-2 bg-white dark:bg-gray-900 rounded-2xl border border-gray-150 dark:border-gray-800 shadow-2xl max-h-72 overflow-y-auto p-3 space-y-2 z-[100] divide-y divide-gray-100 dark:divide-gray-800"
-            >
-              {suggestedCategories.length > 0 && (
-                <div className="space-y-1.5 pb-2">
-                  <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                    <Layers size={10} className="text-amber-500" /> Categories
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {suggestedCategories.map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => handleCategorySelect(cat)}
-                        className="text-xs font-bold px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-amber-400 hover:text-black transition-colors cursor-pointer"
-                      >
-                        📁 {cat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {suggestedProducts.length > 0 && (
-                <div className="space-y-1 pt-2">
-                  <div className="text-[9px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-                    <ShoppingBag size={10} className="text-orange-500" /> Products
-                  </div>
-                  {suggestedProducts.map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => handleProductSelect(p.id)}
-                      className="flex items-center space-x-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 px-2 rounded-xl transition-colors"
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0 border border-gray-150 dark:border-gray-700">
-                        <FastImage 
-                          src={p.images?.[0] || ""} 
-                          alt={p.name} 
-                          fallbackIconSize={14}
-                        />
-                      </div>
-                      <div className="flex-grow min-w-0">
-                        <p className="text-xs font-bold text-gray-950 dark:text-gray-100 truncate">{p.name}</p>
-                      </div>
-                      <div className="text-xs font-black text-gray-900 dark:text-gray-100 whitespace-nowrap tabular-nums">
-                        {formatPrice(p.price)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        </div>
       </div>
+
+      {/* Dedicated Full-Screen Mobile Search Overlay */}
+      <MobileSearchOverlay
+        isOpen={isMobileSearchOpen}
+        onClose={() => setIsMobileSearchOpen(false)}
+        allProducts={allProducts}
+        language={language}
+        onSearch={handleMobileOverlaySearch}
+        onProductSelect={handleProductSelect}
+        onCategorySelect={handleCategorySelect}
+        isListening={isListening}
+        toggleVoiceSearch={toggleVoiceSearch}
+        formatPrice={formatPrice}
+      />
 
       {/* Mobile Menu Overlay */}
       <AnimatePresence>

@@ -29,6 +29,7 @@ import { useSellerStudio } from "../lib/SellerStudioContext";
 import { useSettings } from "../lib/SettingsContext";
 import { matchesFuzzyQuery, normalizeSearchQuery } from "../utils/searchFuzzy";
 import { getSubcategoriesForCategory } from "../data/categories";
+import { MobileSortFilterBar, SortOptionType } from "../components/MobileSortFilterBar";
 
 interface HomeProps {
   user: UserProfile | null;
@@ -59,6 +60,30 @@ export default function Home({ user }: HomeProps) {
     }
   };
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawSearch = (searchParams.get("search") || "").trim();
+  const isSearching = Boolean(rawSearch);
+
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    return searchParams.get("category") || searchParams.get("collection") || "All";
+  });
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>(() => {
+    return searchParams.get("subcategory") || "All";
+  });
+
+  // Base matches of the search query (prior to category, subcategory, price, rating, stock filters)
+  const searchedProductsBase = useMemo(() => {
+    if (!rawSearch) return products;
+    return products.filter(p => 
+      matchesFuzzyQuery(p.name, rawSearch) || 
+      (p.description && matchesFuzzyQuery(p.description, rawSearch)) ||
+      (p.category && matchesFuzzyQuery(p.category, rawSearch)) ||
+      (p.subcategory && matchesFuzzyQuery(p.subcategory, rawSearch)) ||
+      (p.sellerName && matchesFuzzyQuery(p.sellerName, rawSearch)) ||
+      (p.artisan && matchesFuzzyQuery(p.artisan, rawSearch))
+    );
+  }, [products, rawSearch]);
+
   const activeCategories = useMemo(() => {
     const defaultCats = [
       "Fashion",
@@ -68,22 +93,26 @@ export default function Home({ user }: HomeProps) {
       "Home & Office Décor (Small Scale & Gadgets)",
       "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)"
     ];
-    if (products.length === 0) {
+    const sourcePool = isSearching ? searchedProductsBase : products;
+    if (sourcePool.length === 0) {
       if (loading) {
         return ["All", ...defaultCats];
       }
       return ["All"];
     }
     const dbCats = Array.from(new Set(
-      products
+      sourcePool
         .filter(p => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved"))
         .map(p => p.category)
         .filter((c): c is string => !!c)
     ));
+    if (isSearching) {
+      return ["All", ...dbCats];
+    }
     const orderedCats = defaultCats.filter(cat => dbCats.includes(cat));
     const extraCats = dbCats.filter(cat => !defaultCats.includes(cat));
     return ["All", ...orderedCats, ...extraCats];
-  }, [products, loading]);
+  }, [products, searchedProductsBase, isSearching, loading]);
 
   const [heroImageUrl, setHeroImageUrl] = useState<string>("");
   const [heroImageUrls, setHeroImageUrls] = useState<string[]>([]);
@@ -91,13 +120,6 @@ export default function Home({ user }: HomeProps) {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(12);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
-    return searchParams.get("category") || searchParams.get("collection") || "All";
-  });
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string>(() => {
-    return searchParams.get("subcategory") || "All";
-  });
 
   const selectCategory = (cat: string) => {
     setSelectedCategory(cat);
@@ -148,10 +170,11 @@ export default function Home({ user }: HomeProps) {
   }, [searchParams]);
 
   const availableSubcategories = useMemo(() => {
+    const sourcePool = isSearching ? searchedProductsBase : products;
     if (selectedCategory === "All") {
       const productSubs = Array.from(
         new Set(
-          products
+          sourcePool
             .filter(p => p.active !== false && (!p.approvalStatus || p.approvalStatus === "approved") && p.subcategory)
             .map(p => p.subcategory as string)
         )
@@ -159,7 +182,7 @@ export default function Home({ user }: HomeProps) {
       return productSubs.length > 0 ? ["All", ...productSubs] : [];
     }
     const predefined = getSubcategoriesForCategory(selectedCategory);
-    const fromProducts = products
+    const fromProducts = sourcePool
       .filter(
         p =>
           p.active !== false &&
@@ -170,7 +193,7 @@ export default function Home({ user }: HomeProps) {
       .map(p => p.subcategory as string);
     const merged = Array.from(new Set([...predefined, ...fromProducts]));
     return merged.length > 0 ? ["All", ...merged] : [];
-  }, [selectedCategory, products]);
+  }, [selectedCategory, products, searchedProductsBase, isSearching]);
 
   useEffect(() => {
     if (!loading && activeCategories.length > 0 && !activeCategories.includes(selectedCategory)) {
@@ -195,6 +218,8 @@ export default function Home({ user }: HomeProps) {
 
   // Advanced Filters
   const [showFilters, setShowFilters] = useState(false);
+  const [isMobileSortOpen, setIsMobileSortOpen] = useState(false);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [minPrice, setMinPrice] = useState<number | "">("");
   const [maxPrice, setMaxPrice] = useState<number | "">("");
   const [minRating, setMinRating] = useState<number>(0);
@@ -522,10 +547,11 @@ export default function Home({ user }: HomeProps) {
     };
   }, [products, user?.wishlist]);
 
-  // Dynamic slider range calculation based on inventory
+  // Dynamic slider range calculation based on inventory (or searched set during search)
+  const currentBasePool = isSearching ? searchedProductsBase : products;
   const sliderMax = Math.ceil(
-    products.length > 0
-      ? Math.max(...products.map(p => currency === "USD" ? p.price * exchangeRate : p.price))
+    currentBasePool.length > 0
+      ? Math.max(...currentBasePool.map(p => currency === "USD" ? p.price * exchangeRate : p.price))
       : (currency === "USD" ? 250 : 25000)
   ) || (currency === "USD" ? 250 : 25000);
 
@@ -817,45 +843,36 @@ export default function Home({ user }: HomeProps) {
   const [correctedSearchTerm, setCorrectedSearchTerm] = useState<{ suggested?: string; original?: string }>({});
 
   useEffect(() => {
-    const rawSearch = searchParams.get("search");
+    const rawSearchQuery = searchParams.get("search")?.trim() || "";
     
-    let result = [...products];
+    // Slang and Typo detection
+    if (rawSearchQuery) {
+      const { suggestedTerm, isSlangOrCorrected } = normalizeSearchQuery(rawSearchQuery);
+      if (isSlangOrCorrected && suggestedTerm) {
+        setCorrectedSearchTerm({ suggested: suggestedTerm, original: rawSearchQuery });
+      } else {
+        setCorrectedSearchTerm({});
+      }
+    } else {
+      setCorrectedSearchTerm({});
+    }
 
-    // Category Filter
+    // Base pool is strictly the searched product set when search is active
+    let result = [...searchedProductsBase];
+
+    // Category Filter (applied strictly on the searched set if searching)
     if (selectedCategory !== "All") {
       result = result.filter(p => p.category === selectedCategory);
     }
 
-    // Subcategory Filter
+    // Subcategory Filter (applied strictly on the searched set if searching)
     if (selectedSubcategory && selectedSubcategory !== "All") {
       result = result.filter(
         p => p.subcategory && p.subcategory.toLowerCase() === selectedSubcategory.toLowerCase()
       );
     }
 
-    // Search Filter with Slang, Misspelling, and Brand Typo Tolerance
-    if (rawSearch && rawSearch.trim()) {
-      const { normalized, suggestedTerm, isSlangOrCorrected } = normalizeSearchQuery(rawSearch);
-      
-      if (isSlangOrCorrected && suggestedTerm) {
-        setCorrectedSearchTerm({ suggested: suggestedTerm, original: rawSearch });
-      } else {
-        setCorrectedSearchTerm({});
-      }
-
-      result = result.filter(p => 
-        matchesFuzzyQuery(p.name, rawSearch) || 
-        (p.description && matchesFuzzyQuery(p.description, rawSearch)) ||
-        (p.category && matchesFuzzyQuery(p.category, rawSearch)) ||
-        (p.subcategory && matchesFuzzyQuery(p.subcategory, rawSearch)) ||
-        (p.sellerName && matchesFuzzyQuery(p.sellerName, rawSearch)) ||
-        (p.artisan && matchesFuzzyQuery(p.artisan, rawSearch))
-      );
-    } else {
-      setCorrectedSearchTerm({});
-    }
-
-    // Advanced Filters
+    // Advanced Filters (Price, Rating, In-Stock)
     if (minPrice !== "") {
       const minKes = currency === "USD" ? Number(minPrice) / exchangeRate : Number(minPrice);
       result = result.filter(p => p.price >= minKes);
@@ -871,7 +888,7 @@ export default function Home({ user }: HomeProps) {
       result = result.filter(p => p.stock > 0);
     }
 
-    // Sorting
+    // Sorting (applied strictly to the active subset)
     if (sortBy === "price-low") {
       result.sort((a, b) => a.price - b.price);
     } else if (sortBy === "price-high") {
@@ -882,7 +899,7 @@ export default function Home({ user }: HomeProps) {
 
     setFilteredProducts(result);
     setCurrentPage(1);
-  }, [selectedCategory, selectedSubcategory, products, searchParams, minPrice, maxPrice, minRating, onlyInStock, sortBy, currency, exchangeRate]);
+  }, [selectedCategory, selectedSubcategory, searchedProductsBase, searchParams, minPrice, maxPrice, minRating, onlyInStock, sortBy, currency, exchangeRate]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
 
@@ -958,7 +975,9 @@ export default function Home({ user }: HomeProps) {
         description="Shop the best authentic Kenyan products. From local artisans to global quality standards, Sokoplus is your home for Kenyan excellence."
         schema={homeSchema}
       />
-      <MarketingBanner />
+      {!isSearching && (
+        <>
+          <MarketingBanner />
       {/* Hero Section */}
       <section className="relative min-h-[480px] sm:min-h-[520px] md:min-h-[580px] py-12 sm:py-16 md:py-24 px-4 sm:px-6 lg:px-8 border-b border-gray-100 dark:border-gray-900/50 overflow-hidden flex items-center transition-colors duration-200">
         {/* Full-width Responsive Background Carousel */}
@@ -1414,66 +1433,91 @@ export default function Home({ user }: HomeProps) {
           </div>
         </section>
       )}
+        </>
+      )}
 
-      {/* Product Grid */}
-      <section id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-          <div>
-             <h2 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">
-              {selectedCategory === "All" 
-                ? (language === "sw" ? "Mkusanyiko Mpya wa Bidhaa" : "New Arrivals.") 
-                : (selectedCategory === "Local Crafts" ? (language === "sw" ? "Sanaa Maalum za Mikono" : "Local Crafts Collection") : 
-                   selectedCategory === "Fashion" ? (language === "sw" ? "Mavazi na Mitindo ya Kisasa" : "Fashion Collection") : 
-                   selectedCategory === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali na Kielektroniki" : "Electronics Collection") : 
-                   selectedCategory === "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" ? (language === "sw" ? "Urembo na Vipodozi" : "Beauty & Personal Care") :
-                   selectedCategory === "Home & Office Décor (Small Scale & Gadgets)" ? (language === "sw" ? "Mkusanyiko wa Mapambo ya Nyumbani & Ofisini" : "Home & Office Décor Collection") :
-                   selectedCategory === "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" ? (language === "sw" ? "Bidhaa za Wanyama wa Kufugwa" : "Pet Supplies Collection") :
-                   `${selectedCategory} Collection`)}
-             </h2>
-             <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
-               {language === "sw" ? "Sanaa safi na bidhaa teule zilizosafirishwa moja kwa moja kutoka kaunti zote 47 za Kenya yetu." : "Handpicked premium goods from across the 47 counties."}
-             </p>
-          </div>
-          <button onClick={() => {
-            setMinPrice("");
-            setMaxPrice("");
-            setMinRating(0);
-            setOnlyInStock(false);
-            setSearchParams(params => {
-              const next = new URLSearchParams(params);
-              next.delete("search");
-              next.delete("category");
-              next.delete("collection");
-              next.delete("subcategory");
-              return next;
-            }, { replace: true });
-            setSelectedCategory("All");
-            setSelectedSubcategory("All");
-          }} className="text-orange-600 dark:text-orange-500 font-bold flex items-center hover:underline group">
-            Reset All <X size={16} className="ml-1 group-hover:rotate-90 transition-transform" />
-          </button>
-        </div>
-
-        {searchParams.get("search") && (
-          <div className="bg-orange-50 border border-orange-100 rounded-[2rem] p-6 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in shadow-inner">
-            <div className="flex flex-col sm:flex-row items-center space-x-0 sm:space-x-3 gap-2">
-              <span className="text-sm font-black text-gray-500 uppercase tracking-wider">Search Results For</span>
-              <span className="bg-orange-600 text-white px-5 py-2 rounded-full text-sm font-bold shadow-md shadow-orange-600/10">
-                "{searchParams.get("search")}"
-              </span>
+      {/* Product Grid / Active Search Results */}
+      <section id="products-section" className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24 ${isSearching ? "pt-4 sm:pt-6" : ""}`}>
+        {isSearching ? (
+          <div className="bg-orange-50/70 dark:bg-gray-900/80 border border-orange-200/70 dark:border-gray-800 rounded-3xl p-6 sm:p-8 mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-widest text-orange-600 dark:text-orange-400">
+                  {language === "sw" ? "Matokeo ya Utafutaji" : "Search Results"}
+                </span>
+                <span className="bg-orange-600 text-white px-3 py-0.5 rounded-full text-xs font-bold shadow-xs">
+                  {filteredProducts.length} {language === "sw" ? "bidhaa zimepatikana" : "products found"}
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-950 dark:text-white tracking-tight">
+                "{rawSearch}"
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">
+                {selectedCategory !== "All"
+                  ? `${language === "sw" ? "Imechujwa katika kitengo" : "Filtered within"}: ${selectedCategory}`
+                  : (language === "sw" ? "Bidhaa zote zinazolingana na utafutaji wako" : "Showing matching products for your search query")}
+              </p>
             </div>
-            <button
-              onClick={() => {
-                setSearchParams((prev) => {
-                  const next = new URLSearchParams(prev);
-                  next.delete("search");
-                  return next;
-                });
-              }}
-              className="flex items-center space-x-2 bg-white text-gray-900 px-5 py-3 rounded-2xl font-bold border border-gray-100 hover:border-red-500 hover:text-red-500 transition-all shadow-sm"
-            >
-              <X size={16} />
-              <span className="text-xs uppercase tracking-wider">Clear Search</span>
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <button
+                onClick={() => {
+                  setMinPrice("");
+                  setMaxPrice("");
+                  setMinRating(0);
+                  setOnlyInStock(false);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.delete("search");
+                    next.delete("category");
+                    next.delete("collection");
+                    next.delete("subcategory");
+                    return next;
+                  }, { replace: true });
+                  setSelectedCategory("All");
+                  setSelectedSubcategory("All");
+                }}
+                className="flex items-center justify-center space-x-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300 dark:hover:border-red-900/60 px-5 py-3 rounded-2xl font-bold border border-gray-200 dark:border-gray-700 transition-all shadow-sm cursor-pointer w-full sm:w-auto text-sm"
+              >
+                <X size={16} />
+                <span>{language === "sw" ? "Futa Utafutaji" : "Clear Search"}</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div>
+               <h2 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">
+                {selectedCategory === "All" 
+                  ? (language === "sw" ? "Mkusanyiko Mpya wa Bidhaa" : "New Arrivals.") 
+                  : (selectedCategory === "Local Crafts" ? (language === "sw" ? "Sanaa Maalum za Mikono" : "Local Crafts Collection") : 
+                     selectedCategory === "Fashion" ? (language === "sw" ? "Mavazi na Mitindo ya Kisasa" : "Fashion Collection") : 
+                     selectedCategory === "Electronics" ? (language === "sw" ? "Vifaa vya Kidijitali na Kielektroniki" : "Electronics Collection") : 
+                     selectedCategory === "Beauty & Personal Care (Skincare, Haircare, Cosmetics)" ? (language === "sw" ? "Urembo na Vipodozi" : "Beauty & Personal Care") :
+                     selectedCategory === "Home & Office Décor (Small Scale & Gadgets)" ? (language === "sw" ? "Mkusanyiko wa Mapambo ya Nyumbani & Ofisini" : "Home & Office Décor Collection") :
+                     selectedCategory === "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)" ? (language === "sw" ? "Bidhaa za Wanyama wa Kufugwa" : "Pet Supplies Collection") :
+                     `${selectedCategory} Collection`)}
+               </h2>
+               <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
+                 {language === "sw" ? "Sanaa safi na bidhaa teule zilizosafirishwa moja kwa moja kutoka kaunti zote 47 za Kenya yetu." : "Handpicked premium goods from across the 47 counties."}
+               </p>
+            </div>
+            <button onClick={() => {
+              setMinPrice("");
+              setMaxPrice("");
+              setMinRating(0);
+              setOnlyInStock(false);
+              setSearchParams(params => {
+                const next = new URLSearchParams(params);
+                next.delete("search");
+                next.delete("category");
+                next.delete("collection");
+                next.delete("subcategory");
+                return next;
+              }, { replace: true });
+              setSelectedCategory("All");
+              setSelectedSubcategory("All");
+            }} className="text-orange-600 dark:text-orange-500 font-bold flex items-center hover:underline group cursor-pointer">
+              Reset All <X size={16} className="ml-1 group-hover:rotate-90 transition-transform" />
             </button>
           </div>
         )}
@@ -1927,8 +1971,8 @@ export default function Home({ user }: HomeProps) {
               </div>
             </div>
 
-            {/* Smart Fallback Recommendations to prevent zero-results dead-end */}
-            {products.length > 0 && (
+            {/* Smart Fallback Recommendations only when NOT searching to preserve search-only view */}
+            {!isSearching && products.length > 0 && (
               <div className="space-y-4 pt-4 border-t border-gray-150 dark:border-gray-800">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
@@ -2263,6 +2307,42 @@ export default function Home({ user }: HomeProps) {
           </motion.div>
         </div>
       )}
+
+      {/* Sticky Mobile Sort & Filter Bar with Spring Animated Bottom Sheet and Drawer */}
+      <MobileSortFilterBar
+        sortBy={sortBy}
+        onSortChange={(val) => setSortBy(val)}
+        isSortOpen={isMobileSortOpen}
+        setIsSortOpen={setIsMobileSortOpen}
+        isFilterOpen={isMobileFilterOpen}
+        setIsFilterOpen={setIsMobileFilterOpen}
+        activeFilterCount={(minPrice !== "" ? 1 : 0) + (maxPrice !== "" ? 1 : 0) + (minRating > 0 ? 1 : 0) + (onlyInStock ? 1 : 0) + (selectedCategory !== "All" ? 1 : 0)}
+        activeCategories={activeCategories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={(cat) => selectCategory(cat)}
+        selectedSubcategory={selectedSubcategory}
+        onSelectSubcategory={(sub) => selectSubcategory(sub)}
+        minPrice={minPrice}
+        maxPrice={maxPrice}
+        onMinPriceChange={(val) => setMinPrice(val)}
+        onMaxPriceChange={(val) => setMaxPrice(val)}
+        sliderMax={sliderMax}
+        minRating={minRating}
+        onMinRatingChange={(val) => setMinRating(val)}
+        onlyInStock={onlyInStock}
+        onOnlyInStockChange={(val) => setOnlyInStock(val)}
+        onResetFilters={() => {
+          setMinPrice("");
+          setMaxPrice("");
+          setMinRating(0);
+          setOnlyInStock(false);
+          selectCategory("All");
+          selectSubcategory("All");
+        }}
+        currency={currency}
+        totalFilteredCount={filteredProducts.length}
+        language={language}
+      />
     </div>
   );
 }
