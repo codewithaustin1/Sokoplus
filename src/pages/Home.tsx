@@ -120,6 +120,8 @@ export default function Home({ user }: HomeProps) {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(12);
+  const [showMission, setShowMission] = useState(false);
+  const [correctedSearchTerm, setCorrectedSearchTerm] = useState<{ suggested?: string; original?: string }>({});
 
   const selectCategory = (cat: string) => {
     setSelectedCategory(cat);
@@ -840,8 +842,6 @@ export default function Home({ user }: HomeProps) {
     };
   }, [refetchProductsQuery]);
 
-  const [correctedSearchTerm, setCorrectedSearchTerm] = useState<{ suggested?: string; original?: string }>({});
-
   useEffect(() => {
     const rawSearchQuery = searchParams.get("search")?.trim() || "";
     
@@ -924,15 +924,15 @@ export default function Home({ user }: HomeProps) {
     }
   };
 
-  const [showMission, setShowMission] = useState(false);
+  const originUrl = typeof window !== "undefined" ? window.location.origin : "https://www.sokoplus.co.ke";
 
   const homeSchema = {
     "@context": "https://schema.org",
     "@type": "Store",
     "name": "Sokoplus",
     "description": "Shop the best authentic Kenyan products. From local artisans to global quality standards, Sokoplus is your home for Kenyan excellence.",
-    "url": window.location.origin,
-    "logo": `${window.location.origin}/logo.jpg`,
+    "url": originUrl,
+    "logo": `${originUrl}/logo.jpg`,
     "telephone": "+254700000000",
     "priceRange": "KES",
     "address": {
@@ -2159,7 +2159,7 @@ export default function Home({ user }: HomeProps) {
                     return pages.map((page, idx) => {
                       if (page === "...") {
                         return (
-                          <span key={`ellipsis-${idx}`} className="px-2 py-1 text-xs text-gray-400 font-bold select-none">
+                          <span key={`ellipsis-${idx}`} className="px-2 py-1 text-xs text-gray-400 font-normal select-none">
                             ...
                           </span>
                         );
@@ -2170,10 +2170,10 @@ export default function Home({ user }: HomeProps) {
                         <button
                           key={`page-${pageNum}`}
                           onClick={() => handlePageChange(pageNum)}
-                          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center ${
                             isActive
-                              ? "bg-orange-600 text-white shadow-md shadow-orange-500/25"
-                              : "border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-orange-500 hover:text-orange-600 dark:hover:text-orange-400"
+                              ? "bg-orange-600 text-white font-bold shadow-md shadow-orange-500/25"
+                              : "border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-normal hover:border-orange-500 hover:text-orange-600 dark:hover:text-orange-400"
                           }`}
                         >
                           {pageNum}
@@ -2204,10 +2204,10 @@ export default function Home({ user }: HomeProps) {
                           setPageSize(size);
                           setCurrentPage(1);
                         }}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                        className={`px-2.5 py-1 rounded-lg text-xs transition-all cursor-pointer ${
                           pageSize === size
-                            ? "bg-white dark:bg-gray-900 text-orange-600 dark:text-orange-400 shadow-xs"
-                            : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                            ? "bg-white dark:bg-gray-900 text-orange-600 dark:text-orange-400 font-bold shadow-xs"
+                            : "text-gray-600 dark:text-gray-400 font-normal hover:text-gray-900 dark:hover:text-gray-200"
                         }`}
                       >
                         {size}

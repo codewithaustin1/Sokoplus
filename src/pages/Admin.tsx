@@ -2072,7 +2072,24 @@ export default function Admin({ user }: AdminProps) {
   const [hasColorsEdit, setHasColorsEdit] = useState(false);
   const [selectedColorsEdit, setSelectedColorsEdit] = useState<string[]>([]);
 
-  const [newProduct, setNewProduct] = useState({
+  const [newProduct, setNewProduct] = useState<{
+    sku: string;
+    name: string;
+    description: string;
+    price: number;
+    originalPrice: number;
+    category: string;
+    subcategory: string;
+    condition?: "NEW" | "REFURBISHED" | "OPEN_BOX" | "USED" | "FOR_PARTS" | "";
+    stock: number;
+    isDigital: boolean;
+    digitalFormat: "pdf" | "video" | "audio" | "zip" | "ebook" | "software" | "other";
+    digitalFileUrl: string;
+    digitalFileSize: string;
+    images: string[];
+    artisan: string;
+    buyingPrice: number;
+  }>({
     sku: "",
     name: "",
     description: "",
@@ -2080,9 +2097,10 @@ export default function Admin({ user }: AdminProps) {
     originalPrice: 0,
     category: "Fashion",
     subcategory: "",
+    condition: "",
     stock: 10,
     isDigital: false,
-    digitalFormat: "pdf" as "pdf" | "video" | "audio" | "zip" | "ebook" | "software" | "other",
+    digitalFormat: "pdf",
     digitalFileUrl: "",
     digitalFileSize: "",
     images: [""],
@@ -3083,6 +3101,7 @@ export default function Admin({ user }: AdminProps) {
       );
       await addDoc(collection(db, "products"), {
         ...newProduct,
+        condition: newProduct.condition || null,
         sku: targetSku,
         images: sanitizedImages.length > 0 ? sanitizedImages : [],
         originalPrice: newProduct.originalPrice && newProduct.originalPrice > 0 ? newProduct.originalPrice : null,
@@ -3103,6 +3122,7 @@ export default function Admin({ user }: AdminProps) {
         originalPrice: 0,
         category: "Fashion",
         subcategory: "",
+        condition: "",
         stock: 10,
         isDigital: false,
         digitalFormat: "pdf",
@@ -8492,6 +8512,28 @@ export default function Admin({ user }: AdminProps) {
               </div>
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400">
+                  Product Condition (Optional)
+                </label>
+                <select
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-sm font-semibold text-gray-800 cursor-pointer"
+                  value={newProduct.condition || ""}
+                  onChange={(e) =>
+                    setNewProduct({
+                      ...newProduct,
+                      condition: (e.target.value as any) || "",
+                    })
+                  }
+                >
+                  <option value="">-- Not Specified (Default) --</option>
+                  <option value="NEW">NEW (Brand New)</option>
+                  <option value="REFURBISHED">REFURBISHED (Refurbished)</option>
+                  <option value="OPEN_BOX">OPEN_BOX (Open Box)</option>
+                  <option value="USED">USED (Pre-Owned)</option>
+                  <option value="FOR_PARTS">FOR_PARTS (For Parts / Repair)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-400">
                   Artisan / Creator
                 </label>
                 <input
@@ -8956,6 +8998,28 @@ export default function Admin({ user }: AdminProps) {
                     }
                   />
                 )}
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-400">
+                  Product Condition (Optional)
+                </label>
+                <select
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-sm font-semibold text-gray-800 cursor-pointer"
+                  value={editingProduct.condition || ""}
+                  onChange={(e) =>
+                    setEditingProduct({
+                      ...editingProduct,
+                      condition: (e.target.value as any) || undefined,
+                    })
+                  }
+                >
+                  <option value="">-- Not Specified (Default) --</option>
+                  <option value="NEW">NEW (Brand New)</option>
+                  <option value="REFURBISHED">REFURBISHED (Refurbished)</option>
+                  <option value="OPEN_BOX">OPEN_BOX (Open Box)</option>
+                  <option value="USED">USED (Pre-Owned)</option>
+                  <option value="FOR_PARTS">FOR_PARTS (For Parts / Repair)</option>
+                </select>
               </div>
               <div>
                 <label className="text-xs font-bold uppercase text-gray-400">

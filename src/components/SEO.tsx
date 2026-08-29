@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { useSettings } from "../lib/SettingsContext";
 
@@ -45,7 +45,7 @@ export default function SEO({
   const finalImageProp = image || settings.seoImage || "/og-image.jpg";
   
   // Clean description: strip any Markdown / special formatting characters & truncate to safe 155-160 length
-  const cleanDescription = React.useMemo(() => {
+  const cleanDescription = useMemo(() => {
     if (!finalDescription) return "";
     const plainText = finalDescription
       .replace(/[#*_`~\n\r-]/g, " ")
@@ -55,7 +55,7 @@ export default function SEO({
   }, [finalDescription]);
 
   // Clean title for SERPs (max 60 characters is ideal for search engine display)
-  const cleanTitle = React.useMemo(() => {
+  const cleanTitle = useMemo(() => {
     if (!title) return siteTitle;
     return title.length > 50 ? `${title.substring(0, 47)}...` : title;
   }, [title]);
@@ -65,7 +65,7 @@ export default function SEO({
     : (settings.seoTitle || `${siteTitle} - Premium Kenyan Marketplace`);
 
   // Determine current absolute location if window is defined
-  const currentUrl = React.useMemo(() => {
+  const currentUrl = useMemo(() => {
     if (url) return url;
     if (typeof window !== "undefined") {
       return window.location.href;
@@ -76,7 +76,7 @@ export default function SEO({
   const finalCanonical = canonicalUrl || currentUrl;
 
   // Resolve keywords array or string
-  const processedKeywords = React.useMemo(() => {
+  const processedKeywords = useMemo(() => {
     const defaultKeywords = ["handmade Kenyan craft", "artisan goods Nairobi", "online marketplace Kenya", "Maasai beadwork", "Sokoplus"];
     if (!keywords) return defaultKeywords.join(", ");
     if (Array.isArray(keywords)) {
@@ -86,7 +86,7 @@ export default function SEO({
   }, [keywords]);
 
   // Handle image fallbacks elegantly
-  const finalImage = React.useMemo(() => {
+  const finalImage = useMemo(() => {
     if (finalImageProp && finalImageProp.trim() !== "") {
       if (finalImageProp.startsWith("/") && typeof window !== "undefined") {
         return `${window.location.origin}${finalImageProp}`;

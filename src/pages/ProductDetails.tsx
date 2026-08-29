@@ -945,6 +945,15 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                   SKU: {product.sku}
                 </div>
               )}
+              {product.condition && (
+                <span className="inline-block px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40 rounded-full text-xs font-bold uppercase tracking-wider">
+                  {product.condition === "NEW" && "Brand New"}
+                  {product.condition === "REFURBISHED" && "Refurbished"}
+                  {product.condition === "OPEN_BOX" && "Open Box"}
+                  {product.condition === "USED" && "Pre-Owned / Used"}
+                  {product.condition === "FOR_PARTS" && "For Parts / As-Is"}
+                </span>
+              )}
               {product.isDigital && (
                 <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded-full text-xs font-extrabold uppercase tracking-wide">
                   💻 Digital {product.digitalFormat?.toUpperCase() || "ASSET"} Download

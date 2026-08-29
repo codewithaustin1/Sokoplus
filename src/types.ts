@@ -1,3 +1,5 @@
+export type ProductCondition = "NEW" | "REFURBISHED" | "OPEN_BOX" | "USED" | "FOR_PARTS";
+
 export interface Product {
   id: string;
   sku?: string;
@@ -7,6 +9,7 @@ export interface Product {
   originalPrice?: number;
   category: string;
   subcategory?: string;
+  condition?: ProductCondition;
   images: string[];
   stock: number;
   isDigital?: boolean;

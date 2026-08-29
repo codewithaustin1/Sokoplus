@@ -6,6 +6,8 @@ import * as cheerio from "cheerio";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "fs";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import admin from "firebase-admin";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
@@ -13,6 +15,131 @@ dotenv.config();
 
 const app = express();
 const PORT = 3000;
+
+// Set trust proxy for rate limiter behind Cloud Run / reverse proxies
+app.set("trust proxy", 1);
+
+// Enterprise Security Headers via Helmet configured specifically for seamless Firebase Auth & Google OAuth
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: false, // Allows OAuth popup postMessage window.opener communication
+    frameguard: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'", "https:", "http:", "data:", "blob:"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          "https://apis.google.com",
+          "https://accounts.google.com",
+          "https://*.google.com",
+          "https://*.firebaseapp.com",
+          "https://*.googletagmanager.com",
+          "https://www.googletagmanager.com",
+          "https://*.google-analytics.com",
+          "https://js.paystack.co",
+        ],
+        scriptSrcElem: [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          "https://apis.google.com",
+          "https://accounts.google.com",
+          "https://*.google.com",
+          "https://*.firebaseapp.com",
+          "https://*.googletagmanager.com",
+          "https://www.googletagmanager.com",
+          "https://*.google-analytics.com",
+          "https://js.paystack.co",
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
+        frameSrc: [
+          "'self'",
+          "https://*.firebaseapp.com",
+          "https://accounts.google.com",
+          "https://*.google.com",
+          "https://*.run.app",
+          "https://ai.studio",
+          "https://checkout.paystack.com",
+          "https://*.paystack.co",
+          "https://*.paystack.com",
+        ],
+        connectSrc: [
+          "'self'",
+          "https:",
+          "wss:",
+          "ws:",
+          "https://*.googleapis.com",
+          "https://*.firebaseio.com",
+          "https://identitytoolkit.googleapis.com",
+          "https://securetoken.googleapis.com",
+          "https://*.google-analytics.com",
+          "https://*.analytics.google.com",
+          "https://*.googletagmanager.com",
+          "https://api.paystack.co",
+          "https://*.cloudfunctions.net",
+        ],
+        frameAncestors: ["'self'", "https://*.google.com", "https://*.run.app", "https://ai.studio", "https://*.googleusercontent.com"],
+      },
+    },
+  })
+);
+
+// Standard API Rate Limiter (General protection against API abuse)
+const generalApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // 300 requests per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Too many requests from this IP, please try again in a few minutes.",
+  },
+});
+
+// Strict Rate Limiter for Web Scraping & Ingestion
+const scraperLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 15, // Max 15 scrape requests per 5 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Scraper rate limit exceeded. Please wait 5 minutes before scraping again.",
+  },
+});
+
+// Strict Rate Limiter for Payments & Checkout Initialization (Anti-carding & abuse mitigation)
+const paymentLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 20, // Max 20 checkout / initialization attempts per 10 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Too many payment initialization attempts. Please wait a few minutes before trying again.",
+  },
+});
+
+// AI & Chat Support Limiter (Mitigates LLM cost exhaustion and automated spam)
+const aiLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 30, // 30 AI generations/chats per 5 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "AI support request limit reached. Please wait a moment before sending more messages.",
+  },
+});
+
+// Apply general API rate limiting to all /api routes
+app.use("/api/", generalApiLimiter);
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -926,7 +1053,7 @@ function setCachedVerification(reference: string, data: any) {
 }
 
 // API Routes
-app.post("/api/paystack/initialize", async (req, res) => {
+app.post("/api/paystack/initialize", paymentLimiter, async (req, res) => {
   try {
     const { email, amount, metadata, callback_url } = req.body;
     
@@ -1702,7 +1829,7 @@ function generateLocalHeuristicResponse(userQuery: string, products: any[]): str
   return `${greeting}I couldn't find matches for "${userQuery}" in our items, but I'm here to browse our catalog. Please try searching for jewelry, craft material, pottery, beeswax, or other authentic Kenyan products!`;
 }
 
-app.post("/api/recommendations", async (req, res) => {
+app.post("/api/recommendations", aiLimiter, async (req, res) => {
   const { history, products } = req.body;
   const safeProducts = Array.isArray(products) ? products : [];
   
@@ -1839,7 +1966,7 @@ app.all("/api/digital/download", async (req, res) => {
 });
 
 // Gemini-powered AI Support Chat Assistant with SSE Streaming
-app.post("/api/support-chat/ai", async (req, res) => {
+app.post("/api/support-chat/ai", aiLimiter, async (req, res) => {
   const { messages } = req.body;
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: "Invalid or missing messages array" });
@@ -1949,7 +2076,7 @@ ${JSON.stringify(productsData)}
 });
 
 // Google Search Grounded Market Insights API
-app.post("/api/market-insights", async (req, res) => {
+app.post("/api/market-insights", aiLimiter, async (req, res) => {
   const { query } = req.body || {};
   if (!query || typeof query !== "string") {
     return res.status(400).json({ error: "Search query parameter is required" });
@@ -2267,7 +2394,7 @@ function inferSokoplusCategory(rawCategory: string = "", rawTitle: string = "", 
 }
 
 // Bulk Product URL Scraper & Store Crawler
-app.post("/api/admin/scrape-products", async (req, res) => {
+app.post("/api/admin/scrape-products", scraperLimiter, async (req, res) => {
   const { url: rawUrl, maxProducts = 30 } = req.body;
 
   if (!rawUrl || typeof rawUrl !== "string") {

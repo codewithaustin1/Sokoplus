@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
-import { UserProfile, Product, Order, SellerProfile } from "../types";
+import { UserProfile, Product, Order, SellerProfile, ProductCondition } from "../types";
 import {
   doc,
   getDoc,
@@ -108,6 +108,7 @@ export default function SellerStudio({ user }: SellerStudioProps) {
   const [pName, setPName] = useState("");
   const [pCategory, setPCategory] = useState(PRODUCT_CATEGORIES[0]);
   const [pSubcategory, setPSubcategory] = useState("");
+  const [pCondition, setPCondition] = useState<ProductCondition | "">("");
   const [pPrice, setPPrice] = useState("");
   const [pStock, setPStock] = useState("");
   const [pDesc, setPDesc] = useState("");
@@ -380,6 +381,7 @@ export default function SellerStudio({ user }: SellerStudioProps) {
     setPName("");
     setPCategory(PRODUCT_CATEGORIES[0]);
     setPSubcategory("");
+    setPCondition("");
     setPPrice("");
     setPStock("");
     setPDesc("");
@@ -395,6 +397,7 @@ export default function SellerStudio({ user }: SellerStudioProps) {
     setPName(prod.name);
     setPCategory(prod.category || PRODUCT_CATEGORIES[0]);
     setPSubcategory(prod.subcategory || "");
+    setPCondition(prod.condition || "");
     setPPrice(prod.price.toString());
     setPStock(prod.stock.toString());
     setPDesc(prod.description);
@@ -490,6 +493,7 @@ export default function SellerStudio({ user }: SellerStudioProps) {
         stock: stockNum,
         category: pCategory,
         subcategory: pSubcategory.trim() || undefined,
+        condition: (pCondition || undefined) as ProductCondition | undefined,
         description: pDesc.trim(),
         images: pImages,
         sellerId: profile.uid,
@@ -1156,6 +1160,27 @@ export default function SellerStudio({ user }: SellerStudioProps) {
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 outline-none focus:ring-1 focus:ring-orange-600 rounded-xl text-xs font-semibold text-gray-950"
                   />
                 )}
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black uppercase text-gray-400">
+                    Product Condition (Optional)
+                  </label>
+                  <span className="text-[10px] text-gray-400 font-medium">Identify item condition</span>
+                </div>
+                <select
+                  value={pCondition}
+                  onChange={(e) => setPCondition((e.target.value as ProductCondition) || "")}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 outline-none focus:ring-1 focus:ring-orange-600 rounded-xl text-xs font-semibold text-gray-950 cursor-pointer"
+                >
+                  <option value="">-- Not Specified (Default) --</option>
+                  <option value="NEW">NEW (Brand New)</option>
+                  <option value="REFURBISHED">REFURBISHED (Refurbished)</option>
+                  <option value="OPEN_BOX">OPEN_BOX (Open Box)</option>
+                  <option value="USED">USED (Pre-Owned)</option>
+                  <option value="FOR_PARTS">FOR_PARTS (For Parts / Repair)</option>
+                </select>
               </div>
 
               {/* Beautiful Color Specifications Toggle & Swatches */}

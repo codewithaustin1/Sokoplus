@@ -725,7 +725,22 @@ export default function App() {
     };
   }, []);
 
-  if (loading) return <div className="h-screen flex items-center justify-center font-sans">Loading Soplus...</div>;
+  // Safety fallback: ensure loading screen dismisses after maximum 2.5 seconds even if network is stalled
+  useEffect(() => {
+    const safetyTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 2500);
+    return () => clearTimeout(safetyTimeout);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950 font-sans gap-3">
+        <div className="w-10 h-10 border-3 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-300 animate-pulse">Loading Sokoplus...</p>
+      </div>
+    );
+  }
 
   if (user && user.twoFactorEnabled && !is2FAVerified) {
     return (

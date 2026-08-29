@@ -113,12 +113,13 @@ export default function Login() {
     if (loading) return;
     setLoading(true);
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
     
-    // Proactive iframe/sandbox detection: use Redirect style immediately for friction-free sign-in
+    // Proactive iframe/sandbox detection: use Redirect style when nested inside an iframe
     const isInIframe = window.self !== window.top;
     if (isInIframe) {
       try {
-        toast.loading("Establishing secure session in sandbox. Redirecting to Google account sign-in...", { duration: 4000 });
+        toast.loading("Establishing secure session in sandbox. Redirecting to Google sign-in...", { duration: 4000 });
         await signInWithRedirect(auth, provider);
         return;
       } catch (redirectErr: any) {
@@ -128,26 +129,29 @@ export default function Login() {
 
     try {
       const result = await signInWithPopup(auth, provider);
-      await handleProfileSync(result.user);
-      toast.success(`Welcome back, ${result.user.displayName || 'Customer'}!`);
-      navigate("/");
+      if (result && result.user) {
+        await handleProfileSync(result.user);
+        toast.success(`Welcome back, ${result.user.displayName || 'Customer'}!`);
+        navigate("/");
+      }
     } catch (error: any) {
       console.error("Login popup failed:", error);
-      if (
-        error.code === "auth/popup-closed-by-user" || 
+      if (error.code === "auth/popup-closed-by-user" || error.code === "auth/cancelled-popup-request") {
+        // User voluntarily dismissed popup
+        toast("Sign-in cancelled.", { icon: "ℹ️" });
+      } else if (
         error.code === "auth/popup-blocked" || 
-        error.code === "auth/cancelled-popup-request" ||
         error.message?.includes("iframe")
       ) {
         try {
-          toast.loading("Google Popup blocked/closed in browser. Redirecting to Google Account Sign-In instead...", { duration: 4000 });
+          toast.loading("Google Popup was blocked. Redirecting to Google Sign-In...", { duration: 4000 });
           await signInWithRedirect(auth, provider);
         } catch (fallbackRedirectErr: any) {
           console.error("Fallback redirect sign-in failed:", fallbackRedirectErr);
-          toast.error("Google sign-in is blocked in this browser orientation. Please sign in using Email and Password below.");
+          toast.error("Google sign-in is blocked in this browser. Please sign in using Email & Password below.");
         }
       } else {
-        toast.error("Failed to sign in with Google.");
+        toast.error(error.message || "Failed to sign in with Google.");
       }
     } finally {
       setLoading(false);
