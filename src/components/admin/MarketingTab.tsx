@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Send } from "lucide-react";
 import { addDoc, collection, doc, updateDoc, getDocs, getDocsFromCache, query, limit } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { db } from "../../lib/firebase";
@@ -253,12 +253,10 @@ export const MarketingTab: React.FC<MarketingTabProps> = memo(({
                     });
                     
                     toast.success(`Development Sandbox Broadcast Success! Dispatched notifications & simulated emails. Targeted: ${targetUsers.length}.`, {
-                      icon: "🚀",
                       duration: 6000
                     });
                   } else {
                     toast.success(`Success! Campaign launched. Targeted ${resData.targetedCount} recipients.`, {
-                      icon: "🚀",
                       duration: 6000
                     });
                   }
@@ -380,9 +378,10 @@ export const MarketingTab: React.FC<MarketingTabProps> = memo(({
             <button
               type="submit"
               disabled={isCreatingCampaign}
-              className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-200 disabled:text-gray-400 active:scale-98 text-white text-xs font-black uppercase tracking-wider py-4 px-4 rounded-xl transition-all shadow-lg shadow-orange-600/10 cursor-pointer"
+              className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-200 disabled:text-gray-400 active:scale-98 text-white text-xs font-black uppercase tracking-wider py-4 px-4 rounded-xl transition-all shadow-lg shadow-orange-600/10 cursor-pointer flex items-center justify-center gap-2"
             >
-              {isCreatingCampaign ? "Broadcasting Audience Updates..." : "🚀 Launch Campaign Now"}
+              <Send size={14} />
+              <span>{isCreatingCampaign ? "Broadcasting Audience Updates..." : "Launch Campaign Now"}</span>
             </button>
           </form>
         </div>

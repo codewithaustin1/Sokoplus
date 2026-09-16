@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, AlertTriangle, CheckCircle2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { doc, setDoc, addDoc, collection, deleteDoc, updateDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
@@ -141,13 +141,15 @@ export const ApprovalQueueTab: React.FC<ApprovalQueueTabProps> = memo(({
                         if (matched.length > 0) {
                           return (
                             <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-red-50 text-red-650 border border-red-200 animate-pulse flex items-center gap-1 shrink-0">
-                              ⚠ Paystack AUP Flagged: {matched.join(", ")}
+                              <AlertTriangle size={11} className="shrink-0" />
+                              <span>Paystack AUP Flagged: {matched.join(", ")}</span>
                             </span>
                           );
                         }
                         return (
                           <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-[#32ba78]/10 text-[#32ba78] border border-[#32ba78]/25 flex items-center gap-1 shrink-0">
-                            ✓ Paystack AUP Compliant
+                            <CheckCircle2 size={11} className="shrink-0" />
+                            <span>Paystack AUP Compliant</span>
                           </span>
                         );
                       })()}

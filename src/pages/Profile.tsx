@@ -511,9 +511,9 @@ export default function Profile({ user }: ProfileProps) {
       const result = await Notification.requestPermission();
       setNotificationPermission(result);
       if (result === "granted") {
-        toast.success("Successfully subscribed to SokoPlus device alerts!", { icon: "🔔" });
+        toast.success("Successfully subscribed to SokoPlus device alerts!");
       } else if (result === "denied") {
-        toast.error("Alerts permission is blocked. Modify browser parameters to allow.", { icon: "🔕" });
+        toast.error("Alerts permission is blocked. Modify browser parameters to allow.");
       }
     } catch (e) {
       console.error("Error setting notification options:", e);

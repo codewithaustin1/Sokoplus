@@ -26,7 +26,7 @@ export default function PrivacyPolicy() {
         <section className="space-y-4">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">1. Introduction</h2>
           <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-            Welcome to Sokoplus ("we," "our," or "us"). We respect your privacy and are committed to protecting your personal data under the Kenya Data Protection Act (KPDPA 2019) and global data protection regulations (GDPR).
+            Welcome to Sokoplus. This Privacy Policy is issued on behalf of <strong>SOKOPLUS HORIZON</strong> (Business Registration No. BN-J9S6383Q, "we," "our," or "us"). We respect your privacy and are committed to protecting your personal data under the Kenya Data Protection Act (KPDPA 2019) and global data protection regulations (GDPR).
           </p>
         </section>
 
@@ -82,9 +82,15 @@ export default function PrivacyPolicy() {
         </section>
 
         <section className="space-y-4 border-t border-gray-100 dark:border-gray-800 pt-8">
-          <p className="text-sm text-gray-500">
-            If you have any questions about this privacy policy or our statutory data practices, please contact our Data Protection Officer at: <span className="text-orange-600 font-bold">privacy@sokoplus.co.ke</span>
-          </p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">4. Registered Entity & Data Controller</h2>
+          <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5">
+            <p><strong>Data Controller:</strong> SOKOPLUS HORIZON (Business Registration No. BN-J9S6383Q)</p>
+            <p><strong>Statutory Act:</strong> The Registration of Business Names Act (Cap. 499, Section 14)</p>
+            <p><strong>Registered Address:</strong> Floor: Ground Floor, Room: Door 2 Greenville, Mararo Road, Kiambu Kabete District, Wangige, P.O. Box 23070, 00604 - Lower Kabete, Kenya</p>
+            <p className="pt-2 text-gray-500">
+              If you have any questions about this privacy policy or our statutory data practices, please contact our Data Protection Officer at: <span className="text-orange-600 font-bold">privacy@sokoplus.co.ke</span>
+            </p>
+          </div>
         </section>
       </motion.div>
 

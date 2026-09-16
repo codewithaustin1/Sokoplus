@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { AfricanCitiesSlideshow } from "./AfricanCitiesSlideshow";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff, ChevronRight, ChevronDown, Globe, Moon, Sun, Grid, Check, Coins, Store, Compass, BookOpen, HelpCircle, PhoneCall } from "lucide-react";
+import { ShoppingCart, User, Menu, Search, LogOut, X, ShoppingBag, Heart, Award, Layers, Mic, MicOff, ChevronRight, ChevronDown, Globe, Moon, Sun, Grid, Check, Coins, Store, Compass, BookOpen, HelpCircle, PhoneCall, Truck, RotateCcw, Folder, MapPin } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCart } from "../lib/CartContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -18,8 +18,8 @@ import { productCache } from "../utils/productCache";
 import { matchesFuzzyQuery, normalizeSearchQuery } from "../utils/searchFuzzy";
 import { getSubcategoriesForCategory } from "../data/categories";
 import DeliveryLocationSearch, { SelectedLocationData } from "./DeliveryLocationSearch";
-import { LocalWeatherWidget } from "./LocalWeatherWidget";
 import { MobileSearchOverlay } from "./MobileSearchOverlay";
+import { SpotlightSearchModal } from "./SpotlightSearchModal";
 
 interface NavbarProps {
   user: UserProfile | null;
@@ -81,8 +81,40 @@ export default function Navbar({ user }: NavbarProps) {
   const [logoError, setLogoError] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
   const [isNavCompact, setIsNavCompact] = useState(false);
   const [isMobileSearchFocused, setIsMobileSearchFocused] = useState(false);
+
+  // Global Command-K / Ctrl-K / Slash keyboard shortcut listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Command-K or Ctrl-K
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsSpotlightOpen((prev) => !prev);
+      }
+      // Slash '/' hotkey when outside of any form elements
+      if (
+        e.key === "/" &&
+        !["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName) &&
+        !(e.target as HTMLElement)?.isContentEditable
+      ) {
+        e.preventDefault();
+        setIsSpotlightOpen(true);
+      }
+    };
+
+    const handleCustomOpen = () => {
+      setIsSpotlightOpen(true);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("open-spotlight-search", handleCustomOpen);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("open-spotlight-search", handleCustomOpen);
+    };
+  }, []);
 
   const isNavCompactRef = useRef(isNavCompact);
   isNavCompactRef.current = isNavCompact;
@@ -200,7 +232,6 @@ export default function Navbar({ user }: NavbarProps) {
           handleSearchChange(cleanedTranscript);
           toast.success(`${language === "sw" ? "Imepatikana" : "Found"}: "${cleanedTranscript}"`, {
             id: "voice-search-result",
-            icon: "🎙️",
             duration: 3000
           });
           if (cleanedTranscript) {
@@ -267,7 +298,6 @@ export default function Navbar({ user }: NavbarProps) {
           recognitionRef.current.start();
           toast.success(language === "sw" ? "Sikiliza... Ongea sasa!" : "Listening... Speak now!", {
             id: "voice-search-listening",
-            icon: "🎙️",
             duration: 4000
           });
         }
@@ -476,17 +506,17 @@ export default function Navbar({ user }: NavbarProps) {
               <ChevronDown size={11} className="text-gray-400" />
             </div>
             <span className="text-gray-700">|</span>
-            <LocalWeatherWidget deliveryCity={deliveryCity} deliveryCountry={deliveryCountry} />
-            <span className="text-gray-700">|</span>
-            <div className="text-gray-400 hover:text-white transition-colors flex items-center gap-1">
-              🚚 Express Delivery
+            <div className="text-gray-400 hover:text-white transition-colors flex items-center gap-1.5">
+              <Truck size={12} className="text-gray-400 stroke-[1.5] shrink-0" />
+              <span className="text-[11px] font-medium tracking-wide uppercase">Express Delivery</span>
             </div>
             <span className="text-gray-700">|</span>
             <Link
               to="/returns"
-              className="text-gray-400 hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+              className="text-gray-400 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
             >
-              🔄 Free Returns
+              <RotateCcw size={12} className="text-gray-400 stroke-[1.5] shrink-0" />
+              <span className="text-[11px] font-medium tracking-wide uppercase">Free Returns</span>
             </Link>
           </div>
 
@@ -652,40 +682,31 @@ export default function Navbar({ user }: NavbarProps) {
                   <>Sokoplus<span className="text-white">.</span></>
                 )}
               </Link>
-              <div className="md:hidden flex items-center">
-                <LocalWeatherWidget deliveryCity={deliveryCity} deliveryCountry={deliveryCountry} compact />
-              </div>
             </div>
 
             {/* Centered Desktop Search */}
             <div className="hidden md:block flex-grow max-w-xl mx-4 relative">
-              <form onSubmit={handleSearch} className="w-full flex">
-                <div className="relative w-full flex items-center">
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    onFocus={() => setShowDesktopSuggestions(true)}
-                    placeholder={language === "sw" ? "Tafuta Sokoplus..." : "Search Sokoplus"}
-                    className="block w-full h-10 px-4 rounded-l-md border-none leading-5 bg-white placeholder-gray-450 text-gray-900 focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm font-semibold transition-all"
-                  />
-                  <div className="absolute inset-y-0 right-3 flex items-center space-x-1.5">
-                    {search && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSearch("");
-                          setSuggestedProducts([]);
-                        }}
-                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                        title={language === "sw" ? "Futa" : "Clear"}
-                      >
-                        <X size={15} />
-                      </button>
-                    )}
+              <div 
+                onClick={() => setIsSpotlightOpen(true)}
+                className="w-full flex items-center bg-white dark:bg-gray-850 rounded-lg shadow-sm border border-gray-200 dark:border-gray-750 hover:border-amber-400 dark:hover:border-amber-500 transition-all cursor-pointer group h-10 overflow-hidden"
+              >
+                <div className="relative w-full flex items-center px-3.5 gap-2.5">
+                  <Search size={16} className="text-gray-400 group-hover:text-amber-500 transition-colors shrink-0 stroke-[2.2]" />
+                  <span className="text-sm font-semibold text-gray-450 dark:text-gray-400 select-none truncate flex-1">
+                    {search.trim() ? search : (language === "sw" ? "Tafuta bidhaa, vitengo, watengenezaji..." : "Search products, categories, artisans...")}
+                  </span>
+                  
+                  <div className="flex items-center space-x-1.5 shrink-0">
+                    <kbd className="hidden lg:inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-mono font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border border-gray-250 dark:border-gray-700 rounded shadow-2xs group-hover:border-amber-400/50 transition-colors">
+                      <span>⌘</span>K
+                    </kbd>
                     <button
                       type="button"
-                      onClick={toggleVoiceSearch}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSpotlightOpen(true);
+                        toggleVoiceSearch();
+                      }}
                       className={`p-1 rounded-full transition-all duration-200 flex items-center justify-center cursor-pointer ${
                         isListening
                           ? "text-red-600 bg-red-50 animate-pulse scale-110"
@@ -698,12 +719,17 @@ export default function Navbar({ user }: NavbarProps) {
                   </div>
                 </div>
                 <button
-                  type="submit"
-                  className="bg-amber-400 hover:bg-amber-500 text-black h-10 px-5 rounded-r-md flex items-center justify-center transition-all cursor-pointer font-black text-xs active:scale-95 shadow-md shadow-amber-400/10 shrink-0"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsSpotlightOpen(true);
+                  }}
+                  className="bg-amber-400 hover:bg-amber-500 text-black h-10 px-5 flex items-center justify-center transition-all cursor-pointer font-black text-xs active:scale-95 shadow-md shadow-amber-400/10 shrink-0"
+                  title="Open Spotlight Search"
                 >
-                  <Search size={18} className="stroke-[2.5]" />
+                  <Search size={17} className="stroke-[2.5]" />
                 </button>
-              </form>
+              </div>
 
               {/* Desktop Suggestions Dropdown */}
               <AnimatePresence>
@@ -734,7 +760,8 @@ export default function Navbar({ user }: NavbarProps) {
                                 onClick={() => handleCategorySelect(cat)}
                                 className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-amber-400 hover:text-black hover:border-amber-400 transition-all cursor-pointer shadow-2xs"
                               >
-                                <span>📁</span> {cat}
+                                <Folder size={12} className="text-gray-400 dark:text-gray-500 stroke-[1.75]" />
+                                <span>{cat}</span>
                               </button>
                             ))}
                           </div>
@@ -1653,8 +1680,9 @@ export default function Navbar({ user }: NavbarProps) {
 
               {/* OpenMaps Real-time Location Search Input */}
               <div className="space-y-1">
-                <label className="block text-[10px] font-black uppercase text-gray-300 tracking-wider">
-                  🔍 Search Address or Landmark (OpenMaps)
+                <label className="text-[10px] font-mono font-bold uppercase text-gray-300 tracking-wider flex items-center gap-1.5">
+                  <Search size={11} className="text-gray-400" />
+                  <span>Search Address or Landmark (OpenMaps)</span>
                 </label>
                 <DeliveryLocationSearch
                   darkTheme={true}
@@ -1697,9 +1725,7 @@ export default function Navbar({ user }: NavbarProps) {
                     }
 
                     setShowLocationModal(false);
-                    toast.success(`Delivery set to: ${loc.shortAddress}`, {
-                      icon: COUNTRY_FLAGS[matchedCountry] || "📍"
-                    });
+                    toast.success(`Delivery set to: ${loc.shortAddress}`);
                   }}
                 />
               </div>
@@ -1805,6 +1831,15 @@ export default function Navbar({ user }: NavbarProps) {
           </>
         )}
       </AnimatePresence>
+
+      {/* Command-K / Spotlight-Style Search Modal */}
+      <SpotlightSearchModal
+        isOpen={isSpotlightOpen}
+        onClose={() => setIsSpotlightOpen(false)}
+        allProducts={allProducts}
+        onProductSelect={handleProductSelect}
+        onCategorySelect={handleCategorySelect}
+      />
     </nav>
   );
 }

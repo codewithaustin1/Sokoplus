@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Product } from "../types";
-import { Check, AlertTriangle, Sparkles, Type, Sliders, ShieldCheck } from "lucide-react";
+import { Check, AlertTriangle, Type, Sliders, ShieldCheck } from "lucide-react";
 import { useCurrency } from "../lib/CurrencyContext";
 
 export interface SelectedConfig {
@@ -266,7 +266,7 @@ export const ProductAttributeConfigurator: React.FC<ProductAttributeConfigurator
 
           {engravingText.trim().length > 0 && (
             <div className="p-2.5 bg-orange-50 dark:bg-orange-950/40 rounded-xl border border-orange-200 dark:border-orange-900/50 text-[11px] flex items-center gap-2">
-              <Sparkles size={13} className="text-orange-500 shrink-0" />
+              <Type size={13} className="text-orange-500 shrink-0" />
               <span className="text-gray-700 dark:text-gray-300">
                 Engraving Preview: <strong className="text-orange-600 dark:text-orange-400 font-serif italic font-bold">"{engravingText}"</strong>
               </span>

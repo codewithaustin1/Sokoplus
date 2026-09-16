@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import axios from "axios";
-import { CheckCircle, XCircle, ShoppingBag, ArrowRight, Truck, UserCheck, Lock, Mail, Sparkles, ShieldCheck, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, ShoppingBag, ArrowRight, Truck, UserCheck, Lock, Mail, ShieldCheck, Loader2 } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { doc, updateDoc, setDoc, collection, query, where, getDocs, limit, increment, writeBatch, serverTimestamp } from "firebase/firestore";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
@@ -377,7 +377,7 @@ export default function PaymentSuccess() {
             <>
               <div className="flex items-start gap-3.5">
                 <div className="p-3 bg-orange-600 text-white rounded-2xl shadow-md shrink-0">
-                  <Sparkles size={24} />
+                  <UserCheck size={24} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">

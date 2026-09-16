@@ -97,6 +97,11 @@ export async function downloadReceipt(order: Order, user: UserProfile) {
   doc.setFontSize(7);
   doc.text("MARKETPLACE", margin + 12, currentY + 9);
 
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(5.5);
+  doc.setTextColor(mutedColor.r, mutedColor.g, mutedColor.b);
+  doc.text("SOKOPLUS HORIZON • BN-J9S6383Q", margin + 12, currentY + 12.5);
+
   // Title on Right
   doc.setTextColor(charcoalColor.r, charcoalColor.g, charcoalColor.b);
   doc.setFont("helvetica", "bold");
@@ -400,7 +405,7 @@ export async function downloadReceipt(order: Order, user: UserProfile) {
   doc.setFont("helvetica", "oblique");
   doc.setFontSize(7.5);
   doc.setTextColor(mutedColor.r, mutedColor.g, mutedColor.b);
-  doc.text("This is a digitally generated copy of the completed transaction receipt. Certified secure by Sokoplus Kenya.", pageWidth / 2, pageHeight - 12, { align: "center" });
+  doc.text("Official transaction receipt issued by SOKOPLUS HORIZON (BN-J9S6383Q). Certified authentic.", pageWidth / 2, pageHeight - 12, { align: "center" });
 
   // Out save
   doc.save(`Sokoplus-Receipt-${order.id.slice(0, 8).toUpperCase()}.pdf`);

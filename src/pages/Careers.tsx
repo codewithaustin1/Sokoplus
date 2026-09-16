@@ -12,7 +12,6 @@ import {
   FileCheck, 
   Send, 
   AlertCircle, 
-  Sparkles, 
   CheckCircle,
   HelpCircle,
   X,
@@ -339,7 +338,7 @@ export default function Careers({ user }: CareersProps) {
         handleFirestoreError(firestoreErr, OperationType.CREATE, "job_applications");
       }
 
-      toast.success("Congratulations! Your application has been logged securely.", { icon: "🎉" });
+      toast.success("Congratulations! Your application has been logged securely.");
       setApplyModalJob(null);
     } catch (err: any) {
       console.error(err);

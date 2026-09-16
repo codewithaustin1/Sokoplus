@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, GitCompare, HelpCircle, Star, ShoppingBag, Trash2, ArrowRight } from "lucide-react";
+import { X, GitCompare, HelpCircle, Star, ShoppingBag, Trash2, ArrowRight, Info } from "lucide-react";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useCart } from "../lib/CartContext";
 import { getCompareList, removeFromCompare, clearCompareList } from "../utils/compare";
@@ -336,8 +336,9 @@ export const ProductCompareDrawer: React.FC = () => {
 
               {/* View detail page redirect info footer */}
               <div className="bg-gray-50 px-5 py-4 border-t border-gray-150/40 text-center">
-                <p className="text-[9px] sm:text-[10px] text-gray-400 font-extrabold uppercase tracking-wide">
-                  💡 Tip: Comparing items helps review local shipping tiers and pricing to optimize order sizes!
+                <p className="text-[9px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-wide flex items-center justify-center gap-1.5">
+                  <Info size={12} className="text-gray-400 shrink-0" />
+                  <span>Tip: Comparing items helps review local shipping tiers and pricing to optimize order sizes!</span>
                 </p>
               </div>
             </motion.div>

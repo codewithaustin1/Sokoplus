@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { UserProfile, Order } from "../types";
-import { Bell, BellOff, X, Sparkles, CheckCircle } from "lucide-react";
+import { Bell, BellOff, X, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import toast from "react-hot-toast";
 
@@ -108,7 +108,6 @@ export function NotificationManager({ user }: NotificationManagerProps) {
 
       if (result === "granted") {
         toast.success("Order status alerts enabled successfully!", {
-          icon: "🔔",
           duration: 4000,
         });
 
@@ -209,7 +208,6 @@ export function NotificationManager({ user }: NotificationManagerProps) {
 
               // Simultaneously display in-app toast for instant visual feedback
               toast(`Order #${orderNum} changed to ${currentStatus}!`, {
-                icon: "📦",
                 duration: 5000,
                 style: {
                   background: "#030712",
@@ -284,7 +282,6 @@ export function NotificationManager({ user }: NotificationManagerProps) {
 
             // Trigger visual in-app toast
             toast(data.title || "Offer Update", {
-              icon: "📢",
               duration: 6000,
               style: {
                 background: "#0f172a",

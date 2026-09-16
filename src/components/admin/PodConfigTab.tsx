@@ -17,8 +17,8 @@ import {
   Percent,
   Coins,
   Check,
-  Zap,
-  Sparkles
+  X,
+  Zap
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -607,13 +607,23 @@ export const PodConfigTab: React.FC<PodConfigTabProps> = ({ userToken }) => {
                       key={cat}
                       type="button"
                       onClick={() => handleToggleCategory(cat)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer inline-flex items-center gap-1.5 ${
                         isRestricted
                           ? "bg-red-500 text-white border-red-500 shadow-sm"
                           : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-300"
                       }`}
                     >
-                      {isRestricted ? `✕ Excluded: ${cat}` : `+ Allow ${cat}`}
+                      {isRestricted ? (
+                        <>
+                          <X size={12} className="shrink-0" />
+                          <span>Excluded: {cat}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={12} className="shrink-0" />
+                          <span>Allow {cat}</span>
+                        </>
+                      )}
                     </button>
                   );
                 })}
@@ -672,7 +682,7 @@ export const PodConfigTab: React.FC<PodConfigTabProps> = ({ userToken }) => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-black flex items-center gap-2 text-white">
-              <Sparkles size={20} className="text-amber-400" />
+              <Zap size={20} className="text-amber-400" />
               <span>Live Server-Side POD Logic Simulator</span>
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -742,13 +752,23 @@ export const PodConfigTab: React.FC<PodConfigTabProps> = ({ userToken }) => {
                 Server Decision Output
               </span>
               <span
-                className={`text-xs font-black px-3 py-0.5 rounded-full uppercase tracking-wide ${
+                className={`text-xs font-black px-3 py-0.5 rounded-full uppercase tracking-wide inline-flex items-center gap-1.5 ${
                   simResult.isEligible
                     ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                     : "bg-red-500/20 text-red-400 border border-red-500/30"
                 }`}
               >
-                {simResult.isEligible ? "✓ Eligible for POD" : "✕ POD Ineligible (Prepaid Only)"}
+                {simResult.isEligible ? (
+                  <>
+                    <Check size={12} className="shrink-0 stroke-[2.5]" />
+                    <span>Eligible for POD</span>
+                  </>
+                ) : (
+                  <>
+                    <X size={12} className="shrink-0 stroke-[2.5]" />
+                    <span>POD Ineligible (Prepaid Only)</span>
+                  </>
+                )}
               </span>
             </div>
 

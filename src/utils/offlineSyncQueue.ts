@@ -56,7 +56,6 @@ export function enqueueOfflineMutation(
   saveOfflineMutationsQueue(queue);
 
   toast(`Offline mutation logged: ${item.description || item.collectionName}`, {
-    icon: "📥",
     id: `queue-${newMutation.id}`,
     duration: 3500,
   });

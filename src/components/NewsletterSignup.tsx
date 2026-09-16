@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { collection, addDoc } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
-import { Mail, ArrowRight, CheckCircle, Sparkles } from "lucide-react";
+import { Mail, ArrowRight, CheckCircle, Heart, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import toast from "react-hot-toast";
 
@@ -123,7 +123,7 @@ export function NewsletterSignup() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-2xl font-black tracking-tight text-white flex items-center justify-center">
-                  You're Subscriber No. 1! <Sparkles size={18} className="ml-2 text-orange-400 animate-pulse" />
+                  You're Subscriber No. 1! <Heart size={18} className="ml-2 text-orange-400 fill-orange-400/20" />
                 </h3>
                 <p className="text-gray-450 text-sm max-w-sm md:max-w-md mx-auto leading-relaxed">
                   Thank you for subscribing to SokoPlus Chronicles. We are excited to share deep artisan stories, local craft guides, and premium marketplace digests with you soon.
@@ -184,8 +184,9 @@ export function NewsletterSignup() {
                   <ArrowRight size={14} />
                 </motion.button>
               </form>
-              <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-tighter">
-                🔒 We protect your privacy. Zero spam, unsubscribe at any time.
+              <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5">
+                <Lock size={11} className="text-gray-400 shrink-0" />
+                <span>We protect your privacy. Zero spam, unsubscribe at any time.</span>
               </p>
             </motion.div>
           )}

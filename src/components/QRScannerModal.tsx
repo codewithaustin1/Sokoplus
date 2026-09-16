@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Camera, RefreshCw, Upload, Sparkles, HelpCircle, ArrowRight, Search, AppWindow } from "lucide-react";
+import { X, Camera, RefreshCw, Upload, CheckCircle, HelpCircle, ArrowRight, Search, AppWindow } from "lucide-react";
 import jsQR from "jsqr";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "motion/react";
@@ -73,7 +73,7 @@ export default function QRScannerModal({ isOpen, onClose, language }: QRScannerM
         if (productMatch && productMatch[1]) {
           navigate(`/product/${productMatch[1]}`);
           onClose();
-          toast.success(language === "sw" ? "Bidhaa imepatikana!" : "Product found successfully via QR!", { icon: "🛍️" });
+          toast.success(language === "sw" ? "Bidhaa imepatikana!" : "Product found successfully via QR!");
           return;
         }
 
@@ -82,14 +82,14 @@ export default function QRScannerModal({ isOpen, onClose, language }: QRScannerM
         if (trackMatch && trackMatch[1]) {
           navigate(`/track-order/${trackMatch[1]}`);
           onClose();
-          toast.success(language === "sw" ? "Agizo limepatikana!" : "Tracking order found via QR!", { icon: "📦" });
+          toast.success(language === "sw" ? "Agizo limepatikana!" : "Tracking order found via QR!");
           return;
         }
 
         // If it's some other URL, check if we can open it safely
         window.open(text, "_blank", "noopener,noreferrer");
         onClose();
-        toast.success(language === "sw" ? "Tovuti imefunguliwa" : "Opened external link in new tab", { icon: "🌐" });
+        toast.success(language === "sw" ? "Tovuti imefunguliwa" : "Opened external link in new tab");
         return;
       }
     } catch {
@@ -103,7 +103,7 @@ export default function QRScannerModal({ isOpen, onClose, language }: QRScannerM
       if (id) {
         navigate(`/product/${id}`);
         onClose();
-        toast.success(language === "sw" ? "Bidhaa imepatikana!" : "Product loaded!", { icon: "🛍️" });
+        toast.success(language === "sw" ? "Bidhaa imepatikana!" : "Product loaded!");
         return;
       }
     }
@@ -114,7 +114,7 @@ export default function QRScannerModal({ isOpen, onClose, language }: QRScannerM
       if (id) {
         navigate(`/track-order/${id}`);
         onClose();
-        toast.success(language === "sw" ? "Ufuatiliaji umefunguliwa!" : "Viewing tracking info!", { icon: "📦" });
+        toast.success(language === "sw" ? "Ufuatiliaji umefunguliwa!" : "Viewing tracking info!");
         return;
       }
     }
@@ -320,7 +320,7 @@ export default function QRScannerModal({ isOpen, onClose, language }: QRScannerM
               >
                 <div className="flex justify-center mb-2">
                   <div className="p-2.5 rounded-full bg-orange-100 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400">
-                    <Sparkles size={20} className="animate-bounce" />
+                    <CheckCircle size={20} className="animate-bounce" />
                   </div>
                 </div>
                 <h4 className="font-extrabold text-sm text-gray-900 dark:text-white mb-1">
@@ -335,7 +335,7 @@ export default function QRScannerModal({ isOpen, onClose, language }: QRScannerM
                       // Action to check if it's a valid product document first
                       navigate(`/product/${scannedPayload}`);
                       onClose();
-                      toast.success(language === "sw" ? "Kufungua Bidhaa..." : "Navigating to Product details...", { icon: "🛍️" });
+                      toast.success(language === "sw" ? "Kufungua Bidhaa..." : "Navigating to Product details...");
                     }}
                     className="flex items-center justify-center space-x-1 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow transition active:scale-95 cursor-pointer uppercase tracking-wider"
                   >
@@ -346,7 +346,7 @@ export default function QRScannerModal({ isOpen, onClose, language }: QRScannerM
                     onClick={() => {
                       navigate(`/track-order/${scannedPayload}`);
                       onClose();
-                      toast.success(language === "sw" ? "Ufuatiliaji wa Agizo..." : "Directing to Track Order...", { icon: "📦" });
+                      toast.success(language === "sw" ? "Ufuatiliaji wa Agizo..." : "Directing to Track Order...");
                     }}
                     className="flex items-center justify-center space-x-1 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-850 dark:bg-gray-800 dark:hover:bg-gray-750 text-white font-bold text-xs shadow transition active:scale-95 cursor-pointer uppercase tracking-wider"
                   >

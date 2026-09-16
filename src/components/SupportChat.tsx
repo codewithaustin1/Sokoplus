@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { UserProfile, SupportTicket } from "../types";
 import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp, getDocs, query, limit, onSnapshot, where, updateDoc, doc } from "firebase/firestore";
-import { Send, X, MessageSquare, Loader2, Sparkles, Mail, Trash2, MessageCircle, Activity, ArrowLeft, Clock, CheckCircle2, Check, CheckCheck, MapPin, ExternalLink, Globe, Volume2, VolumeX } from "lucide-react";
+import { Send, X, MessageSquare, Loader2, Bot, Mail, Trash2, MessageCircle, Activity, ArrowLeft, Clock, CheckCircle2, Check, CheckCheck, MapPin, ExternalLink, Globe, Volume2, VolumeX, Palette, Truck, CreditCard } from "lucide-react";
 import { playSendMessageSound, playReceiveMessageSound, getChatSoundsEnabled, setChatSoundsEnabled } from "../utils/chatAudio";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -514,7 +514,7 @@ Please check out our featured products catalog on the home page, or connect with
                 : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 bg-transparent"
             }`}
           >
-            <Sparkles size={12} className={mode === "ai" ? "text-orange-600" : "text-gray-400"} />
+            <Bot size={12} className={mode === "ai" ? "text-orange-600" : "text-gray-400"} />
             <span>SokoSmart Chat</span>
           </button>
 
@@ -711,30 +711,36 @@ Please check out our featured products catalog on the home page, or connect with
                 <div className="space-y-3">
                   <div className="bg-gray-50 dark:bg-gray-950 hover:bg-gray-100 dark:hover:bg-gray-900 border border-gray-155 dark:border-gray-800 rounded-2xl p-4 transition-all">
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm">🌸</span>
+                      <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
+                        <Palette size={13} className="text-gray-600 dark:text-gray-300 stroke-[1.75]" />
+                      </div>
                       <span className="font-bold text-xs text-gray-800 dark:text-gray-200">Customizations</span>
                     </div>
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 italic font-medium mt-1 pl-6">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 italic font-medium mt-1 pl-8">
                       Request custom fabrics, frame resizing, or custom-made Kenyan furniture.
                     </p>
                   </div>
 
                   <div className="bg-gray-50 dark:bg-gray-950 hover:bg-gray-100 dark:hover:bg-gray-900 border border-gray-155 dark:border-gray-800 rounded-2xl p-4 transition-all">
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm">🚚</span>
+                      <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
+                        <Truck size={13} className="text-gray-600 dark:text-gray-300 stroke-[1.75]" />
+                      </div>
                       <span className="font-bold text-xs text-gray-800 dark:text-gray-200">Urgent Order Changes</span>
                     </div>
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 italic font-medium mt-1 pl-6">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 italic font-medium mt-1 pl-8">
                       Modify shipping addresses or expedite dispatch orders quickly before departure.
                     </p>
                   </div>
 
                   <div className="bg-gray-50 dark:bg-gray-950 hover:bg-gray-100 dark:hover:bg-gray-900 border border-gray-155 dark:border-gray-800 rounded-2xl p-4 transition-all">
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm">💳</span>
+                      <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
+                        <CreditCard size={13} className="text-gray-600 dark:text-gray-300 stroke-[1.75]" />
+                      </div>
                       <span className="font-bold text-xs text-gray-800 dark:text-gray-200">M-Pesa Verification</span>
                     </div>
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 italic font-medium mt-1 pl-6">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 italic font-medium mt-1 pl-8">
                       Send transaction statements or offline payment screenshots for verification.
                     </p>
                   </div>

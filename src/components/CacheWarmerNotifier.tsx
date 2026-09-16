@@ -105,7 +105,7 @@ export function CacheWarmerNotifier({
 
     if (res.triggered) {
       toast.success(
-        `⚡ High-Speed Cache Warmer Active! Pre-warming ${res.urlCount} assets for popular categories.`
+        `High-Speed Cache Warmer Active! Pre-warming ${res.urlCount} assets for popular categories.`
       );
     } else {
       toast.error(

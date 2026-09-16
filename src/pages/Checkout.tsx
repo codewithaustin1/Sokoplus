@@ -16,7 +16,6 @@ import {
   Check, 
   Info, 
   AlertTriangle, 
-  Sparkles, 
   Trash2, 
   Smartphone, 
   Plus, 
@@ -544,13 +543,13 @@ export default function Checkout({ user }: CheckoutProps) {
 
     if (isOnlyDigital && isFreeShippingVoucher) {
       setVoucherError("Shipping is already KES 0 for digital items! Please apply a percentage or flat discount voucher (e.g. SOKO-SAVE-20 or SOKO-VOUCH-500K) to save on your order.");
-      toast.error("Shipping is already KES 0 for digital orders!", { icon: "💡" });
+      toast.error("Shipping is already KES 0 for digital orders!");
       return;
     }
 
     if (matchedVoucher) {
       setAppliedVoucher(matchedVoucher);
-      setVoucherSuccess(`🎉 Voucher applied: ${matchedVoucher.title}!`);
+      setVoucherSuccess(`Voucher applied: ${matchedVoucher.title}!`);
       toast.success(`Voucher applied: ${matchedVoucher.title}!`);
     } else {
       if (cleanCode === "SOKO-SHIP-FREE-NEXT") {
@@ -561,7 +560,7 @@ export default function Checkout({ user }: CheckoutProps) {
           description: "Enjoy zero delivery fees on your next order, absolutely free!",
           code: "SOKO-SHIP-FREE-NEXT"
         });
-        setVoucherSuccess("🎉 Voucher applied: Free Nationwide Shipping!");
+        setVoucherSuccess("Voucher applied: Free Nationwide Shipping!");
         toast.success("Voucher applied: Free Shipping!");
       } else if (cleanCode === "SOKO-VOUCH-500K") {
         setAppliedVoucher({
@@ -571,7 +570,7 @@ export default function Checkout({ user }: CheckoutProps) {
           description: "Get KES 500 off your next checkout basket total with no minimum spend.",
           code: "SOKO-VOUCH-500K"
         });
-        setVoucherSuccess("🎉 Voucher applied: KES 500 Shopping Discount!");
+        setVoucherSuccess("Voucher applied: KES 500 Shopping Discount!");
         toast.success("Voucher applied: KES 500 Discount!");
       } else if (cleanCode === "SOKO-SAVE-20") {
         setAppliedVoucher({
@@ -581,7 +580,7 @@ export default function Checkout({ user }: CheckoutProps) {
           description: "Enjoy 20% off your items subtotal.",
           code: "SOKO-SAVE-20"
         });
-        setVoucherSuccess("🎉 Voucher applied: 20% Off Subtotal!");
+        setVoucherSuccess("Voucher applied: 20% Off Subtotal!");
         toast.success("Voucher applied: 20% Off!");
       } else if (cleanCode === "SOKO-VIP-EXCLUSIVE") {
         setAppliedVoucher({
@@ -592,7 +591,7 @@ export default function Checkout({ user }: CheckoutProps) {
           code: "SOKO-VIP-EXCLUSIVE",
           isExclusive: true
         });
-        setVoucherSuccess("🎉 VIP Exclusive Voucher Applied (40% OFF)!");
+        setVoucherSuccess("VIP Exclusive Voucher Applied (40% OFF)!");
         toast.success("VIP Exclusive Pass Applied (40% OFF)!");
       } else if (cleanCode === "SOKO-POINTS-MULTIPLY") {
         setAppliedVoucher({
@@ -602,7 +601,7 @@ export default function Checkout({ user }: CheckoutProps) {
           description: "Earn 1.5 times the loyalty points on your next purchase!",
           code: "SOKO-POINTS-MULTIPLY"
         });
-        setVoucherSuccess("🎉 Voucher applied: 1.5x Loyalty Points!");
+        setVoucherSuccess("Voucher applied: 1.5x Loyalty Points!");
         toast.success("Voucher applied: 1.5x Loyalty Points!");
       } else if (cleanCode === "SOKO-VIP-ARTISAN-PASS") {
         setAppliedVoucher({
@@ -612,7 +611,7 @@ export default function Checkout({ user }: CheckoutProps) {
           description: "Early premier access & priority reserve on extremely rare, handmade collections.",
           code: "SOKO-VIP-ARTISAN-PASS"
         });
-        setVoucherSuccess("🎉 Voucher applied: Artisan Golden Pass!");
+        setVoucherSuccess("Voucher applied: Artisan Golden Pass!");
         toast.success("Voucher applied: Artisan Golden Pass!");
       } else {
         setVoucherError("Invalid or expired voucher code.");
@@ -648,7 +647,7 @@ export default function Checkout({ user }: CheckoutProps) {
         discount: 250,
         title: "KES 250 Friend Referral Credit"
       });
-      setReferralSuccess("🎉 Referral credit applied: KES 250!");
+      setReferralSuccess("Referral credit applied: KES 250!");
       toast.success("Referral credit applied: KES 250!");
     } else {
       setReferralError("Invalid referral code.");
@@ -824,7 +823,7 @@ export default function Checkout({ user }: CheckoutProps) {
     e.preventDefault();
 
     if (user && user.email && !user.emailVerified) {
-      toast.error("Please verify your email address before placing an order.", { icon: "📧" });
+      toast.error("Please verify your email address before placing an order.");
       return;
     }
 
@@ -1263,7 +1262,7 @@ export default function Checkout({ user }: CheckoutProps) {
                                 >
                                   {counties.filter(c => !disabledCounties.includes(c.name)).map((c) => (
                                     <option key={c.name} value={c.name} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-medium">
-                                      {c.name} (✓ Sokoplus Available)
+                                      {c.name} (Sokoplus Available)
                                     </option>
                                   ))}
                                 </select>
@@ -2904,11 +2903,17 @@ export default function Checkout({ user }: CheckoutProps) {
 
               </div>
 
-              <div className="bg-gray-50 dark:bg-gray-955 p-4 rounded-2xl text-[10px] leading-relaxed text-gray-400 dark:text-gray-500 font-semibold max-w-full">
+              <div className="bg-gray-50 dark:bg-gray-955 p-4 rounded-2xl text-[10px] leading-relaxed text-gray-400 dark:text-gray-500 font-semibold max-w-full flex items-start gap-2">
                 {isOnlyDigital ? (
-                  <span>⚡ Instant Fulfillment: Download tokens and license keys are dispatched to <strong className="text-gray-900 dark:text-white">{address.email || "your email"}</strong> immediately upon payment confirmation.</span>
+                  <>
+                    <Zap size={13} className="text-orange-500 shrink-0 mt-0.5" />
+                    <span>Instant Fulfillment: Download tokens and license keys are dispatched to <strong className="text-gray-900 dark:text-white">{address.email || "your email"}</strong> immediately upon payment confirmation.</span>
+                  </>
                 ) : (
-                  <span>🚨 Delivery expectation for <span className="text-gray-900 dark:text-white font-black">{address.country !== "Kenya" ? address.country : address.county} ({address.city})</span>: {deliveryPrediction.time}.</span>
+                  <>
+                    <Truck size={13} className="text-gray-500 shrink-0 mt-0.5" />
+                    <span>Delivery expectation for <span className="text-gray-900 dark:text-white font-black">{address.country !== "Kenya" ? address.country : address.county} ({address.city})</span>: {deliveryPrediction.time}.</span>
+                  </>
                 )}
               </div>
             </motion.div>

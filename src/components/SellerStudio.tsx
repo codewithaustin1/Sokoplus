@@ -730,11 +730,20 @@ export default function SellerStudio({ user }: SellerStudioProps) {
             Your application for merchant profile <span className="font-extrabold text-orange-600">"{profile.shopName}"</span> is currently pending approval by SokoPlus operations.
           </p>
         </div>
-        <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[11px] font-medium text-gray-400 text-left space-y-1">
+        <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[11px] font-medium text-gray-500 text-left space-y-2">
           <span className="font-extrabold text-gray-700 block uppercase mb-1">Evaluation checklist:</span>
-          <p>🗸 Standard product safety & origin check</p>
-          <p>🗸 Logistic routing eligibility check</p>
-          <p>🗸 Support line & cell verification review</p>
+          <div className="flex items-center gap-1.5">
+            <CheckCircle size={12} className="text-[#32ba78] shrink-0" />
+            <p>Standard product safety & origin check</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <CheckCircle size={12} className="text-[#32ba78] shrink-0" />
+            <p>Logistic routing eligibility check</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <CheckCircle size={12} className="text-[#32ba78] shrink-0" />
+            <p>Support line & cell verification review</p>
+          </div>
         </div>
         <p className="text-xs text-slate-400 italic">We normally audit and activate profiles within 24 hours. Check back soon!</p>
       </div>
@@ -1032,15 +1041,20 @@ export default function SellerStudio({ user }: SellerStudioProps) {
                       {/* Purchased items summary */}
                       <div className="space-y-1">
                         {sellerProducts.map((p, idx) => (
-                          <p key={idx} className="text-xs font-bold text-gray-900">
-                            🗸 {p.name} <span className="text-gray-400 font-medium">(Qty x {p.quantity})</span>
+                          <p key={idx} className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                            <Check size={12} className="text-gray-400 shrink-0" />
+                            <span>{p.name}</span>
+                            <span className="text-gray-400 font-medium">(Qty x {p.quantity})</span>
                           </p>
                         ))}
                       </div>
 
                       {/* Warehousing disclaimer */}
-                      <div className="p-2.5 rounded-lg bg-orange-50/40 border border-orange-100/30 text-[9px] font-medium text-gray-500 max-w-lg leading-relaxed">
-                        ★ FULFILLMENT: <span className="text-orange-950 font-bold">Managed by SokoPlus</span>. Our last-mile logistics riders and warehousing managers coordinate dispatch automatically within the region. No action is required.
+                      <div className="p-2.5 rounded-lg bg-orange-50/40 border border-orange-100/30 text-[9px] font-medium text-gray-500 max-w-lg leading-relaxed flex items-start gap-1.5">
+                        <Package size={12} className="text-orange-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="text-orange-950 font-bold uppercase tracking-wider">FULFILLMENT: Managed by SokoPlus.</span> Our last-mile logistics riders and warehousing managers coordinate dispatch automatically within the region. No action is required.
+                        </div>
                       </div>
                     </div>
 
@@ -1263,8 +1277,9 @@ export default function SellerStudio({ user }: SellerStudioProps) {
                     />
 
                     {selectedColors.length === 0 && (
-                      <p className="text-[9px] text-amber-600 font-bold flex items-center gap-1">
-                        <span>⚠ Please select at least one available swatch to define color specifications.</span>
+                      <p className="text-[10px] text-amber-600 font-bold flex items-center gap-1.5">
+                        <AlertTriangle size={12} className="text-amber-600 shrink-0" />
+                        <span>Please select at least one available swatch to define color specifications.</span>
                       </p>
                     )}
                   </div>
@@ -1534,10 +1549,19 @@ This stunning beaded Maasai necklace displays premium seed beads selected secure
                 <p className="text-xs text-gray-600 leading-relaxed font-medium">
                   Sokoplus is fully compliant with Paystack's Acceptable Use Policy (AUP). To prevent holding funds centrally or acting as an unlicensed financial intermediary, we integrate Paystack's <strong>Split Payments API</strong>:
                 </p>
-                <div className="space-y-2 text-xs text-gray-500 font-medium pl-2">
-                  <p>🗸 <strong>90% split</strong> goes directly to your secure vendor subaccount hosted on Paystack's regulated infrastructure.</p>
-                  <p>🗸 <strong>10% split</strong> commission is automatically routed to Sokoplus at checkout to cover operations and last-mile delivery riders.</p>
-                  <p>🗸 <strong>Manual Payout Trigger</strong> lets you claim settlements to MPESA instantly once you've fulfilled your customer's craft dispatch.</p>
+                <div className="space-y-2 text-xs text-gray-500 font-medium">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle size={13} className="text-[#32ba78] shrink-0 mt-0.5" />
+                    <p><strong>90% split</strong> goes directly to your secure vendor subaccount hosted on Paystack's regulated infrastructure.</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle size={13} className="text-[#32ba78] shrink-0 mt-0.5" />
+                    <p><strong>10% split</strong> commission is automatically routed to Sokoplus at checkout to cover operations and last-mile delivery riders.</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle size={13} className="text-[#32ba78] shrink-0 mt-0.5" />
+                    <p><strong>Manual Payout Trigger</strong> lets you claim settlements to MPESA instantly once you've fulfilled your customer's craft dispatch.</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1599,8 +1623,9 @@ This stunning beaded Maasai necklace displays premium seed beads selected secure
                           <p className="text-gray-950 font-black">KES {pay.amount.toLocaleString()}</p>
                           <span className="text-[9px] text-gray-400 block font-mono">ID: {pay.id} • {new Date(pay.date).toLocaleDateString()}</span>
                         </div>
-                        <span className="text-[9px] bg-[#32ba78]/10 text-[#32ba78] px-2.5 py-1 rounded-full uppercase font-black">
-                          ✓ Sent to {pay.mpesaPhone}
+                        <span className="text-[9px] bg-[#32ba78]/10 text-[#32ba78] px-2.5 py-1 rounded-full uppercase font-black inline-flex items-center gap-1">
+                          <Check size={11} className="stroke-[2.5]" />
+                          <span>Sent to {pay.mpesaPhone}</span>
                         </span>
                       </div>
                     ))}

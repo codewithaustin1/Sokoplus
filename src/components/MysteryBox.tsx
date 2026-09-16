@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sparkles, Gift, Truck, Key, Check, Copy, RefreshCw, Star, Percent } from "lucide-react";
+import { Gift, Truck, Key, Check, Copy, RefreshCw, Star, Percent } from "lucide-react";
 import { doc, arrayUnion, updateDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import toast from "react-hot-toast";
@@ -123,7 +123,7 @@ export default function MysteryBox({ userId, orderId }: MysteryBoxProps) {
               status: "active"
             })
           });
-          toast.success("Reward secured to your SokoPlus profile! 🏆");
+          toast.success("Reward secured to your SokoPlus profile!");
         } catch (err) {
           console.error("Error storing voucher to Firestore:", err);
         } finally {
@@ -193,11 +193,11 @@ export default function MysteryBox({ userId, orderId }: MysteryBoxProps) {
       {/* Main Title Banner */}
       <div className="text-center max-w-lg space-y-3 relative z-10">
         <div className="mx-auto bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest w-fit flex items-center gap-1.5 shadow-sm border border-orange-200/20 animate-bounce">
-          <Sparkles size={12} className="text-orange-600" />
+          <Star size={12} className="text-orange-600 fill-orange-600" />
           Guaranteed Winner
         </div>
         <h2 className="text-3xl sm:text-4xl font-black italic tracking-tight text-gray-900 dark:text-white">
-          {revealPhase === "opened" ? "You Just Won! 🎉" : "The Soko Mystery Box!"}
+          {revealPhase === "opened" ? "You Just Won!" : "The Soko Mystery Box!"}
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 font-medium px-4">
           {revealPhase === "opened" 
@@ -334,7 +334,7 @@ export default function MysteryBox({ userId, orderId }: MysteryBoxProps) {
                   />
                   <div className={`absolute inset-0 bg-gradient-to-b ${isPremiumBg ? "from-gray-950/50 via-gray-950/70 to-gray-950/92" : "from-gray-950/80 via-gray-950/85 to-gray-950/98"} pointer-events-none z-0`} />
 
-                  {/* Shiny Ambient Sparkles Backdrop */}
+                  {/* Ambient Glow Backdrop */}
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(249,115,22,0.15),transparent_60%)] pointer-events-none z-0" />
 
                   {/* Reward Icon Wrapper */}

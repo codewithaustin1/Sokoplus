@@ -11,10 +11,11 @@ import {
   Copy, 
   ExternalLink, 
   ShieldCheck, 
-  Sparkles, 
+  Image as ImageIcon, 
   CloudDownload, 
   RefreshCw, 
-  AlertCircle 
+  AlertCircle,
+  Lock
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CartItem } from "../types";
@@ -114,7 +115,7 @@ export const DigitalAssetVault: React.FC<DigitalAssetVaultProps> = ({
         return {
           label: "High-Res Graphic",
           badgeColor: "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 border-orange-200 dark:border-orange-800",
-          icon: <Sparkles size={18} />
+          icon: <ImageIcon size={18} />
         };
     }
   };
@@ -398,8 +399,9 @@ export const DigitalAssetVault: React.FC<DigitalAssetVaultProps> = ({
 
           {/* Backup Email & Account Notice */}
           <div className="p-4 bg-orange-50/40 dark:bg-orange-950/20 rounded-2xl border border-orange-100/60 dark:border-orange-900/30 text-xs text-gray-600 dark:text-gray-400 space-y-1.5">
-            <p className="font-semibold">
-              🔒 <strong>Permanent Access:</strong> These assets and license keys have been saved to your account. You can return and re-download them anytime from your Orders page.
+            <p className="font-semibold flex items-center gap-1.5">
+              <Lock size={12} className="text-orange-600 shrink-0" />
+              <span><strong>Permanent Access:</strong> These assets and license keys have been saved to your account. You can return and re-download them anytime from your Orders page.</span>
             </p>
             {userEmail && (
               <p className="text-[11px] text-gray-500 dark:text-gray-500">

@@ -41,7 +41,7 @@ import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, limit } from "firebase/firestore";
 import { useSettings } from "./lib/SettingsContext";
 import { UserProfile } from "./types";
-import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X, Key, LogOut, ShieldCheck, Clock, BarChart2, Sparkles } from "lucide-react";
+import { MessageCircle, ArrowUp, Database, AlertCircle, ExternalLink, ShieldAlert, X, Key, LogOut, ShieldCheck, Clock, BarChart2 } from "lucide-react";
 import { verifyTOTP } from "./utils/totp";
 import toast from "react-hot-toast";
 import SupportChat from "./components/SupportChat";

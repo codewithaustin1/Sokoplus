@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   ArrowLeft, Search, X, Mic, MicOff, Clock, Trash2, 
-  Flame, Sparkles, ChevronRight, ShoppingBag, Layers, 
-  Store, CheckCircle2, TrendingUp 
+  Flame, ChevronRight, ShoppingBag, Layers, 
+  Store, CheckCircle2, TrendingUp, Smartphone, Shirt,
+  Palette, Armchair, Heart, Zap, Folder, Tag, Cpu, ShieldCheck, Droplets
 } from "lucide-react";
 import { Product } from "../types";
 import { FastImage } from "./FastImage";
@@ -45,7 +46,7 @@ const KNOWN_BRANDS: Array<{
   aliases: string[];
   category: string;
   tagline: string;
-  icon: string;
+  brandType: "tech" | "artisan" | "beauty";
   isArtisan?: boolean;
 }> = [
   {
@@ -53,42 +54,42 @@ const KNOWN_BRANDS: Array<{
     aliases: ["apple", "iphone", "ipad", "macbook", "airpods", "ipho"],
     category: "Electronics",
     tagline: "Official Apple iPhones, iPads & Accessories",
-    icon: "🍎"
+    brandType: "tech"
   },
   {
     name: "Samsung",
     aliases: ["samsung", "galaxy", "samsu", "samsang"],
     category: "Electronics",
     tagline: "Samsung Galaxy Smartphones, Tablets & Buds",
-    icon: "📱"
+    brandType: "tech"
   },
   {
     name: "Tecno",
     aliases: ["tecno", "spark", "camon", "phantom"],
     category: "Electronics",
     tagline: "Tecno Spark, Camon & HiOS Devices",
-    icon: "⚡"
+    brandType: "tech"
   },
   {
     name: "Poco",
     aliases: ["poco", "poco phones", "poco c85", "poco x8"],
     category: "Electronics",
     tagline: "POCO Speed-Class Smartphones",
-    icon: "🚀"
+    brandType: "tech"
   },
   {
     name: "Xiaomi",
     aliases: ["xiaomi", "redmi"],
     category: "Electronics",
     tagline: "Xiaomi & Redmi Smart Tech",
-    icon: "🟠"
+    brandType: "tech"
   },
   {
     name: "Maasai Artisan Guild",
     aliases: ["maasai", "masai", "bead", "beadwork", "shuka"],
     category: "Local Crafts",
     tagline: "Handcrafted Authentic Kenyan Maasai Jewelry & Shukas",
-    icon: "🇰🇪",
+    brandType: "artisan",
     isArtisan: true
   },
   {
@@ -96,7 +97,7 @@ const KNOWN_BRANDS: Array<{
     aliases: ["kiondo", "sisal", "basket", "handwoven", "tote"],
     category: "Local Crafts",
     tagline: "Handwoven Kenyan Sisal & Cowhide Baskets",
-    icon: "🧺",
+    brandType: "artisan",
     isArtisan: true
   },
   {
@@ -104,7 +105,7 @@ const KNOWN_BRANDS: Array<{
     aliases: ["shea", "marula", "butter", "skincare", "lotion", "serum"],
     category: "Beauty & Personal Care (Skincare, Haircare, Cosmetics)",
     tagline: "Cold-Pressed Organic African Botanicals",
-    icon: "🌿",
+    brandType: "beauty",
     isArtisan: true
   }
 ];
@@ -294,37 +295,37 @@ export const MobileSearchOverlay: React.FC<MobileSearchOverlayProps> = ({
     {
       name: "Electronics",
       label: language === "sw" ? "Vifaa vya Kidijitali" : "Electronics & Phones",
-      icon: "📱",
+      icon: Smartphone,
       badge: "HOT"
     },
     {
       name: "Fashion",
       label: language === "sw" ? "Mitindo na Mavazi" : "Fashion & Apparel",
-      icon: "👗",
+      icon: Shirt,
       badge: "POPULAR"
     },
     {
       name: "Local Crafts",
       label: language === "sw" ? "Sanaa za Mikono" : "Artisan Crafts & Baskets",
-      icon: "🏺",
+      icon: Palette,
       badge: "KENYA MADE"
     },
     {
       name: "Beauty & Personal Care (Skincare, Haircare, Cosmetics)",
       label: language === "sw" ? "Urembo na Vipodozi" : "Beauty & Skincare",
-      icon: "✨",
+      icon: Droplets,
       badge: "ORGANIC"
     },
     {
       name: "Home & Office Décor (Small Scale & Gadgets)",
       label: language === "sw" ? "Mapambo ya Nyumbani" : "Home & Living",
-      icon: "🛋️",
+      icon: Armchair,
       badge: "TRENDING"
     },
     {
       name: "Pet Supplies (Toys, Collars, Accessories, Dry Kibble)",
       label: language === "sw" ? "Vifaa vya Wanyama" : "Pet Supplies",
-      icon: "🐾",
+      icon: Heart,
       badge: "DEALS"
     }
   ];
@@ -476,32 +477,37 @@ export const MobileSearchOverlay: React.FC<MobileSearchOverlayProps> = ({
                 {/* C. POPULAR CATEGORIES */}
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    <Sparkles size={13} className="text-amber-500" />
+                    <Flame size={13} className="text-amber-500" />
                     <span>{language === "sw" ? "Gundua Vitengo" : "Popular Categories"}</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
-                    {trendingCategories.map((cat) => (
-                      <div
-                        key={cat.name}
-                        onClick={() => {
-                          onCategorySelect(cat.name);
-                          onClose();
-                        }}
-                        className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200/70 dark:border-gray-800 hover:border-amber-500 transition-all cursor-pointer flex items-center justify-between active:scale-[0.98] shadow-2xs group"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="text-xl shrink-0 group-hover:scale-110 transition-transform">{cat.icon}</span>
-                          <div className="min-w-0">
-                            <p className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">{cat.label}</p>
-                            <span className="text-[9px] font-extrabold text-orange-600 dark:text-orange-400 uppercase tracking-wider block">
-                              {cat.badge}
-                            </span>
+                    {trendingCategories.map((cat) => {
+                      const IconComp = cat.icon;
+                      return (
+                        <div
+                          key={cat.name}
+                          onClick={() => {
+                            onCategorySelect(cat.name);
+                            onClose();
+                          }}
+                          className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200/70 dark:border-gray-800 hover:border-amber-500 transition-all cursor-pointer flex items-center justify-between active:scale-[0.98] shadow-2xs group"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-amber-100 group-hover:text-amber-800 transition-colors">
+                              <IconComp size={16} className="stroke-[1.5]" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-gray-900 dark:text-gray-100 truncate">{cat.label}</p>
+                              <span className="text-[9px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
+                                {cat.badge}
+                              </span>
+                            </div>
                           </div>
+                          <ChevronRight size={14} className="text-gray-400 shrink-0 group-hover:text-amber-500 transition-colors" />
                         </div>
-                        <ChevronRight size={14} className="text-gray-400 shrink-0 group-hover:text-amber-500 transition-colors" />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -516,15 +522,21 @@ export const MobileSearchOverlay: React.FC<MobileSearchOverlayProps> = ({
                       className="flex items-center justify-between p-2.5 bg-white dark:bg-gray-900 rounded-2xl border border-amber-300 dark:border-amber-700/60 shadow-sm cursor-pointer active:scale-[0.98] transition-all"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xl shrink-0 font-black shadow-2xs">
-                          {matchedBrand.icon}
+                        <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 flex items-center justify-center shrink-0 shadow-2xs">
+                          {matchedBrand.brandType === "artisan" ? (
+                            <Palette size={20} className="stroke-[1.5]" />
+                          ) : matchedBrand.brandType === "beauty" ? (
+                            <Droplets size={20} className="stroke-[1.5]" />
+                          ) : (
+                            <Smartphone size={20} className="stroke-[1.5]" />
+                          )}
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-black text-gray-950 dark:text-gray-50">{matchedBrand.name}</span>
-                            <CheckCircle2 size={13} className="text-amber-500 fill-amber-100 dark:fill-amber-950 shrink-0" />
+                            <span className="text-xs font-bold text-gray-950 dark:text-gray-50">{matchedBrand.name}</span>
+                            <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                             {matchedBrand.isArtisan && (
-                              <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 uppercase">
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-semibold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 uppercase tracking-wide">
                                 Verified Artisan
                               </span>
                             )}
@@ -532,7 +544,7 @@ export const MobileSearchOverlay: React.FC<MobileSearchOverlayProps> = ({
                           <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">{matchedBrand.tagline}</p>
                         </div>
                       </div>
-                      <ChevronRight size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mr-1" />
+                      <ChevronRight size={16} className="text-gray-400 dark:text-gray-500 shrink-0 mr-1" />
                     </div>
                   </div>
                 )}
@@ -574,9 +586,9 @@ export const MobileSearchOverlay: React.FC<MobileSearchOverlayProps> = ({
                             onCategorySelect(cat);
                             onClose();
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-800 dark:text-gray-200 hover:bg-amber-400 hover:text-black transition-all cursor-pointer shadow-2xs"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all cursor-pointer shadow-2xs"
                         >
-                          <span>📁</span>
+                          <Folder size={12} className="text-gray-400 stroke-[1.5]" />
                           <span>{cat}</span>
                         </button>
                       ))}

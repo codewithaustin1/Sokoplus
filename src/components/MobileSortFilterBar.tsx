@@ -8,7 +8,6 @@ import {
   Star, 
   ArrowRight, 
   RotateCcw,
-  Sparkles,
   SlidersHorizontal,
   Layers
 } from "lucide-react";
@@ -451,8 +450,8 @@ export const MobileSortFilterBar: React.FC<MobileSortFilterBarProps> = ({
                             : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:text-amber-500"
                         }`}
                       >
-                        <Star size={14} fill={minRating >= star ? "currentColor" : "none"} />
-                        <span className="text-xs font-black">{star}★</span>
+                        <Star size={13} fill={minRating >= star ? "currentColor" : "none"} className="shrink-0" />
+                        <span className="text-xs font-bold font-mono">{star}+</span>
                       </button>
                     ))}
                   </div>

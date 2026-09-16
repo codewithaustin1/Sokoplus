@@ -247,7 +247,6 @@ import {
   MapPin,
   Check,
   CheckCheck,
-  Sparkles,
   Zap,
   Award,
   Megaphone,
@@ -272,6 +271,9 @@ import {
   ChevronRight,
   Smartphone,
   ArrowLeft,
+  Lock,
+  AlertTriangle,
+  Wrench,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSellerStudio } from "../lib/SellerStudioContext";
@@ -630,8 +632,9 @@ function ProductImageManager({ images, onChange }: ProductImageManagerProps) {
             >
               <div className="absolute -top-2.5 -left-2 flex items-center">
                 {isCover ? (
-                  <span className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
-                    ★ COVER PREVIEW
+                  <span className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+                    <Star size={10} className="fill-white" />
+                    <span>COVER PREVIEW</span>
                   </span>
                 ) : (
                   <span className="bg-gray-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
@@ -1166,8 +1169,9 @@ function AdminProductsTable({
                               </span>
                             )}
                             {p.isDigital && (
-                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200" title="Digital Downloadable Item">
-                                💻 Digital ({p.digitalFormat?.toUpperCase() || "ASSET"})
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1" title="Digital Downloadable Item">
+                                <FileText size={10} className="shrink-0" />
+                                <span>Digital ({p.digitalFormat?.toUpperCase() || "ASSET"})</span>
                               </span>
                             )}
                             {(!p.approvalStatus || p.approvalStatus === "approved") ? (
@@ -1421,7 +1425,8 @@ function AdminProductsTable({
       <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 pt-4 mt-6 gap-3">
         <div className="flex items-center gap-2 text-xs text-gray-500 font-semibold">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold border border-emerald-200">
-            ⚡ Firestore Server Query (limit 25)
+            <Zap size={11} className="shrink-0" />
+            <span>Firestore Server Query (limit 25)</span>
           </span>
           <span>Page {productsPage}</span>
         </div>
@@ -1685,8 +1690,9 @@ function AdminUsersTable({
                       </td>
                       <td className="py-4 text-xs font-medium text-gray-700">{u.email}</td>
                       <td className="py-4 text-center">
-                        <span className="text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100">
-                          ⚡ {u.loyaltyPoints || 0} pts
+                        <span className="text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100 inline-flex items-center gap-1">
+                          <Coins size={11} className="shrink-0" />
+                          <span>{u.loyaltyPoints || 0} pts</span>
                         </span>
                       </td>
                       <td className="py-4 text-center">
@@ -1989,7 +1995,7 @@ export default function Admin({ user }: AdminProps) {
     try {
       const res = await warmCategoryCache(categoryImages, products);
       if (res.triggered) {
-        toast.success(`⚡ High-Speed Cache Warmer Active! Pre-warming ${res.urlCount} assets for popular categories.`);
+        toast.success(`High-Speed Cache Warmer Active! Pre-warming ${res.urlCount} assets for popular categories.`);
       } else {
         toast.error(`Cache warming skipped: ${res.reason}`);
       }
@@ -2039,7 +2045,7 @@ export default function Admin({ user }: AdminProps) {
       endDate.setDate(endDate.getDate() + 3);
 
       await addDoc(collection(db, "marketing_banners"), {
-        text: `📢 [${broadcastTitle}] ${broadcastMessage}`,
+        text: `[${broadcastTitle}] ${broadcastMessage}`,
         backgroundColor: "sunset",
         textColor: "text-white",
         active: true,
@@ -3478,7 +3484,7 @@ export default function Admin({ user }: AdminProps) {
       };
 
       await addDoc(collection(db, "marketing_banners"), bannerPayload);
-      toast.success("Website Promotional Banner created successfully!", { icon: "🎉" });
+      toast.success("Website Promotional Banner created successfully!");
       
       // Reset banner fields
       setBannerText("");
@@ -4959,9 +4965,10 @@ export default function Admin({ user }: AdminProps) {
                       setBroadcastTitle("High Traffic Notice");
                       setBroadcastMessage("High visitor traffic detected! Orders & checkout process smoothly with instant validation.");
                     }}
-                    className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200/60 dark:border-orange-900/40 text-left text-xs font-bold text-orange-800 dark:text-orange-300 hover:bg-orange-100/50 cursor-pointer transition-all"
+                    className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200/60 dark:border-orange-900/40 text-left text-xs font-bold text-orange-800 dark:text-orange-300 hover:bg-orange-100/50 cursor-pointer transition-all flex items-center gap-1.5"
                   >
-                    ⚡ Traffic Notice
+                    <Zap size={13} className="text-orange-600 shrink-0" />
+                    <span>Traffic Notice</span>
                   </button>
                   <button
                     type="button"
@@ -4969,9 +4976,10 @@ export default function Admin({ user }: AdminProps) {
                       setBroadcastTitle("System Maintenance");
                       setBroadcastMessage("Scheduled database maintenance in progress. All payment processing remains 100% secure.");
                     }}
-                    className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-left text-xs font-bold text-blue-800 dark:text-blue-300 hover:bg-blue-100/50 cursor-pointer transition-all"
+                    className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-left text-xs font-bold text-blue-800 dark:text-blue-300 hover:bg-blue-100/50 cursor-pointer transition-all flex items-center gap-1.5"
                   >
-                    🛠️ Maintenance
+                    <Wrench size={13} className="text-blue-600 shrink-0" />
+                    <span>Maintenance</span>
                   </button>
                   <button
                     type="button"
@@ -4979,9 +4987,10 @@ export default function Admin({ user }: AdminProps) {
                       setBroadcastTitle("Flash Advisory");
                       setBroadcastMessage("Special artisan flash deals are now live across all categories! Free delivery in Nairobi.");
                     }}
-                    className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 text-left text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100/50 cursor-pointer transition-all"
+                    className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 text-left text-xs font-bold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100/50 cursor-pointer transition-all flex items-center gap-1.5"
                   >
-                    🎉 Flash Sale
+                    <Zap size={13} className="text-emerald-600 shrink-0" />
+                    <span>Flash Sale</span>
                   </button>
                 </div>
               </div>
@@ -5469,7 +5478,7 @@ export default function Admin({ user }: AdminProps) {
                 {/* Section 1: Core Operations */}
                 <div className="space-y-2.5 pt-1">
                   <span className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider block">
-                    🚀 Core Operations & Analytics
+                    Core Operations & Analytics
                   </span>
                   <div className="grid grid-cols-1 gap-2">
                     <button
@@ -5544,7 +5553,7 @@ export default function Admin({ user }: AdminProps) {
                 {/* Section 2: Catalog & Marketplace */}
                 <div className="space-y-2.5 pt-4">
                   <span className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider block">
-                    📦 Catalog & Marketplace
+                    Catalog & Marketplace
                   </span>
                   <div className="grid grid-cols-1 gap-2">
                     <button
@@ -5645,7 +5654,7 @@ export default function Admin({ user }: AdminProps) {
                 {/* Section 3: Users & Engagement */}
                 <div className="space-y-2.5 pt-4">
                   <span className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider block">
-                    👥 Users & Engagement
+                    Users & Engagement
                   </span>
                   <div className="grid grid-cols-1 gap-2">
                     <button
@@ -5713,7 +5722,7 @@ export default function Admin({ user }: AdminProps) {
                 {/* Section 4: Governance & Security */}
                 <div className="space-y-2.5 pt-4 pb-2">
                   <span className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider block">
-                    ⚙️ Governance & Security
+                    Governance & Security
                   </span>
                   <div className="grid grid-cols-1 gap-2">
                     <button
@@ -5795,85 +5804,94 @@ export default function Admin({ user }: AdminProps) {
         </button>
         <button
           onClick={() => setActiveTab("users")}
-          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-1.5 shrink-0 md:shrink-0 ${activeTab === "users" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+          className={`px-4 md:px-5 py-2 rounded-xl font-medium text-xs md:text-sm tracking-wide transition-all flex items-center gap-1.5 shrink-0 ${activeTab === "users" ? "bg-white dark:bg-gray-800 shadow-xs text-orange-600 dark:text-orange-400 font-semibold" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
-          <Users size={16} />
+          <Users size={15} className="stroke-[1.5]" />
           <span>User Accounts</span>
         </button>
         <button
           onClick={() => setActiveTab("orders")}
-          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "orders" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+          className={`px-4 md:px-5 py-2 rounded-xl font-medium text-xs md:text-sm tracking-wide transition-all flex items-center gap-1.5 shrink-0 ${activeTab === "orders" ? "bg-white dark:bg-gray-800 shadow-xs text-orange-600 dark:text-orange-400 font-semibold" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
-          Orders
+          <ShoppingBag size={15} className="stroke-[1.5]" />
+          <span>Orders</span>
         </button>
         <button
           onClick={() => setActiveTab("inbox")}
-          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "inbox" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+          className={`px-4 md:px-5 py-2 rounded-xl font-medium text-xs md:text-sm tracking-wide transition-all flex items-center gap-1.5 shrink-0 ${activeTab === "inbox" ? "bg-white dark:bg-gray-800 shadow-xs text-orange-600 dark:text-orange-400 font-semibold" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
-          Inbox{" "}
+          <Inbox size={15} className="stroke-[1.5]" />
+          <span>Inbox</span>
           {tickets.filter((t) => t.status === "open").length > 0 && (
-            <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+            <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono">
               {tickets.filter((t) => t.status === "open").length}
             </span>
           )}
         </button>
         <button
           onClick={() => setActiveTab("blogs")}
-          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "blogs" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+          className={`px-4 md:px-5 py-2 rounded-xl font-medium text-xs md:text-sm tracking-wide transition-all flex items-center gap-1.5 shrink-0 ${activeTab === "blogs" ? "bg-white dark:bg-gray-800 shadow-xs text-orange-600 dark:text-orange-400 font-semibold" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
-          Blog Manager
+          <FileText size={15} className="stroke-[1.5]" />
+          <span>Blog Manager</span>
         </button>
         <button
           onClick={() => setActiveTab("settings")}
-          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "settings" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+          className={`px-4 md:px-5 py-2 rounded-xl font-medium text-xs md:text-sm tracking-wide transition-all flex items-center gap-1.5 shrink-0 ${activeTab === "settings" ? "bg-white dark:bg-gray-800 shadow-xs text-orange-600 dark:text-orange-400 font-semibold" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
-          Admin Settings
+          <Settings size={15} className="stroke-[1.5]" />
+          <span>Admin Settings</span>
         </button>
         <button
           onClick={() => setActiveTab("pod_config")}
-          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all flex items-center gap-1.5 shrink-0 md:shrink-0 ${activeTab === "pod_config" ? "bg-white dark:bg-gray-800 shadow-sm text-amber-600 dark:text-amber-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+          className={`px-4 md:px-5 py-2 rounded-xl font-medium text-xs md:text-sm tracking-wide transition-all flex items-center gap-1.5 shrink-0 ${activeTab === "pod_config" ? "bg-white dark:bg-gray-800 shadow-xs text-amber-600 dark:text-amber-400 font-semibold" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
-          <Truck size={16} />
+          <Truck size={15} className="stroke-[1.5]" />
           <span>Pay on Delivery (POD)</span>
         </button>
         <button
           onClick={() => setActiveTab("marketing")}
-          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "marketing" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+          className={`px-4 md:px-5 py-2 rounded-xl font-medium text-xs md:text-sm tracking-wide transition-all flex items-center gap-1.5 shrink-0 ${activeTab === "marketing" ? "bg-white dark:bg-gray-800 shadow-xs text-orange-600 dark:text-orange-400 font-semibold" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
-          Marketing & CRM
+          <Megaphone size={15} className="stroke-[1.5]" />
+          <span>Marketing & CRM</span>
         </button>
         <button
           onClick={() => setActiveTab("careers")}
-          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "careers" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+          className={`px-4 md:px-5 py-2 rounded-xl font-medium text-xs md:text-sm tracking-wide transition-all flex items-center gap-1.5 shrink-0 ${activeTab === "careers" ? "bg-white dark:bg-gray-800 shadow-xs text-orange-600 dark:text-orange-400 font-semibold" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
-          Careers Board
+          <Briefcase size={15} className="stroke-[1.5]" />
+          <span>Careers Board</span>
         </button>
         <button
           onClick={() => setActiveTab("reviews")}
-          className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "reviews" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+          className={`px-4 md:px-5 py-2 rounded-xl font-medium text-xs md:text-sm tracking-wide transition-all flex items-center gap-1.5 shrink-0 ${activeTab === "reviews" ? "bg-white dark:bg-gray-800 shadow-xs text-orange-600 dark:text-orange-400 font-semibold" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
         >
-          Product Reviews
+          <Star size={15} className="stroke-[1.5]" />
+          <span>Product Reviews</span>
         </button>
         {sellerStudioEnabled && (
           <>
             <button
               onClick={() => setActiveTab("sellers")}
-              className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "sellers" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+              className={`px-4 md:px-5 py-2 rounded-xl font-medium text-xs md:text-sm tracking-wide transition-all flex items-center gap-1.5 shrink-0 ${activeTab === "sellers" ? "bg-white dark:bg-gray-800 shadow-xs text-orange-600 dark:text-orange-400 font-semibold" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
             >
-              Marketplace Sellers
+              <Store size={15} className="stroke-[1.5]" />
+              <span>Marketplace Sellers</span>
               {sellers.filter((s) => s.status === "pending").length > 0 && (
-                <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
+                <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono animate-pulse">
                   {sellers.filter((s) => s.status === "pending").length}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveTab("approval_queue")}
-              className={`px-4 md:px-6 py-2 rounded-xl font-bold text-xs md:text-sm transition-all shrink-0 md:shrink-0 ${activeTab === "approval_queue" ? "bg-white dark:bg-gray-800 shadow-sm text-orange-600 dark:text-orange-400" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
+              className={`px-4 md:px-5 py-2 rounded-xl font-medium text-xs md:text-sm tracking-wide transition-all flex items-center gap-1.5 shrink-0 ${activeTab === "approval_queue" ? "bg-white dark:bg-gray-800 shadow-xs text-orange-600 dark:text-orange-400 font-semibold" : "text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"}`}
             >
-              Approval Queue
+              <Clock size={15} className="stroke-[1.5]" />
+              <span>Approval Queue</span>
               {pendingProducts.filter((p) => p.approvalStatus === "pending").length > 0 && (
-                <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
+                <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono animate-pulse">
                   {pendingProducts.filter((p) => p.approvalStatus === "pending").length}
                 </span>
               )}
@@ -6535,7 +6553,7 @@ export default function Admin({ user }: AdminProps) {
                       Sokoplus Brain Heuristics
                     </span>
                     <h2 className="text-lg font-black text-gray-955 flex items-center gap-2 mt-2">
-                      <Sparkles size={18} className="text-orange-500 shrink-0" />
+                      <TrendingUp size={18} className="text-orange-500 shrink-0" />
                       <span>Smart BI Sourcing Advisor</span>
                     </h2>
                     <p className="text-[11px] text-gray-400 font-bold mt-0.5">
@@ -6581,8 +6599,9 @@ export default function Admin({ user }: AdminProps) {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-gray-100 text-[10px] text-gray-450 font-extrabold text-center uppercase tracking-tight">
-                  🧠 Live heuristics auto-refresh on checkout payments
+                <div className="pt-4 border-t border-gray-100 text-[10px] text-gray-450 font-extrabold text-center uppercase tracking-tight flex items-center justify-center gap-1.5">
+                  <Activity size={12} className="text-gray-400 shrink-0" />
+                  <span>Live heuristics auto-refresh on checkout payments</span>
                 </div>
               </div>
             </div>
@@ -7008,8 +7027,9 @@ export default function Admin({ user }: AdminProps) {
                       >
                         <div className="absolute -top-2.5 -left-2 flex items-center z-10">
                           {isFirst ? (
-                            <span className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
-                              ★ Main Banner Slide
+                            <span className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+                              <Star size={10} className="fill-white" />
+                              <span>Main Banner Slide</span>
                             </span>
                           ) : (
                             <span className="bg-gray-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
@@ -8209,7 +8229,8 @@ export default function Admin({ user }: AdminProps) {
                         <div className="space-y-4">
                           {isParentDisabled && (
                             <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-semibold flex items-center">
-                              ⚠️ Note: This entire {isSelectedCounty ? "County" : "Country"} is currently turned OFF. Local cities are hidden automatically.
+                              <AlertTriangle size={13} className="shrink-0 mr-1.5" />
+                              <span>Note: This entire {isSelectedCounty ? "County" : "Country"} is currently turned OFF. Local cities are hidden automatically.</span>
                             </div>
                           )}
 
@@ -8333,11 +8354,12 @@ export default function Admin({ user }: AdminProps) {
                       const suggested = generateSuggestedSku(newProduct.category, newProduct.name);
                       setNewProduct({ ...newProduct, sku: suggested });
                       if (errors.sku) setErrors({ ...errors, sku: "" });
-                      toast(`Suggested SKU auto-filled: ${suggested}`, { icon: "⚡" });
+                      toast(`Suggested SKU auto-filled: ${suggested}`);
                     }}
                     className="text-xs font-bold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer flex items-center gap-1"
                   >
-                    ⚡ Auto-Generate SKU
+                    <Zap size={12} className="shrink-0" />
+                    <span>Auto-Generate SKU</span>
                   </button>
                 </div>
                 <input
@@ -8359,12 +8381,14 @@ export default function Admin({ user }: AdminProps) {
                   }}
                 />
                 {errors.sku ? (
-                  <p className="text-red-500 text-xs mt-1.5 font-bold flex items-center gap-1">
-                    ⚠️ {errors.sku}
+                  <p className="text-red-500 text-xs mt-1.5 font-bold flex items-center gap-1.5">
+                    <AlertTriangle size={12} className="shrink-0" />
+                    <span>{errors.sku}</span>
                   </p>
                 ) : newProduct.sku ? (
-                  <p className="text-emerald-600 text-xs mt-1 font-semibold flex items-center gap-1">
-                    ✓ SKU format valid: <span className="font-mono font-bold">{newProduct.sku}</span>
+                  <p className="text-emerald-600 text-xs mt-1 font-semibold flex items-center gap-1.5">
+                    <Check size={12} className="shrink-0 stroke-[2.5]" />
+                    <span>SKU format valid: <span className="font-mono font-bold">{newProduct.sku}</span></span>
                   </p>
                 ) : (
                   <p className="text-gray-400 text-[11px] mt-1 font-medium">
@@ -8449,8 +8473,9 @@ export default function Admin({ user }: AdminProps) {
                           setNewProduct({ ...newProduct, digitalFileUrl: e.target.value })
                         }
                       />
-                      <p className="text-[10px] text-gray-400 mt-1">
-                        🔒 Customers receive a secure download link in their order confirmation once payment is verified.
+                      <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1.5">
+                        <Lock size={11} className="shrink-0 text-gray-400" />
+                        <span>Customers receive a secure download link in their order confirmation once payment is verified.</span>
                       </p>
                     </div>
                   </div>
@@ -8729,8 +8754,9 @@ export default function Admin({ user }: AdminProps) {
                     />
 
                     {selectedColorsAdd.length === 0 && (
-                      <p className="text-[9px] text-amber-600 font-bold flex items-center gap-1">
-                        <span>⚠ Please select or pick at least one available swatch.</span>
+                      <p className="text-[9px] text-amber-600 font-bold flex items-center gap-1.5">
+                        <AlertTriangle size={11} className="shrink-0" />
+                        <span>Please select or pick at least one available swatch.</span>
                       </p>
                     )}
                   </div>
@@ -8812,11 +8838,12 @@ export default function Admin({ user }: AdminProps) {
                       const suggested = generateSuggestedSku(editingProduct.category, editingProduct.name);
                       setEditingProduct({ ...editingProduct, sku: suggested });
                       if (errors.sku) setErrors({ ...errors, sku: "" });
-                      toast(`Suggested SKU auto-filled: ${suggested}`, { icon: "⚡" });
+                      toast(`Suggested SKU auto-filled: ${suggested}`);
                     }}
                     className="text-xs font-bold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer flex items-center gap-1"
                   >
-                    ⚡ Auto-Generate SKU
+                    <Zap size={12} className="shrink-0" />
+                    <span>Auto-Generate SKU</span>
                   </button>
                 </div>
                 <input
@@ -8838,12 +8865,14 @@ export default function Admin({ user }: AdminProps) {
                   }}
                 />
                 {errors.sku ? (
-                  <p className="text-red-500 text-xs mt-1.5 font-bold flex items-center gap-1">
-                    ⚠️ {errors.sku}
+                  <p className="text-red-500 text-xs mt-1.5 font-bold flex items-center gap-1.5">
+                    <AlertTriangle size={12} className="shrink-0" />
+                    <span>{errors.sku}</span>
                   </p>
                 ) : editingProduct.sku ? (
-                  <p className="text-emerald-600 text-xs mt-1 font-semibold flex items-center gap-1">
-                    ✓ SKU format valid: <span className="font-mono font-bold">{editingProduct.sku}</span>
+                  <p className="text-emerald-600 text-xs mt-1 font-semibold flex items-center gap-1.5">
+                    <Check size={12} className="shrink-0 stroke-[2.5]" />
+                    <span>SKU format valid: <span className="font-mono font-bold">{editingProduct.sku}</span></span>
                   </p>
                 ) : (
                   <p className="text-gray-400 text-[11px] mt-1 font-medium">
@@ -8928,8 +8957,9 @@ export default function Admin({ user }: AdminProps) {
                           setEditingProduct({ ...editingProduct, digitalFileUrl: e.target.value })
                         }
                       />
-                      <p className="text-[10px] text-gray-400 mt-1">
-                        🔒 Customers receive a secure download link in their order confirmation once payment is verified.
+                      <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1.5">
+                        <Lock size={11} className="shrink-0 text-gray-400" />
+                        <span>Customers receive a secure download link in their order confirmation once payment is verified.</span>
                       </p>
                     </div>
                   </div>
@@ -9221,8 +9251,9 @@ export default function Admin({ user }: AdminProps) {
                     />
 
                     {selectedColorsEdit.length === 0 && (
-                      <p className="text-[9px] text-amber-600 font-bold flex items-center gap-1">
-                        <span>⚠ Please select or pick at least one available swatch.</span>
+                      <p className="text-[9px] text-amber-600 font-bold flex items-center gap-1.5">
+                        <AlertTriangle size={11} className="shrink-0" />
+                        <span>Please select or pick at least one available swatch.</span>
                       </p>
                     )}
                   </div>

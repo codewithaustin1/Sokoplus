@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sparkles, ArrowRight, Gift, Percent, Tag, ShieldCheck } from "lucide-react";
+import { ArrowRight, Gift, Percent, Tag, ShieldCheck } from "lucide-react";
 import { fetchMarketingBanners, MarketingBannerData as PromoBannerData } from "../utils/bannerCache";
 import { useSettings } from "../lib/SettingsContext";
 
@@ -113,7 +113,7 @@ export default function PromotionalBanner() {
     if (lower.includes("shipping") || lower.includes("deliver") || lower.includes("delivery")) {
       return <ShieldCheck className="text-orange-400" size={18} />;
     }
-    return <Sparkles className="text-orange-400" size={18} />;
+    return <Tag className="text-orange-400" size={18} />;
   };
 
   return (

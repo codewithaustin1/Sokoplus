@@ -35,8 +35,7 @@ export function useInactivityLogout(user: any, timeoutMs: number = 15 * 60 * 100
             "Logged out due to inactivity to secure your session.",
             {
               id: "inactivity-logout-toast",
-              duration: 8000,
-              icon: "🛡️"
+              duration: 8000
             }
           );
         } catch (error) {

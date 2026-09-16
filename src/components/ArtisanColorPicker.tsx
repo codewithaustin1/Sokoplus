@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Plus, RefreshCw } from "lucide-react";
+import { Check, Plus, RefreshCw, Palette } from "lucide-react";
 
 // Robust database of elegant colors to match user selections with gorgeous names
 const COLOR_NAMES_DB = [
@@ -331,8 +331,9 @@ export default function ArtisanColorPicker({ onAddColor, selectedColors }: Artis
   return (
     <div className="bg-gray-50/50 dark:bg-gray-950/20 border border-gray-150 dark:border-gray-800 p-4 rounded-2xl space-y-4">
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400">
-          🎨 Interactive Color Wheel variations
+        <span className="text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
+          <Palette size={12} className="shrink-0" />
+          <span>Interactive Color Wheel Variations</span>
         </span>
         <span className="h-px bg-gray-150 dark:bg-gray-800 flex-1" />
       </div>

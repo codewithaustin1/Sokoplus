@@ -8,7 +8,7 @@ import {
   X, 
   ChevronRight, 
   Search, 
-  Sparkles, 
+  Palette, 
   Shirt, 
   Apple, 
   Smartphone, 
@@ -36,7 +36,7 @@ interface BottomNavigationProps {
 }
 
 const DEFAULT_CATEGORIES = [
-  { name: "Local Crafts", labelEn: "Local Crafts", labelSw: "Sanaa za Mikono", icon: Sparkles, desc: "Authentic handmade Kenyan crafts & gifts" },
+  { name: "Local Crafts", labelEn: "Local Crafts", labelSw: "Sanaa za Mikono", icon: Palette, desc: "Authentic handmade Kenyan crafts & gifts" },
   { name: "Fashion", labelEn: "Fashion & Apparel", labelSw: "Mavazi na Mitindo", icon: Shirt, desc: "Modern wear & artisanal textiles" },
   { name: "Electronics", labelEn: "Electronics & Tech", labelSw: "Kielektroniki na Vifaa", icon: Smartphone, desc: "Smart devices & tech accessories" },
   { name: "Beauty & Personal Care (Skincare, Haircare, Cosmetics)", labelEn: "Beauty & Personal Care", labelSw: "Urembo na Vipodozi", icon: Scissors, desc: "Organic skincare, haircare & cosmetics" },
@@ -180,7 +180,7 @@ export default function BottomNavigation({ user }: BottomNavigationProps) {
     const extraList = extraNames.map(catName => {
       const lower = catName.toLowerCase();
       let IconComp = Tag;
-      if (lower.includes("craft") || lower.includes("sanaa")) IconComp = Sparkles;
+      if (lower.includes("craft") || lower.includes("sanaa")) IconComp = Palette;
       else if (lower.includes("fashion") || lower.includes("clothing") || lower.includes("mavazi")) IconComp = Shirt;
       else if (lower.includes("grocer") || lower.includes("food") || lower.includes("vyakula")) IconComp = Apple;
       else if (lower.includes("electr") || lower.includes("tech") || lower.includes("kielektroniki")) IconComp = Smartphone;

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Globe,
   DownloadCloud,
-  Sparkles,
+  Zap,
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
@@ -284,7 +284,7 @@ export default function BulkScraperTab({
       }
 
       setImportSuccessCount(importedCount);
-      toast.success(`🎉 Bulk Import Complete! ${importedCount} products published live to SokoPlus catalog.`);
+      toast.success(`Bulk Import Complete! ${importedCount} products published live to SokoPlus catalog.`);
 
       // Trigger parents to reload products
       if (onRefreshProducts) {
@@ -325,7 +325,7 @@ export default function BulkScraperTab({
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 border border-orange-400/30 text-xs font-black uppercase tracking-wider">
-              <Sparkles size={14} className="animate-spin-slow" />
+              <Zap size={14} className="text-amber-400" />
               <span>Automated Store Crawler & Importer</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
@@ -455,7 +455,7 @@ export default function BulkScraperTab({
               onChange={(e) => setCategoryOverride(e.target.value)}
               className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-sm font-semibold focus:ring-2 focus:ring-orange-500 focus:outline-none transition-all cursor-pointer"
             >
-              <option value="auto">⚡ Auto-Infer SokoPlus Taxonomy (Smart Keyword Match)</option>
+              <option value="auto">Auto-Infer SokoPlus Taxonomy (Smart Keyword Match)</option>
               {availableCategories.map((cat) => (
                 <option key={cat} value={cat}>
                   Force Category: {cat}

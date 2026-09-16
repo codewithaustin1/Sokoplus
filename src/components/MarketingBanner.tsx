@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronLeft, ChevronRight, X, Sparkles, Megaphone, Gift, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Megaphone, Gift, Calendar } from "lucide-react";
 import { fetchMarketingBanners, MarketingBannerData } from "../utils/bannerCache";
 import { useSettings } from "../lib/SettingsContext";
 

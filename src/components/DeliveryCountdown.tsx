@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { MapPin, Clock, Truck, ChevronDown, Check, Sparkles } from "lucide-react";
+import { MapPin, Clock, Truck, ChevronDown, Check } from "lucide-react";
 import { counties } from "../data/counties";
 import { calculateDelivery, getCutoffCountdown, DeliveryPrediction } from "../utils/delivery";
 import { db } from "../lib/firebase";

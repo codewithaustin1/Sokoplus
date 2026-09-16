@@ -200,7 +200,7 @@ export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng,
         circle.bindTooltip(
           `<div style="font-family: system-ui, sans-serif; font-size: 11px; padding: 2px 4px; font-weight: 600;">
              <strong style="color: #065f46;">${cName}</strong><br/>
-             <span style="color: #059669; font-weight: 700;">✓ Sokoplus Service Available</span>
+             <span style="color: #059669; font-weight: 700;">Sokoplus Service Available</span>
            </div>`,
           { permanent: false, direction: "top" }
         );
@@ -407,8 +407,9 @@ export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng,
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            📍 Exact Delivery Pin-drop
+          <label className="flex items-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+            <MapPin size={13} className="text-orange-500 mr-1.5 stroke-[1.5]" />
+            <span>Exact Delivery Pin-drop</span>
           </label>
           <p className="text-[10px] text-gray-400 font-medium mt-0.5">
             Search or drag marker to your precise location. Green overlays highlight active Sokoplus service counties.

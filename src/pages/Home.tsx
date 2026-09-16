@@ -18,6 +18,7 @@ import PromotionalBanner from "../components/PromotionalBanner";
 import { trackEvent } from "../lib/analytics";
 import heroImage from "../assets/images/sokoplus_hero_bg_1782815259030.jpg";
 import { FastImage } from "../components/FastImage";
+import { ProductCard } from "../components/ProductCard";
 import { AddToCartButton } from "../components/AddToCartButton";
 import { CardStarRating } from "../components/AnimatedStarRating";
 import ProductCardSkeleton from "../components/ProductCardSkeleton";
@@ -751,7 +752,7 @@ export default function Home({ user }: HomeProps) {
         if (cached && cached.length > 0) {
           setIsOfflineView(true);
           cached.forEach(p => productCache.set(p.id, p));
-          toast.success("Loaded products offline in secure fallback mode", { icon: "📦" });
+          toast.success("Loaded products offline in secure fallback mode");
           return cached;
         }
 
@@ -1253,99 +1254,14 @@ export default function Home({ user }: HomeProps) {
               className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0"
             >
               {recommendedProducts.map((p) => (
-                <motion.div 
-                  whileHover={{ y: -4 }}
-                  key={`rec-${p.id}`} 
-                  className="w-[220px] sm:w-[250px] shrink-0 snap-start bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm transition-all premium-card-spotlight flex flex-col justify-between"
-                >
-                  <Link 
-                    to={`/product/${p.id}`} 
-                    state={{ product: p }}
-                    onMouseEnter={() => prefetchProductAssets(p)}
-                    onTouchStart={() => prefetchProductAssets(p)}
-                    className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-2.5 relative group shrink-0"
-                  >
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
-                    <FastImage 
-                      src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
-                      alt={p.name} 
-                      fallbackIconSize={40}
-                    />
-                    {p.originalPrice && p.originalPrice > p.price && (
-                      <div className="absolute top-2 right-2 z-10 bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
-                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
-                      </div>
-                    )}
-                    <motion.button
-                      whileHover={{ scale: 1.18 }}
-                      whileTap={{ scale: 0.8 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                      onClick={(e) => toggleWishlist(p.id, e)}
-                      className={`absolute top-2 left-2 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
-                        user?.wishlist?.includes(p.id) 
-                          ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40" 
-                          : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800"
-                      }`}
-                    >
-                      <Heart size={14} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.18 }}
-                      whileTap={{ scale: 0.8 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                      onClick={(e) => handleToggleCompare(p, e)}
-                      className={`absolute top-2 left-10 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
-                        compareIds.includes(p.id) 
-                          ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-450 hover:bg-orange-100 dark:hover:bg-orange-900/40" 
-                          : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-orange-600 hover:bg-white dark:hover:bg-gray-800"
-                      }`}
-                      title="Compare Product Specifications"
-                    >
-                      <GitCompare size={14} />
-                    </motion.button>
-                  </Link>
-                  <div className="space-y-1 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1">
-                          <CardStarRating rating={p.rating || 4.5} size={12} />
-                          <span className="text-gray-500 dark:text-gray-400 text-xs ml-0.5 font-bold tabular-nums">{p.rating || 4.5}</span>
-                        </div>
-                        <div>
-                          {p.stock === 0 ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#D32F2F] text-white">
-                              {t("Out of Stock")}
-                            </span>
-                          ) : p.stock <= 5 ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#FF8C00] text-white">
-                              {t("Low Stock")} ({p.stock})
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-gradient-to-r from-[#28b45b] to-[#16a34a] text-white">
-                              {p.stock} {t("In Stock")}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <Link to={`/product/${p.id}`} state={{ product: p }} className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1 leading-snug">
-                        {p.name}
-                      </Link>
-                    </div>
-                    <div className="flex flex-col mt-2">
-                      <div className="flex items-baseline gap-1.5 mb-2">
-                        <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
-                        {p.originalPrice && p.originalPrice > p.price && (
-                          <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through font-medium select-none">
-                            {formatPrice(p.originalPrice)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="w-full">
-                        <AddToCartButton product={p} className="w-full" size="sm" />
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
+                <div key={`rec-${p.id}`} className="w-[220px] sm:w-[250px] shrink-0 snap-start">
+                  <ProductCard
+                    product={p}
+                    formatPrice={formatPrice}
+                    onToggleWishlist={toggleWishlist}
+                    isWishlisted={user?.wishlist?.includes(p.id)}
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -1385,50 +1301,13 @@ export default function Home({ user }: HomeProps) {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {recentlyViewed.map((p) => (
-              <motion.div
-                whileHover={{ y: -4 }}
+              <ProductCard
                 key={`recent-${p.id}`}
-                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm transition-all flex flex-col justify-between"
-              >
-                <Link
-                  to={`/product/${p.id}`}
-                  state={{ product: p }}
-                  onMouseEnter={() => prefetchProductAssets(p)}
-                  onTouchStart={() => prefetchProductAssets(p)}
-                  className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-3 relative group shrink-0"
-                >
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
-                  <FastImage
-                    src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""}
-                    alt={p.name}
-                    fallbackIconSize={30}
-                  />
-                  {p.originalPrice && p.originalPrice > p.price && (
-                    <div className="absolute top-2 right-2 z-10 bg-red-600 text-white font-extrabold text-[8px] px-1.5 py-0.5 rounded shadow-xs">
-                      -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
-                    </div>
-                  )}
-                </Link>
-                <div className="space-y-1 flex-1 flex flex-col justify-between">
-                  <div>
-                    <Link
-                      to={`/product/${p.id}`}
-                      state={{ product: p }}
-                      className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1 leading-snug"
-                    >
-                      {p.name}
-                    </Link>
-                  </div>
-                  <div className="flex flex-col mt-2.5 pt-2.5 border-t border-gray-100 dark:border-gray-800/60">
-                    <div className="flex items-baseline gap-1.5 mb-2">
-                      <span className="text-xs sm:text-sm font-black text-gray-900 dark:text-white">{formatPrice(p.price)}</span>
-                    </div>
-                    <div className="w-full">
-                      <AddToCartButton product={p} className="w-full text-[10px] py-1.5 h-auto" size="sm" />
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+                product={p}
+                formatPrice={formatPrice}
+                onToggleWishlist={toggleWishlist}
+                isWishlisted={user?.wishlist?.includes(p.id)}
+              />
             ))}
           </div>
         </section>
@@ -1929,9 +1808,14 @@ export default function Home({ user }: HomeProps) {
               {/* Did you mean suggestion banner */}
               {correctedSearchTerm.suggested && (
                 <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-900/50 flex items-center justify-between gap-3 text-left">
-                  <div className="text-xs">
-                    <span className="text-amber-700 dark:text-amber-400 font-black">💡 Regional Slang / Typo Detected:</span>
-                    <p className="text-gray-700 dark:text-gray-300 font-bold">Search instead for "<span className="text-orange-600 capitalize">{correctedSearchTerm.suggested}</span>"?</p>
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                      <Search size={14} className="text-amber-600 dark:text-amber-400 stroke-[2]" />
+                    </div>
+                    <div className="text-xs">
+                      <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">Regional Suggestion</span>
+                      <p className="text-gray-700 dark:text-gray-300 font-medium">Search instead for "<span className="text-amber-600 dark:text-amber-400 font-bold capitalize">{correctedSearchTerm.suggested}</span>"?</p>
+                    </div>
                   </div>
                   <button
                     onClick={() => {
@@ -1941,7 +1825,7 @@ export default function Home({ user }: HomeProps) {
                         return next;
                       }, { replace: true });
                     }}
-                    className="px-3.5 py-1.5 bg-orange-500 hover:bg-orange-400 text-black font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                    className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer whitespace-nowrap shrink-0"
                   >
                     Search {correctedSearchTerm.suggested}
                   </button>
@@ -1986,31 +1870,13 @@ export default function Home({ user }: HomeProps) {
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-5">
                   {products.slice(0, 4).map((p) => (
-                    <motion.div 
-                      whileHover={{ y: -4 }}
-                      key={p.id} 
-                      className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm transition-all flex flex-col justify-between"
-                    >
-                      <Link 
-                        to={`/product/${p.id}`} 
-                        state={{ product: p }}
-                        className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-2.5 relative group"
-                      >
-                        <FastImage 
-                          src={p.images?.[0] || ""} 
-                          alt={p.name} 
-                          fallbackIconSize={36}
-                        />
-                      </Link>
-                      <div className="space-y-1">
-                        <Link to={`/product/${p.id}`} className="font-bold text-xs text-gray-900 dark:text-gray-100 truncate block hover:text-orange-600">
-                          {p.name}
-                        </Link>
-                        <div className="text-xs font-black text-gray-950 dark:text-gray-50">
-                          {formatPrice(p.price)}
-                        </div>
-                      </div>
-                    </motion.div>
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      formatPrice={formatPrice}
+                      onToggleWishlist={toggleWishlist}
+                      isWishlisted={user?.wishlist?.includes(p.id)}
+                    />
                   ))}
                 </div>
               </div>
@@ -2020,106 +1886,13 @@ export default function Home({ user }: HomeProps) {
           <div className="space-y-10">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-5">
               {paginatedProducts.map((p) => (
-                <motion.div 
-                  whileHover={{ y: -4 }}
-                  key={p.id} 
-                  className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-3 sm:p-4 shadow-sm transition-all premium-card-spotlight flex flex-col justify-between"
-                >
-                  <Link 
-                    to={`/product/${p.id}`} 
-                    state={{ product: p }}
-                    onMouseEnter={() => prefetchProductAssets(p)}
-                    onTouchStart={() => prefetchProductAssets(p)}
-                    className="block aspect-square bg-gray-50 dark:bg-gray-950 rounded-xl overflow-hidden mb-2.5 relative group"
-                  >
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 dark:group-hover:bg-white/5 transition-all text-orange-600 dark:text-orange-500"></div>
-                    <FastImage 
-                      src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
-                      alt={p.name} 
-                      fallbackIconSize={40}
-                    />
-                    {p.originalPrice && p.originalPrice > p.price && (
-                      <div className="absolute top-2 right-2 z-10 bg-red-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-700 animate-pulse-subtle">
-                        -{Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}%
-                      </div>
-                    )}
-                    <motion.button
-                      whileHover={{ scale: 1.18 }}
-                      whileTap={{ scale: 0.8 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                      onClick={(e) => toggleWishlist(p.id, e)}
-                      className={`absolute top-2 left-2 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
-                        user?.wishlist?.includes(p.id) 
-                          ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40" 
-                          : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-red-500 hover:bg-white dark:hover:bg-gray-800"
-                      }`}
-                    >
-                      <Heart size={14} fill={user?.wishlist?.includes(p.id) ? "currentColor" : "none"} />
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.18 }}
-                      whileTap={{ scale: 0.8 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 12 }}
-                      onClick={(e) => handleToggleCompare(p, e)}
-                      className={`absolute top-2 left-10 p-1.5 rounded-full shadow-sm z-10 transition-colors ${
-                        compareIds.includes(p.id) 
-                          ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-450 hover:bg-orange-100 dark:hover:bg-orange-900/40" 
-                          : "bg-white/80 dark:bg-gray-900/80 text-gray-400 dark:text-gray-300 hover:text-orange-600 hover:bg-white dark:hover:bg-gray-800"
-                      }`}
-                      title="Compare Product Specifications"
-                    >
-                      <GitCompare size={14} />
-                    </motion.button>
-                  </Link>
-                  <div className="space-y-1 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1">
-                          <CardStarRating rating={p.rating || 4.5} size={12} />
-                          <span className="text-gray-500 dark:text-gray-400 text-xs ml-0.5 font-bold tabular-nums">{p.rating || 4.5}</span>
-                        </div>
-                        <div>
-                          {p.stock === 0 ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#D32F2F] text-white">
-                              Out of Stock
-                            </span>
-                          ) : p.stock <= 5 ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#FF8C00] text-white">
-                              Low Stock ({p.stock})
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-gradient-to-r from-[#28b45b] to-[#16a34a] text-white">
-                              {p.stock} In Stock
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {p.subcategory && (
-                        <div className="mb-1">
-                          <span className="text-[10px] text-orange-700 dark:text-orange-300 font-semibold bg-orange-50 dark:bg-orange-950/40 px-1.5 py-0.5 rounded border border-orange-200/50 dark:border-orange-900/30 truncate max-w-full inline-block">
-                            {p.subcategory}
-                          </span>
-                        </div>
-                      )}
-                      <Link to={`/product/${p.id}`} state={{ product: p }} className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1 leading-snug">
-                        {p.name}
-                      </Link>
-                    </div>
-                    <div className="flex flex-col mt-2">
-                      <div className="flex items-baseline gap-1.5 mb-2">
-                        <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-none">{formatPrice(p.price)}</span>
-                        {p.originalPrice && p.originalPrice > p.price && (
-                          <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through font-medium select-none">
-                            {formatPrice(p.originalPrice)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="w-full">
-                        <AddToCartButton product={p} className="w-full" size="sm" />
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  formatPrice={formatPrice}
+                  onToggleWishlist={toggleWishlist}
+                  isWishlisted={user?.wishlist?.includes(p.id)}
+                />
               ))}
             </div>
 

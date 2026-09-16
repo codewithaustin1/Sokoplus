@@ -135,7 +135,7 @@ export default function Footer() {
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    toast.success(t("Thanks for subscribing to Sokoplus updates!"), { icon: "📧" });
+    toast.success(t("Thanks for subscribing to Sokoplus updates!"));
     setEmail("");
   };
 
@@ -288,7 +288,10 @@ export default function Footer() {
         <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="flex flex-col items-center md:items-start space-y-2">
             <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">
-              &copy; 2026 Sokoplus Arcade. All rights reserved.
+              &copy; 2026 SOKOPLUS HORIZON. All rights reserved.
+            </p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">
+              Registered Business Name: SOKOPLUS HORIZON &bull; Reg. No. BN-J9S6383Q
             </p>
             <div className="flex items-center space-x-4">
               <Link to="/privacy" className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 uppercase tracking-tighter font-bold">Privacy Policy</Link>

@@ -54,6 +54,12 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Do you have a physical store?",
     answer: "Currently, Sokoplus operates primarily as an online digital marketplace to keep overhead costs low and pass maximum earnings directly to our artisans. However, you can view high-resolution photos, artisan stories, and order securely via our storefront."
   },
+  {
+    id: "g3",
+    category: "General",
+    question: "Is Sokoplus a registered business in Kenya?",
+    answer: "Yes. Sokoplus is the online marketplace operated under the registered business name SOKOPLUS HORIZON, duly registered in Kenya under the Registration of Business Names Act (Cap. 499, Section 14) with Business Number BN-J9S6383Q. Our registered premises are situated at Floor: Ground Floor, Room: Door 2 Greenville, Mararo Road, Kiambu Kabete District, Wangige, P.O. Box 23070, 00604 - Lower Kabete. Official registration may be validated by sending the word BRS to 21546."
+  },
 
   // Shipping & Delivery
   {

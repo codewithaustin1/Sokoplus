@@ -3,7 +3,7 @@ import { useParams, Link, useLocation } from "react-router-dom";
 import { doc, getDoc, collection, query, limit, getDocs, updateDoc, arrayUnion, arrayRemove, addDoc, serverTimestamp, orderBy, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Product, UserProfile, Review } from "../types";
-import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Sparkles, Layers, Share2, Bell, GitCompare, Camera, Trash2, Image, Video, VideoOff, Users, Flame, Check, Download, ChevronRight, ArrowLeft, Search, AlertCircle } from "lucide-react";
+import { ShoppingBag, Star, ShieldCheck, Truck, RefreshCw, Heart, Send, Layers, Share2, Bell, GitCompare, Camera, Trash2, Image, Video, VideoOff, Users, Flame, Check, Download, ChevronRight, ArrowLeft, Search, AlertCircle, Wrench, PackageCheck, Clock, Sliders, Trophy, Tag, FileText, CheckCircle2 } from "lucide-react";
 import { useCart } from "../lib/CartContext";
 import { useCurrency } from "../lib/CurrencyContext";
 import { useLanguage } from "../lib/LanguageContext";
@@ -17,6 +17,7 @@ import axios from "axios";
 import SEO from "../components/SEO";
 import { trackEvent } from "../lib/analytics";
 import { FastImage } from "../components/FastImage";
+import { ProductCard } from "../components/ProductCard";
 import { prefetchProductAssets } from "../utils/imagePrefetcher";
 import { productCache } from "../utils/productCache";
 import { getCachedProducts, saveProductsToCache } from "../utils/offlineDb";
@@ -778,7 +779,8 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
                   <div className="mt-auto flex items-center justify-between">
                     <span className="text-lg font-bold text-emerald-600">KES {item.price.toLocaleString()}</span>
                     <span className="text-xs text-amber-600 flex items-center gap-1 font-medium">
-                      ★ {item.rating || 4.8}
+                      <Star size={11} className="text-amber-500 fill-amber-500 stroke-[1.5]" />
+                      <span>{(item.rating || 4.8).toFixed(1)}</span>
                     </span>
                   </div>
                 </div>
@@ -928,35 +930,63 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             <div className="flex items-center gap-2 flex-wrap">
               <Link 
                 to={`/?category=${encodeURIComponent(product.category)}`}
-                className="inline-block px-3 py-1 bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border border-orange-200/60 dark:border-orange-900/40 rounded-full text-xs font-bold hover:bg-orange-100 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 dark:bg-gray-850 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200/80 dark:border-gray-750 rounded-full text-[11px] font-medium tracking-wide uppercase transition-colors"
               >
-                {product.category}
+                <Tag size={11} className="text-gray-400 stroke-[1.5]" />
+                <span>{product.category}</span>
               </Link>
               {product.subcategory && (
                 <Link 
                   to={`/?category=${encodeURIComponent(product.category)}&subcategory=${encodeURIComponent(product.subcategory)}`}
-                  className="inline-block px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900/40 rounded-full text-xs font-bold hover:bg-amber-100 transition-colors"
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-850 text-gray-600 dark:text-gray-300 border border-gray-200/60 dark:border-gray-800 rounded-full text-[11px] font-medium tracking-wide transition-colors"
                 >
-                  {product.subcategory}
+                  <span>{product.subcategory}</span>
                 </Link>
               )}
               {product.sku && (
-                <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-mono font-bold">
-                  SKU: {product.sku}
+                <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100/70 dark:bg-gray-850 text-gray-500 dark:text-gray-400 border border-gray-200/50 dark:border-gray-800 rounded-full text-[11px] font-mono font-medium tracking-wider">
+                  <span>SKU:</span>
+                  <span className="text-gray-700 dark:text-gray-300">{product.sku}</span>
                 </div>
               )}
               {product.condition && (
-                <span className="inline-block px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40 rounded-full text-xs font-bold uppercase tracking-wider">
-                  {product.condition === "NEW" && "Brand New"}
-                  {product.condition === "REFURBISHED" && "Refurbished"}
-                  {product.condition === "OPEN_BOX" && "Open Box"}
-                  {product.condition === "USED" && "Pre-Owned / Used"}
-                  {product.condition === "FOR_PARTS" && "For Parts / As-Is"}
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 dark:bg-gray-850 text-gray-700 dark:text-gray-300 border border-gray-250 dark:border-gray-750 rounded-full text-[11px] font-medium uppercase tracking-wider">
+                  {product.condition === "NEW" && (
+                    <>
+                      <Star size={11} className="text-amber-500 fill-amber-500/20 stroke-[1.5]" />
+                      <span>Brand New</span>
+                    </>
+                  )}
+                  {product.condition === "REFURBISHED" && (
+                    <>
+                      <Wrench size={11} className="text-gray-500 stroke-[1.5]" />
+                      <span>Refurbished</span>
+                    </>
+                  )}
+                  {product.condition === "OPEN_BOX" && (
+                    <>
+                      <PackageCheck size={11} className="text-gray-500 stroke-[1.5]" />
+                      <span>Open Box</span>
+                    </>
+                  )}
+                  {product.condition === "USED" && (
+                    <>
+                      <Clock size={11} className="text-gray-500 stroke-[1.5]" />
+                      <span>Pre-Owned</span>
+                    </>
+                  )}
+                  {product.condition === "FOR_PARTS" && (
+                    <>
+                      <Sliders size={11} className="text-gray-500 stroke-[1.5]" />
+                      <span>For Parts</span>
+                    </>
+                  )}
                 </span>
               )}
               {product.isDigital && (
-                <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded-full text-xs font-extrabold uppercase tracking-wide">
-                  💻 Digital {product.digitalFormat?.toUpperCase() || "ASSET"} Download
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 dark:bg-gray-850 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700 rounded-full text-[11px] font-semibold uppercase tracking-wider">
+                  <Download size={11} className="text-gray-600 dark:text-gray-400 stroke-[1.5]" />
+                  <span>Digital {product.digitalFormat?.toUpperCase() || "ASSET"}</span>
                 </div>
               )}
             </div>
@@ -1027,9 +1057,9 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </div>
 
             {product.stock > 0 && milestoneStats.isTop10 && (
-              <div className="flex items-center space-x-2 bg-orange-50/50 dark:bg-orange-950/20 px-4 py-2.5 rounded-2xl border border-orange-100/40 dark:border-orange-900/20 w-fit text-orange-700 dark:text-orange-400 shadow-sm">
-                <span className="text-orange-500 text-xs">🏆</span>
-                <p className="text-xs font-bold">
+              <div className="flex items-center gap-2 bg-amber-50/60 dark:bg-amber-950/20 px-3.5 py-2 rounded-2xl border border-amber-200/50 dark:border-amber-900/30 w-fit text-amber-800 dark:text-amber-300 shadow-2xs">
+                <Trophy size={13} className="text-amber-500 stroke-[1.5] shrink-0" />
+                <p className="text-xs font-semibold tracking-wide">
                   Top 10 Most-Loved across all categories
                 </p>
               </div>
@@ -1269,7 +1299,8 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </p>
             {alertSetSuccessfully ? (
               <div className="p-3 bg-green-50 dark:bg-green-950/40 border border-green-150 dark:border-green-900/30 rounded-xl flex items-center justify-center space-x-2 text-green-700 dark:text-green-400 text-xs font-semibold animate-fade-in">
-                <span>✓ Price alert set successfully for {alertEmail}!</span>
+                <CheckCircle2 size={14} className="text-green-600 dark:text-green-400 shrink-0" />
+                <span>Price alert set successfully for {alertEmail}!</span>
               </div>
             ) : (
               <form onSubmit={handleSetPriceDropAlert} className="flex gap-2">
@@ -1321,62 +1352,14 @@ export default function ProductDetails({ user }: ProductDetailsProps) {
             </div>
           </div>
 
-           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-             {recommendations.map((p) => (
-               <motion.article 
-                 onMouseEnter={() => prefetchProductAssets(p)}
-                 onTouchStart={() => prefetchProductAssets(p)}
-                 whileHover={{ y: -6 }}
-                 key={p.id} 
-                 className="bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-full relative"
-               >
-                 <div className="aspect-square bg-gray-50 dark:bg-gray-950 overflow-hidden relative">
-                    <FastImage 
-                      src={p.images?.filter(img => !!img && img.trim() !== "")[0] || ""} 
-                      alt={p.name} 
-                      fallbackIconSize={48}
-                    />
-                   {/* Stock Badge Overlay */}
-                   <span className="absolute top-3 left-3 z-10">
-                     {p.stock === 0 ? (
-                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#D32F2F] text-white shadow-sm">
-                         Out of Stock
-                       </span>
-                     ) : p.stock <= 5 ? (
-                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FF8C00] text-white shadow-sm">
-                         Low Stock ({p.stock})
-                       </span>
-                     ) : (
-                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-[#28b45b] to-[#16a34a] text-white shadow-sm font-extrabold tracking-wide">
-                         {p.stock} In Stock
-                       </span>
-                     )}
-                   </span>
-                </div>
-                
-                <div className="p-5 flex flex-col flex-grow justify-between space-y-3">
-                   <div className="space-y-1">
-                     <Link 
-                       to={`/product/${p.id}`} 
-                       state={{ product: p }}
-                       className="block text-sm font-extrabold text-gray-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-500 transition-colors line-clamp-1"
-                     >
-                       {p.name}
-                     </Link>
-                   </div>
-                   
-                   <div className="flex items-center justify-between pt-1">
-                     <span className="text-base font-black text-gray-900 dark:text-white">{formatPrice(p.price)}</span>
-                     <Link 
-                       to={`/product/${p.id}`}
-                       state={{ product: p }}
-                       className="text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-500 hover:text-orange-700 dark:hover:text-orange-400 flex items-center space-x-1"
-                     >
-                       <span>View Details</span>
-                     </Link>
-                   </div>
-                </div>
-              </motion.article>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {recommendations.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={p}
+                formatPrice={formatPrice}
+                isWishlisted={user?.wishlist?.includes(p.id)}
+              />
             ))}
           </div>
         </section>

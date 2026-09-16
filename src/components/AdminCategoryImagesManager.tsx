@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { LayoutGrid, Save, RotateCcw, Image as ImageIcon, Upload, Sparkles, Check, Search, Plus, Trash2 } from "lucide-react";
+import { LayoutGrid, Save, RotateCcw, Image as ImageIcon, Upload, Check, Search, Plus, Trash2 } from "lucide-react";
 import { DEFAULT_CATEGORY_IMAGES, FALLBACK_CATEGORY_IMAGE, getCategoryImageUrl } from "../lib/categoryImages";
 import { db } from "../lib/firebase";
 import { collection, query, limit, getDocs, getDocsFromCache } from "firebase/firestore";
@@ -242,7 +242,7 @@ export default function AdminCategoryImagesManager({
                     onClick={() => setActivePresetModalCategory(activePresetModalCategory === catName ? null : catName)}
                     className="text-[11px] font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 flex items-center gap-1 bg-orange-50 dark:bg-orange-950/50 hover:bg-orange-100 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
                   >
-                    <Sparkles size={12} /> Presets
+                    <LayoutGrid size={12} /> Presets
                   </button>
 
                   {/* Upload file button */}

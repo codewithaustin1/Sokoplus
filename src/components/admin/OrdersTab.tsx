@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { Download, Search, Eye, Trash2 } from "lucide-react";
+import { Download, Search, Eye, Trash2, Zap } from "lucide-react";
 
 interface OrdersTabProps {
   orderStatusFilter: string;
@@ -206,8 +206,9 @@ export const OrdersTab: React.FC<OrdersTabProps> = memo(({
       {/* Server-Side Pagination Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 pt-4 mt-6 gap-3">
         <div className="flex items-center gap-2 text-xs text-gray-500 font-semibold">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold border border-emerald-200">
-            ⚡ Firestore Server Query (limit 25)
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full text-[11px] font-medium tracking-wide border border-emerald-200">
+            <Zap size={12} className="text-emerald-600 stroke-[1.5]" />
+            <span>Firestore Server Query (limit 25)</span>
           </span>
           <span>Page {ordersPage}</span>
         </div>

@@ -14,8 +14,7 @@ export function OfflineNotifier() {
       setShowBanner(false);
       
       if (wasOffline) {
-        toast.success("Connection restored! Syncing with latest marketplace listings...", {
-          icon: "⚡",
+        toast.success("Connection restored! Syncing marketplace listings...", {
           id: "network-status-toast",
           duration: 4000
         });
@@ -34,7 +33,6 @@ export function OfflineNotifier() {
       setWasOffline(true);
       
       toast.error("Offline mode active. Browsing cached listings.", {
-        icon: "🔌",
         id: "network-status-toast",
         duration: 5000
       });
