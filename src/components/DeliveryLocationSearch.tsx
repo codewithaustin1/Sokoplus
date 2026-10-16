@@ -85,7 +85,7 @@ export default function DeliveryLocationSearch({
     };
   }, []);
 
-  // Fetch OpenMaps suggestions as the user types
+  // Fetch OpenMaps suggestions as the user types via compliant server proxy
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
@@ -103,36 +103,24 @@ export default function DeliveryLocationSearch({
     setIsLoading(true);
     debounceTimerRef.current = setTimeout(async () => {
       try {
-        // First try server proxy
-        let fetchedItems: OpenMapLocation[] = [];
-        try {
-          const res = await axios.get("/api/openmaps/search", {
-            params: { q: val, country: countryHint, limit: 6 },
-          });
-          if (res.data && Array.isArray(res.data.suggestions)) {
-            fetchedItems = res.data.suggestions;
-          }
-        } catch {
-          // Direct OpenStreetMap Nominatim fallback
-          const directUrl = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(
-            val + (countryHint && !val.toLowerCase().includes(countryHint.toLowerCase()) ? `, ${countryHint}` : "")
-          )}`;
-          const response = await fetch(directUrl, {
-            headers: { "User-Agent": "SokoPlus-Delivery-Applet/1.0" },
-          });
-          if (response.ok) {
-            fetchedItems = await response.json();
-          }
-        }
+        // Route 100% through compliant server proxy (with LRU cache & Photon/Nominatim orchestration)
+        const res = await axios.get("/api/openmaps/search", {
+          params: { q: val, country: countryHint, limit: 6 },
+        });
 
-        setSuggestions(fetchedItems);
-        setIsOpen(fetchedItems.length > 0);
+        if (res.data && Array.isArray(res.data.suggestions)) {
+          setSuggestions(res.data.suggestions);
+          setIsOpen(res.data.suggestions.length > 0);
+        } else {
+          setSuggestions([]);
+          setIsOpen(false);
+        }
       } catch (err) {
         console.warn("[DeliveryLocationSearch] OpenMaps query notice:", err);
       } finally {
         setIsLoading(false);
       }
-    }, 280);
+    }, 450);
   };
 
   const handleLocateMe = (isAuto = false) => {
@@ -143,32 +131,42 @@ export default function DeliveryLocationSearch({
       async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-            { headers: { "User-Agent": "SokoPlus-Kenya-Delivery-Applet" } }
-          );
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.display_name) {
-              const addr = data.address || {};
-              const localPlace = addr.suburb || addr.neighbourhood || addr.village || addr.quarter || addr.commercial || addr.road || "";
-              const cityTown = addr.city || addr.town || addr.municipality || "Nairobi";
-              const countyRegion = addr.county || "Nairobi";
-              const cleanAddress = formatCleanLocationDisplay(data.display_name) || (localPlace ? `${localPlace}, ${cityTown}` : data.display_name.split(",").slice(0, 2).join(","));
+          // Route reverse geocode through compliant server-side proxy
+          const res = await axios.get("/api/openmaps/reverse", {
+            params: { lat: latitude, lng: longitude },
+          });
 
-              setQuery(cleanAddress);
-              onSelectLocation({
-                displayName: data.display_name,
-                shortAddress: cleanAddress,
-                lat: latitude,
-                lng: longitude,
-                city: cityTown,
-                county: countyRegion,
-                country: addr.country || "Kenya",
-                street: localPlace || cleanAddress,
-                raw: data,
-              });
-            }
+          const data = res.data?.location || res.data;
+          if (data && data.display_name) {
+            const addr = data.address || {};
+            const localPlace =
+              addr.suburb ||
+              addr.neighbourhood ||
+              addr.village ||
+              addr.quarter ||
+              addr.commercial ||
+              addr.road ||
+              "";
+            const cityTown = addr.city || addr.town || addr.municipality || "Nairobi";
+            const countyRegion = addr.county || addr.state || "Nairobi";
+            const cleanAddress =
+              formatCleanLocationDisplay(data.display_name) ||
+              (localPlace
+                ? `${localPlace}, ${cityTown}`
+                : data.display_name.split(",").slice(0, 2).join(","));
+
+            setQuery(cleanAddress);
+            onSelectLocation({
+              displayName: data.display_name,
+              shortAddress: cleanAddress,
+              lat: latitude,
+              lng: longitude,
+              city: cityTown,
+              county: countyRegion,
+              country: addr.country || "Kenya",
+              street: localPlace || cleanAddress,
+              raw: data,
+            });
           }
         } catch (err) {
           console.warn("Locate me reverse geocode warning:", err);

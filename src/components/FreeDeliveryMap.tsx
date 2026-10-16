@@ -3,6 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapPin, Navigation, Compass, Search, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "react-hot-toast";
+import axios from "axios";
 import DeliveryLocationSearch, { SelectedLocationData } from "./DeliveryLocationSearch";
 import { formatCleanLocationDisplay } from "../utils/delivery";
 
@@ -263,17 +264,12 @@ export default function FreeDeliveryMap({ county, city, initialStreet, lat, lng,
 
     geocodeTimeoutRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${selectedCoords.lat}&lon=${selectedCoords.lng}&zoom=18&addressdetails=1`,
-          {
-            headers: {
-              "User-Agent": "SokoPlus-Kenya-Delivery-Applet",
-            },
-          }
-        );
+        // Route reverse geocode through compliant server-side proxy
+        const res = await axios.get("/api/openmaps/reverse", {
+          params: { lat: selectedCoords.lat, lng: selectedCoords.lng },
+        });
 
-        if (!res.ok) throw new Error("Nominatim response error");
-        const data = await res.json();
+        const data = res.data?.location || res.data;
 
         if (data && data.display_name) {
           // Parse a cleaner, shorter description from address details to populate the input

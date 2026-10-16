@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import admin from "firebase-admin";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { searchOpenMapLocations, reverseGeocodeCoords } from "../src/server/openmapsService";
 
 dotenv.config();
 
@@ -1138,6 +1139,47 @@ app.get(["/robots.txt", "/api/robots.txt"], (req, res) => {
 // Recommendations handler cache
 const recommendationCache = new Map<string, string[]>();
 let quotaCooldownUntil = 0;
+let geminiKeySuspensionCooldown = 0;
+let hasLoggedKeySuspension = false;
+
+function isGeminiKeyAvailable(): boolean {
+  if (Date.now() < geminiKeySuspensionCooldown || Date.now() < quotaCooldownUntil) {
+    return false;
+  }
+  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (!apiKey || apiKey.trim() === "") {
+    return false;
+  }
+  return true;
+}
+
+function handleGeminiError(error: any, context: string): { shouldBreak: boolean } {
+  const errMsg = error?.message || String(error);
+  const status = error?.status || error?.code;
+  const isSuspendedOrUnauthorized = 
+    status === 403 || 
+    errMsg.includes("suspended") || 
+    errMsg.includes("CONSUMER_SUSPENDED") || 
+    errMsg.includes("PERMISSION_DENIED") ||
+    errMsg.includes("API_KEY_INVALID") ||
+    errMsg.includes("API key not valid");
+
+  if (isSuspendedOrUnauthorized) {
+    geminiKeySuspensionCooldown = Date.now() + 10 * 60 * 1000;
+    if (!hasLoggedKeySuspension) {
+      console.info(`[SokoSmart AI] Notice: External Gemini API key is suspended or inactive. Seamlessly using high-performance local engine for ${context}.`);
+      hasLoggedKeySuspension = true;
+    }
+    return { shouldBreak: true };
+  }
+
+  if (status === 429 || errMsg.includes("RESOURCE_EXHAUSTED")) {
+    quotaCooldownUntil = Date.now() + 60 * 1000;
+    return { shouldBreak: true };
+  }
+
+  return { shouldBreak: false };
+}
 
 // Local Heuristic Fallback Search Engine for Support Chat
 function generateLocalHeuristicResponse(userQuery: string, products: any[]): string {
@@ -1237,8 +1279,7 @@ app.post(["/api/recommendations", "/recommendations"], async (req, res) => {
   };
 
   try {
-    if (Date.now() < quotaCooldownUntil) {
-      console.warn("Recommendations: AI limit hit / cooldown active. Using local heuristic fallback.");
+    if (!isGeminiKeyAvailable()) {
       return res.json({ recommendationIds: getLocalFallbackRecommendations() });
     }
 
@@ -1256,7 +1297,7 @@ app.post(["/api/recommendations", "/recommendations"], async (req, res) => {
       Return only a JSON array of product IDs.
     `;
 
-    const candidateModels = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"];
+    const candidateModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash"];
     let recommendationIds: string[] = [];
 
     for (const modelName of candidateModels) {
@@ -1275,7 +1316,10 @@ app.post(["/api/recommendations", "/recommendations"], async (req, res) => {
           }
         }
       } catch (mErr: any) {
-        console.warn(`[Recommendations] Model ${modelName} call failed:`, mErr?.message || mErr);
+        const { shouldBreak } = handleGeminiError(mErr, "Recommendations");
+        if (shouldBreak) {
+          break;
+        }
       }
     }
 
@@ -1351,12 +1395,18 @@ Here is the current active Sokoplus product catalog:
 ${JSON.stringify(productsData)}
 `;
 
+  if (!isGeminiKeyAvailable()) {
+    const lastUserMsg = messages[messages.length - 1]?.text || "";
+    const fallbackText = generateLocalHeuristicResponse(lastUserMsg, productsData);
+    return res.json({ text: fallbackText });
+  }
+
   const contents = messages.map((m: any) => ({
     role: m.sender === "user" ? "user" : "model",
     parts: [{ text: m.text }],
   }));
 
-  const candidateModels = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"];
+  const candidateModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash"];
 
   for (const modelName of candidateModels) {
     try {
@@ -1373,7 +1423,10 @@ ${JSON.stringify(productsData)}
         return res.json({ text: response.text });
       }
     } catch (mErr: any) {
-      console.warn(`[SokoSmart Support Chat] Model ${modelName} error in index.ts:`, mErr?.message || mErr);
+      const { shouldBreak } = handleGeminiError(mErr, "Support Chat");
+      if (shouldBreak) {
+        break;
+      }
     }
   }
   
@@ -1382,6 +1435,39 @@ ${JSON.stringify(productsData)}
   const fallbackText = generateLocalHeuristicResponse(lastUserMsg, productsData);
   
   res.json({ text: fallbackText });
+});
+
+// OpenMaps (OpenStreetMap Nominatim / Photon / Kenyan Gazetteer) location autocomplete & suggestion proxy
+app.get("/api/openmaps/search", async (req, res) => {
+  try {
+    const q = (req.query.q as string || "").trim();
+    const limit = parseInt((req.query.limit as string) || "6", 10);
+    const country = (req.query.country as string) || "Kenya";
+
+    const { suggestions, source } = await searchOpenMapLocations(q, country, limit);
+    return res.json({ suggestions, source });
+  } catch (err: any) {
+    console.error("[OpenMaps Search] Proxy error:", err);
+    return res.status(500).json({ error: err.message || "OpenMaps search failed", suggestions: [] });
+  }
+});
+
+// OpenMaps reverse geocode proxy (compliant server-side Nominatim lookup with cache & offline fallback)
+app.get("/api/openmaps/reverse", async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat as string);
+    const lng = parseFloat((req.query.lng || req.query.lon) as string);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({ error: "Invalid lat/lng parameters" });
+    }
+
+    const { location, source } = await reverseGeocodeCoords(lat, lng);
+    return res.json({ location, source, ...location });
+  } catch (err: any) {
+    console.error("[OpenMaps Reverse] Proxy error:", err);
+    return res.status(500).json({ error: err.message || "OpenMaps reverse failed" });
+  }
 });
 
 // Fallback response for unhandled API calls

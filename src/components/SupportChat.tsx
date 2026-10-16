@@ -383,75 +383,7 @@ export default function Support({ user, isOpen, onClose }: SupportProps) {
         throw new Error("No streamed text content received from SSE route");
       }
     } catch (err: any) {
-      console.warn("AI SSE stream endpoint failed, attempting direct client-side fallback (Option B)...", err);
-
-      const clientApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (clientApiKey) {
-        try {
-          const { GoogleGenAI } = await import("@google/genai");
-          const aiInstance = new GoogleGenAI({ apiKey: clientApiKey });
-
-          const systemInstruction = `You are "SokoSmart", the intelligent, friendly, and helpful Customer Support Assistant for Sokoplus, a premier Kenyan e-commerce marketplace. 
-
-Your objectives:
-1. Provide accurate, context-aware information about the products in our storefront catalog.
-2. Help users find suitable products, answer questions about product features, pricing (expressed in KES / Kenyan Shillings), availability/stock, and categories.
-3. Be extremely polite and show genuine warm Kenyan hospitality. Use words like "Habari" (Hello), "Karibu" (Welcome), or "Asante" (Thank you) when welcoming or thanking the customer. Keep your responses primarily in English.
-4. Keep answers nicely styled with clean markdown bullets, but concise and reader-friendly. Avoid overly long walls of text.
-5. If a user asks about their specific order status or needs technical support, guide them to use our standard ticket form (available in the "Email Us" mode of the support window) or write a ticket, and our team will get in touch.
-6. Return responses in standard Markdown. Do not include any private JSON data formats in the text.
-7. Use Google Maps tool to ground location-based queries accurately inside Kenya.
-
-Here is the current active Sokoplus product catalog:
-${JSON.stringify(products.map(p => ({
-  id: p.id,
-  name: p.name,
-  category: p.category,
-  price: p.price,
-  description: p.description,
-  stock: p.stock,
-  rating: p.rating || 5
-})))}
-`;
-
-          const contents = [...aiMessages, userMsg].map((m) => ({
-            role: m.sender === "user" ? "user" : "model",
-            parts: [{ text: m.text }],
-          }));
-
-          const candidateModels = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"];
-          let clientText = "";
-
-          for (const modelName of candidateModels) {
-            try {
-              const responseStream = await aiInstance.models.generateContentStream({
-                model: modelName,
-                contents: contents,
-                config: {
-                  systemInstruction,
-                },
-              });
-
-              for await (const chunk of responseStream) {
-                if (chunk.text) {
-                  clientText += chunk.text;
-                  setAiMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === botMsgId ? { ...msg, text: clientText } : msg
-                    )
-                  );
-                }
-              }
-
-              if (clientText.trim()) return;
-            } catch (mErr) {
-              console.warn(`[Client Gemini Fallback] Model ${modelName} failed:`, mErr);
-            }
-          }
-        } catch (clientErr) {
-          console.error("Direct client-side Gemini fallback stream failed:", clientErr);
-        }
-      }
+      console.info("AI chat stream endpoint unavailable, showing fallback support message:", err?.message || err);
 
       setAiMessages((prev) =>
         prev.map((msg) =>
@@ -460,7 +392,7 @@ ${JSON.stringify(products.map(p => ({
                 ...msg,
                 text: `Habari! SokoSmart is currently operating in offline mode. 
 
-Please check out our featured products catalog on the home page, or connect with our human support team via the **WhatsApp** or **Email Ticket** tabs above! Asante sana.`,
+Please check out our featured products catalog on the home page, or connect with our customer support team via the **WhatsApp** or **Email Ticket** tabs above! Asante sana.`,
               }
             : msg
         )

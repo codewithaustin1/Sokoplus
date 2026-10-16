@@ -29,16 +29,20 @@ export default function Login() {
   const navigate = useNavigate();
 
   const handleProfileSync = async (user: User) => {
-    const userRef = doc(db, "users", user.uid);
-    const userDoc = await getDoc(userRef);
+    try {
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userRef);
 
-    if (!userDoc.exists()) {
-      await setDoc(userRef, {
-        email: user.email || null,
-        displayName: user.displayName || email.split('@')[0] || "Valued Customer",
-        loyaltyPoints: 0,
-        createdAt: new Date().toISOString(),
-      });
+      if (!userDoc.exists()) {
+        await setDoc(userRef, {
+          email: user.email || null,
+          displayName: user.displayName || (user.email ? user.email.split('@')[0] : "Valued Customer"),
+          loyaltyPoints: 0,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } catch (profileErr) {
+      console.warn("Could not sync user profile:", profileErr);
     }
 
     // Automatically check for pre-authorized admin invitations if user has an email
@@ -101,7 +105,9 @@ export default function Login() {
           navigate("/");
         }
       } catch (error: any) {
-        console.error("Redirect login result handler failed:", error);
+        if (error?.code !== "auth/popup-closed-by-user" && error?.code !== "auth/cancelled-popup-request") {
+          console.warn("Redirect sign-in notice:", error);
+        }
       } finally {
         setLoading(false);
       }
@@ -114,18 +120,6 @@ export default function Login() {
     setLoading(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-    
-    // Proactive iframe/sandbox detection: use Redirect style when nested inside an iframe
-    const isInIframe = window.self !== window.top;
-    if (isInIframe) {
-      try {
-        toast.loading("Establishing secure session in sandbox. Redirecting to Google sign-in...", { duration: 4000 });
-        await signInWithRedirect(auth, provider);
-        return;
-      } catch (redirectErr: any) {
-        console.error("Proactive Google redirect failed, falling back to popup flow:", redirectErr);
-      }
-    }
 
     try {
       const result = await signInWithPopup(auth, provider);
@@ -135,23 +129,39 @@ export default function Login() {
         navigate("/");
       }
     } catch (error: any) {
-      console.error("Login popup failed:", error);
-      if (error.code === "auth/popup-closed-by-user" || error.code === "auth/cancelled-popup-request") {
-        // User voluntarily dismissed popup
+      const errStr = `${error?.code || ""} ${error?.message || ""} ${String(error || "")}`;
+      const isCancelledOrClosed =
+        error?.code === "auth/popup-closed-by-user" ||
+        error?.code === "auth/cancelled-popup-request" ||
+        errStr.includes("auth/popup-closed-by-user") ||
+        errStr.includes("popup-closed-by-user") ||
+        errStr.includes("auth/cancelled-popup-request") ||
+        errStr.includes("cancelled-popup-request");
+
+      if (isCancelledOrClosed) {
+        // User closed or dismissed the popup window before finishing sign-in - normal user choice
         toast("Sign-in cancelled.", { icon: "ℹ️" });
-      } else if (
-        error.code === "auth/popup-blocked" || 
-        error.message?.includes("iframe")
-      ) {
-        try {
-          toast.loading("Google Popup was blocked. Redirecting to Google Sign-In...", { duration: 4000 });
-          await signInWithRedirect(auth, provider);
-        } catch (fallbackRedirectErr: any) {
-          console.error("Fallback redirect sign-in failed:", fallbackRedirectErr);
-          toast.error("Google sign-in is blocked in this browser. Please sign in using Email & Password below.");
+      } else if (error?.code === "auth/popup-blocked" || errStr.includes("popup-blocked")) {
+        const isInIframe = typeof window !== "undefined" && window.self !== window.top;
+        if (isInIframe) {
+          toast.error("Google sign-in popup was blocked by the browser. Please allow popups or open the app in a new tab.", { duration: 6000 });
+        } else {
+          try {
+            toast.loading("Google Popup was blocked. Trying redirect sign-in...", { duration: 3000 });
+            await signInWithRedirect(auth, provider);
+          } catch (fallbackRedirectErr: any) {
+            const fallbackStr = `${fallbackRedirectErr?.code || ""} ${fallbackRedirectErr?.message || ""} ${String(fallbackRedirectErr || "")}`;
+            if (!fallbackStr.includes("popup-closed-by-user") && !fallbackStr.includes("cancelled-popup-request")) {
+              console.warn("Fallback redirect sign-in notice:", fallbackRedirectErr);
+            }
+            toast.error("Google sign-in is blocked in this browser. Please sign in using Email & Password below.");
+          }
         }
+      } else if (error?.code === "auth/network-request-failed" || errStr.includes("network-request-failed")) {
+        toast.error("Network error. Please check your internet connection and try again.");
       } else {
-        toast.error(error.message || "Failed to sign in with Google.");
+        console.warn("Login popup notice:", error);
+        toast.error(error?.message || "Failed to sign in with Google.");
       }
     } finally {
       setLoading(false);

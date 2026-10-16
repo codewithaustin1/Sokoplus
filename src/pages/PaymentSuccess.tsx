@@ -192,8 +192,21 @@ export default function PaymentSuccess() {
       setAccountConverted(true);
       toast.success(`Signed in as ${googleUser.displayName || googleUser.email}! ${claimedCount || 1} order(s) linked.`);
     } catch (err: any) {
-      console.error("Google Sign-In failed:", err);
-      toast.error("Google Sign-In was cancelled or failed.");
+      const errStr = `${err?.code || ""} ${err?.message || ""} ${String(err || "")}`;
+      const isCancelledOrClosed =
+        err?.code === "auth/popup-closed-by-user" ||
+        err?.code === "auth/cancelled-popup-request" ||
+        errStr.includes("auth/popup-closed-by-user") ||
+        errStr.includes("popup-closed-by-user") ||
+        errStr.includes("auth/cancelled-popup-request") ||
+        errStr.includes("cancelled-popup-request");
+
+      if (isCancelledOrClosed) {
+        toast("Google Sign-In cancelled.", { icon: "ℹ️" });
+      } else {
+        console.warn("Google Sign-In notice:", err);
+        toast.error(err?.message || "Google Sign-In was cancelled or failed.");
+      }
     } finally {
       setConvertingAccount(false);
     }
